@@ -14,7 +14,7 @@
 - **Ready email existed but was never called** — now sent once per project when anything finishes (video, presentation, deck, commercial), from the stuck-video cron / completion paths, plus a bell notice; skipped for drafts, prospect demos, tests, and when the owner is still on the making screen (`/api/videos/<id>/ready-seen`). Needs RESEND_API_KEY on Vercel. Home: "Finished while you were away".
 - **Text2Art phone menu:** light side panel with close button (desktop bar unchanged).
 - Skipped on purpose: "hold credits, then charge" — videos are all-or-nothing and failures already refund, so it would change nothing for customers.
-- **Deploy order:** Lambda site `docs2video` (still mode) → ECS image + roll (`/preview-still`, progress words, voice fix) → Vercel.
+- **Deployed 2026-10-07:** Lambda site `docs2video` (still mode, verified with a live render) → Vercel (main d171435) → ECS image `sha256:b9a38ab3…` (digest verified on the running task; `/preview-still` answers). The Remotion package mix-up from the earlier sharp reinstall was fixed with `npm ci --legacy-peer-deps` in remotion/ (all 4.0.290).
 - **Open:** look sample thumbnails on step 3 show real names (PubcoZone, Valor Financial, "QoL Max Accumulator+ III") — regenerate with neutral content; cookie notice covers the pinned phone button until dismissed.
 
 ## 2026-10-07 — Chosen voice in every look + header compliance scrub (not deployed)
