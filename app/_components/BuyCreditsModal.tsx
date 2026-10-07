@@ -19,6 +19,9 @@ const PACKS = CREDIT_PACKS.map(p => ({ ...p, price: packPrice(p), highlight: p.b
 export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyCreditsModalProps) {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // LIGHT START: an account with no card is sent to add one first (the server
+  // answers code 'card_required') — credits it bought couldn't be spent yet.
+  const [needsCard, setNeedsCard] = useState(false)
 
   if (!open) return null
 
@@ -36,6 +39,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
         window.location.href = data.url
       } else {
         setError(data.error || 'Could not start checkout. Please try again.')
+        setNeedsCard(data.code === 'card_required')
         setLoading(null)
       }
     } catch {
@@ -79,6 +83,12 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
             color: 'var(--error-text)', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
           }}>
             {error}
+            {needsCard && (
+              <>
+                {' '}
+                <a href={`/setup-payment?next=${encodeURIComponent(window.location.pathname + window.location.search)}`} style={{ color: 'var(--link)', textDecoration: 'underline' }}>Add a card</a>
+              </>
+            )}
           </div>
         )}
 

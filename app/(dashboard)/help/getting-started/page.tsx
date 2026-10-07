@@ -5,9 +5,11 @@ import { PLANS, isSellablePlan } from '../../../_lib/pricing'
 import { CREDIT_COSTS, TIER_CREDITS, TIER_APPROX_VIDEOS } from '../../../_lib/credits'
 import { packsSentence } from '../../../_lib/credit-packs'
 import { NAMES } from '../../../_lib/names'
+import { FREE_PREVIEWS_PER_DAY } from '../../../_lib/first-scene-preview'
 
-// Getting Started guide. Audited against the live UI 2026-09-26: sign-up →
-// card page (one-time free credits) → 5-step Setup Wizard → dashboard.
+// Getting Started guide. Updated for the light start (overhaul phase 5,
+// 2026-10): sign-up → Home → first project (free preview) → a card only when
+// you press Make it. The Setup Wizard is optional (Settings).
 // Every price and credit amount is read from pricing.ts / credits.ts /
 // credit-packs.ts, and button names from names.ts.
 
@@ -70,10 +72,13 @@ export default function GettingStartedPage() {
             <strong style={INK}>Confirm your email.</strong> We send you an email with a link. Click it to confirm your address.
           </Row>
           <Row n={3}>
-            <strong style={INK}>Add your payment card.</strong> A page titled <strong style={INK}>Add your payment method</strong> asks for your card (see below).
+            <strong style={INK}>You land on Home.</strong> No card and no setup pages first. A note at the top says <strong style={INK}>Try it before you add a card.</strong>
           </Row>
-          <Row n={4} last>
-            <strong style={INK}>Complete the Setup Wizard.</strong> Five short steps: <strong style={INK}>Profile</strong>, <strong style={INK}>Photo</strong>, <strong style={INK}>Brand</strong>, <strong style={INK}>Voice</strong> and <strong style={INK}>Style</strong>. You can press <strong style={INK}>Skip for now</strong>, and run it again later with <strong style={INK}>Re-run Setup Wizard</strong> at the top of Settings.
+          <Row n={4}>
+            <strong style={INK}>Make your first project.</strong> Pick a start card, let it read your document and check the story. On step 3 (<strong style={INK}>Make it yours</strong>) press <strong style={INK}>See a free preview</strong> to see the first scene in your look and hear the voice — free, {FREE_PREVIEWS_PER_DAY} a day, no card needed.
+          </Row>
+          <Row n={5} last>
+            <strong style={INK}>Add your brand there too.</strong> On the same step, <strong style={INK}>Add your brand</strong> asks for your name, logo and colours — <strong style={INK}>Fill in from it</strong> reads them from your website. It is optional; with no logo your name shows as text. The old five-page <strong style={INK}>Setup Wizard</strong> is still there if you want it: <strong style={INK}>Re-run Setup Wizard</strong> at the top of Settings.
           </Row>
         </div>
       </div>
@@ -83,7 +88,7 @@ export default function GettingStartedPage() {
         <h2 style={H2}>Adding Your Payment Card</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 12 }}>
-            A card is needed to unlock your free credits. <strong style={INK}>Nothing is charged today.</strong>
+            You add a card when you press <strong style={INK}>Make it</strong> on your first real video, presentation or slide deck. The page <strong style={INK}>Add your payment method</strong> opens, and after you save the card it takes you straight back to your project. The card unlocks your free credits. <strong style={INK}>Nothing is charged today.</strong> You can add it earlier with <strong style={INK}>Add a card</strong> on Home, or leave the card page with <strong style={INK}>Not now</strong>.
           </p>
           <Row n={1}>
             <strong style={INK}>Choose a plan.</strong> Pick the plan you&rsquo;d like to move to once your free credits run out. You are only billed for it after they are used up.
@@ -92,7 +97,7 @@ export default function GettingStartedPage() {
             <strong style={INK}>Enter your card details.</strong> A secure Stripe form asks for your card number, expiry date and CVC. Your card details are handled by Stripe and never stored on our servers.
           </Row>
           <Row n={3} last>
-            <strong style={INK}>Save your card.</strong> Click the button to save it and continue. Your {FREE_CREDITS} free credits are added right away.
+            <strong style={INK}>Save your card.</strong> Click the button to save it and continue. Your {FREE_CREDITS} free credits start right away, and you are back where you pressed Make it.
           </Row>
           <p style={{ marginTop: 16 }}>
             To change your card later, open <strong style={INK}>Settings</strong> from the account menu (click your name, top-right), go to the <strong style={INK}>Subscription</strong> tab, and click <strong style={INK}>Manage billing &amp; invoices</strong>.
@@ -105,7 +110,7 @@ export default function GettingStartedPage() {
         <h2 style={H2}>Your {FREE_CREDITS} Free Credits</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 12 }}>
-            Every new account gets <strong style={INK}>{FREE_CREDITS} free credits</strong> — a one-time welcome gift, enough for about <strong style={INK}>{TIER_APPROX_VIDEOS.free.standard} standard videos</strong> (a standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits).
+            Every new account gets <strong style={INK}>{FREE_CREDITS} free credits</strong> once a card is saved — a one-time welcome gift, enough for about <strong style={INK}>{TIER_APPROX_VIDEOS.free.standard} standard videos</strong> (a standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits).
           </p>
           <p style={{ marginBottom: 12 }}>
             <strong style={INK}>What is included:</strong> the full experience — AI reading your document, script editing, voice narration, background music, and downloads (MP4, PDF, PPTX).

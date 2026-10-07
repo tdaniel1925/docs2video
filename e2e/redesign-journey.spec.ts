@@ -74,8 +74,18 @@ test('a document becomes a story, gets its look and price, and is discarded from
       await expect(page.getByRole('radiogroup', { name: 'What do you want to send?' })).toContainText(fmt(q.options[o].total))
     }
 
-    // ── Brand "Change" round trip (real) ──
-    await page.getByRole('button', { name: /^(Change|Add your brand)$/ }).click()
+    // ── Brand round trip (real). With a brand, "Change" opens the brand page.
+    //    With none, "Add your brand" opens in place (phase 5) and its "More
+    //    brand options" link opens the same brand page. ──
+    const change = page.getByRole('button', { name: 'Change', exact: true })
+    if (await change.isVisible().catch(() => false)) {
+      await change.click()
+    } else {
+      const piece = page.getByRole('region', { name: 'Add your brand' })
+      if (!(await piece.isVisible().catch(() => false))) await page.getByRole('button', { name: 'Add your brand' }).click()
+      await expect(piece).toBeVisible()
+      await piece.getByRole('link', { name: /More brand options/ }).click()
+    }
     await page.waitForURL(new RegExp(`/create/brand\\?id=${videoId}$`))
     await expect(page.getByRole('heading', { name: 'Your brand', exact: true })).toBeVisible()
     const using = page.getByText('Using your brand')

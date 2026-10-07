@@ -8,6 +8,7 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { logError } from '../../_lib/error-logger'
 import { usableBrief } from '../../_lib/wizard-draft'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 // Script generation makes chained Claude calls that can run for minutes — longer
@@ -57,6 +58,10 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // LIGHT START: free for everyone, but an account with no card yet gets a
+  // daily ceiling on this AI work (cardless-prep.ts). Cards: never counted.
+  const capped = await cardlessPrepGate(user.id)
+  if (capped) return capped
 
   const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
   if (!rl.allowed) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
 import type { PresentationScene } from '../../_lib/presentation'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 // =============================================================================
 // AI slide editing — the brain behind "tell it what you want changed".
@@ -43,6 +44,10 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+  // LIGHT START: free for everyone, but an account with no card yet gets a
+  // daily ceiling on this AI work (cardless-prep.ts). Cards: never counted.
+  const capped = await cardlessPrepGate(user.id)
+  if (capped) return capped
 
   const body = await req.json().catch(() => null) as {
     scenes?: PresentationScene[]

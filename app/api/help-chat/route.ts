@@ -5,6 +5,8 @@ import { PLANS } from '../../_lib/pricing'
 import { CREDIT_COSTS, TIER_CREDITS, MULTI_FILE_SURCHARGE } from '../../_lib/credits'
 import { CREDIT_PACKS, packPrice } from '../../_lib/credit-packs'
 import { NAMES, KIND_NAMES } from '../../_lib/names'
+import { FREE_PREVIEWS_PER_DAY } from '../../_lib/first-scene-preview'
+import { helpContextFor } from '../../_lib/how-to-use'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -41,8 +43,14 @@ FINDING YOUR WAY AROUND:
 - Top bar: "${NAMES.newButton}", "${NAMES.library}", "${NAMES.clients}", "${NAMES.brands}". The logo goes Home. On the right: "${NAMES.howToUse}" (numbered steps for the screen you're on; on a phone it's in the ☰ menu as "${NAMES.howToUse} this screen"), the credit balance in gold with "+ Top Up" (amber when fewer than ${n(CREDIT_COSTS.videoStandard)} credits are left — one standard video), the notification bell, and the account menu behind your initial: plan, Analytics, AI Social, Affiliate Program, Settings, Help Center, Sign out.
 - Home: start cards first — "From a document", "From a website", "From an idea" (AI writes it) and "A commercial"; each opens step 1 with that choice already made ("Paste your text" under them does the same for pasted text). Then "Today’s clients" (who clicked to book, watched, or hasn't opened what you sent, each with the next step), then "Projects" with where each one is at, and "This month".
 
+STARTING OUT (no card needed to try it):
+- Signing up asks only for name, email and password — no card. You land on Home and can make a first project: read your document, check the story, pick the look and voice, and press "See a free preview" on step 3 (the first scene in your look plus a few seconds of the voice; ${FREE_PREVIEWS_PER_DAY} a day, free, no card).
+- The card is asked for only when you press "Make it" on a real video, presentation or deck: it takes you to "Add your payment method", then brings you back to the same screen. Saving a card starts the free trial — the ${n(TIER_CREDITS.free)} free credits can only be spent once a card is on file. No charge until the free credits run out.
+- Without a card, reading documents and writing stories has a generous daily limit; adding a card removes it.
+- There is no setup wizard to get through first. Your brand is added inside your first project (see Brands below). The old wizard is still at Settings > "Re-run Setup Wizard" for anyone who wants it.
+
 KEY FEATURES:
-- ${NAMES.brands}: a brand is either a Company (logo, colors, contact info) or a Person (name, role, photo, intro line). Applied automatically. Manage them from "${NAMES.brands}" in the top bar, or add one on the "Make it yours" step.
+- ${NAMES.brands}: a brand is either a Company (logo, colors, contact info) or a Person (name, role, photo, intro line). Applied automatically. Manage them from "${NAMES.brands}" in the top bar, or add one inside a project: on the "Make it yours" step press "Add your brand", type your name, upload your logo and pick two colours — "Fill in from it" reads the colours and logo from your website — then "Save my brand" (your first brand becomes the default for every new project). "More brand options" adds a photo and contact details. Logos are only ever your real logo — we never draw one; with no logo your name shows as text.
 - Video looks: Slide Deck (recommended, ~10 min), Aurora, Cinematic, Editorial, Explainer and Infographic. Picked on the "Make it yours" step.
 - The story step: after the document is read, the AI shows the one point and the scenes. You edit any scene, pick the length (Short, Standard or Detailed — changing it offers a free "Rewrite at this length"), or type a change under "Change it by asking", with Undo. This step is free.
 - ${NAMES.library}: everything you've made in a table, with tabs ${['video', 'presentation', 'deck', 'graphic'].map(k => KIND_NAMES[k as 'video'].many).join(' / ')}; see recipient + status, Duplicate, delete, and paginate (25/50/100 per page).
@@ -78,12 +86,12 @@ Failed generations are automatically refunded.
 HOW TO MAKE ONE (four steps; nothing is charged until "Make it"):
 1. What's this about? Click "${NAMES.newButton}" (or a start card on Home), pick a client (or "No client — general"), say what it should get them to do, and choose the content: Website URL, Upload file (up to 5), Paste text, or "AI writes it". After reading, "Here’s what we read" shows the summary, the one point and the numbers the story will use exactly as written — fix any, then "Looks right — write the story".
 2. Check the story. Edit the scenes, pick the length, or ask for changes. Free.
-3. Make it yours. Check the brand, choose Narrated video / Interactive presentation / Slide deck, the look, the voice (Sarah by default) and music, optionally a note to the client — the price is shown — then press "Make it".
+3. Make it yours. Check the brand (or press "Add your brand" to add it right there), choose Narrated video / Interactive presentation / Slide deck, the look, the voice (Sarah by default) and music, optionally a note to the client, press "See a free preview" to see the first scene free — the price is shown — then press "Make it" (a new account adds its card at this point).
 4. Send it. It finishes in the background (most videos 3–5 minutes, the Slide Deck look about 10) and lands in the ${NAMES.library}; you can close the page — we email you when it’s ready, and Home shows it under "Finished while you were away". Then send it from "Ready to send", ask for a change, or download it from the "Download" menu.
 Commercials and Custom Graphics start from the links under step 1.
 
 SETTINGS TABS:
-- Profile: name, company, phone, role, photo.
+- Profile: name, company, phone, role, photo. "Re-run Setup Wizard" walks through name, photo, brand, voice and look in one go (optional).
 - Integrations: connect email (Gmail/Microsoft/SMTP/Resend), add your Stripe Payment Link, add a Calendly link, connect social accounts.
 - Subscription: view/change plan, buy credit packs, see usage.
 
@@ -95,6 +103,12 @@ RULES:
 - ONLY answer questions about Docs2Video — its features, pricing, credits, how-to, billing, account, and troubleshooting. If asked anything off-topic (general knowledge, coding help, other products, personal questions), politely decline in one sentence and steer back: e.g. <p>I can only help with Docs2Video. What would you like to do in the app?</p>
 - Never invent features, prices, or steps. If you're unsure, say so and point to the Help Center (/help) or support.
 - Be friendly, direct, and accurate. Guide step-by-step for how-to questions.`
+
+/** The assistant's knowledge, plus the screen the person is on (if it has a guide). */
+function systemFor(page: unknown): string {
+  const here = helpContextFor(page)
+  return here ? `${SYSTEM_KNOWLEDGE}\n\n${here}` : SYSTEM_KNOWLEDGE
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -113,8 +127,10 @@ export async function POST(request: Request) {
     userCounts.set(user.id, { count: 1, resetAt: now + USER_WINDOW })
   }
 
-  const { messages } = await request.json() as {
+  const { messages, page } = await request.json() as {
     messages: { role: 'user' | 'assistant'; content: string }[]
+    /** The address of the screen the help was opened on (e.g. /create/theme). */
+    page?: unknown
   }
 
   if (!messages?.length) {
@@ -132,7 +148,9 @@ export async function POST(request: Request) {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 512,
-      system: SYSTEM_KNOWLEDGE,
+      // The screen they're on, from that screen's own How-to-use guide (the
+      // address is only used to look the guide up — see helpContextFor).
+      system: systemFor(page),
       messages: claudeMessages,
     })
 

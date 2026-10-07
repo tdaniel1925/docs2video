@@ -39,7 +39,18 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>From the top bar</strong> — Click <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> in the top bar. You see all your saved brands. Click <strong style={{ color: 'var(--ink)' }}>{NAMES.newBrand}</strong> to add one, or click a brand to edit it.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step you see which brand is in use. Click <strong style={{ color: 'var(--ink)' }}>Change</strong> (or <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> if there isn&apos;t one yet) to pick another saved brand or make a new one on the spot. No brand at all? The video uses plain colors.
+            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step you see which brand is in use. Click <strong style={{ color: 'var(--ink)' }}>Change</strong> to pick another saved brand or make a new one. No brand at all? The video uses plain colors.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Your first brand, inside your first project</strong> — New accounts don&apos;t fill in a brand page first. On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step of your first project, <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> opens right on the page (later, click <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> on the brand line):
+          </p>
+          <ol style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+            <li>Type <strong style={{ color: 'var(--ink)' }}>Your name or company</strong>.</li>
+            <li>Type <strong style={{ color: 'var(--ink)' }}>Your website</strong> and click <strong style={{ color: 'var(--ink)' }}>Fill in from it</strong> — it reads your colours and the logo on your site. Or click <strong style={{ color: 'var(--ink)' }}>Upload your logo</strong> and pick <strong style={{ color: 'var(--ink)' }}>Your colours</strong> yourself.</li>
+            <li>Click <strong style={{ color: 'var(--ink)' }}>Save my brand</strong>. This project uses it, and your first brand becomes the default for new projects. <strong style={{ color: 'var(--ink)' }}>Not now</strong> closes it; <strong style={{ color: 'var(--ink)' }}>More brand options</strong> adds a photo and contact details.</li>
+          </ol>
+          <p style={{ marginTop: 10 }}>
+            Only your real logo is ever used — we never draw one. With no logo, your name shows as text.
           </p>
         </div>
       </div>

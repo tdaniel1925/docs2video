@@ -12,7 +12,7 @@ import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 import { DOCS2VIDEO, type Brand } from '../_lib/brand'
 import { NAMES, planLabel } from '../_lib/names'
-import { ACCOUNT_MENU, SIGN_OUT, creditLevel, isCurrent } from '../_lib/top-bar'
+import { ACCOUNT_MENU, OPEN_HELP_EVENT, SIGN_OUT, creditLevel, isCurrent } from '../_lib/top-bar'
 
 /*
  * THE TOP BAR. Which bar a storefront wears is its brand's choice
@@ -190,6 +190,11 @@ function TopBar({ profile, brand, lowCreditsAt }: { profile: Profile; brand: Bra
           ))}
           <button type="button" className="kit-menu-item" onClick={() => { setPhoneOpen(false); setHowToOpen(true) }} aria-haspopup="dialog">
             {NAMES.howToUse} this screen
+          </button>
+          {/* On a phone the help assistant lives here, not as a round button
+              floating over the page (HelpChatWidget). */}
+          <button type="button" className="kit-menu-item" onClick={() => { setPhoneOpen(false); window.dispatchEvent(new Event(OPEN_HELP_EVENT)) }} aria-haspopup="dialog">
+            Ask the help assistant
           </button>
         </nav>
       )}

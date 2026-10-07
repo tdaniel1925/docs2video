@@ -51,7 +51,10 @@ test.beforeEach(async ({ page }) => {
   guard = await guardRealWorld(page)
   // 406: after "Make it" the waiting screen asks the database about the
   // pretend project at once, and there is no such row.
-  consoleErrors = collectConsoleErrors(page, [/status of (402|409|500)/, /status of 406/])
+  // The card page loads Stripe's script; with no Stripe key in a local
+  // .env.local (or no network to js.stripe.com) it complains once it is
+  // reached. These tests only check that Make it GETS there.
+  consoleErrors = collectConsoleErrors(page, [/status of (402|409|500)/, /status of 406/, /publishable key/i, /js\.stripe\.com/])
 })
 test.afterEach(() => {
   expectNoBlockedCalls(guard)

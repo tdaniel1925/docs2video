@@ -48,3 +48,8 @@ export function creditLevel(balance: number, lowAt: number): 'ok' | 'low' {
 export function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + '/')
 }
+
+/** The phone ☰ menu's "Ask the help assistant" opens the help with this
+ *  window event (HelpChatWidget listens). On a phone the assistant has no
+ *  floating button on Docs2Video — it covered the page. */
+export const OPEN_HELP_EVENT = 'd2v:open-help'

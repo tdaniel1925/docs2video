@@ -150,6 +150,11 @@ export default function CreateCommercialPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        // No card yet (light start): add one, then come back here.
+        if (data?.code === 'card_required') {
+          router.push(`/setup-payment?next=${encodeURIComponent('/create/commercial')}`)
+          return
+        }
         setError(data?.error || 'Could not start the commercial. Please try again.')
         setSubmitting(false)
         return

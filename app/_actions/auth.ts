@@ -7,6 +7,9 @@ import { siteUrl } from '../_lib/site-url'
 import { sendWelcomeEmailOnce } from '../_lib/welcome-email'
 import { getAffiliateByCode } from '../_lib/affiliate'
 import { safeNextPath } from '../_lib/safe-redirect'
+import { getBrand } from '../_lib/brand-server'
+import { afterSignupPath } from '../_lib/light-start'
+import { cookies } from 'next/headers'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -31,13 +34,18 @@ export async function signup(formData: FormData) {
   const referredBy = ((formData.get('referred_by') as string | null) ?? '').trim() || null
   const phone = (formData.get('phone') as string | null)?.trim() || null
 
+  // LIGHT START (light-start.ts): on Docs2Video a new person goes to Home and
+  // can try a first project, free preview included, before adding a card. The
+  // card is asked for when they press "Make it". Text2Art keeps card-first.
+  const landing = afterSignupPath(await getBrand())
+
   const { data, error } = await supabase.auth.signUp({
     email: formData.get('email') as string,
     password: formData.get('password') as string,
     options: {
       // Where the confirmation link lands. Without this Supabase falls back to
       // the dashboard's "Site URL", which may not be this deployment.
-      emailRedirectTo: `${siteUrl()}/auth/callback?next=/setup-payment`,
+      emailRedirectTo: `${siteUrl()}/auth/callback?next=${landing}`,
       data: {
         full_name: formData.get('full_name') as string,
         ...(referredBy ? { referred_by: referredBy } : {}),
@@ -93,14 +101,46 @@ export async function signup(formData: FormData) {
     }
   }
 
+  // Affiliate-link visitors carry the code in the d2v_ref cookie (not the
+  // form). The old setup wizard reported it, but that wizard is no longer a
+  // stop on the way in — so signup records it here, the same way
+  // /api/affiliate/track-signup does (a "signed_up" referral row only).
+  if (data.user) {
+    try {
+      const jar = await cookies()
+      const raw = jar.get('d2v_ref')?.value ?? ''
+      let cookieCode = ''
+      try { cookieCode = decodeURIComponent(raw).trim() } catch { cookieCode = raw.trim() }
+      if (cookieCode && cookieCode !== referredBy) {
+        const affiliate = await getAffiliateByCode(cookieCode)
+        if (affiliate && affiliate.status === 'active' && affiliate.user_id !== data.user.id) {
+          const admin = createAdminClient()
+          const { data: existing } = await admin.from('referrals').select('id')
+            .eq('affiliate_id', affiliate.id).eq('referred_user_id', data.user.id).maybeSingle()
+          if (!existing) {
+            await admin.from('referrals').insert({
+              affiliate_id: affiliate.id,
+              referred_user_id: data.user.id,
+              status: 'signed_up',
+              signup_at: new Date().toISOString(),
+            })
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[signup] affiliate cookie attribution failed:', e instanceof Error ? e.message : e)
+    }
+  }
+
   // If session exists, email confirmation is disabled — the address counts as
-  // confirmed, so welcome now and go to card collection. Otherwise the welcome
-  // email goes out when they click the confirmation link (auth callback).
+  // confirmed, so welcome now and go straight in (Home on Docs2Video, no card
+  // yet). Otherwise the welcome email goes out when they click the
+  // confirmation link (auth callback).
   if (data.session && data.user) {
     await sendWelcomeEmailOnce(data.user).catch(err =>
       console.error('[signup] Welcome email failed:', err instanceof Error ? err.message : err)
     )
-    redirect('/setup-payment')
+    redirect(landing)
   }
 
   return { success: 'Check your email to confirm your account.' }

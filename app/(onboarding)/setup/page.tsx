@@ -92,11 +92,9 @@ export default function SetupPage() {
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
-      // Redirect to card collection if no card on file
-      if (profile && !profile.card_on_file) {
-        router.push('/setup-payment')
-        return
-      }
+      // LIGHT START: no card needed to fill in your details here. (It used to
+      // send anyone without a card to the card page first.) A card is asked
+      // for when you press "Make it" on a real video.
 
       if (profile) {
         setFullName(profile.full_name ?? '')

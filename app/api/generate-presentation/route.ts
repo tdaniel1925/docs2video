@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits } from '../../_lib/credits'
+import { creditDeniedResponse } from '../../_lib/credit-charge'
 import { presentationCreditCost } from '../../_lib/price-quote'
 import { refundPresentationCharge } from '../../_lib/video-billing'
 import { buildShareColumns } from '../../_lib/wizard-draft'
@@ -126,6 +127,9 @@ export async function POST(request: NextRequest) {
   let charged = 0
   if (!isInternalCall) {
     const check = await checkCredits(user.id, cost)
+    // No card yet / failed payment / banned: say that (code 'card_required'
+    // sends step 3 to the card page), not "not enough credits".
+    if (check.blockedReason) return creditDeniedResponse(check, cost)
     if (!check.allowed) {
       return NextResponse.json({ error: 'Not enough credits — you need ' + check.shortfall + ' more.', code: 'insufficient_credits', needed: cost, balance: check.remaining }, { status: 402 })
     }

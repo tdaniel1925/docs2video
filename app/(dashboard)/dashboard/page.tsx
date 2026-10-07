@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/server'
 import { getBrand } from '../../_lib/brand-server'
-import { getBalance } from '../../_lib/credits'
+import { getBalance, spendBlockReason } from '../../_lib/credits'
 import { getUserTier } from '../../_lib/pricing'
 import { planLabel } from '../../_lib/names'
 import { Button, Card, CardIcon, CardTitle, CardText, CardGo, Chip, EmptyState, Note, kitButtonClass, type ChipTone } from '../../_components/kit'
@@ -18,6 +18,9 @@ import s from './_home/home.module.css'
 // URL to show the link in the welcome line. Unset → no link (avoids a dead
 // placeholder link for every new user).
 const GETTING_STARTED_VIDEO = process.env.NEXT_PUBLIC_GETTING_STARTED_VIDEO || ''
+// The light-start note's title (the How-to-use guide quotes it).
+const CARDLESS_TITLE = 'Try it before you add a card.'
+
 const HAS_GETTING_STARTED_VIDEO = GETTING_STARTED_VIDEO.includes('loom.com/embed/') && !GETTING_STARTED_VIDEO.includes('YOUR_LOOM_ID')
 
 /*
@@ -40,7 +43,7 @@ export default async function HomePage() {
 
   const [{ data: profile }, balance, home] = await Promise.all([
     supabase.from('profiles')
-      .select('full_name, subscription_status, referred_by')
+      .select('full_name, subscription_status, referred_by, card_on_file, is_admin, is_beta')
       .eq('id', user.id)
       .single(),
     getBalance(user.id),
@@ -58,6 +61,10 @@ export default async function HomePage() {
   // showed things like "Agency plan" or "Past due plan".
   const plan = planLabel(status)
   const credits = balance.total
+  // LIGHT START: no card yet. They can make a first project and see the free
+  // preview; the free credits only start once a card is saved (credits.ts
+  // refuses to spend them before that), so say so instead of "N left".
+  const cardless = spendBlockReason(profile) === 'card_required'
 
   const need = home.peopleNeedingYou
   const subline = !home.hasAnyProject
@@ -83,7 +90,17 @@ export default async function HomePage() {
           Update your card so nothing stops.
         </Note>
       )}
-      {isTrial && (
+      {cardless && (
+        <Note
+          tone="info"
+          className={s.banner}
+          title={CARDLESS_TITLE}
+          action={<Button href="/setup-payment?next=/dashboard" size="sm" variant="secondary">Add a card</Button>}
+        >
+          Make your first project and see a free preview of its first scene. Your {credits.toLocaleString()} free credits start when you add a card — we’ll ask when you press <strong>Make it</strong>.
+        </Note>
+      )}
+      {isTrial && !cardless && (
         <Note
           tone={credits <= 0 ? 'warn' : 'info'}
           className={s.banner}

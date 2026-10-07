@@ -112,7 +112,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every new account starts with <strong style={{ color: 'var(--ink)' }}>{n(TIER_CREDITS.free)} credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about {TIER_APPROX_VIDEOS.free.standard} standard explainer videos</strong>). These are a one-time welcome gift, not a monthly refill. You add a card to unlock them; nothing is charged until they run out.
+            Every new account starts with <strong style={{ color: 'var(--ink)' }}>{n(TIER_CREDITS.free)} credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about {TIER_APPROX_VIDEOS.free.standard} standard explainer videos</strong>). These are a one-time welcome gift, not a monthly refill. You can try Docs2Video first without a card (the free preview on step 3 needs none); you add a card to unlock the credits when you make your first real one, and nothing is charged until they run out.
           </p>
           <p>
             All features included: AI content extraction, script editing, voice narration, background music, and downloads in MP4, PPTX, and PDF formats.

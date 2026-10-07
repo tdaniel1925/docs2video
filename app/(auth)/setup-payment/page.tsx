@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -85,10 +86,10 @@ function CardForm() {
       return
     }
 
-    // Return to wherever the user was sent from (e.g. the produce flow), or
-    // fall back to onboarding.
-    // Onboarding is a video-product wizard. Brands without it go to their tool.
-    router.push(next || (brand.showVideoFeatures ? '/setup' : brand.home))
+    // Back to wherever the user was sent from (step 3's "Make it" sends ?next=
+    // back to it), or Home. (It used to go on to the setup wizard; since the
+    // light start nobody is sent through that — see light-start.ts.)
+    router.push(next || brand.home)
   }
 
   return (
@@ -183,9 +184,17 @@ function CardForm() {
           disabled={loading || !stripe || !clientSecret}
           className="btn btn-primary btn-lg btn-full"
         >
-          {loading ? 'Saving card...' : (next ? 'Save card & continue \u2192' : 'Continue to setup \u2192')}
+          {loading ? 'Saving card...' : (next ? 'Save card & continue \u2192' : 'Save card \u2192')}
         </button>
       </form>
+
+      {/* LIGHT START: on Docs2Video nobody has to add a card to look around,
+          only to make a real video, so there is always a way back. */}
+      {brand.showVideoFeatures && (
+        <div style={{ textAlign: 'center', marginTop: 14, fontSize: 14 }}>
+          <Link href={next || '/dashboard'}>{next ? 'Not now, go back' : 'Not now, try it first'}</Link>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--ink-light)' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: 'middle', marginRight: 4 }}>

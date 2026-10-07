@@ -1,0 +1,51 @@
+/* "Add your brand" on step 3. Colour names only (app/globals.css); corners ≤ 10px. */
+.piece {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 16px;
+  margin: -16px 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.title { font-size: 17px; font-weight: 800; color: var(--ink); margin: 0; }
+.hint { font-size: 13px; color: var(--ink-light); }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.label { font-size: 14px; font-weight: 700; color: var(--ink); }
+.row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.row :global(.input) { flex: 1 1 180px; min-width: 0; }
+.logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-soft);
+}
+.noLogo {
+  min-height: 56px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  font-weight: 800;
+  color: var(--ink);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.small { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
+.swatch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
+.swatch input {
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  cursor: pointer;
+}
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+.more { font-size: 14px; font-weight: 700; color: var(--link); }

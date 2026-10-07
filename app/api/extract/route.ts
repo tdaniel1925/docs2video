@@ -3,6 +3,7 @@ import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { resolveRequestUser } from '../../_lib/api-auth'
 import { checkCredits } from '../../_lib/credits'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 import { logError } from '../../_lib/error-logger'
 import { videoServiceUrl } from '../../_lib/video-service'
 import Anthropic from '@anthropic-ai/sdk'
@@ -37,7 +38,13 @@ export async function POST(request: Request & { nextUrl?: URL }) {
   // and past_due. Internal API calls are metered at the API layer — skip.
   if (!resolved.isInternal) {
     const credit = await checkCredits(user.id, 1)
-    if (!credit.allowed) {
+    // LIGHT START: an account with no card yet may read its document (free)
+    // so it can reach the free preview — within the daily cap. Every other
+    // block (failed payment, banned, no credits) still stops here.
+    if (credit.blockedReason === 'card_required') {
+      const capped = await cardlessPrepGate(user.id, true)
+      if (capped) return capped
+    } else if (!credit.allowed) {
       return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
     }
   }

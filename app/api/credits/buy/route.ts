@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '../../../_lib/supabase/server'
 import { getStripe } from '../../../_lib/stripe'
 import { getAffiliateByCode } from '../../../_lib/affiliate'
+import { isCardless } from '../../../_lib/cardless-prep'
 export const maxDuration = 30
 
 const CREDIT_PACKS: Record<string, { credits: number; priceEnv: string }> = {
@@ -15,6 +16,13 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  // LIGHT START: an account with no card can look around (and preview), but
+  // the card-required rule (credits.ts) would stop it spending a pack it
+  // bought — so it adds a card first, which starts the free trial.
+  if (await isCardless(user.id)) {
+    return NextResponse.json({ error: 'Add a card first — it starts your free trial. Then you can top up any time.', code: 'card_required' }, { status: 402 })
+  }
 
   const { pack } = await request.json() as { pack: string }
   const packInfo = CREDIT_PACKS[pack]

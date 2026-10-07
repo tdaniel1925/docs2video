@@ -28,6 +28,12 @@ export type HowToGuide = {
   video?: { src: string; title: string }
   /** The Help Center article that goes deeper. */
   helpHref: string
+  /**
+   * Questions people ask on this screen. The help assistant opens with these
+   * as one-tap suggestions when it's opened here (HelpChatWidget), so they
+   * should be things this screen really does.
+   */
+  asks: string[]
   /** The files that draw this screen — where the bold words must appear. */
   sources: string[]
 }
@@ -50,9 +56,10 @@ export const HOW_TO: HowToEntry[] = [
       'Under **Today’s clients** are the people who need you — someone who **Clicked to book**, **Watched it**, or hasn’t opened it yet. Each card has the next thing to do, like **Send the follow-up**.',
       '**Projects** lists your latest work and where each one is at. Press **Continue** on a draft or **Open** on the rest. **See all** opens your Library.',
       '**This month** counts emails sent, projects watched and clicks to book a call, plus the credits you have left.',
-      'Your credits are the gold box at the top. Press it to top up.',
+      'Your credits are the gold box at the top. Press it to top up. New here? You can make your first project and see a free preview before you add a card — the note at the top says **Try it before you add a card.**',
     ],
     helpHref: '/help/getting-started',
+    asks: ['How do I make my first video?', 'Do I need a card to try it?', 'What does a video cost?', 'What do the cards under Today’s clients mean?'],
     sources: ['app/(dashboard)/dashboard/page.tsx', 'app/(dashboard)/dashboard/_home/start-cards.ts', 'app/(dashboard)/dashboard/_home/derive.ts'],
   },
   {
@@ -68,6 +75,7 @@ export const HOW_TO: HowToEntry[] = [
       'Making custom graphics or a commercial instead? Use the links under **Making something else?**',
     ],
     helpHref: '/help/creating-videos',
+    asks: ['Which files can I upload?', 'Can it read my website instead?', 'Is anything charged on this step?', 'What if it read a number wrong?'],
     sources: [
       'app/(dashboard)/create/_components/Step1Content.tsx',
       'app/(dashboard)/create/_components/ClientPicker.tsx',
@@ -88,6 +96,7 @@ export const HOW_TO: HowToEntry[] = [
       'When it reads right, press **Looks right — pick the look →**. If it can’t be pressed yet, the line under it says why.',
     ],
     helpHref: '/help/creating-videos',
+    asks: ['How do I change a scene?', 'What do Short, Standard and Detailed mean?', 'Can I undo a change?', 'Does rewriting the story cost anything?'],
     sources: [
       'app/(dashboard)/create/script/page.tsx',
       'app/(dashboard)/create/_components/story/LengthPicker.tsx',
@@ -102,15 +111,18 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Step 3 — Make it yours',
     intro: 'Pick what to send, the look and the voice. The price is on the button.',
     steps: [
-      'The line at the top shows the brand it will use. Press **Change** to pick another, or **Add your brand** if there isn’t one.',
+      'The line at the top shows the brand it will use. Press **Change** to pick another. No brand yet? Press **Add your brand**: type your name, upload your logo and pick your colours right here — **Fill in from it** reads them from your website. **Save my brand** keeps it for every new project.',
       'Under **What do you want to send?**, pick **Narrated video**, **Interactive presentation** or **Slide deck**. Each shows what it costs.',
       'Pick **The look**. For a video or presentation, pick **The voice** too — press ▶ to hear one. A video can also have **Background music**.',
       'Optional: open **For your client (optional)** to write **A note to your client**.',
-      'Check **The price**, then press **Make it**. The price is on the button, and **This is the only button that spends credits.** **Your video so far** shows everything you picked.',
+      'Press **See a free preview** to see the first scene in your look and hear the voice — free, a few a day, no card needed. Then check **The price** and press **Make it**. The price is on the button, and **This is the only button that spends credits.** No card yet? Make it takes you to add one, then brings you back.',
     ],
     helpHref: '/help/creating-videos',
+    asks: ['How do I add my logo?', 'Which look should I pick?', 'Is the preview free?', 'Why does Make it ask for a card?'],
     sources: [
       'app/(dashboard)/create/theme/page.tsx',
+      'app/(dashboard)/create/_components/make/AddBrandPiece.tsx',
+      'app/(dashboard)/create/_components/make/FirstScenePreview.tsx',
       'app/(dashboard)/create/_components/make/Pickers.tsx',
       'app/(dashboard)/create/_components/make/PricePanel.tsx',
       'app/(dashboard)/create/_components/workspace/SoFarPanel.tsx',
@@ -127,6 +139,7 @@ export const HOW_TO: HowToEntry[] = [
       'There you check what your client will see, write **A short note**, and press **Send to** your client — or **or copy the link** to send it yourself.',
     ],
     helpHref: '/help/sharing-videos',
+    asks: ['How long does it take?', 'Can I close this page?', 'What if it fails?', 'How do I send it when it’s done?'],
     sources: ['app/(dashboard)/create/generating/page.tsx', 'app/(dashboard)/videos/[id]/send/ReadyToSend.tsx', 'app/(dashboard)/dashboard/page.tsx'],
   },
   {
@@ -141,6 +154,7 @@ export const HOW_TO: HowToEntry[] = [
       'On a paid plan, **Quote / Invoice** adds a quote with a pay button, and **Follow-Up Plan** writes follow-up emails.',
     ],
     helpHref: '/help/sharing-videos',
+    asks: ['How do I send this to my client?', 'How do I change one scene?', 'Can I download it as an MP4?', 'How do I see who watched it?'],
     sources: [
       'app/(dashboard)/videos/[id]/page.tsx',
       'app/(dashboard)/videos/[id]/send/ReadyToSend.tsx',
@@ -164,6 +178,7 @@ export const HOW_TO: HowToEntry[] = [
       `**${NAMES.newButton}** starts something new.`,
     ],
     helpHref: '/help',
+    asks: ['How do I find an older project?', 'How do I make a copy of one?', 'Can I get my credits back if one failed?'],
     sources: ['app/(dashboard)/videos/page.tsx', 'app/(dashboard)/videos/LibraryTable.tsx'],
   },
   {
@@ -177,6 +192,7 @@ export const HOW_TO: HowToEntry[] = [
       'Click a brand to change it, then press **Save changes →**. The × on a brand’s card deletes it (it asks first).',
     ],
     helpHref: '/help/brands',
+    asks: ['What’s the difference between a Company and a Person?', 'Why doesn’t my logo show?', 'How do I make one brand the default?'],
     sources: ['app/(dashboard)/brands/page.tsx', 'app/(dashboard)/brands/new/page.tsx', 'app/(dashboard)/brands/[id]/page.tsx'],
   },
   {
@@ -190,6 +206,7 @@ export const HOW_TO: HowToEntry[] = [
       'A client’s page has **Activity**, **Videos**, **Emails** and **Payments**. Keep notes with **Add Note**, or press **Create Video for This Client**.',
     ],
     helpHref: '/help',
+    asks: ['How do I import my client list?', 'How do I send a client a video?', 'Where do I see what a client watched?'],
     sources: ['app/(dashboard)/clients/page.tsx', 'app/(dashboard)/clients/[id]/page.tsx'],
   },
   {
@@ -203,6 +220,7 @@ export const HOW_TO: HowToEntry[] = [
       '**Re-run Setup Wizard** walks you through setup again.',
     ],
     helpHref: '/help/account',
+    asks: ['How do I send emails from my own address?', 'How do I add my booking link?', 'How do I change my plan?'],
     sources: ['app/(dashboard)/settings/page.tsx'],
   },
 ]
@@ -219,6 +237,7 @@ export const GETTING_AROUND: HowToGuide = {
     'The logo takes you Home.',
   ],
   helpHref: '/help/getting-started',
+  asks: ['How do I make a video?', 'What do credits cost?', 'How do I add my brand logo?', 'Can I download as PDF?'],
   sources: ['app/_lib/names.ts', 'app/_lib/brand.ts'],
 }
 
@@ -246,4 +265,22 @@ export function howToFor(pathname: string | null | undefined): HowToGuide & { ow
 export function boldParts(step: string): { text: string; bold: boolean }[] {
   return step.split(/(\*\*[^*]+\*\*)/).filter(Boolean).map((p) =>
     p.startsWith('**') && p.endsWith('**') ? { text: p.slice(2, -2), bold: true } : { text: p, bold: false })
+}
+
+/**
+ * WHERE THE PERSON IS, for the help assistant (app/api/help-chat). The page
+ * address sent by the browser is only used to LOOK UP one of the guides above
+ * — the assistant is told the guide's own words, never the raw address, so a
+ * made-up address can't put words in its mouth. Returns '' for an address
+ * with no guide of its own (the assistant then answers in general).
+ */
+export function helpContextFor(pathname: unknown): string {
+  if (typeof pathname !== 'string' || pathname.length > 200) return ''
+  const guide = howToFor(pathname)
+  if (!guide.own) return ''
+  const steps = guide.steps.map((st, i) => `${i + 1}. ${st.replace(/\*\*/g, '"')}`).join('\n')
+  return `THE SCREEN THE PERSON IS ON RIGHT NOW: "${guide.title}" — ${guide.intro}
+What this screen shows and how to use it (its own words in quotes):
+${steps}
+Answer with this screen in mind: if the question is about something here, point to it by its on-screen name. If it's about another screen, say where to go.`
 }

@@ -6,6 +6,7 @@ import { videoServiceUrl } from '../../_lib/video-service'
 import { isAdmin } from '../../_lib/admin'
 import { isPaidTier } from '../../_lib/subscription'
 import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { creditDeniedResponse } from '../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -49,9 +50,9 @@ export async function POST(request: Request) {
   let deductedCost = 0
   if (!isPrivileged) {
     const check = await checkCredits(user.id, COMMERCIAL_COST)
-    if (!check.allowed) {
-      return NextResponse.json({ error: `Not enough credits. Need ${COMMERCIAL_COST}, have ${check.remaining}.` }, { status: 402 })
-    }
+    // No card yet / failed payment / banned get their own words and code (the
+    // page sends 'card_required' to the card page) — not "not enough credits".
+    if (!check.allowed) return creditDeniedResponse(check, COMMERCIAL_COST)
   }
 
   // create the videos row the UI polls for progress.

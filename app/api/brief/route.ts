@@ -5,6 +5,7 @@ import { isRegulated, productTokens, complianceLeaks, COMPLIANCE_CLAUSE } from '
 import { logError } from '../../_lib/error-logger'
 // Shared brief-generation core (also used by the key-authed /api/v1/brief).
 import { briefClaude as claude, parseBrief, describeSource, buildBriefSystemPrompt as buildSystemPrompt } from '../../_lib/brief-core'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 45
@@ -13,6 +14,10 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // LIGHT START: free for everyone, but an account with no card yet gets a
+  // daily ceiling on this AI work (cardless-prep.ts). Cards: never counted.
+  const capped = await cardlessPrepGate(user.id)
+  if (capped) return capped
 
   const { videoId, regenerate, answers } = (await request.json().catch(() => ({}))) as {
     videoId?: string; regenerate?: boolean; answers?: Record<string, string>

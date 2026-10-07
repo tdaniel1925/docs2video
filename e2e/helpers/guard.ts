@@ -46,6 +46,11 @@ export const REAL_WORLD_ENDPOINTS: RegExp[] = [
   /\/api\/clients\/import/,
   /\/api\/upload-photo/,         // replaces the owner's real photos
   /\/api\/upload-logo/,
+  // Phase 5: the help assistant is a paid AI call; "Add your brand" stores a
+  // processed logo and reads someone's website.
+  /\/api\/help-chat/,
+  /\/api\/brands\/logo/,
+  /\/api\/brand-from-url/,
 ]
 
 /** Only these methods are blocked on these paths (reads stay real). */

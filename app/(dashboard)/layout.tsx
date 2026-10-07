@@ -48,17 +48,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Header's default — so nothing changes there.
   const brand = await getBrand()
 
-  // Redirect to onboarding if not completed.
-  //
-  // The setup wizard is entirely about VIDEO — pick a narrator voice, pick a
-  // slide style, hear a sample. Forcing a Text2Art customer through it would be
-  // both confusing and a lie about what they bought, so brands without the
-  // video product skip it and go straight to their tool. The flag stays false,
-  // which is correct: if that same account ever signs in on docs2video.com it
-  // still gets the setup it never did.
-  if (brand.showVideoFeatures && !(profile as Profile).onboarding_completed) {
-    redirect('/setup')
-  }
+  // LIGHT START (2026-10, light-start.ts): new people are NOT sent through the
+  // setup wizard any more. It used to stand between signup and Home (and sent
+  // anyone without a card to the card page first), so nobody saw what the app
+  // makes before giving a card and filling in five pages. Their brand is now
+  // added inside the first project (step 3, "Add your brand"), and the voice
+  // and look are picked there too. The wizard is still at /setup for anyone
+  // who wants it (Settings → "Re-run Setup Wizard").
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>

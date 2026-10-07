@@ -3,6 +3,8 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '../../../_lib/supabase/server'
 import { finishEmailLinkSignIn } from '../../../_lib/auth-finish'
 import { safeNextPath } from '../../../_lib/safe-redirect'
+import { getBrand } from '../../../_lib/brand-server'
+import { landingAfterEmailLink } from '../../../_lib/light-start'
 
 /**
  * GET /auth/confirm?token_hash=…&type=signup|recovery|email_change|…&next=/…
@@ -40,7 +42,9 @@ export async function GET(request: Request) {
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) await finishEmailLinkSignIn(user)
-      return NextResponse.redirect(`${origin}${next}`)
+      // LIGHT START: an old 'confirm your email' link that says next=/setup-payment
+      // now lands on Home on Docs2Video — the card comes later (light-start.ts).
+      return NextResponse.redirect(`${origin}${landingAfterEmailLink(next, await getBrand())}`)
     }
     console.warn('[auth/confirm] verifyOtp failed:', error.message)
   }

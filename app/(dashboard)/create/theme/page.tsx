@@ -25,6 +25,7 @@ import { LENGTHS, LENGTH_ANCHOR } from '../_components/story/lengths'
 import Workspace from '../_components/workspace/Workspace'
 import { clientLabel, factsFromDraft, lookName, voiceName } from '../_components/workspace/facts'
 import FirstScenePreview from '../_components/make/FirstScenePreview'
+import AddBrandPiece from '../_components/make/AddBrandPiece'
 
 type Draft = Record<string, any>
 type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
@@ -54,6 +55,9 @@ function MakeItYours() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [brand, setBrand] = useState<BrandInfo | null>(null)
+  // "Add your brand" inside the project (light start). Opens by itself when
+  // the person has no brand at all yet — their first project.
+  const [addingBrand, setAddingBrand] = useState(false)
 
   const [output, setOutput] = useState<MakeOutput>('video')
   const [videoLook, setVideoLook] = useState<VideoLookId>('slides')
@@ -115,7 +119,11 @@ function MakeItYours() {
           }
         }
         // Loading ends only now, so Make can never run before the brand is known.
-        if (alive) { setBrand(found); setLoading(false) }
+        if (alive) {
+          setBrand(found)
+          setAddingBrand(!found && d.brandId === undefined)
+          setLoading(false)
+        }
       })
       .catch((e) => { if (alive) { setLoadError(e instanceof Error ? e.message : 'Could not load your project.'); setLoading(false) } })
     return () => { alive = false }
@@ -194,6 +202,12 @@ function MakeItYours() {
         })
         if (!res.ok) {
           const g = await res.json().catch(() => ({}))
+          // No card yet (e.g. the quote was read before the card check): add
+          // one, then come back here.
+          if (g.code === 'card_required') {
+            router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
+            return
+          }
           if (res.status === 402 && g.code === 'insufficient_credits') {
             setBuyCredits({ needed: g.needed, balance: g.balance })
             return stop({ message: g.error || 'Not enough credits.', topUp: true })
@@ -343,10 +357,24 @@ function MakeItYours() {
                 ? <>Using <strong>{brand.name}</strong>’s logo and colors.</>
                 : <>No brand on this one yet — it will use plain colors.</>}
             </div>
-            <button type="button" className={s.link} onClick={() => router.push(`/create/brand?id=${videoId}`)}>
-              {brand ? 'Change' : 'Add your brand'}
-            </button>
+            {brand ? (
+              <button type="button" className={s.link} onClick={() => router.push(`/create/brand?id=${videoId}`)}>Change</button>
+            ) : (
+              <button type="button" className={s.link} aria-expanded={addingBrand} onClick={() => setAddingBrand((o) => !o)}>Add your brand</button>
+            )}
           </div>
+          {!brand && addingBrand && videoId ? (
+            <AddBrandPiece
+              videoId={videoId}
+              draft={draft}
+              onClose={() => setAddingBrand(false)}
+              onSaved={(b) => {
+                setBrand(b)
+                setDraft((d) => ({ ...(d ?? {}), brandId: b.id }))
+                setAddingBrand(false)
+              }}
+            />
+          ) : null}
 
           <section className={s.section}>
             <div className={s.sectionHead}>

@@ -207,7 +207,7 @@ export default function AccountHelpPage() {
         <h2 style={H2}>Re-running the Setup Wizard</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 10 }}>
-            The Setup Wizard has five steps: <strong style={INK}>Profile</strong>, <strong style={INK}>Photo</strong>, <strong style={INK}>Brand</strong>, <strong style={INK}>Voice</strong> and <strong style={INK}>Style</strong>. It runs automatically when you first sign up, and you can press <strong style={INK}>Skip for now</strong> on any step.
+            The Setup Wizard has five steps: <strong style={INK}>Profile</strong>, <strong style={INK}>Photo</strong>, <strong style={INK}>Brand</strong>, <strong style={INK}>Voice</strong> and <strong style={INK}>Style</strong>. It is optional: new accounts go straight to Home, and your brand, voice and look are picked inside your first project. You can press <strong style={INK}>Skip for now</strong> on any step.
           </p>
           <p>
             To run it again, open <strong style={INK}>Settings</strong> and click <strong style={INK}>Re-run Setup Wizard</strong> at the top. This is useful when you change companies, update your headshot, or want a new default voice or style.

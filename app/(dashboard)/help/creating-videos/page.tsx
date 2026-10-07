@@ -141,10 +141,17 @@ export default function CreatingVideosPage() {
       <Step n={3} title="Make it yours">
         <p style={P}>
           <strong style={INK}>Your brand</strong> — the top line says which brand is used (&ldquo;Using [name]&rsquo;s logo and colors&rdquo;). Click{' '}
-          <strong style={INK}>Change</strong> (or <strong style={INK}>Add your brand</strong>) to open the brand step. A brand can be a person — your name,
-          photo and a friendly intro — or a company, with its logo and colors. Pick a saved brand, set up a new one there, or click{' '}
+          <strong style={INK}>Change</strong> to open the brand step, where you can pick a saved brand, set up a person or company, or click{' '}
           <strong style={INK}>Skip — no brand on this one</strong>. See the{' '}
           <Link href="/help/brands" style={LINK}>Brands</Link> guide.
+        </p>
+        <p style={P}>
+          <strong style={INK}>No brand yet?</strong> On your first project <strong style={INK}>Add your brand</strong> opens right there on the page
+          (any other time, click <strong style={INK}>Add your brand</strong> on the brand line). Type your name or company, and either click{' '}
+          <strong style={INK}>Fill in from it</strong> next to your website — it reads your colours and the logo on your site — or click{' '}
+          <strong style={INK}>Upload your logo</strong> and pick your two colours. Click <strong style={INK}>Save my brand</strong>: this project uses it, and
+          so does every new one. Only your real logo is used — we never draw one; with no logo your name shows as text.{' '}
+          <strong style={INK}>Not now</strong> closes it; <strong style={INK}>More brand options</strong> adds a photo and contact details.
         </p>
         <p style={P}>
           <strong style={INK}>What do you want to send?</strong> — a <strong style={INK}>Narrated video</strong>, an{' '}
@@ -169,9 +176,14 @@ export default function CreatingVideosPage() {
           <strong style={INK}>For your client</strong> (optional) — write <strong style={INK}>A note to your client</strong> (shown on the share page,
           up to 400 characters) and, if your source was a PDF, turn on <strong style={INK}>Let them download the original PDF</strong>.
         </p>
+        <p style={P}>
+          <strong style={INK}>See it before you pay</strong> — just above the button, click <strong style={INK}>See a free preview</strong>. You see the
+          first scene in the look you picked and hear a few seconds of the voice. It is free, you get a few a day, and it needs no card.
+        </p>
         <p>
           <strong style={INK}>The price</strong> panel shows the total and your credit balance. Click <strong style={INK}>Make it — [credits]</strong>.
-          If the price changed since the page loaded, it tells you and waits for you to press again.
+          If the price changed since the page loaded, it tells you and waits for you to press again. If you haven&rsquo;t added a card yet, the
+          panel says so: Make it opens <strong style={INK}>Add your payment method</strong>, and once your card is saved you come straight back here.
         </p>
       </Step>
 

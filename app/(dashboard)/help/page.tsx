@@ -38,7 +38,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/getting-started',
     title: 'Getting Started',
-    description: 'Create your account, add a payment card, understand your credits, and find your way around.',
+    description: 'Sign up without a card, make a first project with a free preview, add your brand on the way, and add a card when you make the real thing.',
     icon: '🚀',
   },
   {
@@ -137,7 +137,10 @@ const ARTICLES: HelpArticle[] = [
     category: 'getting-started',
     icon: '👤',
     content: [
-      'When you first sign up, the Setup Wizard walks you through 5 quick steps (you can press **Skip for now** on any of them):',
+      'Signing up asks for your name, email and a password — **no card**. You land on **Home** with a note: **Try it before you add a card.**',
+      'Make your first project straight away. On step 3 (**Make it yours**) press **See a free preview** to see the first scene and hear the voice (free, a few a day), and fill in **Add your brand** — your name, logo and colours, or **Fill in from it** to read them from your website.',
+      'You add a card only when you press **Make it** on a real video, presentation or slide deck: **Add your payment method** opens, then brings you back. Saving the card starts your free credits; nothing is charged until they run out.',
+      'The optional Setup Wizard has 5 quick steps (you can press **Skip for now** on any of them):',
       '**1 — Profile:** Your name, company, phone, and role. This is your identity on the share page ("prepared by").',
       '**2 — Photo:** Upload a headshot (used on the cover). Mid-level and standing photos are optional.',
       '**3 — Brand:** Your logo, brand colors, and contact info (phone/email/website) — used across every video and the share page.',
@@ -167,6 +170,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '🧭',
     content: [
       `Every screen has a **${NAMES.howToUse}** button in the top bar. On a phone, open the ☰ menu and choose **${NAMES.howToUse} this screen**.`,
+      'The round **help** button (bottom right) opens the **Help Assistant**. It knows which screen you are on: it says “On this screen: …” and starts with questions people ask there — tap one to ask it, or type your own. On a phone it is in the ☰ menu as **Ask the help assistant**.',
       'It opens a short, numbered list of steps for the screen you are on: Home, each step of making a project, your Library, a finished project, Brands, Clients and Settings. Other screens show how to get around.',
       'Press **Esc**, the **×**, or click outside it to close it. **More in the Help Center** at the bottom opens the full guide for that screen.',
     ],
@@ -465,7 +469,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '🏷️',
     content: [
       `Your logo lives in a **Company brand**. Click **${NAMES.brands}** in the top bar, then create or edit a brand and upload a PNG or SVG logo.`,
-      'You can also add your brand on the **Make it yours** step while making a video (**Add your brand**), or during Setup.',
+      'You can also add your brand right on the **Make it yours** step while making a video: **Add your brand** opens on the page (on your first project it opens by itself). Upload your logo, or press **Fill in from it** to take the logo and colours from your website, then **Save my brand**. Only your real logo is ever used — we never draw one; with no logo your name shows as text.',
       'When making a video, the brand shows at the top of **Make it yours** — press **Change** to pick another. The logo appears on the cover, the closing slide and the share page. See the **Brands & Personalization** guide for details.',
     ],
   },

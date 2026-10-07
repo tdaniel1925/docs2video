@@ -3520,15 +3520,31 @@ h1.hero-title--big {
   color: var(--link); text-decoration: underline; cursor: pointer;
 }
 @media (max-width: 900px) {
+  /* --bottom-bar is the cookie notice's height while it shows (CookieBanner
+     measures itself), so the pinned button sits ABOVE the notice instead of
+     under it. 0 once the notice is gone. */
   .ws-main-action {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    position: fixed; left: 0; right: 0; bottom: var(--bottom-bar, 0px); z-index: 60;
     padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
     background: var(--bg-card); border-top: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
   }
-  .steps-main:has(.ws-main-action) { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
-  /* The round help button would sit on top of the pinned button. */
-  body:has(.ws-main-action) button[aria-label='Help'] { bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+  .steps-main:has(.ws-main-action) { padding-bottom: calc(150px + var(--bottom-bar, 0px) + env(safe-area-inset-bottom)); }
+}
+
+/* THE HELP ASSISTANT on phones (≤ 900px, where the ☰ menu shows). On
+   Docs2Video the round button is in the ☰ menu instead ("Ask the help
+   assistant") — floating, it sat on a start card on Home and above the
+   pinned button on the create steps. The panel opens as a sheet across the
+   bottom, clear of the cookie notice. Text2Art keeps its round button. */
+@media (max-width: 900px) {
+  .help-fab--tucked { display: none !important; }
+  .help-panel {
+    left: 8px !important; right: 8px !important; width: auto !important; max-width: none !important;
+    bottom: calc(8px + var(--bottom-bar, 0px)) !important;
+    height: min(560px, calc(100dvh - 96px)) !important; max-height: none !important;
+  }
+  body:has(.ws-main-action) .help-fab:not(.help-fab--tucked) { bottom: calc(150px + var(--bottom-bar, 0px) + env(safe-area-inset-bottom)) !important; }
 }
 
 /* "Show me" lights up the missing answer for a moment. */

@@ -11,6 +11,7 @@ import { wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
 import { resolveRequestUser } from '../../_lib/api-auth'
 import { checkCredits } from '../../_lib/credits'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -69,7 +70,13 @@ export async function POST(request: Request) {
   // layer, so skip the UI credit gate here.
   if (!resolved.isInternal) {
     const credit = await checkCredits(user.id, 1)
-    if (!credit.allowed) {
+    // LIGHT START: an account with no card yet may read a website (free) so
+    // it can reach the free preview — within the daily cap. Every other block
+    // (failed payment, banned, no credits) still stops here.
+    if (credit.blockedReason === 'card_required') {
+      const capped = await cardlessPrepGate(user.id, true)
+      if (capped) return capped
+    } else if (!credit.allowed) {
       return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
     }
   }

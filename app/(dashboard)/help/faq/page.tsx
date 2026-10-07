@@ -113,9 +113,16 @@ const FAQ_ITEMS: FaqItem[] = [
     ],
   },
   {
+    question: 'Do I need a card to try it?',
+    answer: [
+      'No. Sign up with your name, email and a password and you land on **Home**. Make your first project, add your brand on step 3, and press **See a free preview** to see the first scene and hear the voice — free, a few a day.',
+      'You add a card only when you press **Make it** on a real video, presentation or slide deck. The card page opens and brings you back afterwards. Saving the card starts your free credits; nothing is charged until they run out.',
+    ],
+  },
+  {
     question: 'How much does it cost?',
     answer: [
-      `Everything uses credits. New accounts get **${n(TIER_CREDITS.free)} free credits** once (about ${TIER_APPROX_VIDEOS.free.standard} standard videos). Plans: ${PAID_PLANS}.`,
+      `Everything uses credits. New accounts get **${n(TIER_CREDITS.free)} free credits** once, when a card is saved (about ${TIER_APPROX_VIDEOS.free.standard} standard videos). Plans: ${PAID_PLANS}.`,
       `Anyone can buy top-up packs that never expire: ${packsSentence()}. See **Pricing & Plans** for details.`,
     ],
   },

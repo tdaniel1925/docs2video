@@ -81,7 +81,9 @@ export default function PricePanel({
       ) : null}
 
       {blockedReason === 'card_required' ? (
-        <div className={s.warn}>Add a card to start your free trial. We’ll take you there when you press Make it, then bring you back here.</div>
+        // LIGHT START: an account with no card reaches this screen and the
+        // free preview; the card is asked for only now, for the real thing.
+        <div className={s.warn}>Add a card to start your free trial. We’ll take you there when you press Make it, then bring you back here. The free preview doesn’t need one.</div>
       ) : null}
 
       {error ? (
