@@ -5,6 +5,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { videoServiceUrl } from '../../_lib/video-service'
+import { fetchOurStorageImage, isOurStorageUrl } from '../../_lib/our-storage-image'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -31,8 +32,14 @@ export async function POST(request: Request) {
     voiceId: string
   }
 
-  if (!videoId || !updatedScenes || !updatedSlideUrls) {
+  if (!videoId || !Array.isArray(updatedScenes) || !Array.isArray(updatedSlideUrls)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+  // The slide pictures are downloaded below — only from our own storage, never
+  // from an address the browser made up (the server must not fetch arbitrary
+  // URLs). Checked before anything changes on the video.
+  if (updatedSlideUrls.length > 60 || !updatedSlideUrls.every((u) => isOurStorageUrl(u))) {
+    return NextResponse.json({ error: 'One of the slide pictures can’t be used here.' }, { status: 400 })
   }
 
   const admin = createAdminClient()
@@ -85,12 +92,8 @@ export async function POST(request: Request) {
     for (let i = 0; i < updatedSlideUrls.length; i++) {
       const url = updatedSlideUrls[i]
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
-        if (res.ok) {
-          slideBuffers.push(Buffer.from(await res.arrayBuffer()))
-        } else {
-          throw new Error(`Failed to download slide ${i}`)
-        }
+        const { data } = await fetchOurStorageImage(url, { timeoutMs: 10000 })
+        slideBuffers.push(data)
       } catch (err) {
         throw new Error(`Failed to download slide ${i + 1}: ${err instanceof Error ? err.message : 'unknown error'}`)
       }

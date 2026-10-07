@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ScriptEditor from '../../../../_components/ScriptEditor'
 import type { Video } from '../../../../_lib/types'
+import { CREDIT_COSTS } from '../../../../_lib/credits'
 
 export type OlderEditorState = {
   scenes: { scene: number; title: string; narration: string; slidePrompt: string }[]
@@ -100,7 +101,7 @@ export default function OlderEditor({ video, initial, focusScene, onClose, onSav
       <div className="res-older-head">
         <div>
           <h2 className="res-h2">Scene editor</h2>
-          <p className="res-hint">Change the words, order or scenes. Save rebuilds the video from its slide pictures with the new voice — free.</p>
+          <p className="res-hint">Change the words, order or scenes. Save rebuilds the video from its slide pictures with the new voice — free. Changing a slide picture with AI (Edit on a slide) costs {CREDIT_COSTS['scene-edit'].toLocaleString()} credits each time; a failed edit is not charged.</p>
         </div>
         <div className="res-older-actions">
           <button type="button" className="kit-btn kit-btn--quiet kit-btn--sm" onClick={onClose} disabled={rendering}>Cancel</button>
@@ -123,22 +124,29 @@ export default function OlderEditor({ video, initial, focusScene, onClose, onSav
             setScenes((prev) => prev.filter((_, i) => i !== sceneIndex))
             setSlides((prev) => prev.filter((_, i) => i !== sceneIndex))
           }}
+          editSlideCost={CREDIT_COSTS['scene-edit']}
           onEditSlide={async (sceneIndex, instruction) => {
             const currentSlide = slides[sceneIndex]
             if (!currentSlide) return
-            const res = await fetch('/api/edit-slide', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ currentSlideBase64: currentSlide, editInstruction: instruction }),
-            })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error)
-            const next = [...slides]
-            next[sceneIndex] = data.image
-            setSlides(next)
-          }}
-          onRedoSlide={async () => {
-            // Regeneration removed — content is now reviewed at script stage
+            // The server downloads the picture itself (from our storage only),
+            // charges one image edit and returns the new picture's address.
+            try {
+              const res = await fetch('/api/edit-slide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoId: video.id, sceneIndex, slideUrl: currentSlide, editInstruction: instruction }),
+              })
+              const data = await res.json().catch(() => ({}))
+              if (!res.ok || !data.image) throw new Error(data.error || 'The slide edit failed. You were not charged.')
+              setSlides((prev) => {
+                const next = [...prev]
+                next[sceneIndex] = data.image
+                return next
+              })
+            } catch (err) {
+              onError(err instanceof Error ? err.message : 'The slide edit failed.')
+              throw err
+            }
           }}
         />
       </div>

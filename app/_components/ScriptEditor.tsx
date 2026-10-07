@@ -17,7 +17,10 @@ interface ScriptEditorProps {
   onRegenerateAudio: (sceneIndex: number, newNarration: string) => Promise<void>
   onDeleteScene: (sceneIndex: number) => void
   onEditSlide: (sceneIndex: number, instruction: string) => Promise<void>
-  onRedoSlide: (sceneIndex: number) => Promise<void>
+  /** Leave out to hide the Redo button (nothing to redo with). */
+  onRedoSlide?: (sceneIndex: number) => Promise<void>
+  /** Credits one AI slide edit costs — shown on the Apply button before the click. */
+  editSlideCost?: number
 }
 
 export default function ScriptEditor({
@@ -29,6 +32,7 @@ export default function ScriptEditor({
   onDeleteScene,
   onEditSlide,
   onRedoSlide,
+  editSlideCost,
 }: ScriptEditorProps) {
   const [editingSlide, setEditingSlide] = useState<number | null>(null)
   const [editInstruction, setEditInstruction] = useState('')
@@ -65,6 +69,8 @@ export default function ScriptEditor({
       await onEditSlide(index, editInstruction)
       setEditingSlide(null)
       setEditInstruction('')
+    } catch {
+      // The parent shows the error; keep the box open so the user can retry.
     } finally {
       setEditingLoading(false)
     }
@@ -73,7 +79,7 @@ export default function ScriptEditor({
   async function handleRedoSlide(index: number) {
     setRedoingSlide(index)
     try {
-      await onRedoSlide(index)
+      await onRedoSlide?.(index)
     } finally {
       setRedoingSlide(null)
     }
@@ -127,14 +133,16 @@ export default function ScriptEditor({
                   >
                     Edit
                   </button>
-                  <button
-                    className="btn btn-soft btn-sm"
-                    onClick={() => handleRedoSlide(i)}
-                    disabled={redoingSlide === i}
-                    style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, opacity: redoingSlide === i ? 0.5 : 1 }}
-                  >
-                    {redoingSlide === i ? 'Redoing...' : 'Redo'}
-                  </button>
+                  {onRedoSlide && (
+                    <button
+                      className="btn btn-soft btn-sm"
+                      onClick={() => handleRedoSlide(i)}
+                      disabled={redoingSlide === i}
+                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, opacity: redoingSlide === i ? 0.5 : 1 }}
+                    >
+                      {redoingSlide === i ? 'Redoing...' : 'Redo'}
+                    </button>
+                  )}
                   {/* Reorder up/down */}
                   {i > 0 && (
                     <button
@@ -201,7 +209,9 @@ export default function ScriptEditor({
                   disabled={editingLoading || !editInstruction.trim()}
                   style={{ fontSize: 12, padding: '8px 14px', borderRadius: 8, opacity: editingLoading ? 0.5 : 1 }}
                 >
-                  {editingLoading ? 'Applying...' : 'Apply'}
+                  {editingLoading
+                    ? 'Applying...'
+                    : editSlideCost ? `Apply · ${editSlideCost.toLocaleString()} credits` : 'Apply'}
                 </button>
               </div>
             )}
