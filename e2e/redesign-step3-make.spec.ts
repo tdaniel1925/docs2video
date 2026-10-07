@@ -49,7 +49,9 @@ const panel = (page: Page) => page.getByRole('complementary', { name: 'The price
 
 test.beforeEach(async ({ page }) => {
   guard = await guardRealWorld(page)
-  consoleErrors = collectConsoleErrors(page, [/status of (402|409|500)/])
+  // 406: after "Make it" the waiting screen asks the database about the
+  // pretend project at once, and there is no such row.
+  consoleErrors = collectConsoleErrors(page, [/status of (402|409|500)/, /status of 406/])
 })
 test.afterEach(() => {
   expectNoBlockedCalls(guard)

@@ -37,7 +37,12 @@ export type ProjectRow = {
   draftId: string | null
 }
 
+/** A project that finished since they last looked (an unread "ready" notice). */
+export type FinishedRow = { videoId: string; name: string; made: string }
+
 export type HomeData = {
+  /** "Finished while you were away" — at most a few, newest first. */
+  finished: FinishedRow[]
   hasAnyProject: boolean
   totalProjects: number
   projects: ProjectRow[]
@@ -218,9 +223,16 @@ export async function loadHomeData(userId: string): Promise<HomeData> {
     .slice(0, TABLE_ROWS)
     .map(({ at: _at, ...row }) => row)
 
+  // ── Finished while you were away ──
+  // The "ready" bell notices still unread (app/_lib/video-ready.ts writes one
+  // per finished project; watching it finish marks it read). Cheap: one read
+  // of notifications, names from the videos already loaded or one more read.
+  const finished = await loadFinished(admin, userId, videoMap)
+
   // ── This month ── (null = couldn't read it; the page shows —)
   const monthEvents = windowEvents?.filter(e => e.created_at >= monthStart) ?? null
   return {
+    finished,
     hasAnyProject: totalProjects > 0 || projects.length > 0,
     totalProjects,
     projects,
@@ -238,4 +250,36 @@ function latestEmail(sends: SendRow[]): string | null {
   let best: SendRow | null = null
   for (const s of sends) if (!best || s.created_at > best.created_at) best = s
   return best?.to_email ?? null
+}
+
+const FINISHED_DAYS = 14
+const FINISHED_MAX = 4
+
+async function loadFinished(admin: Admin, userId: string, known: Map<string, VideoRow>): Promise<FinishedRow[]> {
+  const since = new Date(Date.now() - FINISHED_DAYS * 86_400_000).toISOString()
+  const { data, error } = await admin.from('notifications')
+    .select('link, created_at')
+    .eq('user_id', userId).eq('type', 'video_ready').eq('read', false)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(FINISHED_MAX * 2)
+  logErr('notifications ready', error)
+  const ids = [...new Set(((data ?? []) as { link: string | null }[])
+    .map((n) => /^\/videos\/([0-9a-f-]{36})$/i.exec(n.link ?? '')?.[1])
+    .filter((x): x is string => !!x))].slice(0, FINISHED_MAX)
+  const missing = ids.filter((id) => !known.has(id))
+  const rows = new Map(known)
+  if (missing.length) {
+    const { data: vids, error: vErr } = await admin.from('videos')
+      .select('id, title, status, output_type, draft_data, created_at, updated_at, client_id, progress_pct')
+      .eq('user_id', userId).in('id', missing)
+    logErr('videos finished', vErr)
+    for (const v of (vids ?? []) as VideoRow[]) rows.set(v.id, v)
+  }
+  return ids.flatMap((id) => {
+    const v = rows.get(id)
+    if (!v || v.status !== 'completed') return []
+    const name = v.title?.trim() || (typeof v.draft_data?.purpose === 'string' ? (v.draft_data.purpose as string).trim() : '') || 'Untitled'
+    return [{ videoId: id, name: name.length > 70 ? name.slice(0, 67) + '…' : name, made: madeLabel(v.output_type) }]
+  })
 }

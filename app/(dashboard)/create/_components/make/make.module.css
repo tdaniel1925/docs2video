@@ -285,14 +285,12 @@
 
 /* ── The price panel ── */
 .panel {
-  position: sticky;
-  top: 24px;
+  /* Sits in the workspace's right column, which stays in view itself. */
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-card);
   padding: 20px;
 }
-@media (max-width: 900px) { .panel { position: static; } }
 .panelTitle {
   font-size: 12px;
   font-weight: 800;

@@ -236,6 +236,43 @@ export async function smoothScrubbed(
   return out
 }
 
+/** The product names to strip for ONE document: pulled from its title, carrier,
+ *  policy type and bullet points. Same sources generate-video's scene scrub
+ *  uses, so the headers and the scenes are cleaned against the same list. */
+export function complianceTokensFor(extracted: unknown): string[] {
+  const d = (extracted && typeof extracted === 'object' ? extracted : {}) as Record<string, unknown>
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
+  const bullets = Array.isArray(d.bulletPoints) ? d.bulletPoints.map(str) : []
+  return productTokens(str(d.title), str(d.carrier), str(d.policyType), ...bullets)
+}
+
+/**
+ * ONE scrubber for every on-screen string a payload builder makes (headers,
+ * running titles, kickers, footers, chips). Returns null when the document is
+ * not regulated, so ordinary documents are never touched.
+ *
+ * WHY: generate-video scrubs the SCENES, but the editorial header was built
+ * straight from the document's raw title, and V3's footer chips straight from
+ * its raw metric labels — so "QoL Max Accumulator+ III Index Universal Life
+ * Insurance" sat at the top of every page. The builders now run their own
+ * header strings through this, using the same blocklist + product tokens.
+ *
+ * Never use it on the agent's own name, photo, logo or the client's name —
+ * those are allowed and some agent names contain blocklisted words.
+ */
+export function complianceScrubberFor(extracted: unknown, ...context: unknown[]): ((s: string) => string) | null {
+  const docType = (extracted as { classification?: { documentType?: unknown } } | null)?.classification?.documentType
+  if (!isRegulated(extracted, docType, ...context)) return null
+  return makeComplianceScrubber(extracted)
+}
+
+/** The scrubber itself, for a caller that has already decided the document is
+ *  regulated (e.g. the free preview, which also honours complianceExempt). */
+export function makeComplianceScrubber(extracted: unknown): (s: string) => string {
+  const tokens = complianceTokensFor(extracted)
+  return (s: string) => (typeof s === 'string' && s ? scrubComplianceText(s, tokens) : s)
+}
+
 /** Which blocklisted terms survived a scrub (should be empty). Audit helper. */
 export function complianceLeaks(...hays: unknown[]): string[] {
   const hay = normalizeForMatch(hays.map((h) => (typeof h === 'string' ? h : JSON.stringify(h ?? ''))).join(' '))

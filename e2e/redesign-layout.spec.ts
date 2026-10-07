@@ -57,7 +57,10 @@ for (const width of [1440, 375]) {
           await expect(rail).toHaveCount(0)
         } else {
           await expect(rail).toBeVisible()
-          const items = rail.getByRole('listitem')
+          // (by class: on a phone the list is hidden behind the one-line bar)
+          const items = rail.locator('li.steps-rail-item')
+          const names = ['What it’s about', 'The story', 'Make it yours', 'Send it']
+          if (width < 500) await expect(rail).toContainText(`Step ${s.step} of 4 · ${names[s.step - 1]}`)
           await expect(items).toHaveCount(4)
           await expect(items.nth(0)).toContainText('What it’s about')
           await expect(items.nth(1)).toContainText('Check the story')
@@ -70,6 +73,8 @@ for (const width of [1440, 375]) {
             // Steps already done show a tick; later ones show their number.
             await expect(item.locator('.steps-rail-dot')).toHaveText(i + 1 < s.step ? '✓' : String(i + 1))
           }
+          // The right-hand part of the workspace: every choice so far.
+          if (s.key !== '3b-brand') await expect(page.getByRole('region', { name: 'Your video so far' })).toBeVisible()
           const box = await rail.boundingBox()
           expect(box!.width, 'the rail fits on screen').toBeLessThanOrEqual(width)
           if (width < 500) {
@@ -94,11 +99,24 @@ for (const width of [1440, 375]) {
       await page.screenshot({ path: `${SHOTS}/4-ready-to-send-${width}.png`, fullPage: true })
     })
 
-    test('the "Send it" progress screen has no rail', async ({ page }) => {
+    test('the "Send it" waiting screen keeps the rail and "Your video so far"', async ({ page }) => {
+      // The project's row, as the render service writes it mid-way.
+      await page.route('**/rest/v1/videos?**', (r) => r.fulfill({ json: {
+        status: 'generating_slides', progress_pct: 45, progress_detail: 'Drawing scene 3 of 6', error_message: null,
+        output_type: 'video', video_url: null, preview_thumbs: [], total_scenes: 6, draft_data: storyDraft(), deducted_cost: 1000,
+      } }))
       await page.goto(`/create/generating?id=${FAKE_ID}`)
-      await page.waitForTimeout(1500)
-      await expect(page.getByRole('navigation', { name: 'Steps' })).toHaveCount(0)
+      const rail = page.getByRole('navigation', { name: 'Steps' })
+      await expect(rail).toBeVisible()
+      await expect(rail.locator('li.steps-rail-item').nth(3)).toHaveAttribute('aria-current', 'step')
+      if (width < 500) await expect(rail).toContainText('Step 4 of 4 · Send it')
+      await expect(page.getByRole('region', { name: 'Your video so far' })).toBeVisible()
+      // The real stage and the render service's own words — no invented number.
+      await expect(page.getByRole('list', { name: 'Making your video' })).toContainText('Drawing scene 3 of 6')
+      await expect(page.getByText('About 65% done', { exact: false })).toBeVisible()
+      await expect(page.getByText('we’ll email you when it’s ready', { exact: false })).toBeVisible()
       await expectNoSidewaysScroll(page, `/create/generating @${width}`)
+      await page.screenshot({ path: `${SHOTS}/4-waiting-${width}.png`, fullPage: true })
     })
   })
 }

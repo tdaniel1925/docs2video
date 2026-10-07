@@ -83,7 +83,14 @@ export type DirPlan = {
   palette?: { bg: string; accent: string; accent2: string; text: string }   // legacy; look wins if present
   scenes: DirScene[]
 }
-export type DirectedProps = { assetBase?: string; plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number }
+export type DirectedProps = {
+  assetBase?: string; plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number
+  /** A single PICTURE (the free first-scene preview), not a video: the caller
+   *  supplies `starts`/`total` itself, and there is no voice, music or sound
+   *  effect to load — so none is fetched. Without this a still would ask for
+   *  dir-vo-*.mp3 / dir-music.mp3 files that a preview never makes. */
+  still?: boolean
+}
 
 // SFX pack (synthesized, royalty-free). One <Audio> per hit at a given frame.
 const Sfx: React.FC<{ name: string; at: number; total: number; volume?: number }> = ({ name, at, total, volume = 0.6 }) => {
@@ -100,6 +107,12 @@ const CAM: Record<string, { from: [number, number, number]; to: [number, number,
 }
 
 export const directedMetadata: CalculateMetadataFunction<DirectedProps> = async ({ props }) => {
+  // STILL (free preview): the caller worked out the timing and there is no
+  // voice file to measure, so use exactly what it sent.
+  if (props?.still && props.plan && Array.isArray(props.plan.scenes) && props.plan.scenes.length > 0
+    && Array.isArray(props.starts) && props.starts.length === props.plan.scenes.length && props.total > 0) {
+    return { durationInFrames: props.total, props: { ...props, intensity: props.intensity ?? 'premium', bpm: props.bpm ?? 128 }, fps: FPS, width: 1920, height: 1080 }
+  }
   // The plan is passed via --props (dir-plan wrapped) OR fetched from public/.
   let plan = props?.plan
   if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
@@ -150,6 +163,10 @@ function useBeats(totalFrames: number) {
   if (!audioData) return { beats: [], spectrum: new Array(20).fill(0) }
   return { beats, spectrum: visualizeAudio({ fps, frame, audioData, numberOfSamples: 32 }).slice(0, 20) }
 }
+// The music analysis a real render has always run (it holds the render until
+// dir-music.mp3 has loaded). Its own little component so a STILL, which has no
+// music, can leave it out.
+const MusicAnalysis: React.FC<{ total: number }> = ({ total }) => { useBeats(total); return null }
 const snap = (f: number, b: number[]) => { for (const x of b) if (x >= f) return x; return f }
 
 // Living Ken-Burns photo (from Valor) — eases from→to then keeps drifting.
@@ -441,7 +458,7 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   )
 }
 
-export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128 }) => {
+export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128, still = false }) => {
   setAssetBase(assetBase)
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   // LOOK drives the background STYLE; a brand palette (plan.palette, extracted
@@ -454,7 +471,6 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
   // the animated look-background renders in the brand palette when we have one
   const bgPalette = brandPal ? { ...look.palette, ...brandPal, muted: MUTED } : look.palette
   const glassStyle: GlassStyle = plan.chrome?.glass ?? 'vivid'
-  const { spectrum } = useBeats(total)
   const S = starts
   // KNOWN beat grid from the driving bed's BPM — exact, no detection guesswork.
   const BEATF = (60 / bpm) * fps
@@ -539,13 +555,14 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
           still ducked under VO. Fades in/out at the ends. */}
       {/* loop the composed bed so music NEVER cuts out mid-video (the bed is
           ~130s; longer videos need it to repeat). Fades in/out at the ends. */}
-      <Audio loop src={staticFile('dir-music.mp3')} volume={(f) => { const fi = Math.min(30, total * 0.1); const fo = Math.max(fi + 1, total - Math.min(45, total * 0.15)); const fe = Math.max(fo + 1, total - 6); return interpolate(f, [0, fi, fo, fe], [0, 0.28, 0.28, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }} />
-      {S.map((st, i) => <Sequence key={i} from={st}><Audio src={staticFile(`dir-vo-${plan.scenes[i].id}.mp3`)} /></Sequence>)}
+      {!still && <MusicAnalysis total={total} />}
+      {!still && <Audio loop src={staticFile('dir-music.mp3')} volume={(f) => { const fi = Math.min(30, total * 0.1); const fo = Math.max(fi + 1, total - Math.min(45, total * 0.15)); const fe = Math.max(fo + 1, total - 6); return interpolate(f, [0, fi, fo, fe], [0, 0.28, 0.28, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }} />}
+      {!still && S.map((st, i) => <Sequence key={i} from={st}><Audio src={staticFile(`dir-vo-${plan.scenes[i].id}.mp3`)} /></Sequence>)}
 
       {/* SFX layer — TASTEFUL and VARIED. Quiet accents, not slaps. Not every
           scene gets a hit (restraint makes the ones that do land). No two
           consecutive scenes use the same sound. Silent when intensity='calm'. */}
-      {intensity !== 'calm' && (plan as any).noSfx !== true && (() => {
+      {!still && intensity !== 'calm' && (plan as any).noSfx !== true && (() => {
         // base volume much lower than before (was 0.6) — accents, not slaps.
         const VOL = intensity === 'highenergy' ? 0.34 : 0.24
         const whooshCycle = ['whoosh-short', 'whoosh', 'whoosh-short']

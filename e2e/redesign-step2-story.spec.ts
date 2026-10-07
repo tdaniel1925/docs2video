@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { FAKE_ID, BRIEF, draftRow, mockDraft, scenes, storyDraft } from './helpers/fixtures'
+import { FAKE_ID, BRIEF, draftRow, mockDraft, quote, scenes, storyDraft } from './helpers/fixtures'
 import { alertOf, collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, jsonBody, type Guard } from './helpers/guard'
 
 /*
@@ -18,6 +18,8 @@ let consoleErrors: string[]
 test.beforeEach(async ({ page }) => {
   guard = await guardRealWorld(page)
   consoleErrors = collectConsoleErrors(page, [/\[story\] (autosave failed|load draft error)/, /status of (404|500)/])
+  // "Your video so far" shows the server's price for the draft.
+  await page.route('**/api/price-quote**', (route) => route.fulfill({ json: quote() }))
 })
 test.afterEach(() => {
   expectNoBlockedCalls(guard)
@@ -29,8 +31,8 @@ test.describe('Step 2 — the story, already written', () => {
     await mockDraft(page, draftRow(storyDraft()))
     await page.goto(url)
     await expect(page.getByRole('heading', { name: /story\./ })).toBeVisible()
-    await expect(page.getByText('The one point')).toBeVisible()
-    await expect(page.getByText(BRIEF.angle)).toBeVisible()
+    await expect(page.locator('.ws-work').getByText('The one point')).toBeVisible()
+    await expect(page.locator('.ws-work').getByText(BRIEF.angle)).toBeVisible()
     await expect(page.getByText('$84.50')).toBeVisible()
     await page.getByText('What it covers').click()
     await expect(page.getByText('20-year term')).toBeVisible()
@@ -412,7 +414,7 @@ test.describe('Step 2 — before the story exists', () => {
     await page.getByLabel('Tell it what to change').fill('Focus on the price')
     await page.getByRole('button', { name: 'Send', exact: true }).click()
     await expect(page.getByText('I’ll lead with the price.')).toBeVisible()
-    await expect(page.getByText('It costs less than a phone bill.')).toBeVisible()
+    await expect(page.locator('.ws-work').getByText('It costs less than a phone bill.')).toBeVisible()
   })
 
   test('a failed story shows the reason and Try again writes it again', async ({ page }) => {

@@ -22,6 +22,9 @@ import { usePriceQuote, formatCredits } from '../_components/make/usePriceQuote'
 import { isPresLook, isVideoLook, PRES_LOOKS, type VideoLookId } from '../_components/make/looks'
 // The same list the story step chooses from — one set of names for both.
 import { LENGTHS, LENGTH_ANCHOR } from '../_components/story/lengths'
+import Workspace from '../_components/workspace/Workspace'
+import { clientLabel, factsFromDraft, lookName, voiceName } from '../_components/workspace/facts'
+import FirstScenePreview from '../_components/make/FirstScenePreview'
 
 type Draft = Record<string, any>
 type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
@@ -257,7 +260,11 @@ function MakeItYours() {
   }
 
   if (loading) {
-    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>
+    return (
+      <Workspace soFar={factsFromDraft(null)}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>
+      </Workspace>
+    )
   }
   if (!videoId || loadError) {
     return (
@@ -273,11 +280,50 @@ function MakeItYours() {
   const length = LENGTHS.find((l) => l.id === (quote?.detailLevel ?? draft?.detailLevel)) ?? null
   const makeLabel = isPres ? (output === 'deck' ? 'Make the deck' : 'Make it') : 'Make it'
 
+  // "Your video so far": the saved draft, with this screen's choices on top
+  // (they're only saved when Make it is pressed, but the summary should
+  // already show them).
+  const soFar = factsFromDraft(draft, {
+    client: clientLabel(draft) ?? (draft?.clientId ? 'Your client' : 'No client — general'),
+    output,
+    look: lookName(output, isPres ? presLook : videoLook),
+    voice: narrated ? voiceName(voiceId) : 'None — silent slides',
+    price: { kind: 'quote', credits: shown?.total ?? null, free: shown?.free, loading: quoteLoading },
+  })
+
+  // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
+  // account) — mounted right above the Make it button, given the choices on
+  // screen so it previews what is picked right now.
+  const firstScenePreview = videoId
+    ? <FirstScenePreview videoId={videoId} output={output} look={isPres ? presLook : videoLook} voiceId={voiceId} />
+    : null
+
   return (
+    <Workspace
+      soFar={soFar}
+      side={
+        <PricePanel
+          quote={shown}
+          balance={quote?.balance ?? null}
+          quoteError={quoteError}
+          loading={quoteLoading || !!started}
+          blockedReason={quote?.blockedReason ?? null}
+          submitting={submitting}
+          submitLabel={makeLabel}
+          timeNote={timeNote}
+          error={started
+            ? { message: 'This one has already been started. Open it to see how it’s going.' }
+            : error}
+          onMake={handleMake}
+          onTopUp={() => setBuyCredits((b) => b ?? { balance: quote?.balance })}
+          preview={firstScenePreview}
+        />
+      }
+    >
     <div className={s.page}>
       <button type="button" className={s.back} onClick={() => router.push(`/create/script?id=${videoId}`)}>&larr; Back to the story</button>
 
-      <div className={s.layout}>
+      <div>
         <div>
           <h1 className={s.title}>Make it <em>yours.</em></h1>
           <p className={s.lead}>Pick the look, what to send and the voice. Your logo and colors come from your brand.</p>
@@ -404,21 +450,6 @@ function MakeItYours() {
           ) : null}
         </div>
 
-        <PricePanel
-          quote={shown}
-          balance={quote?.balance ?? null}
-          quoteError={quoteError}
-          loading={quoteLoading || !!started}
-          blockedReason={quote?.blockedReason ?? null}
-          submitting={submitting}
-          submitLabel={makeLabel}
-          timeNote={timeNote}
-          error={started
-            ? { message: 'This one has already been started. Open it to see how it’s going.' }
-            : error}
-          onMake={handleMake}
-          onTopUp={() => setBuyCredits((b) => b ?? { balance: quote?.balance })}
-        />
       </div>
 
       {started ? (
@@ -440,5 +471,6 @@ function MakeItYours() {
         </div>
       ) : null}
     </div>
+    </Workspace>
   )
 }

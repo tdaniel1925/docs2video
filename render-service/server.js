@@ -1100,8 +1100,32 @@ function speakable(text) {
   return t
 }
 
+// THE CHOSEN VOICE. ttsToBuffer speaks for Aurora, Cinematic, Infographic,
+// Editorial and Explainer. It used to ALWAYS try ElevenLabs Rachel first, so
+// the voice the customer picked on step 3 was only heard when ElevenLabs was
+// down. Now it follows the Slide Deck rule (slides.js wantsChosenVoice):
+// Sarah (nova) or nothing picked → ElevenLabs first, as before; any other
+// voice → that OpenAI voice first, ElevenLabs only if OpenAI fails.
+const OPENAI_TTS_VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
+
+async function openaiSpeak(spoken, voiceId) {
+  const OpenAI = require('openai')
+  const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+  const resp = await openai.audio.speech.create({
+    model: 'tts-1-hd', voice: OPENAI_TTS_VOICES.includes(voiceId) ? voiceId : 'nova', input: spoken, response_format: 'mp3', speed: 0.98,
+  })
+  return Buffer.from(await resp.arrayBuffer())
+}
+
 async function ttsToBuffer(text, voiceId) {
   const spoken = speakable(text) || ' '
+  if (require('./slides').wantsChosenVoice(voiceId)) {
+    try { return await openaiSpeak(spoken, voiceId) } catch (e) {
+      if (!ELEVEN_API_KEY) throw e
+      console.warn(`[tts] OpenAI voice "${voiceId}" failed (${e.message}) — falling back to ElevenLabs`)
+      return await elevenSpeak(spoken)
+    }
+  }
   // PRIMARY: ElevenLabs — retry once with backoff before falling back (review
   // B7: parallel scene fan-out can trip the plan's concurrency limit with a
   // transient 429; without the retry each such scene silently ships with the
@@ -1119,13 +1143,8 @@ async function ttsToBuffer(text, voiceId) {
       }
     }
   }
-  // FALLBACK: OpenAI TTS-HD (honors the user's selected voice).
-  const OpenAI = require('openai')
-  const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
-  const resp = await openai.audio.speech.create({
-    model: 'tts-1-hd', voice: voiceId || 'nova', input: spoken, response_format: 'mp3', speed: 0.98,
-  })
-  return Buffer.from(await resp.arrayBuffer())
+  // FALLBACK: OpenAI TTS-HD (Sarah — this branch is only reached for the default).
+  return await openaiSpeak(spoken, voiceId)
 }
 
 async function v3Tts(text, voiceId, outPath) {
@@ -1358,7 +1377,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-v3 ${videoId}] theme=${theme} comp=${COMP} scenes=${scenes.length}`)
     await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
-    await setProgress(25, 'Generating narration...')
+    await setProgress(25, isInfo || isAurora ? 'Recording the voice' : 'Recording the voice and making the pictures')
 
     // Infographic theme: ONE ambient background image for the whole video (not
     // per-scene). Heavily darkened behind the data so it adds depth without
@@ -1421,43 +1440,11 @@ app.post('/render-v3', authCheck, async (req, res) => {
     const assets = settled.map((r) => r.value)
     // Live filmstrip previews (best-effort, cheap) — after assets exist.
     for (let i = 0; i < assets.length; i++) { if (assets[i].haveImg) await pushPreview(i, join(pub, assets[i].imgName)) }
-    await setProgress(70, 'Composing scenes...')
+    await setProgress(70, 'Laying out your scenes')
 
-    const outScenes = []
-    for (let i = 0; i < scenes.length; i++) {
-      const s = scenes[i]
-      const { audioName, imgName, durationInFrames, haveImg } = assets[i]
-      if (isInfo) {
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, ...(s.heroMetric && s.heroMetric.value ? { heroMetric: s.heroMetric } : {}), audio: audioName, durationInFrames })
-      } else {
-        const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
-        // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
-        // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
-        const isEnd = i === 0 || i === scenes.length - 1
-        const isLast = i === scenes.length - 1
-        const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
-        // Build PowerPoint-style bullets for middle scenes: each metric becomes a
-        // bullet "label: value", plus any text bullets without numbers. This is
-        // what triggers the glass-panel layout and shows ALL the numbers.
-        const textBullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 2).map((b) => ({ text: String(b) }))
-        const metricBullets = sceneMetrics.map((x) => ({ text: x.label, value: x.value }))
-        const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : undefined
-        // Last scene = branded CLOSING CARD: logo + company + contact + value.
-        let closing
-        if (isLast) {
-          const hasContact = contact && (contact.phone || contact.email || contact.website)
-          closing = {
-            headline: s.title || 'Thank You',
-            cta: s.bullets?.[0] || 'Reach out with any questions — we\'re here to help.',
-            ...(closingValue ? { value: closingValue } : {}),
-            ...(hasContact ? { contact } : {}),
-          }
-        }
-        // A hero-number scene shows ONE giant figure instead of bullets/metrics.
-        const heroMetric = s.heroMetric && s.heroMetric.value ? s.heroMetric : undefined
-        outScenes.push({ title: s.title || '', ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(heroMetric ? { heroMetric } : (bullets && bullets.length ? { bullets } : {})), ...(closing ? { closing } : {}) })
-      }
-    }
+    // One scene's props each, from the helper the free preview also uses
+    // (v3OutScene, in the PURE HELPERS block) — so a preview can't drift from this.
+    const outScenes = scenes.map((s, i) => v3OutScene(s, i, scenes.length, { isInfo, ...assets[i], contact, closingValue }))
 
     // Logo variants arrive as REMOTE Supabase URLs, but Remotion's staticFile()
     // resolves LOCAL public/ files only — so download each into public/ and pass
@@ -1513,7 +1500,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       scenes: outScenes,
     }
     await writeFile(PROPS, JSON.stringify(props))
-    await setProgress(72, 'Rendering video...')
+    await setProgress(72, `Drawing scene 1 of ${outScenes.length}`)
 
     // Stream Remotion's frame progress so the bar moves during the long render
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
@@ -1533,23 +1520,15 @@ app.post('/render-v3', authCheck, async (req, res) => {
       const child = spawn(...renderCmd(COMP, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
-      let lastPct = 72, lastWrite = 0
+      // Remotion prints "Rendered frames 1840/3527" (and an Encoding phase);
+      // the customer reads "Drawing scene 4 of 9", then "Putting it together".
+      // Scene starts mirror v3Total: a title card first when there is a name.
+      const v3Lead = !isInfo && (props.brandName || outScenes[0]?.title) ? PREVIEW_V3_LEAD_IN : 0
+      const progress = makeRenderProgress({ from: 72, to: 89, starts: startsFromDurations(outScenes.map((s) => s.durationInFrames), v3Lead), report: setProgress })
       const onChunk = (buf) => {
         const text = buf.toString()
         stderrBuf = (stderrBuf + text).slice(-2000)
-        // Remotion prints "Rendered frames 1840/3527" (and an Encoding phase).
-        const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
-        if (m) {
-          const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
-          if (total > 0 && done <= total) {
-            const pct = 72 + Math.round((done / total) * 17) // 72 -> 89
-            const now = Date.now()
-            if (pct > lastPct && now - lastWrite > 1500) { // throttle DB writes
-              lastPct = pct; lastWrite = now
-              setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`)
-            }
-          }
-        }
+        progress(text)
       }
       child.stdout.on('data', onChunk)
       child.stderr.on('data', onChunk)
@@ -1568,7 +1547,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // failure we keep the music-less render rather than failing the whole video.
     if (musicUrl || aiMusic || musicPrompt) {
       try {
-        await setProgress(88, 'Adding music...')
+        await setProgress(88, 'Adding the music')
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`)
         let haveMusic = false
         if (musicUrl) {
@@ -1603,7 +1582,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       } catch (e) { console.error(`[render-v3 ${videoId}] music skipped: ${e.message}`) }
     }
 
-    await setProgress(90, 'Uploading...')
+    await setProgress(90, 'Saving your video')
     const videoBuffer = await readFile(outFile)
     const videoStoragePath = `${userId}/${videoId}.mp4`
     await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
@@ -1699,26 +1678,24 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     console.log(`[render-commercial ${videoId}] staged ${entries.length} assets`)
 
     await writeFile(PROPS, JSON.stringify(props))
-    await setProgress(60, 'Rendering commercial...')
+    await setProgress(60, 'Drawing your commercial')
 
     await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       const child = spawn(...renderCmd(template, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
-      let stderrBuf = '', lastPct = 60, lastWrite = 0
+      let stderrBuf = ''
+      const progress = makeRenderProgress({ from: 60, to: 90, report: setProgress })
       const onChunk = (buf) => {
         const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-2000)
-        const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
-        if (m) { const done = +m[1], total = +m[2]
-          if (total > 0 && done <= total) { const pct = 60 + Math.round((done / total) * 30); const now = Date.now()
-            if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } }
+        progress(text)
       }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
       child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`remotion exit ${code}: ${stderrBuf.slice(-400)}`)))
       child.on('error', reject)
     }))
 
-    await setProgress(92, 'Uploading...')
+    await setProgress(92, 'Saving your video')
     const videoBuffer = await readFile(outFile)
     const videoStoragePath = `${userId}/${videoId}.mp4`
     await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
@@ -1818,12 +1795,12 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       staged.push(propsPath, ...assetNames.map((n) => join(assetDirAbs, n)))
       console.log(`[generate-commercial ${videoId}] style=${styleId} beats=${props.beats.length} ~${totalSec.toFixed(1)}s`)
 
-      await setProgress(58, 'Rendering commercial...')
+      await setProgress(58, 'Drawing your commercial')
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
         const child = spawn(...renderCmd('TemplateCommercial', outFile, propsPath), { cwd: REMOTION_DIR, env: { ...process.env } })
-        let stderrBuf = '', lastPct = 58, lastWrite = 0
-        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 58 + Math.round((done / total) * 32); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 58, to: 90, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
@@ -1869,7 +1846,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         console.warn(`[generate-commercial ${videoId}] QA scan error (non-blocking): ${qaErr.message}`)
       }
 
-      await setProgress(92, 'Uploading...')
+      await setProgress(92, 'Saving your video')
       const videoBuffer = await readFile(outFile)
       await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
@@ -2030,27 +2007,30 @@ app.post('/generate-slides', authCheck, async (req, res) => {
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
       }
-      const { plan, assetNames, sceneMeta } = await generateSlidePlan({
+      const { plan, assetNames, sceneMeta, starts: slideStarts } = await generateSlidePlan({
         pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
-        shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps, log: (m) => setProgress(40, m),
+        shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps,
+        // The pipeline's log lines are for us ("comprehending pdf (48210 chars)...");
+        // the customer gets plain words for the step it is on.
+        log: (m) => { console.log(`[generate-slides ${videoId}] ${m}`); const w = slidesStepWords(m); if (w) setProgress(40, w) },
         suppliedScenes, voiceId, detailLevel,
       })
       staged.push(...assetNames.map((n) => join(pub, n)))
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
 
-      await setProgress(55, 'Rendering slides...')
+      await setProgress(55, `Drawing scene 1 of ${plan.scenes.length}`)
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
         const child = spawn(...renderCmd('DirectedVideo', outFile, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
-        let stderrBuf = '', lastPct = 55, lastWrite = 0
-        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 55 + Math.round((done / total) * 34); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 55, to: 89, starts: slideStarts, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
         child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
-      await setProgress(90, 'Uploading...')
+      await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
       await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
@@ -2065,7 +2045,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       // PER-SCENE THUMBNAILS for the SLIDES panel — grab one frame per scene from
       // the finished mp4 at each scene's midpoint (no extra render). Uploads to
       // storage; slide_urls drives the clickable panel + the Fix-a-Scene picker.
-      await setProgress(93, 'Building slide panel...')
+      await setProgress(93, 'Making the slide previews')
       const slideUrls = []
       for (const m of (sceneMeta || [])) {
         try {
@@ -2515,7 +2495,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       await mkdir(pub, { recursive: true })
       await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
       console.log(`[render-directed ${videoId}] scenes=${plan.scenes.length} assets=${(assets || []).length}`)
-      await setProgress(30, 'Staging assets...')
+      await setProgress(30, 'Getting your files ready')
 
       // Download each asset into public/ under its EXACT plan filename (dir-vo-1.mp3,
       // dir-bd-2.png, dir-music.mp3, brand-logo.png, dir-img-3.png, ...).
@@ -2544,7 +2524,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       // accepts { plan } via props and never falls back to the staticFile fetch.
       await writeFile(PROPS, JSON.stringify({ plan }))
       staged.push(PROPS)
-      await setProgress(50, 'Rendering slides...')
+      await setProgress(50, 'Drawing your slides')
 
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
@@ -2552,18 +2532,13 @@ app.post('/render-directed', authCheck, async (req, res) => {
         // via /dev/shm). --props isolation: never rely on staticFile fetch.
         const child = spawn(...renderCmd('DirectedVideo', outFile, PROPS),
           { cwd: REMOTION_DIR, env: { ...process.env } })
-        let stderrBuf = '', lastPct = 50, lastWrite = 0
+        let stderrBuf = ''
+        // Scene starts are worked out inside the renderer here (from the voice
+        // lengths), so the words say how far along, not which scene.
+        const progress = makeRenderProgress({ from: 50, to: 89, report: setProgress })
         const onChunk = (buf) => {
           const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-2000)
-          const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
-          if (m) {
-            const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
-            if (total > 0 && done <= total) {
-              const pct = 50 + Math.round((done / total) * 39) // 50 -> 89
-              const now = Date.now()
-              if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) }
-            }
-          }
+          progress(text)
         }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout (>60min)')) }, 60 * 60 * 1000)
@@ -2571,7 +2546,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
         child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
-      await setProgress(90, 'Uploading...')
+      await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
       const videoStoragePath = `${userId}/${videoId}.mp4`
       await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
@@ -2701,7 +2676,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-editorial ${videoId}] ${scenes.length} scenes`)
     await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
-    await setProgress(25, 'Writing your report...')
+    await setProgress(25, 'Recording the voice')
 
     // Build every scene's assets (TTS + optional Gemini image) IN PARALLEL.
     // These were serial per-scene AND serial-within-scene, so a 6-scene report
@@ -2728,7 +2703,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       ])
       const durationInFrames = floorDuration(durRaw, i === 0)
       assetsDone++
-      await setProgress(30 + Math.round((assetsDone / scenes.length) * 42), `Composing page ${assetsDone}/${scenes.length}...`)
+      await setProgress(30 + Math.round((assetsDone / scenes.length) * 42), `Recording the voice — ${assetsDone} of ${scenes.length} pages done`)
       return {
         archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
         quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
@@ -2773,7 +2748,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       ...(recipient ? { recipient } : {}),   // "Prepared for {client}" on the cover
       ...(edPresenter ? { presenter: edPresenter, presenterOnCover: edOnCover, presenterOnClosing: edOnClosing } : {}),
     }))
-    await setProgress(72, 'Rendering...')
+    await setProgress(72, `Drawing scene 1 of ${out.length}`)
     // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
     await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
@@ -2782,8 +2757,8 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       // fall back to composition defaultProps (the "Run the editorial generator
       // first" placeholder).
       const child = spawn(...renderCmd('EditorialVideo', outFile, edProps), { cwd: REMOTION_DIR, env: { ...process.env } })
-      let err = '', lastPct = 72, lastW = 0
-      const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
+      let err = ''; const progress = makeRenderProgress({ from: 72, to: 89, starts: startsFromDurations(out.map((s) => s.durationInFrames)), report: setProgress })
+      const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); progress(x) }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
       const kt = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
       child.on('error', (e) => { clearTimeout(kt); reject(new Error(`render: ${e.message}`)) })
@@ -2793,7 +2768,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     // Optional music mix (reuses the same Lyria + ffmpeg path as /render-v3).
     if (musicUrl || aiMusic || musicPrompt) {
       try {
-        await setProgress(88, 'Adding music...')
+        await setProgress(88, 'Adding the music')
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`); let have = false
         if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
         else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
@@ -2811,7 +2786,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     // (90s-capped), minutes of extra wall-clock for pixel-identical images that
     // are already in the video. The music mix uses -c:v copy, so the video
     // stream (and frame timing) is unchanged — extracting from outFile is exact.
-    await setProgress(89, 'Rendering page thumbnails...')
+    await setProgress(89, 'Making the page previews')
     {
       let acc = 0
       for (let i = 0; i < out.length; i++) {
@@ -2828,7 +2803,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       }
     }
 
-    await setProgress(92, 'Uploading...')
+    await setProgress(92, 'Saving your video')
     const buf = await readFile(outFile)
     const path = `${userId}/${videoId}.mp4`
     await sb.storage.from('videos').upload(path, buf, { contentType: 'video/mp4', upsert: true })
@@ -3416,6 +3391,348 @@ app.post('/style-preview', authCheck, async (req, res) => {
   } catch (err) {
     console.error('[style-preview] Error:', err)
     res.status(500).json({ error: err.message || 'Failed' })
+  }
+})
+
+// ============================================================
+// FIRST-SCENE PREVIEW + HONEST PROGRESS WORDS
+// ============================================================
+// ==== PURE HELPERS (BEGIN) ====
+// Nothing in this block reads a file, the network or anything outside it.
+// tests/preview-still-server.test.ts cuts this block out of server.js and runs
+// it, so the code that is tested is the code that ships. Keep it that way:
+// load no modules and use no names defined elsewhere in this file.
+
+/** Which scene is on screen at `frame`, given the first frame of each scene. */
+function sceneAtFrame(frame, starts) {
+  let idx = 0
+  for (let i = 0; i < starts.length; i++) if (frame >= starts[i]) idx = i
+  return idx
+}
+
+/** First frame of each scene, from the scenes' lengths (plus a lead-in such
+ *  as V3's title card, which plays before scene 1). */
+function startsFromDurations(durations, leadIn = 0) {
+  const starts = []
+  let t = leadIn
+  for (const d of durations) { starts.push(t); t += Math.max(0, d || 0) }
+  return starts
+}
+
+/** The words a customer sees while the video is being drawn. Says which scene
+ *  when we know where the scenes start; otherwise how far along it is. */
+function renderProgressWords({ done, total, starts, phase }) {
+  if (phase === 'encoding') return 'Putting it together'
+  if (Array.isArray(starts) && starts.length > 1 && total > 0) {
+    const i = sceneAtFrame(Math.min(done, total - 1), starts)
+    return `Drawing scene ${i + 1} of ${starts.length}`
+  }
+  const pct = total > 0 ? Math.min(99, Math.floor((done / total) * 100)) : 0
+  return `Drawing your video — ${pct}% done`
+}
+
+/**
+ * Turns Remotion's console output ("Rendered 1840/3527", and on Lambda
+ * "Rendered frames 1840/3527") into progress the customer can read. The bar
+ * moves from `from` to `to` while frames are drawn; once every frame is drawn,
+ * the "Encoded …" lines mean the file is being put together. Writes at most
+ * once per `minGapMs`, and only when the bar moved or the words changed.
+ */
+function makeRenderProgress({ from, to, starts, report, minGapMs = 1500, now = () => Date.now() }) {
+  let lastPct = from, lastWords = '', lastWrite = -Infinity, drawnAll = false
+  return (text) => {
+    for (const line of String(text).split(/\r\n|\r|\n/)) {
+      const m = [...line.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
+      if (!m) continue
+      const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
+      if (!(total > 0) || done > total) continue
+      const encodingLine = /encod|stitch/i.test(line)
+      // Remotion encodes while it draws, so an "Encoded" line only means
+      // "putting it together" once every frame has been drawn.
+      if (encodingLine && !drawnAll) continue
+      if (!encodingLine && done >= total) drawnAll = true
+      const phase = encodingLine ? 'encoding' : 'drawing'
+      const pct = phase === 'encoding' ? to : from + Math.round((done / total) * (to - from))
+      const words = renderProgressWords({ done, total, starts, phase })
+      const t = now()
+      if ((pct > lastPct || words !== lastWords) && t - lastWrite >= minGapMs) {
+        lastPct = Math.max(lastPct, pct); lastWords = words; lastWrite = t
+        report(lastPct, words)
+      }
+    }
+  }
+}
+
+/** Plain words for a slide-deck pipeline log line (slides.js generateSlidePlan),
+ *  or null to keep showing the last ones. Its lines are written for us —
+ *  "comprehending pdf (48210 chars)...", "⚖ regulated content detected". */
+function slidesStepWords(line) {
+  const m = String(line || '')
+  if (/comprehend/i.test(m)) return 'Reading your document'
+  if (/writing slide deck/i.test(m)) return 'Writing your slides'
+  // The voice is recorded right after the script is settled.
+  if (/using your script|scrub clean|re-smoothed/i.test(m)) return 'Recording the voice'
+  return null
+}
+
+/**
+ * One scene of the V3 / Infographic props — shared by the real render
+ * (/render-v3) and the free preview, so the preview lays a scene out exactly
+ * the way the finished video does. `audioName`/`imgName` are absent in a
+ * preview (no voice, no AI picture).
+ */
+function v3OutScene(s, i, n, o) {
+  const { isInfo, audioName, imgName, haveImg, durationInFrames, contact, closingValue } = o
+  const audio = audioName ? { audio: audioName } : {}
+  if (isInfo) {
+    return { title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, ...(s.heroMetric && s.heroMetric.value ? { heroMetric: s.heroMetric } : {}), ...audio, durationInFrames }
+  }
+  const placement = (i === 0 || i === n - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
+  // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
+  // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
+  const isEnd = i === 0 || i === n - 1
+  const isLast = i === n - 1
+  const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
+  // Build PowerPoint-style bullets for middle scenes: each metric becomes a
+  // bullet "label: value", plus any text bullets without numbers. This is
+  // what triggers the glass-panel layout and shows ALL the numbers.
+  const textBullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 2).map((b) => ({ text: String(b) }))
+  const metricBullets = sceneMetrics.map((x) => ({ text: x.label, value: x.value }))
+  const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : undefined
+  // Last scene = branded CLOSING CARD: logo + company + contact + value.
+  let closing
+  if (isLast) {
+    const hasContact = contact && (contact.phone || contact.email || contact.website)
+    closing = {
+      headline: s.title || 'Thank You',
+      cta: s.bullets?.[0] || 'Reach out with any questions — we\'re here to help.',
+      ...(closingValue ? { value: closingValue } : {}),
+      ...(hasContact ? { contact } : {}),
+    }
+  }
+  // A hero-number scene shows ONE giant figure instead of bullets/metrics.
+  const heroMetric = s.heroMetric && s.heroMetric.value ? s.heroMetric : undefined
+  return { title: s.title || '', ...(haveImg ? { image: imgName } : {}), ...audio, durationInFrames, placement, ...(heroMetric ? { heroMetric } : (bullets && bullets.length ? { bullets } : {})), ...(closing ? { closing } : {}) }
+}
+
+// A preview still is drawn from a short timeline: every scene gets 8 seconds
+// and the picture is taken 4 seconds into the first content scene — after
+// its words, cards and charts have finished arriving, before it fades out.
+const PREVIEW_SCENE_FRAMES = 240
+const PREVIEW_SHOT_AT = 120
+// Mirrors COLD_OPEN_FRAMES in remotion/src/v3/V3Video.tsx (the title card
+// V3 plays before scene 1 whenever there is a name or title to show).
+const PREVIEW_V3_LEAD_IN = 105
+
+/** Index of the first scene that is neither the cover nor the closing. */
+function firstContentIndex(roles) {
+  const i = roles.findIndex((r) => r !== 'cover' && r !== 'closing')
+  return i >= 0 ? i : 0
+}
+
+/**
+ * Slide Deck look (DirectedVideo). The deck is built from the user's scenes by
+ * the SAME planFromSuppliedScenes the real render uses (passed in, it lives in
+ * slides.js), then laid out the way generateSlidePlan lays it out — minus the
+ * voice: with no recording to time the reveals against, they are spread
+ * evenly, which is exactly what the real render does for a line the voice
+ * doesn't say word for word. Backdrops are the animated code background (the
+ * default; photo backdrops are an opt-in that costs money).
+ */
+function previewDirectedJob(body, deps) {
+  const { scenes, preparer, recipient, footer, logoUrl, presenter, photoPlacement } = body
+  const w = deps.planFromSuppliedScenes(scenes)
+  if (!w.scenes.length) throw new Error('No scene with narration to preview.')
+  const outScenes = w.scenes.map((s) => {
+    const k = s.kind || (s.beat === 'intro' ? 'intro' : s.beat === 'cta' ? 'cta' : 'slide')
+    const blocks = (s.blocks || []).map((b) => JSON.parse(JSON.stringify(b)))
+    const spread = (arr) => arr.forEach((it, i) => { it.cueFrame = Math.round(12 + (PREVIEW_SHOT_AT - 36) * (i / Math.max(1, arr.length))); delete it.cue })
+    for (const b of blocks) { if (b.type === 'bullets') spread(b.items || []); if (b.type === 'cards') spread(b.cards || []) }
+    const visual = (k === 'slide' || k === 'figure') ? { type: 'slide' } : { type: 'kinetic' }
+    return { id: s.id, beat: s.beat, narration: s.narration, on_screen: (s.layout && s.layout.heading) || s.on_screen || '', layout: s.layout, blocks, visual }
+  })
+  const company = preparer || 'docs2video' // same default as /generate-slides
+  const doc = {
+    title: w.title, look: ['noir', 'ledger', 'datamesh'].includes(w.look) ? w.look : 'noir',
+    chrome: { company, logo: logoUrl || undefined, recipient: recipient || null, footer: footer || company, glass: 'vivid' },
+    intro: { ...w.intro, preparer: company, recipient },
+    cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: (w.cta && w.cta.contact) || footer || company },
+    scenes: outScenes,
+    noSfx: true,
+  }
+  if (presenter && presenter.photoUrl) {
+    const pl = photoPlacement || 'both'
+    doc.presenter = { name: presenter.name, role: presenter.role, photo: presenter.photoUrl, onCover: pl === 'cover' || pl === 'both' || pl === 'auto', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
+  }
+  const palette = deps.buildBrandPalette ? deps.buildBrandPalette(null, body.accent) : null
+  if (palette) doc.palette = palette
+  const starts = outScenes.map((_, i) => 15 + i * PREVIEW_SCENE_FRAMES)
+  const total = starts[starts.length - 1] + PREVIEW_SCENE_FRAMES
+  const idx = outScenes.findIndex((s) => s.beat !== 'intro' && s.beat !== 'cta')
+  const at = idx >= 0 ? idx : 0
+  return { comp: 'DirectedVideo', props: { plan: doc, starts, total, still: true }, frame: starts[at] + PREVIEW_SHOT_AT }
+}
+
+/**
+ * Aurora / Cinematic / Infographic looks (V3Video, InfographicVideo). Takes the
+ * payload the app's buildV3Payload made (the same builder the real video
+ * uses) and lays each scene out with v3OutScene. No AI pictures: Aurora never
+ * has any; Cinematic and Infographic show their code-drawn ground instead of
+ * the AI photo / AI backdrop the finished video adds (the app says so).
+ */
+function previewV3Job(body, deps) {
+  const p = body.payload || {}
+  const scenes = Array.isArray(p.scenes) ? p.scenes : []
+  if (!scenes.length) throw new Error('No scene to preview.')
+  const isInfo = p.theme === 'infographic'
+  const isAurora = p.theme === 'aurora'
+  const out = scenes.map((s, i) => v3OutScene(s, i, scenes.length, { isInfo, haveImg: false, durationInFrames: PREVIEW_SCENE_FRAMES, contact: p.contact, closingValue: p.closingValue }))
+  const logo = p.logo && (p.logo.light || p.logo.dark) ? { light: p.logo.light || p.logo.dark, dark: p.logo.dark || p.logo.light } : undefined
+  const props = {
+    __preview: true,
+    theme: deps.v3Theme(p.brandAccents),
+    brandName: p.brandName || undefined,
+    ...(p.recipient ? { recipient: p.recipient } : {}),
+    ...(p.frame ? { frame: p.frame } : {}),
+    ...(isAurora ? { look: 'aurora' } : {}),
+    ...(logo ? { logo, logoChip: !!p.logo.chip } : {}),
+    scenes: out,
+  }
+  const lead = !isInfo && (p.brandName || out[0]?.title) ? PREVIEW_V3_LEAD_IN : 0
+  const starts = startsFromDurations(out.map((s) => s.durationInFrames), lead)
+  // The app sends every scene the finished video will have (the layout of a
+  // scene depends on where it sits — first and last are title/closing cards)
+  // and says which one is the first content scene.
+  const at = Number.isInteger(body.sceneIndex) && body.sceneIndex >= 0 && body.sceneIndex < scenes.length ? body.sceneIndex : 0
+  return { comp: isInfo ? 'InfographicVideo' : 'V3Video', props, frame: starts[at] + PREVIEW_SHOT_AT }
+}
+
+/** Editorial / Explainer looks (EditorialVideo) — the same page props the
+ *  theme preview (/preview-editorial) has always rendered. */
+function previewEditorialJob(body) {
+  const { masthead, runningTitle, brandColor, variant, contactLine, recipient, scenes } = body
+  if (!Array.isArray(scenes) || !scenes.length) throw new Error('No scene to preview.')
+  const out = scenes.map((s) => ({
+    archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
+    quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
+    timeline: s.timeline, chart: s.chart, matrix: s.matrix,
+    durationInFrames: PREVIEW_SCENE_FRAMES,
+  }))
+  const props = { __preview: true, masthead, runningTitle, brandColor, variant: variant || 'time', ...(contactLine ? { contactLine } : {}), ...(recipient ? { recipient } : {}), scenes: out }
+  const at = firstContentIndex(scenes.map((s) => (s.archetype === 'cover' ? 'cover' : s.archetype === 'decision' ? 'closing' : 'content')))
+  return { comp: 'EditorialVideo', props, frame: at * PREVIEW_SCENE_FRAMES + PREVIEW_SHOT_AT }
+}
+// ==== PURE HELPERS (END) ====
+
+// Lambda function name, looked up once (same choice as scripts/lambda-render.mjs:
+// the biggest compatible function) unless REMOTION_FUNCTION_NAME pins it.
+let previewFunctionName = process.env.REMOTION_FUNCTION_NAME || null
+
+/**
+ * Draw ONE frame of a composition to a PNG buffer. With a deployed Lambda
+ * site (REMOTION_SERVE_URL — production) it is a single Lambda still: a few
+ * seconds, a fraction of a cent, and it never waits behind a customer's video
+ * render on this box. Without one (a laptop) it runs `remotion still` here.
+ */
+async function renderPreviewStill({ comp, props, frame }) {
+  if (process.env.REMOTION_SERVE_URL) {
+    const lambda = require(require.resolve('@remotion/lambda/client', { paths: [REMOTION_DIR] }))
+    const region = process.env.REMOTION_AWS_REGION || process.env.AWS_REGION || 'us-east-1'
+    if (!previewFunctionName) {
+      const fns = await lambda.getFunctions({ region, compatibleOnly: true })
+      previewFunctionName = fns.sort((a, b) => b.memorySizeInMb - a.memorySizeInMb)[0]?.functionName || null
+      if (!previewFunctionName) throw new Error('No compatible Remotion Lambda function deployed')
+    }
+    const r = await lambda.renderStillOnLambda({
+      region, functionName: previewFunctionName, serveUrl: process.env.REMOTION_SERVE_URL,
+      composition: comp, inputProps: props, frame, imageFormat: 'png', privacy: 'public',
+      maxRetries: 1, chromiumOptions: { gl: 'swangle' }, timeoutInMilliseconds: 60000,
+    })
+    const dl = await fetch(r.url, { signal: AbortSignal.timeout(20000) })
+    if (!dl.ok) throw new Error(`lambda still download ${dl.status}`)
+    return Buffer.from(await dl.arrayBuffer())
+  }
+  const dir = join(tmpdir(), `preview-${randomUUID()}`)
+  await mkdir(dir, { recursive: true })
+  const propsPath = join(dir, 'props.json'), outPath = join(dir, 'still.png')
+  try {
+    await writeFile(propsPath, JSON.stringify(props))
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process')
+      const win = process.platform === 'win32'
+      const c = spawn(win ? 'npx.cmd' : 'npx', ['remotion', 'still', comp, outPath, `--frame=${frame}`, `--props=${propsPath}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env }, shell: win })
+      let err = ''
+      c.stderr.on('data', (b) => { err = (err + b.toString()).slice(-600) })
+      const kt = setTimeout(() => { try { c.kill('SIGKILL') } catch {} ; reject(new Error('still timeout')) }, 180000)
+      c.on('error', (e) => { clearTimeout(kt); reject(e) })
+      c.on('close', (code) => { clearTimeout(kt); code === 0 ? resolve() : reject(new Error(`still exit ${code}: ${err}`)) })
+    })
+    return await readFile(outPath)
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/**
+ * Interactive presentation / slide deck looks: the REAL page the customer will
+ * get (built by the app's buildPresentationHtml), opened in Chromium on its
+ * second slide (the first content slide) and photographed. Controls hidden.
+ */
+async function renderHtmlStill(html) {
+  const { chromium } = require('playwright')
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
+    await page.setContent(String(html), { waitUntil: 'networkidle', timeout: 20000 }).catch(() => {})
+    await page.evaluate(() => {
+      const nav = document.getElementById('nav'); if (nav) nav.style.display = 'none'
+      // eslint-disable-next-line no-undef
+      if (typeof go === 'function') go(1)
+    })
+    // The slide's words and count-ups animate in over ~1.5 s.
+    await page.waitForTimeout(2200)
+    return await page.screenshot({ type: 'png' })
+  } finally {
+    await browser.close().catch(() => {})
+  }
+}
+
+/**
+ * POST /preview-still — the picture half of the free first-scene preview on
+ * step 3 ("Make it yours"). Draws one frame in the look the customer picked,
+ * from their own first content scene, and stores it at
+ * {userId}/previews/still-{key}.png. Synchronous; no AI calls, no voice.
+ * Body: { userId, videoId, key, engine: 'directed'|'v3'|'editorial'|'html', … }
+ */
+app.post('/preview-still', authCheck, async (req, res) => {
+  const body = req.body || {}
+  const { userId, videoId, key, engine } = body
+  if (!userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) return res.status(400).json({ error: 'Missing userId' })
+  if (!key || !/^[a-f0-9]{16,64}$/.test(String(key))) return res.status(400).json({ error: 'Missing key' })
+  if (!['directed', 'v3', 'editorial', 'html'].includes(engine)) return res.status(400).json({ error: 'Unknown engine' })
+  const t0 = Date.now()
+  try {
+    let png
+    if (engine === 'html') {
+      if (!body.html) return res.status(400).json({ error: 'Missing html' })
+      png = await renderHtmlStill(body.html)
+    } else {
+      const { planFromSuppliedScenes, buildBrandPalette } = require('./slides')
+      const job = engine === 'directed' ? previewDirectedJob(body, { planFromSuppliedScenes, buildBrandPalette })
+        : engine === 'v3' ? previewV3Job(body, { v3Theme })
+        : previewEditorialJob(body)
+      png = await renderPreviewStill(job)
+    }
+    const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+    const path = `${userId}/previews/still-${key}.png`
+    const up = await sb.storage.from('videos').upload(path, png, { contentType: 'image/png', upsert: true })
+    if (up.error) throw new Error(`upload: ${up.error.message}`)
+    const imageUrl = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+    console.log(`[preview-still ${videoId || '-'}] ${engine} in ${Date.now() - t0}ms`)
+    return res.json({ success: true, imageUrl, ms: Date.now() - t0 })
+  } catch (err) {
+    console.error(`[preview-still ${videoId || '-'}] ${engine} failed:`, err.message)
+    return res.status(500).json({ error: err.message })
   }
 })
 

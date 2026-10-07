@@ -1255,6 +1255,7 @@ export async function POST(request: Request) {
           presenter, photoPlacement: photoPlacement || undefined,
           recipient: recipient || undefined,   // client name → "Prepared for {client}" on the cover
           variant: editorialVariant,
+          industry,   // helps decide if the header scrub applies (compliance)
         })
         console.log(`[video ${videoId}] editorial: ${edPayload.scenes.length} scenes, archetypes=${edPayload.scenes.map(s => s.archetype).join(',')}`)
         try {
@@ -1290,6 +1291,7 @@ export async function POST(request: Request) {
         scenes: scenesForStyledEngines, brand, brandName: effectiveBrandName,
         classification: (policyData as any)?.classification ?? null,
         industry,
+        extracted: policyData,   // so the frame/footer words get the compliance scrub
         keyMetrics: (policyData as any)?.keyMetrics ?? [],
         musicUrl: musicUrl || undefined,
         musicPrompt: musicPrompt || undefined,

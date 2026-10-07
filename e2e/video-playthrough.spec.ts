@@ -26,8 +26,10 @@ test.describe('Full video playthrough (gated, real AI spend)', () => {
     await page.goto('/create')
     await page.getByRole('button', { name: 'No client — general' }).click()
     await page.getByPlaceholder(/Explain our services/).fill('A short explainer about the benefits of whole life insurance for a young family.')
-    await page.getByRole('button', { name: /^AI writes it/ }).click()
+    await page.getByRole('radio', { name: /^AI writes it/ }).check()
     await page.getByRole('button', { name: 'Read it and plan the story →' }).click()
+    await expect(page.getByRole('heading', { name: 'Here’s what we read' })).toBeVisible({ timeout: 180000 })
+    await page.getByRole('button', { name: 'Looks right — write the story →' }).click()
 
     // Step 2 — Check the story: wait for it to be written, then accept it.
     await page.waitForURL(/\/create\/script\?id=/, { timeout: 180000 })

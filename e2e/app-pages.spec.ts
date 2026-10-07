@@ -188,7 +188,7 @@ test.describe('Clients', () => {
     // Start a video for them: step 1 opens with this client already chosen.
     await page.locator('a[href*="/create/client?clientId="]').first().click()
     await expect(page).toHaveURL(/\/create\?clientId=/)
-    await expect(page.getByText(name, { exact: true })).toBeVisible()
+    await expect(page.locator('.ws-work').getByText(name, { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Change' })).toBeVisible()
 
     // Delete: Cancel keeps, Confirm removes.

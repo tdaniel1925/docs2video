@@ -731,7 +731,9 @@ export const RemotionRoot: React.FC = () => {
         // video B's content). The staticFile fetch remains only for the legacy
         // generator/studio workflow, whose defaultProps have no audio.
         const passedInfo = props as InfographicProps
-        if (Array.isArray(passedInfo?.scenes) && passedInfo.scenes.some((s: any) => s?.audio)) {
+        // A free-preview STILL (`__preview`) has real scenes but no voice yet —
+        // it must use them too, never the shared file.
+        if (Array.isArray(passedInfo?.scenes) && passedInfo.scenes.length > 0 && ((props as any).__preview === true || passedInfo.scenes.some((s: any) => s?.audio))) {
           return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
         try {
@@ -792,7 +794,9 @@ export const RemotionRoot: React.FC = () => {
         // fetch remains only for the legacy scripts/generate-v3.mjs workflow —
         // its defaultProps placeholder scene has no audio, so it never matches.
         const passedV3 = props as V3Props
-        if (Array.isArray(passedV3?.scenes) && passedV3.scenes.some((s: any) => s?.audio)) {
+        // A free-preview STILL (`__preview`) has real scenes but no voice yet —
+        // it must use them too, never the shared file.
+        if (Array.isArray(passedV3?.scenes) && passedV3.scenes.length > 0 && ((props as any).__preview === true || passedV3.scenes.some((s: any) => s?.audio))) {
           return { props, durationInFrames: v3Total(props), fps: FPS, width: 1920, height: 1080 }
         }
         try {

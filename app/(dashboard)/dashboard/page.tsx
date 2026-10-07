@@ -8,7 +8,7 @@ import { planLabel } from '../../_lib/names'
 import { Button, Card, CardIcon, CardTitle, CardText, CardGo, Chip, EmptyState, Note, kitButtonClass, type ChipTone } from '../../_components/kit'
 import Greeting from './_home/Greeting'
 import { loadHomeData, type ProjectRow } from './_home/load'
-import { discardDraft } from './_home/actions'
+import { discardDraft, dismissFinished } from './_home/actions'
 import type { ActionCard, Tone } from './_home/derive'
 import { DiscardButton } from './_home/DiscardButton'
 import { START_CARDS, PASTE_HREF, type StartCard } from './_home/start-cards'
@@ -92,6 +92,31 @@ export default async function HomePage() {
         >
           {credits <= 0 ? 'Top up or pick a plan to keep making.' : `${credits.toLocaleString()} left.`}
         </Note>
+      )}
+
+      {/* FINISHED WHILE YOU WERE AWAY — projects that finished since they
+          last looked (unread "ready" notices; watching one finish skips it). */}
+      {home.finished.length > 0 && (
+        <section className={s.section} aria-labelledby="home-finished">
+          <div className={s.sectionHead}>
+            <h2 id="home-finished" className={s.sectionTitle}>Finished while you were away</h2>
+            <form action={dismissFinished.bind(null, home.finished.map(f => f.videoId))}>
+              <button type="submit" className={kitButtonClass('quiet', 'sm')}>Got it</button>
+            </form>
+          </div>
+          <ul className={s.finished}>
+            {home.finished.map(f => (
+              <li key={f.videoId}>
+                <Card className={s.finishedCard}>
+                  <Chip tone="ok">Ready</Chip>
+                  <span className={s.finishedName}>{f.name}</span>
+                  <span className={s.muted}>{f.made}</span>
+                  <Button href={`/videos/${f.videoId}`} size="sm">Open and send</Button>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* 1. START SOMETHING NEW */}

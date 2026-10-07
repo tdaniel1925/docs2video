@@ -3439,6 +3439,173 @@ h1.hero-title--big {
   .steps-rail-hint, .steps-rail-title, .steps-rail-note { display: none; }
 }
 
+/* ── Text2Art's phone menu (ClassicHeader.tsx). A light panel in Text2Art's
+   own colours with a close button — it used to borrow the marketing site's
+   dark full-screen cover, with grey links nobody could read. ── */
+[data-brand='text2art'] .t2a-phone-menu-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  display: flex; justify-content: flex-end;
+}
+[data-brand='text2art'] .t2a-phone-menu {
+  width: min(320px, 86vw); height: 100%; overflow-y: auto; box-sizing: border-box;
+  background: var(--bg-card); border-left: 1px solid var(--border);
+  padding: 12px 14px calc(20px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 2px;
+}
+[data-brand='text2art'] .t2a-phone-menu-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 10px; }
+[data-brand='text2art'] .t2a-phone-menu-title { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+[data-brand='text2art'] .t2a-phone-menu-close {
+  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--ink); cursor: pointer;
+}
+[data-brand='text2art'] .t2a-phone-menu a,
+[data-brand='text2art'] .t2a-phone-menu-signout {
+  display: block; width: 100%; box-sizing: border-box; text-align: left;
+  padding: 12px; border-radius: 8px; border: 0; background: none; cursor: pointer;
+  font-family: inherit; font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none;
+}
+[data-brand='text2art'] .t2a-phone-menu a:hover,
+[data-brand='text2art'] .t2a-phone-menu-signout:hover { background: var(--bg); }
+[data-brand='text2art'] .t2a-phone-menu a.active { background: var(--sky); color: var(--mint-darker); }
+[data-brand='text2art'] .t2a-phone-menu-group {
+  margin: 12px 12px 4px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft);
+}
+
+/* ── Create flow: the three-part workspace (phase 3, 2026-10) ──
+   rail (above) · the work · "Your video so far". On a phone the rail is one
+   line ("Step 2 of 4 · The story"), the summary folds under the work and the
+   main button is pinned to the bottom, clear of the phone's home bar. */
+.steps-rail-phone { display: none; margin: 0; font-size: 15px; font-weight: 800; color: var(--ink); }
+@media (max-width: 900px) {
+  .steps-rail { padding: 10px 14px; }
+  .steps-rail ol { display: none; }
+  .steps-rail-phone { display: block; }
+}
+
+.ws-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.ws-work { min-width: 0; }
+.ws-side { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 1180px) {
+  .ws-grid { grid-template-columns: minmax(0, 1fr); }
+  .ws-side { position: static; }
+}
+
+.ws-sofar { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px; padding: 14px 16px; }
+.ws-sofar-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; padding: 0; font-family: inherit; text-align: left; cursor: default;
+}
+.ws-sofar-title { flex: 1; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+.ws-sofar-price-mini, .ws-sofar-chevron { display: none; }
+.ws-sofar-body { margin: 10px 0 0; }
+.ws-sofar-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border-light); font-size: 14px; line-height: 1.4; }
+.ws-sofar-row dt { color: var(--ink-soft); flex-shrink: 0; }
+.ws-sofar-row dd { margin: 0; color: var(--ink); font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.ws-sofar-row dd.ws-sofar-empty { color: var(--ink-light); font-weight: 500; }
+.ws-sofar-total dt { color: var(--ink); font-weight: 800; }
+.ws-sofar-money { color: var(--gold) !important; font-weight: 800 !important; }
+@media (max-width: 900px) {
+  .ws-sofar-head { cursor: pointer; min-height: 32px; }
+  .ws-sofar-price-mini { display: inline; font-size: 14px; font-weight: 800; color: var(--gold); }
+  .ws-sofar-chevron { display: inline; color: var(--ink-soft); }
+  .ws-sofar[data-open='false'] .ws-sofar-body { display: none; }
+}
+
+/* The main button of a step. Pinned on phones (room left for the home bar). */
+.ws-main-action { display: flex; flex-direction: column; gap: 6px; }
+.ws-main-note { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.ws-showme {
+  background: none; border: 0; padding: 0; font: inherit; font-weight: 700;
+  color: var(--link); text-decoration: underline; cursor: pointer;
+}
+@media (max-width: 900px) {
+  .ws-main-action {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg-card); border-top: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .steps-main:has(.ws-main-action) { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+  /* The round help button would sit on top of the pinned button. */
+  body:has(.ws-main-action) button[aria-label='Help'] { bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+}
+
+/* "Show me" lights up the missing answer for a moment. */
+.ws-flash { outline: 3px solid var(--warning); outline-offset: 4px; border-radius: 10px; transition: outline-color 0.3s ease; }
+
+/* A list of real stages: done ✓ · doing now · still to do. No made-up %. */
+.ws-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ws-stage { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ink-light); }
+.ws-stage-mark {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--border); font-size: 12px; font-weight: 800;
+}
+.ws-stage.is-done { color: var(--ink-soft); }
+.ws-stage.is-done .ws-stage-mark { background: var(--accent-ink); border-color: var(--accent-ink); color: var(--on-ink); }
+.ws-stage.is-now { color: var(--ink); font-weight: 700; }
+.ws-stage.is-now .ws-stage-mark { border-color: var(--accent-ink); border-top-color: transparent; animation: ws-spin 0.9s linear infinite; }
+/* A text box in the create flow. */
+.ws-input {
+  width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--ink);
+  font-family: inherit; font-size: 15px; line-height: 1.45; resize: vertical;
+}
+.ws-input:focus { outline: 2px solid var(--link); outline-offset: 1px; }
+.ws-input:disabled { background: var(--surface); color: var(--ink-soft); }
+
+/* Step 1 — "What's this about?" and "Here's what we read". */
+.s1-page { display: flex; flex-direction: column; gap: 20px; max-width: 760px; }
+.s1-title { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+.s1-lead { margin: -14px 0 0; font-size: 15px; color: var(--ink-soft); }
+.s1-title-sm { margin: 0 0 10px; font-size: 16px; font-weight: 800; color: var(--ink); }
+.s1-block { display: flex; flex-direction: column; gap: 8px; }
+.s1-label { display: block; font-size: 15px; font-weight: 700; color: var(--ink); }
+.s1-hint { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); font-weight: 500; }
+.s1-hint a { color: var(--link); font-weight: 700; }
+.s1-hint-inline { display: block; margin-top: 2px; }
+.s1-gap { margin-top: 4px; }
+.s1-sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.s1-sources legend { grid-column: 1 / -1; }
+@media (max-width: 520px) { .s1-sources { grid-template-columns: minmax(0, 1fr); } }
+.s1-drop {
+  width: 100%; padding: 22px; border-radius: 10px; border: 2px dashed var(--border);
+  background: var(--bg-soft); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-family: inherit;
+}
+.s1-drop-title { font-size: 15px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.s1-reading { display: flex; flex-direction: column; gap: 12px; }
+.s1-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.s1-center { text-align: center; }
+.s1-review { display: flex; flex-direction: column; gap: 8px; }
+.s1-field { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.s1-figures { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.s1-figure { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.s1-figure-value { font-weight: 800; }
+@media (max-width: 520px) { .s1-figure { grid-template-columns: 110px minmax(0, 1fr); } .s1-figure .kit-btn { grid-column: 1 / -1; justify-self: start; } }
+.s2-note { margin-bottom: 18px; }
+
+/* Step 4 — the making/waiting screen. */
+.s4-page { display: flex; flex-direction: column; gap: 18px; max-width: 760px; }
+.s4-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.s4-progress { display: flex; flex-direction: column; gap: 14px; }
+.s4-bar { margin-top: 4px; height: 8px; border-radius: 8px; background: var(--border-light); overflow: hidden; }
+.s4-bar-fill { height: 100%; border-radius: 8px; background: var(--accent-ink); transition: width 0.6s ease; }
+.s4-film { display: flex; flex-direction: column; gap: 8px; }
+.s4-film-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.s4-frame {
+  width: 92px; height: 52px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  border: 1px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--ink-light);
+}
+.s4-frame.is-ready { border-color: var(--accent-ink); }
+.s4-frame img { width: 100%; height: 100%; object-fit: cover; }
+.s4-tip { animation: fadeInUp 0.4s ease; }
+.ws-stage-detail { display: block; font-size: 14px; font-weight: 500; color: var(--ink-soft); }
+@keyframes ws-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ws-stage.is-now .ws-stage-mark { animation: none; border-top-color: var(--accent-ink); } }
+
 /* ===========================================================================
    MARKETING SITE (Docs2Video home + shared marketing header/footer)
    ---------------------------------------------------------------------------

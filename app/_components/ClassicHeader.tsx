@@ -50,6 +50,14 @@ export default function ClassicHeader({ profile, brand }: { profile: Profile; br
     setMobileOpen(false)
   }, [pathname])
 
+  // The phone menu closes on Escape too (and on a tap outside it, below).
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
+
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const isCreateActive = pathname === '/create' || pathname.startsWith('/create/')
 
@@ -103,6 +111,8 @@ export default function ClassicHeader({ profile, brand }: { profile: Profile; br
           onClick={() => setMobileOpen(!mobileOpen)}
           type="button"
           aria-label="Menu"
+          aria-expanded={mobileOpen}
+          aria-controls="t2a-phone-menu"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2">
             {mobileOpen ? (
@@ -286,37 +296,57 @@ export default function ClassicHeader({ profile, brand }: { profile: Profile; br
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/*
+        * PHONE MENU (owner-approved change, 2026-10). It used to reuse the
+        * marketing site's .mobile-menu class, which turned it into a full-screen
+        * navy cover with grey links you couldn't read and no way to close it
+        * (the ☰ button sat underneath). Now it's a light panel in Text2Art's
+        * own colours with a close button; Escape and a tap outside close it.
+        * The desktop bar above is unchanged.
+        */}
       {mobileOpen && (
-        <div className="mobile-menu">
-          {brand.nav[0] && (
-            <Link href={brand.nav[0].href} className={pathname === brand.nav[0].href ? 'active' : ''}>{brand.nav[0].label}</Link>
-          )}
-          {brand.create && (
-            <Link href={brand.create.href} className={isCreateActive ? 'active' : ''}>{brand.create.label}</Link>
-          )}
-          <div style={{ height: 8 }} />
-          {brand.nav.slice(1).map((link) => (
-            <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : ''}>{link.label}</Link>
-          ))}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Account</div>
-          {brand.showVideoFeatures && (
-            <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
-          )}
-          {brand.showVideoFeatures && (
-            <Link href="/social-media" className={pathname === '/social-media' ? 'active' : ''}>
-              AI Social{hasSocialAddon ? '' : ' (add-on)'}
-            </Link>
-          )}
-          {brand.showVideoFeatures && (
-            <Link href="/brands" className={pathname.startsWith('/brands') ? 'active' : ''}>{NAMES.brands}</Link>
-          )}
-          <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
-          <Link href="/affiliate" className={pathname.startsWith('/affiliate') ? 'active' : ''}>Affiliate Program</Link>
-          <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
-          {showAdmin && (
-            <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>
-          )}
+        <div className="t2a-phone-menu-backdrop" onClick={() => setMobileOpen(false)}>
+          <nav id="t2a-phone-menu" className="t2a-phone-menu" aria-label="Menu" onClick={(e) => e.stopPropagation()}>
+            <div className="t2a-phone-menu-head">
+              <span className="t2a-phone-menu-title">Menu</span>
+              <button type="button" className="t2a-phone-menu-close" aria-label="Close menu" onClick={() => setMobileOpen(false)} autoFocus>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            {brand.nav[0] && (
+              <Link href={brand.nav[0].href} className={pathname === brand.nav[0].href ? 'active' : ''}>{brand.nav[0].label}</Link>
+            )}
+            {brand.create && (
+              <Link href={brand.create.href} className={isCreateActive ? 'active' : ''}>{brand.create.label}</Link>
+            )}
+            {brand.nav.slice(1).map((link) => (
+              <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : ''}>{link.label}</Link>
+            ))}
+            <div className="t2a-phone-menu-group">Account</div>
+            {brand.showVideoFeatures && (
+              <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
+            )}
+            {brand.showVideoFeatures && (
+              <Link href="/social-media" className={pathname === '/social-media' ? 'active' : ''}>
+                AI Social{hasSocialAddon ? '' : ' (add-on)'}
+              </Link>
+            )}
+            {brand.showVideoFeatures && (
+              <Link href="/brands" className={pathname.startsWith('/brands') ? 'active' : ''}>{NAMES.brands}</Link>
+            )}
+            <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
+            <Link href="/affiliate" className={pathname.startsWith('/affiliate') ? 'active' : ''}>Affiliate Program</Link>
+            <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
+            {showAdmin && (
+              <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>
+            )}
+            <form action={logout}>
+              <button type="submit" className="t2a-phone-menu-signout">Sign Out</button>
+            </form>
+          </nav>
         </div>
       )}
     </header>

@@ -4,6 +4,7 @@ import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { getRender } from '../../../_lib/creatomate'
 import { deductCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
+import { announceVideoReady, sweepReadyVideos } from '../../../_lib/video-ready'
 import {
   IN_PROGRESS_STATUSES, VIDEO_CHARGE_ACTIONS, VIDEO_REFUND_ACTIONS,
   chargeCount, ledgerOutstanding, readVideoLedger, refundVerifiedCharge,
@@ -145,15 +146,21 @@ export async function GET(request: Request) {
     }
   } catch { /* non-fatal */ }
 
+  // "Your video is ready": the render service marks videos done itself, so
+  // this is where the app learns about it. One bell notice + one email per
+  // project (app/_lib/video-ready.ts keeps it to once).
+  let readyEmails = 0
+  try { readyEmails = await sweepReadyVideos(admin) } catch { /* non-fatal — next run retries */ }
+
   const { data: stuckVideos } = await admin
     .from('videos')
-    .select('id, user_id, title, status, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
+    .select('id, user_id, title, status, output_type, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
     .in('status', RUNNING)
     .lt('created_at', fiveMinAgo)
     .limit(25)
 
   if (!stuckVideos || stuckVideos.length === 0) {
-    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed, recharged })
+    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed, recharged, readyEmails })
   }
 
   let fixed = 0, failed = 0, recovered = 0
@@ -209,9 +216,7 @@ export async function GET(request: Request) {
                 status: 'completed', video_url: pub.publicUrl, progress_detail: null, progress_pct: 100,
                 ...(video.thumbnail_url ? {} : (video.slide_urls?.[0] ? { thumbnail_url: video.slide_urls[0] } : {})),
               }).eq('id', video.id)
-              await sendNotification(admin, video.user_id, {
-                type: 'video_ready', title: 'Your video is ready', message: 'Your video has finished rendering.', link: `/videos/${video.id}`,
-              }).catch(() => {})
+              await announceVideoReady(admin, { ...video, status: 'completed' }).catch(() => 'skipped')
               recovered++
               continue
             }
@@ -245,6 +250,7 @@ export async function GET(request: Request) {
           progress_detail: null, progress_pct: 100,
           ...(slideUrls.length > 0 ? { slide_urls: slideUrls } : {}),
         }).eq('id', video.id)
+        await announceVideoReady(admin, { ...video, status: 'completed' }).catch(() => 'skipped')
         fixed++
       } else {
         // No MP4 yet — force-fail only if stale (no progress in 10 min) AND
@@ -261,5 +267,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed, recharged })
+  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed, recharged, readyEmails })
 }

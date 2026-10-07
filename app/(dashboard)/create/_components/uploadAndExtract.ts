@@ -14,7 +14,7 @@ const ALLOWED_EXT = ['pdf', 'docx', 'pptx', 'txt', 'csv', 'xlsx']
  * Returns the parsed extraction result, or throws an Error with a user-friendly
  * message.
  */
-export async function uploadAndExtract(file: File, purpose: string): Promise<any> {
+export async function uploadAndExtract(file: File, purpose: string, onPhase?: (phase: 'uploading' | 'reading') => void): Promise<any> {
   const ext = file.name.split('.').pop()?.toLowerCase() || ''
   if (!ALLOWED_EXT.includes(ext)) {
     throw new Error(`Unsupported file type. Allowed: ${ALLOWED_EXT.join(', ').toUpperCase()}`)
@@ -23,7 +23,9 @@ export async function uploadAndExtract(file: File, purpose: string): Promise<any
     throw new Error(`File is too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum is ${Math.round(MAX_BYTES / 1024 / 1024)}MB — try a smaller file or paste the text.`)
   }
 
-  // 1) signed upload URL
+  // 1) signed upload URL (the screen ticks "Uploading" → "Reading" as each
+  //    part really starts, instead of a timer guessing)
+  onPhase?.('uploading')
   const urlRes = await fetch('/api/extract-doc/upload-url', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileName: file.name, size: file.size }),
@@ -42,6 +44,7 @@ export async function uploadAndExtract(file: File, purpose: string): Promise<any
   if (up.error) throw new Error('Upload failed — please check your connection and try again.')
 
   // 3) extract by path
+  onPhase?.('reading')
   const exRes = await fetch('/api/extract-doc', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: urlData.path, purpose }),

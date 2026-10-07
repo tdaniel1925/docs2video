@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { withRetry } from './with-retry'
 import type { Brand } from './types'
 import { type Presenter, resolveDisplayName } from './presenter'
+import { complianceScrubberFor } from './compliance'
 
 let _claude: Anthropic | null = null
 function claude() {
@@ -66,6 +67,36 @@ export type EditorialPayload = {
   }[]
 }
 
+type EditorialScene = EditorialPayload['scenes'][number]
+
+/** Scrub every on-screen WORD on one editorial page (not the figures: metric
+ *  values and chart numbers are the client's own facts and stay). A dek that
+ *  is just the agent's contact line is the agent's own identity — left alone. */
+export function scrubEditorialScene(s: EditorialScene, rawScrub: (t: string) => string, contactLine?: string): EditorialScene {
+  // The scrub also capitalises the first letter; keep the original text when
+  // that is ALL it changed, so a table cell "yes" doesn't become "Yes".
+  const scrub = (t: string) => { const o = rawScrub(t); return o.toLowerCase() === t.toLowerCase() ? t : o }
+  const w =(t: string | undefined) => (typeof t === 'string' ? scrub(t) : t)
+  return {
+    ...s,
+    kicker: w(s.kicker),
+    title: scrub(s.title || ''),
+    dek: s.dek && contactLine && s.dek.trim() === contactLine.trim() ? s.dek : w(s.dek),
+    body: w(s.body),
+    quote: w(s.quote),
+    attribution: w(s.attribution),
+    narration: scrub(s.narration || '') || ' ',
+    items: s.items?.map((it) => ({ ...it, title: scrub(it.title || ''), detail: w(it.detail) })),
+    metrics: s.metrics?.map((m) => ({ ...m, label: scrub(m.label || '') })),
+    timeline: s.timeline?.map((t) => ({ ...t, title: scrub(t.title || ''), detail: w(t.detail) })),
+    chart: s.chart ? { ...s.chart, segments: s.chart.segments.map((g) => ({ ...g, label: scrub(g.label || '') })) } : s.chart,
+    matrix: s.matrix ? {
+      columns: s.matrix.columns.map((c) => scrub(c || '')),
+      rows: s.matrix.rows.map((r) => ({ label: scrub(r.label || ''), cells: (r.cells || []).map((c) => scrub(c || '')) })),
+    } : s.matrix,
+  }
+}
+
 const SYS = `You are an editor laying out a PREMIUM magazine-style explainer video (think a private-bank report or The Economist). You are given GROUNDED scenes already written from a real document. Restructure them into editorial ARCHETYPE slides. Use ONLY facts present in the input — do NOT invent numbers, names, or claims.
 
 Return ONLY JSON: an array of scene objects. Each scene has an "archetype" (one of: cover, lede, grid, pullquote, stat, list, decision, timeline, chart, matrix) and the fields that archetype needs:
@@ -105,6 +136,8 @@ export async function buildEditorialPayload(opts: {
   /** Client name — shown as "Prepared for {name}" on the cover page. */
   recipient?: string
   variant?: 'editorial' | 'time' | 'explainer'
+  /** The customer's industry — helps decide if the compliance scrub applies. */
+  industry?: string
 }): Promise<EditorialPayload> {
   // Compact brief of the grounded scenes + the doc's real metrics.
   const brief = opts.scenes.map((s, i) => {
@@ -154,16 +187,33 @@ export async function buildEditorialPayload(opts: {
     }))
   }
 
+  // COMPLIANCE: every on-screen string Claude wrote (kickers, titles, decks,
+  // list items, chart/table labels) goes through the same scrub the scenes
+  // got. Claude saw the document's raw metric labels, so it can put a product
+  // name back. Figures and the contact line (the agent's own) are left alone.
+  const scrub = complianceScrubberFor(opts.extracted, opts.industry)
+  if (scrub) scenes = scenes.map((s) => scrubEditorialScene(s, scrub, opts.contactLine))
+
   // Masthead respects a Person's show_name_on_slides toggle; falls back to the
   // doc title or REPORT so the magazine header is never empty.
   // Neither is cut to a character count: that chopped real names mid-word
   // ("VALOR FINANCIAL SP", "QOL VALUE+ PROTECTOR III INDEX U"). The video
   // shrinks long ones to fit (remotion/src/editorial/EditorialScenes.tsx).
+  // The document's TITLE is scrubbed before it reaches either header: it was
+  // printed raw at the top of every page ("QoL Max Accumulator+ III Index
+  // Universal Life Insurance"). The agent's own name (displayName) is not
+  // scrubbed — it's allowed, and some agency names contain blocklisted words.
   const displayName = opts.brandName || resolveDisplayName(opts.brand)
+  const rawTitle = String(opts.extracted?.title || '').trim()
+  // A title that was nothing BUT the product name scrubs to nothing (or a
+  // stray "III"); use a plain title then — same rule as generate-presentation
+  // and the free preview.
+  const scrubbedTitle = scrub && rawTitle ? scrub(rawTitle) : rawTitle
+  const docTitle = scrub && rawTitle && scrubbedTitle.replace(/[^a-zA-Z]/g, '').length < 6 ? 'Your Personalized Illustration' : scrubbedTitle
   return {
     videoId: opts.videoId, userId: opts.userId, voiceId: opts.voiceId,
-    masthead: String(displayName || opts.extracted?.title || 'REPORT').trim().toUpperCase(),
-    runningTitle: String(opts.extracted?.title || displayName || '').trim(),
+    masthead: String(displayName || docTitle || 'REPORT').trim().toUpperCase(),
+    runningTitle: String(docTitle || displayName || '').trim(),
     brandColor: opts.brand?.primary_color || undefined,
     variant: opts.variant || 'time',
     musicUrl: opts.musicUrl, musicPrompt: opts.musicPrompt, aiMusic: opts.aiMusic,

@@ -12,6 +12,7 @@
  */
 import type { Brand } from './types'
 import { type Presenter, resolveDisplayName, shouldShowLogo } from './presenter'
+import { complianceScrubberFor, makeComplianceScrubber } from './compliance'
 
 export type V3Theme = 'cinematic' | 'infographic' | 'aurora'
 
@@ -162,6 +163,12 @@ export function buildV3Payload(opts: {
   /** The user's chosen visual style. 'aurora' = the fluid code-rendered look
    *  (no per-scene Gemini); otherwise pickTheme decides cinematic/infographic. */
   videoStyle?: string
+  /** The document's extracted data (title, carrier, classification…) — used
+   *  only to decide whether the compliance scrub applies and what to strip. */
+  extracted?: unknown
+  /** Set when the caller has already decided (true = scrub, false = never,
+   *  e.g. a compliance-exempt marketing source). Left out = decide here. */
+  regulated?: boolean
 }): V3Payload {
   // Cap cinematic scenes: each is a Gemini image + TTS + render. 17 scenes =
   // a 4-min video + 17 image calls (slow, rate-limit-prone). Keep the cover,
@@ -219,7 +226,7 @@ export function buildV3Payload(opts: {
     || (opts.keyMetrics ?? []).find(isHeadlineFigure)
   let heroAssigned = false
 
-  return {
+  const payload: V3Payload = {
     videoId: opts.videoId,
     userId: opts.userId,
     voiceId: opts.voiceId,
@@ -282,5 +289,38 @@ export function buildV3Payload(opts: {
         ...(s.slideData?.bullets?.length ? { bullets: s.slideData.bullets } : {}),
       }
     }),
+  }
+
+  // COMPLIANCE: the footer chips and the borrowed metric labels come straight
+  // from the document's RAW key metrics (generate-video only scrubs the
+  // scenes), so a product name could sit in the frame of every scene. Run
+  // every on-screen word through the shared scrub. The eyebrow is the agent's
+  // own name and stays; figures stay.
+  const docData = opts.extracted ?? { classification: opts.classification, keyMetrics: opts.keyMetrics }
+  const scrub = opts.regulated === false ? null
+    : opts.regulated === true ? makeComplianceScrubber(docData)
+    : complianceScrubberFor(docData, opts.industry)
+  return scrub ? scrubV3Payload(payload, scrub) : payload
+}
+
+/** Scrub every on-screen word of a V3 payload (titles, bullets, metric labels,
+ *  hero label/caption, footer chips). Values, the eyebrow (the agent's name),
+ *  the client's name and contact details are left alone. */
+export function scrubV3Payload(p: V3Payload, rawScrub: (t: string) => string): V3Payload {
+  // Keep the original when the scrub only changed letter case.
+  const scrub = (t: string) => { const o = rawScrub(t); return o.toLowerCase() === t.toLowerCase() ? t : o }
+  const w = (t: string | undefined) => (typeof t === 'string' ? scrub(t) : t)
+  const footer = p.frame?.footer?.map(scrub).filter(Boolean)
+  return {
+    ...p,
+    frame: p.frame ? { ...p.frame, footer: footer && footer.length ? footer : undefined } : p.frame,
+    scenes: p.scenes.map((s) => ({
+      ...s,
+      title: scrub(s.title || ''),
+      narration: scrub(s.narration || ''),
+      ...(s.metrics ? { metrics: s.metrics.map((m) => ({ ...m, label: scrub(m.label || '') })) } : {}),
+      ...(s.bullets ? { bullets: s.bullets.map(scrub) } : {}),
+      ...(s.heroMetric ? { heroMetric: { ...s.heroMetric, label: w(s.heroMetric.label), caption: w(s.heroMetric.caption) } } : {}),
+    })),
   }
 }

@@ -70,10 +70,10 @@ CREDIT COSTS (per creation):
 Failed generations are automatically refunded.
 
 HOW TO MAKE ONE (four steps; nothing is charged until "Make it"):
-1. What's this about? Click "${NAMES.newButton}" (or a start card on Home), pick a client (or "No client — general"), say what it should get them to do, and choose the content: Website URL, Upload file (up to 5), Paste text, or "AI writes it".
+1. What's this about? Click "${NAMES.newButton}" (or a start card on Home), pick a client (or "No client — general"), say what it should get them to do, and choose the content: Website URL, Upload file (up to 5), Paste text, or "AI writes it". After reading, "Here’s what we read" shows the summary, the one point and the numbers the story will use exactly as written — fix any, then "Looks right — write the story".
 2. Check the story. Edit the scenes, pick the length, or ask for changes. Free.
 3. Make it yours. Check the brand, choose Narrated video / Interactive presentation / Slide deck, the look, the voice (Sarah by default) and music, optionally a note to the client — the price is shown — then press "Make it".
-4. Send it. It finishes in the background (most videos 3–5 minutes, the Slide Deck look about 10) and lands in the ${NAMES.library}; send it, copy the link, or download (MP4/PDF/PPTX/Script).
+4. Send it. It finishes in the background (most videos 3–5 minutes, the Slide Deck look about 10) and lands in the ${NAMES.library}; you can close the page — we email you when it’s ready, and Home shows it under "Finished while you were away". Then send it, copy the link, or download (MP4/PDF/PPTX/Script).
 Commercials and Custom Graphics start from the links under step 1.
 
 SETTINGS TABS:

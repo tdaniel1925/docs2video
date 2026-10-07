@@ -101,7 +101,9 @@ describe('length: Short / Standard / Detailed, chosen on the story step', () => 
   it('step 2 will not go on to the price while a different length is picked but not written', () => {
     expect(step2).toMatch(/const lengthPending = scenes\.length > 0 && pickedLength !== detailLevel/)
     expect(step2).toMatch(/if \(!videoId \|\| scenes\.length === 0 \|\| lengthPending\) return/)
-    expect(step2).toMatch(/disabled=\{[^}]*lengthPending\}/)
+    // held back — with the reason shown under the button — while the length is pending
+    expect(step2).toMatch(/lengthPending \? \{ reason: /)
+    expect(step2).toMatch(/missing=\{missing\}/)
     // and "Looks right" saves the length the story was written at
     expect(step2).toMatch(/const updates: Record<string, unknown> = \{ scenes, detailLevel, narrationStyle, step \}/)
   })

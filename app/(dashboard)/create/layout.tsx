@@ -1,34 +1,26 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { STEPS, phoneStepLine, stepIndexFor } from './_components/workspace/steps'
 
 /**
- * THE STEP RAIL — four steps, matching what the user actually does.
+ * THE STEP RAIL — the left part of the three-part workspace (rail · the work ·
+ * "Your video so far"). The other two parts come from <Workspace> on each page.
  *
- *   1 What it's about   /create                        client, goal, content
- *   2 Check the story   /create/script (/brief forwards) points and scenes
- *   3 Make it yours     /create/theme (+ /brand, /voice) look, voice, price, make
- *   4 Send it           /create/generating → the result page
+ * Shown on all four steps, the waiting screen included: it used to vanish
+ * there, so the person waiting lost sight of where they were.
  *
- * A left rail on wide screens, a compact bar on phones (see .steps-rail in
- * globals.css). Pages outside the flow — the chooser, commercials — get none.
+ * On a phone the four-dot row was cramped and unreadable; it is now one line,
+ * "Step 2 of 4 · The story" (see .steps-rail-phone in globals.css).
  *
  * "Save for later" is gone: drafts are saved to the account as you go and
  * listed on Home. The button wrote a browser-only copy nothing ever read.
  */
-const STEPS = [
-  { label: 'What it’s about', hint: 'Client, goal, your document', paths: ['/create'] },
-  { label: 'Check the story', hint: 'Points and scenes — free', paths: ['/create/brief', '/create/script'] },
-  { label: 'Make it yours', hint: 'Look, voice, what to send', paths: ['/create/theme', '/create/brand', '/create/voice'] },
-  { label: 'Send it', hint: 'One link, and follow-up', paths: ['/create/generating'] },
-]
-
 export default function CreateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? ''
-  const activeIdx = STEPS.findIndex((s) => s.paths.includes(pathname))
-  const showRail = activeIdx >= 0 && pathname !== '/create/generating'
+  const activeIdx = stepIndexFor(pathname)
 
-  if (!showRail) {
+  if (activeIdx < 0) {
     return <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>{children}</div>
   }
 
@@ -36,6 +28,7 @@ export default function CreateLayout({ children }: { children: React.ReactNode }
     <div className="steps-shell">
       <nav className="steps-rail" aria-label="Steps">
         <div className="steps-rail-title">New project · 4 steps</div>
+        <p className="steps-rail-phone">{phoneStepLine(activeIdx)}</p>
         <ol>
           {STEPS.map((step, i) => {
             const state = i < activeIdx ? 'done' : i === activeIdx ? 'now' : 'todo'

@@ -84,7 +84,19 @@ export default function CreatingVideosPage() {
           <strong style={INK}>AI writes it</strong> — the AI writes the content from your goal.
         </p>
         <p>
-          Click <strong style={INK}>Read it and plan the story &rarr;</strong>. A progress bar shows while it reads.
+          Click <strong style={INK}>Read it and plan the story &rarr;</strong>. If something is still missing, the button can&rsquo;t be pressed
+          and the line under it says what — click <strong style={INK}>Show me</strong> to jump straight to it. While it reads you see each real
+          stage (uploading, reading, saving, finding the one point) get a tick as it finishes.
+        </p>
+        <p style={P}>
+          Next comes <strong style={INK}>Here&rsquo;s what we read</strong>: a short summary (<strong style={INK}>What it says</strong>),{' '}
+          <strong style={INK}>The one point</strong> the story is built around, and <strong style={INK}>The numbers we&rsquo;ll use</strong> — these go
+          into the story exactly as written, so fix any that are wrong or <strong style={INK}>Remove</strong> one you don&rsquo;t want. Then click{' '}
+          <strong style={INK}>Looks right — write the story &rarr;</strong>. <strong style={INK}>&larr; Change what I gave you</strong> takes you back.
+        </p>
+        <p>
+          On every step, <strong style={INK}>Your video so far</strong> sits beside the page (under it on a phone, tap to open): who it&rsquo;s for,
+          the source, the one point, what you&rsquo;re making, the look, the voice, the length and the price once it&rsquo;s known.
         </p>
       </Step>
 
@@ -165,9 +177,11 @@ export default function CreatingVideosPage() {
 
       <Step n={4} title="Send it">
         <p style={P}>
-          A progress screen shows how it&rsquo;s going. Most videos take <strong style={INK}>3–5 minutes</strong>; the Slide Deck look takes about{' '}
-          <strong style={INK}>10 minutes</strong>. <strong style={INK}>You can leave the page</strong> — it keeps going, and the finished one appears in
-          your <strong style={INK}>{NAMES.library}</strong>.
+          A progress screen lists the real stages — writing the script, recording the voice, drawing the scenes, putting it together — with a
+          tick as each one finishes and what is happening right now (for example &ldquo;Drawing scene 3 of 6&rdquo;). Most videos take{' '}
+          <strong style={INK}>3–5 minutes</strong>; the Slide Deck look takes about <strong style={INK}>10 minutes</strong>.{' '}
+          <strong style={INK}>You can close the page</strong> — it keeps going, we email you when it&rsquo;s ready, the finished one appears in
+          your <strong style={INK}>{NAMES.library}</strong>, and Home lists it under <strong style={INK}>Finished while you were away</strong>.
         </p>
         <p style={P}>
           When it&rsquo;s done, its page opens with <strong style={INK}>Ready to send</strong>: a picture of what your client will see, who it goes to,

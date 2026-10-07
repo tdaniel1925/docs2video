@@ -1,7 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
-import { FAKE_ID, draftRow, mockDraft, storyDraft } from './helpers/fixtures'
+import { BRIEF, FAKE_ID, draftRow, mockDraft, quote, storyDraft } from './helpers/fixtures'
 import { alertOf, collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, jsonBody, type Guard } from './helpers/guard'
 
 /*
@@ -81,10 +81,11 @@ async function mockUpload(page: Page): Promise<UploadMock> {
   return m
 }
 
-type NewDraft = { posts: any[]; status: number }
+type NewDraft = { posts: any[]; status: number; briefs: any[]; draft: Awaited<ReturnType<typeof mockDraft>> }
 async function mockNewDraft(page: Page): Promise<NewDraft> {
-  const m: NewDraft = { posts: [], status: 200 }
-  await mockDraft(page, draftRow(storyDraft()))
+  const draft = await mockDraft(page, draftRow(storyDraft()))
+  const m: NewDraft = { posts: [], status: 200, briefs: [], draft }
+  await mockSummary(page, m.briefs)
   await page.route('**/api/videos/draft', async (route) => {
     if (route.request().method() !== 'POST') return route.fallback()
     m.posts.push(jsonBody(route.request()))
@@ -94,9 +95,21 @@ async function mockNewDraft(page: Page): Promise<NewDraft> {
   return m
 }
 
+/** "Here's what we read" asks /api/brief once; the price comes from the quote. */
+async function mockSummary(page: Page, briefs: any[] = []) {
+  await page.route('**/api/brief', async (route) => { briefs.push(jsonBody(route.request())); await route.fulfill({ json: { brief: BRIEF } }) })
+  await page.route('**/api/price-quote**', (route) => route.fulfill({ json: quote() }))
+}
+
+/** After reading: check "Here's what we read", then go on to the story. */
+async function confirmRead(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Here’s what we read' })).toBeVisible()
+  await page.getByRole('button', { name: 'Looks right — write the story →' }).click()
+}
+
 const purposeBox = (page: Page) => page.getByPlaceholder(/Explain our services/)
 const nextBtn = (page: Page) => page.getByRole('button', { name: 'Read it and plan the story →' })
-const method = (page: Page, name: string) => page.getByRole('button', { name: new RegExp(`^${name}`) })
+const method = (page: Page, name: string) => page.getByRole('radio', { name: new RegExp(`^${name}`) })
 
 test.describe('Step 1 — who it is for', () => {
   test('recent clients, search, pick, change, and "No client — general"', async ({ page }) => {
@@ -111,13 +124,13 @@ test.describe('Step 1 — who it is for', () => {
     expect(clients.searches).toContain('pri')
 
     await page.getByRole('button', { name: 'Priya Shah' }).click()
-    await expect(page.getByText('Priya Shah', { exact: true })).toBeVisible()
+    await expect(page.locator('.ws-work').getByText('Priya Shah', { exact: true })).toBeVisible()
     await expect(page.getByLabel('Search your clients')).toHaveCount(0)
     await page.getByRole('button', { name: 'Change' }).click()
     await expect(page.getByLabel('Search your clients')).toBeVisible()
 
     await page.getByRole('button', { name: 'No client — general' }).click()
-    await expect(page.getByText('No client — general', { exact: true })).toBeVisible()
+    await expect(page.locator('.ws-work').getByText('No client — general', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Change' })).toBeVisible()
   })
 
@@ -138,39 +151,42 @@ test.describe('Step 1 — who it is for', () => {
     clients.createStatus = 201
     await page.getByLabel('New client email').fill('sam.rivera@example.com')
     await page.getByRole('button', { name: 'Add', exact: true }).click()
-    await expect(page.getByText('Sam Rivera', { exact: true })).toBeVisible()
+    await expect(page.locator('.ws-work').getByText('Sam Rivera', { exact: true })).toBeVisible()
     expect(clients.created[clients.created.length - 1]).toEqual({ name: 'Sam Rivera', email: 'sam.rivera@example.com' })
   })
 })
 
 test.describe('Step 1 — what it says when something is missing', () => {
-  test('each missing piece gets its own message and nothing is sent', async ({ page }) => {
+  test('each missing piece is named under the held-back button, with "Show me"', async ({ page }) => {
     await mockClients(page)
     const drafts = await mockNewDraft(page)
     await page.goto('/create')
-    const err = page.getByText(/Describe what you want first|Pick where your content comes from|Select a file to continue|Paste at least 50 characters|Paste a URL to continue/)
+    const err = page.locator('.kit-btn-reason')
 
-    await nextBtn(page).click()
-    await expect(err).toHaveText('Describe what you want first')
+    await expect(nextBtn(page)).toBeDisabled()
+    await expect(err).toContainText('Describe what you want first')
+    // "Show me" takes you to the missing answer
+    await err.getByRole('button', { name: 'Show me' }).click()
+    await expect(purposeBox(page)).toBeFocused()
     await purposeBox(page).fill('Explain the family plan to Jordan')
-    await nextBtn(page).click()
-    await expect(err).toHaveText('Pick where your content comes from (or choose "AI writes it")')
-    await method(page, 'Upload file').click()
-    await expect(err).toHaveCount(0) // picking a source clears the message
-    await nextBtn(page).click()
-    await expect(err).toHaveText('Select a file to continue')
-    await method(page, 'Paste text').click()
+    await expect(err).toContainText('Pick where your content comes from (or choose "AI writes it")')
+    await method(page, 'Upload file').check()
+    await expect(err).toContainText('Select a file to continue')
+    await method(page, 'Paste text').check()
     await page.getByPlaceholder('Paste your content here (at least 50 characters)').fill('too short')
-    await nextBtn(page).click()
-    await expect(err).toHaveText('Paste at least 50 characters')
-    await method(page, 'Website URL').click()
-    await nextBtn(page).click()
-    await expect(err).toHaveText('Paste a URL to continue')
+    await expect(err).toContainText('Paste at least 50 characters')
+    await method(page, 'Website URL').check()
+    await expect(err).toContainText('Paste a URL to continue')
+    await page.getByPlaceholder('https://example.com').fill('example.com')
+    await expect(err).toHaveCount(0)
+    await expect(nextBtn(page)).toBeEnabled()
     expect(drafts.posts).toHaveLength(0)
   })
 
   test('Cancel goes Home; the other-things links open their pages', async ({ page }) => {
     await page.goto('/create')
+    // Cancel sits at the foot of the page, under the cookie notice until it's closed.
+    await page.getByRole('button', { name: 'Got it' }).click({ timeout: 5000 }).catch(() => {})
     await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/dashboard$/)
     await page.goto('/create')
@@ -192,11 +208,22 @@ test.describe('Step 1 — reading the content', () => {
     await page.goto('/create')
     await page.getByRole('button', { name: 'Jordan Lee' }).click()
     await purposeBox(page).fill('Explain the family plan to Jordan')
-    await method(page, 'Upload file').click()
+    await method(page, 'Upload file').check()
     await page.locator('input[type=file]').first().setInputFiles(PDF)
-    await expect(page.getByText('sample-plan.pdf')).toBeVisible()
+    await expect(page.locator('.ws-work').getByText('sample-plan.pdf')).toBeVisible()
     await nextBtn(page).click()
+    // Here's what we read: the summary, the one point and the numbers, editable
+    await expect(page.getByRole('heading', { name: 'Here’s what we read' })).toBeVisible()
+    await expect(page.getByLabel('The one point')).toHaveValue(BRIEF.angle)
+    await expect(page.getByLabel('Number 1', { exact: true })).toHaveValue('$84.50')
+    await page.getByLabel('Number 1', { exact: true }).fill('$85.50')
+    await page.getByRole('button', { name: 'Remove $500,000' }).click()
+    await page.getByRole('button', { name: 'Looks right — write the story →' }).click()
     await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}$`))
+    expect(drafts.briefs).toEqual([{ videoId: FAKE_ID }])
+    const saved = drafts.draft.patches.find((p) => p.updates?.brief)
+    expect(saved.updates.brief.figures).toEqual([{ label: 'monthly premium', value: '$85.50' }])
+    expect(saved.updates.brief.angle).toBe(BRIEF.angle)
 
     expect(up.uploads).toBe(1)
     expect(up.extractBodies).toEqual([{ path: 'e2e/1-sample-plan.pdf', purpose: 'Explain the family plan to Jordan' }])
@@ -221,7 +248,7 @@ test.describe('Step 1 — reading the content', () => {
     up.extractError = 'This PDF is password protected. Remove the password and try again.'
     await page.goto('/create')
     await purposeBox(page).fill('Explain the plan')
-    await method(page, 'Upload file').click()
+    await method(page, 'Upload file').check()
     await page.locator('input[type=file]').first().setInputFiles(PDF)
     await nextBtn(page).click()
     await expect(page.getByText('This PDF is password protected. Remove the password and try again.')).toBeVisible()
@@ -233,7 +260,7 @@ test.describe('Step 1 — reading the content', () => {
     const up = await mockUpload(page)
     await page.goto('/create')
     await purposeBox(page).fill('Explain the plan')
-    await method(page, 'Upload file').click()
+    await method(page, 'Upload file').check()
     await page.locator('input[type=file]').first().setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from('x') })
     await nextBtn(page).click()
     await expect(page.getByText('Unsupported file type. Allowed: PDF, DOCX, PPTX, TXT, CSV, XLSX')).toBeVisible()
@@ -249,13 +276,14 @@ test.describe('Step 1 — reading the content', () => {
     await page.goto('/create')
     await page.getByRole('button', { name: 'No client — general' }).click()
     await purposeBox(page).fill('Compare these two plans')
-    await method(page, 'Upload file').click()
+    await method(page, 'Upload file').check()
     await page.locator('input[type=file]').first().setInputFiles([
       { name: 'sample-plan.pdf', mimeType: 'application/pdf', buffer: fs.readFileSync(PDF) },
       { name: 'second.pdf', mimeType: 'application/pdf', buffer: fs.readFileSync(PDF) },
     ])
     await expect(page.getByText('2 files selected')).toBeVisible()
     await nextBtn(page).click()
+    await confirmRead(page)
     await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}&combine=failed$`))
     await expect(page.getByText('We couldn’t compare your files automatically this time.', { exact: false })).toBeVisible()
     expect(up.uploads).toBe(2)
@@ -276,27 +304,30 @@ test.describe('Step 1 — reading the content', () => {
 
     await page.goto('/create')
     await purposeBox(page).fill('Explain it')
-    await method(page, 'Paste text').click()
+    await method(page, 'Paste text').check()
     await page.getByPlaceholder('Paste your content here (at least 50 characters)').fill(text)
     await nextBtn(page).click()
+    await confirmRead(page)
     await expect(page).toHaveURL(/\/create\/script\?id=/)
     expect(extract[0]).toEqual({ text, purpose: 'Explain it' })
     expect(drafts.posts[0].contentMethod).toBe('text')
 
     await page.goto('/create')
     await purposeBox(page).fill('Why term life makes sense for young parents')
-    await method(page, 'AI writes it').click()
+    await method(page, 'AI writes it').check()
     await expect(page.getByText('AI will generate content based on your description above.')).toBeVisible()
     await nextBtn(page).click()
+    await confirmRead(page)
     await expect(page).toHaveURL(/\/create\/script\?id=/)
     expect(extract[1]).toEqual({ idea: 'Why term life makes sense for young parents', purpose: 'Why term life makes sense for young parents' })
     expect(drafts.posts[1].contentMethod).toBe('idea')
 
     await page.goto('/create')
     await purposeBox(page).fill('Explain our agency')
-    await method(page, 'Website URL').click()
+    await method(page, 'Website URL').check()
     await page.getByPlaceholder('https://example.com').fill('example.com/about')
     await nextBtn(page).click()
+    await confirmRead(page)
     await expect(page).toHaveURL(/\/create\/script\?id=/)
     expect(urls[0]).toEqual({ url: 'https://example.com/about' })
     expect(drafts.posts[2].contentMethod).toBe('url')
@@ -310,7 +341,7 @@ test.describe('Step 1 — reading the content', () => {
     await page.route('**/api/extract', (route) => route.fulfill({ json: { title: 'x' } }))
     await page.goto('/create')
     await purposeBox(page).fill('Explain it')
-    await method(page, 'AI writes it').click()
+    await method(page, 'AI writes it').check()
     await nextBtn(page).click()
     await expect(page.getByText('You’ve used your 2 free projects this month.')).toBeVisible()
     await expect(page).toHaveURL(/\/create$/)
@@ -321,6 +352,7 @@ test('coming back to step 1 reopens the same draft and updates it instead of mak
   guard = await guardRealWorld(page)
   await mockClients(page)
   const draft = await mockDraft(page, draftRow(storyDraft({ clientId: CLIENTS[0].id, purpose: 'Explain the family plan' })))
+  await mockSummary(page)
   let posts = 0
   await page.route('**/api/videos/draft', (route) => {
     if (route.request().method() !== 'POST') return route.fallback()
@@ -330,9 +362,10 @@ test('coming back to step 1 reopens the same draft and updates it instead of mak
   await page.route('**/api/extract', (route) => route.fulfill({ json: { title: 'Again' } }))
   await page.goto(`/create?id=${FAKE_ID}`)
   await expect(purposeBox(page)).toHaveValue('Explain the family plan')
-  await expect(page.getByText('Jordan Lee', { exact: true })).toBeVisible()
-  await method(page, 'AI writes it').click()
+  await expect(page.locator('.ws-work').getByText('Jordan Lee', { exact: true })).toBeVisible()
+  await method(page, 'AI writes it').check()
   await nextBtn(page).click()
+  await confirmRead(page)
   await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}$`))
   expect(posts).toBe(0)
   expect(draft.patches[0]).toMatchObject({ videoId: FAKE_ID, updates: { purpose: 'Explain the family plan', clientId: CLIENTS[0].id, recipientName: 'Jordan', contentMethod: 'idea', sourcePdfPath: null, extractedDocs: [] } })
@@ -343,6 +376,7 @@ test.describe('Duplicate (from a finished project’s page)', () => {
 
   test('makes the copy on the server and opens it on the story step', async ({ page }) => {
     await mockDraft(page, draftRow(storyDraft()))
+    await mockSummary(page) // the story step shows the price in "Your video so far"
     const asked: any[] = []
     // The copy itself is a database write — mocked here, checked by its body.
     await page.route('**/api/videos/draft/duplicate', async (route) => {

@@ -1,9 +1,28 @@
 # Docs2Video — Build State
 
-**Last updated:** 2026-10-07 (overhaul phase 2 done: colours, kit, top bar, home, How to use — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
+**Last updated:** 2026-10-07 (overhaul phase 3: workspace, free preview, ready email — see below) (header sections below may lag — see CODE-REVIEW-2026-07-01.md for the current architecture map)
 **Branch:** main
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
+
+## 2026-10-07 — Overhaul phase 3: the workspace, free preview, honest waiting, ready email
+
+- **Workspace:** every create step (incl. the making screen) = step rail left, work middle, "Your video so far" right (client, source, one point, output, look, voice, length, server price; "charged" on the making screen). Phones: "Step N of 4 · …" line, main button pinned bottom, summary folds under. Main buttons say what they do and cost; a held-back button says why + "Show me". Moved onto the kit.
+- **"Here's what we read"** on step 1: summary, the one point, figures used exactly as written — editable, figures removable; reuses the brief step 2 already made (no extra AI call).
+- **Honest waiting:** step 1's timer bar → real stages; the making screen shows the render service's own words ("Drawing scene 3 of 6", written by `server.js`) and Home's percentage.
+- **Free first-scene preview** (owner: still + voice, 3/account/UTC day, admins unlimited, never charges): `app/api/preview-first-scene`, `app/_lib/first-scene-preview*.ts`, `create/_components/make/FirstScenePreview.tsx` on step 3 for videos and presentations. Stills from the real renderer per look (render-service `/preview-still`, Remotion still mode in `DirectedVideo.tsx`/`Root.tsx`); Cinematic/Infographic leave out the paid AI picture, Editorial/Explainer pick layout in code (noted under the image). Cap stored in the existing rate-limit table — no migration. < 1¢ per preview; repeats cached and free.
+- **Ready email existed but was never called** — now sent once per project when anything finishes (video, presentation, deck, commercial), from the stuck-video cron / completion paths, plus a bell notice; skipped for drafts, prospect demos, tests, and when the owner is still on the making screen (`/api/videos/<id>/ready-seen`). Needs RESEND_API_KEY on Vercel. Home: "Finished while you were away".
+- **Text2Art phone menu:** light side panel with close button (desktop bar unchanged).
+- Skipped on purpose: "hold credits, then charge" — videos are all-or-nothing and failures already refund, so it would change nothing for customers.
+- **Deploy order:** Lambda site `docs2video` (still mode) → ECS image + roll (`/preview-still`, progress words, voice fix) → Vercel.
+- **Open:** look sample thumbnails on step 3 show real names (PubcoZone, Valor Financial, "QoL Max Accumulator+ III") — regenerate with neutral content; cookie notice covers the pinned phone button until dismissed.
+
+## 2026-10-07 — Chosen voice in every look + header compliance scrub (not deployed)
+
+- **Voice:** one rule for every narrated look (`app/_lib/voice-choice.ts`, mirrored by `render-service/slides.js` `wantsChosenVoice`): Sarah/nothing picked → ElevenLabs first; any other voice → that OpenAI voice first, ElevenLabs only as fallback. Fixed in `render-service/server.js` `ttsToBuffer` (Aurora, Cinematic, Infographic, Editorial, Explainer) and `app/_lib/tts.ts` `synthesizeSpeech` (interactive presentations). Free preview now uses the pick for every look; its "only the Slide Deck look uses the voice you pick" note is gone.
+- **Compliance:** `complianceScrubberFor` / `makeComplianceScrubber` in `app/_lib/compliance.ts`. Editorial/Explainer masthead + running title (raw doc title) and every Claude-written page string, and V3 footer chips / metric labels / hero label (raw key metrics), now go through the shared scrub. Agent name, contact line, client name and figures untouched. Title that is only a product name → "Your Personalized Illustration".
+- Guard: `tests/voice-choice-and-header-scrub.test.ts` (each check proven to fail on the old code).
+- **Needs:** Vercel deploy (app side) + new ECS render-service image (server.js). No Remotion/Lambda change.
 
 ## 2026-10-07 — Overhaul phase 2, steps 3–4: kit, top bar, home, How to use
 

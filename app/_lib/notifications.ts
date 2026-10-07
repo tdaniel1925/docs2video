@@ -87,35 +87,39 @@ export async function sendDemoReadySms(
 }
 
 /**
- * Email the video creator when their video finishes generating.
+ * Email the creator when their project finishes. Called ONCE per project by
+ * app/_lib/video-ready.ts (which decides when) — never call it directly.
+ * `noun` is what was made: video, presentation, slide deck or slides.
  */
 export async function sendVideoReadyEmail(
   to: string,
   videoTitle: string,
-  videoUrl: string
+  videoUrl: string,
+  noun = 'video',
 ) {
+  const safeTitle = videoTitle.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c] as string))
   try {
     // Resend v6 RETURNS failures instead of throwing — read the result, or a
     // failed send gets logged as "sent".
     const { error: sendErr } = await getResend().emails.send({
       from: 'Docs2Video <notifications@docs2video.com>',
       to,
-      subject: `Your video "${videoTitle}" is ready`,
+      subject: `Your ${noun} is ready: ${videoTitle}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
           <div style="text-align: center; margin-bottom: 32px;">
-            <h1 style="font-size: 22px; font-weight: 800; color: #1a1a1a; margin: 0;">Your video is ready!</h1>
+            <h1 style="font-size: 22px; font-weight: 800; color: #1a1a1a; margin: 0;">Your ${noun} is ready</h1>
           </div>
           <p style="font-size: 15px; line-height: 1.6; color: #444;">
-            Great news &mdash; your video <strong>&ldquo;${videoTitle}&rdquo;</strong> has finished generating and is ready to view.
+            <strong>&ldquo;${safeTitle}&rdquo;</strong> has finished. Open it to check it, then send it to your client.
           </p>
           <div style="text-align: center; margin: 32px 0;">
             <a href="${videoUrl}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">
-              View Your Video &rarr;
+              Open it &rarr;
             </a>
           </div>
           <p style="font-size: 13px; line-height: 1.6; color: #888;">
-            You can share this video with clients from your dashboard, or copy the direct link above.
+            On its page you can send it to your client or copy its link. It is also in your Library.
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
           <p style="font-size: 11px; color: #999; text-align: center;">

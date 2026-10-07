@@ -2,6 +2,7 @@
 
 import s from './make.module.css'
 import { formatCredits } from './usePriceQuote'
+import MainAction from '../workspace/MainAction'
 import type { OutputQuote } from '../../../../_lib/price-quote'
 
 /**
@@ -21,6 +22,7 @@ export default function PricePanel({
   error,
   onMake,
   onTopUp,
+  preview,
 }: {
   quote: OutputQuote | null
   balance: number | null
@@ -34,11 +36,12 @@ export default function PricePanel({
   error: { message: string; topUp?: boolean } | null
   onMake: () => void
   onTopUp: () => void
+  /** The free first-scene preview, shown just above the button. */
+  preview?: React.ReactNode
 }) {
   const total = quote?.total ?? null
   const after = total !== null && balance !== null ? balance - total : null
   const short = !quote?.free && after !== null && after < 0
-  const ready = !!quote && !loading && !submitting
 
   return (
     <aside className={s.panel} aria-label="The price">
@@ -88,18 +91,19 @@ export default function PricePanel({
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className="btn btn-primary btn-lg btn-full"
+      {/* FIRST-SCENE PREVIEW SLOT — the free preview of the first scene sits
+          here, right above the button that spends (passed in by step 3). */}
+      {preview}
+      <MainAction
         onClick={onMake}
-        disabled={!ready}
-        aria-busy={submitting}
+        disabled={submitting}
+        busy={submitting}
+        price={quote && !submitting ? formatCredits(quote.total) : null}
+        missing={submitting ? null : !quote || loading ? { reason: quoteError || 'Working out the price…' } : null}
+        note={<>This is the only button that spends credits.{timeNote ? ` ${timeNote}` : ''}</>}
       >
-        {submitting ? 'Starting…' : quote ? `${submitLabel} — ${formatCredits(quote.total)}` : submitLabel}
-      </button>
-      <p className={s.makeNote}>
-        This is the only button that spends credits.{timeNote ? ` ${timeNote}` : ''}
-      </p>
+        {submitting ? 'Starting…' : submitLabel}
+      </MainAction>
     </aside>
   )
 }

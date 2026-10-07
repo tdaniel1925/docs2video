@@ -55,7 +55,9 @@ function Label({ children, price }: { children: ReactNode; price?: ReactNode }) 
   return (
     <>
       <span className="kit-btn-label">{children}</span>
-      {price != null && price !== '' && <span className="kit-btn-price">— {price}</span>}
+      {/* The space keeps the words apart when read out ("Make it — 1,000
+          credits", not "Make it— 1,000 credits"); the gap does it on screen. */}
+      {price != null && price !== '' && <>{' '}<span className="kit-btn-price">— {price}</span></>}
     </>
   )
 }

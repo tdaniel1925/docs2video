@@ -28,7 +28,7 @@ describe('kit Button', () => {
   it('puts the price on the button', () => {
     const html = renderToStaticMarkup(h(Button, { price: '1,000 credits', children: 'Make it' }))
     expect(html).toContain('kit-btn--primary')
-    expect(html).toMatch(/<span class="kit-btn-label">Make it<\/span><span class="kit-btn-price">— 1,000 credits<\/span>/)
+    expect(html).toMatch(/<span class="kit-btn-label">Make it<\/span> <span class="kit-btn-price">— 1,000 credits<\/span>/)
   })
 
   it('with href it is a link that looks like a button', () => {

@@ -27,6 +27,11 @@ import AskPanel, { type AskMsg } from '../_components/story/AskPanel'
 import SceneCard from '../_components/story/SceneCard'
 import LengthPicker from '../_components/story/LengthPicker'
 import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../_components/story/lengths'
+import { Note } from '../../../_components/kit'
+import Workspace from '../_components/workspace/Workspace'
+import MainAction, { type Missing } from '../_components/workspace/MainAction'
+import { factsFromDraft } from '../_components/workspace/facts'
+import { usePriceQuote } from '../_components/make/usePriceQuote'
 
 type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type StoryState = 'idle' | 'writing' | 'ready' | 'failed'
@@ -86,6 +91,12 @@ export default function ScriptPage() {
   const loadedRef = useRef(false)
   // true until the first load has decided what to do (show, resume, ask or write)
   const [booting, setBooting] = useState(true)
+  // The price for "Your video so far" — the server's quote for the saved
+  // draft. Re-read when the story (and so its length) changes.
+  const { quote, loading: quoteLoading, refresh: refreshPrice } = usePriceQuote(videoId)
+  useEffect(() => {
+    if (story === 'ready') void refreshPrice()
+  }, [story, detailLevel, refreshPrice])
 
   /**
    * AUTO-SAVE — and the tick only appears when something was actually saved.
@@ -548,11 +559,31 @@ export default function ScriptPage() {
     }
   }
 
+  const priced = quote?.options?.[(outputType as keyof NonNullable<typeof quote>['options'])] ?? null
+  const soFar = factsFromDraft(draftData, {
+    point: brief?.angle || brief?.summary || null,
+    output: outputType,
+    length: lengthName(detailLevel),
+    price: { kind: 'quote', credits: priced?.total ?? null, free: priced?.free, loading: quoteLoading },
+  })
+
   if (draftLoading) {
     return (
-      <div style={{ flex: 1, padding: '48px 16px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 15 }}>Loading&hellip;</div>
+      <Workspace soFar={soFar}>
+        <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 15 }}>Loading&hellip;</div>
+      </Workspace>
     )
   }
+
+  // Why "Looks right" can't be pressed yet — said under it, never a silent grey button.
+  const questionsWaiting = scenes.length === 0 && story !== 'writing' && !!brief?.clarifyingQuestions?.length
+  const missing: Missing | null =
+    story === 'writing' ? { reason: 'Your story is still being written — usually about a minute.' }
+      : questionsWaiting ? { reason: 'Answer the quick questions first, or skip them.', target: 's2-point' }
+        : asking ? { reason: 'Wait for your change to finish.' }
+          : lengthPending ? { reason: `First rewrite the story as ${lengthName(pickedLength)}, or keep it ${lengthName(detailLevel)}.`, target: LENGTH_ANCHOR }
+            : scenes.length === 0 ? { reason: story === 'failed' ? 'The story wasn’t written — press Try again.' : 'The story isn’t written yet.', target: story === 'failed' ? 's2-error' : undefined }
+              : null
 
   const totalSeconds = scenes.reduce((sum: number, s: any) => sum + sceneSeconds(s), 0)
   const spoken = outputType === 'video' || outputType === 'pptx'
@@ -563,16 +594,25 @@ export default function ScriptPage() {
       : null
 
   return (
-    <div className="story-page" style={{ flex: 1, padding: '32px 16px 48px', maxWidth: 1180, margin: '0 auto', width: '100%' }}>
-      <style>{`
-        .story-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; }
-        .story-side { position: sticky; top: 24px; }
-        @media (max-width: 900px) {
-          .story-grid { grid-template-columns: minmax(0, 1fr); }
-          .story-side { position: static; }
-        }
-      `}</style>
-
+    <Workspace
+      soFar={soFar}
+      side={
+        <>
+          <AskPanel
+            messages={chat}
+            busy={asking}
+            disabledNote={askNote}
+            onSend={(t) => void ask(t)}
+            canUndo={!!undoRef.current}
+            onUndo={undoAsk}
+          />
+          <MainAction onClick={() => void goToLook()} disabled={submitting} busy={submitting} missing={missing} note="Free — nothing is charged until step 3.">
+            {submitting ? 'Saving…' : 'Looks right — pick the look →'}
+          </MainAction>
+        </>
+      }
+    >
+    <div className="story-page">
       <button
         type="button"
         onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
@@ -589,19 +629,19 @@ export default function ScriptPage() {
       </p>
 
       {combineFailed ? (
-        <div style={{ color: 'var(--ink)', background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 18 }}>
+        <Note tone="warn" className="s2-note">
           We couldn&rsquo;t compare your files automatically this time. The story still uses all of them — ask on the right for what to compare or focus on.
-        </div>
+        </Note>
       ) : null}
 
       {copied ? (
-        <div role="status" style={{ color: 'var(--ink)', background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 18, lineHeight: 1.5 }}>
+        <Note tone="ok" className="s2-note">
           This is a copy of your earlier project — the story, look, voice and brand came with it. Change anything you like. Nothing is made or charged until you press Make it on the next step.
-        </div>
+        </Note>
       ) : null}
 
-      <div className="story-grid">
-        <div style={{ minWidth: 0 }}>
+      <div>
+        <div>
           {draftData ? (
             <LengthPicker
               picked={pickedLength}
@@ -616,6 +656,7 @@ export default function ScriptPage() {
               onKeep={keepLength}
             />
           ) : null}
+          <div id="s2-point">
           <OnePoint
             brief={brief}
             building={briefBuilding}
@@ -626,6 +667,7 @@ export default function ScriptPage() {
             onAnswer={submitAnswers}
             onSkipQuestions={skipQuestions}
           />
+          </div>
           {briefNote && !brief && (
             <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>{briefNote}</div>
           )}
@@ -667,7 +709,7 @@ export default function ScriptPage() {
           )}
 
           {error && (
-            <div role="alert" style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error-text)', fontSize: 14, marginBottom: 16 }}>
+            <div id="s2-error" role="alert" style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error-text)', fontSize: 14, marginBottom: 16 }}>
               {error}
               {story === 'failed' && (
                 <div style={{ marginTop: 10 }}>
@@ -710,30 +752,6 @@ export default function ScriptPage() {
           )}
         </div>
 
-        <aside className="story-side">
-          <AskPanel
-            messages={chat}
-            busy={asking}
-            disabledNote={askNote}
-            onSend={(t) => void ask(t)}
-            canUndo={!!undoRef.current}
-            onUndo={undoAsk}
-          >
-            <button
-              type="button"
-              className="btn btn-primary btn-lg btn-full"
-              onClick={goToLook}
-              disabled={submitting || story !== 'ready' || scenes.length === 0 || asking || lengthPending}
-            >
-              {submitting ? 'Saving…' : 'Looks right — pick the look →'}
-            </button>
-            {lengthPending ? (
-              <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '8px 0 0', lineHeight: 1.5 }}>
-                First rewrite the story as {lengthName(pickedLength)}, or keep it {lengthName(detailLevel)} — see Length, above the story.
-              </p>
-            ) : null}
-          </AskPanel>
-        </aside>
       </div>
 
       {/* Slide preview */}
@@ -771,5 +789,6 @@ export default function ScriptPage() {
         </div>
       )}
     </div>
+    </Workspace>
   )
 }

@@ -28,11 +28,14 @@ test('a document becomes a story, gets its look and price, and is discarded from
     await page.goto('/create')
     await page.getByRole('button', { name: 'No client — general' }).click()
     await page.getByPlaceholder(/Explain our services/).fill(purpose)
-    await page.getByRole('button', { name: /^Upload file/ }).click()
+    await page.getByRole('radio', { name: /^Upload file/ }).check()
     await page.locator('input[type=file]').first().setInputFiles(path.join(__dirname, 'fixtures', 'sample-plan.pdf'))
     await page.getByRole('button', { name: 'Read it and plan the story →' }).click()
     await expect(page.getByRole('button', { name: 'Reading…' })).toBeVisible()
-    await page.waitForURL(/\/create\/script\?id=/, { timeout: 180000 })
+    // Here's what we read (the real summary) — then on to the story.
+    await expect(page.getByRole('heading', { name: 'Here’s what we read' })).toBeVisible({ timeout: 180000 })
+    await page.getByRole('button', { name: 'Looks right — write the story →' }).click()
+    await page.waitForURL(/\/create\/script\?id=/, { timeout: 60000 })
     videoId = new URL(page.url()).searchParams.get('id')!
     expect(videoId).toMatch(/^[0-9a-f-]{36}$/)
 
