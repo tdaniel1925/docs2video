@@ -243,5 +243,73 @@ test('copy the link puts the share link on the clipboard', async ({ page, contex
   await rts(page).getByRole('button', { name: 'or copy the link' }).click()
   await expect(rts(page).getByRole('button', { name: '✓ Link copied' })).toBeVisible()
   const copied = await page.evaluate(() => navigator.clipboard.readText())
-  expect(copied).toBe(`${new URL(page.url()).origin}/watch/${videoId}`)
+  // A policy video's link comes with its disclosure; any other is the bare link.
+  expect(copied.startsWith(`${new URL(page.url()).origin}/watch/${videoId}`) || copied.includes(`/watch/${videoId}
+
+Important Disclosure`)).toBeTruthy()
+})
+
+// ── Phase 4: what's left, someone else, copy the email, who watched, the bar ──
+
+test("what's left lists what's missing, and a chip jumps to the fix", async ({ page }) => {
+  await open(page, { quote: null })
+  const left = rts(page).getByTestId('whats-left')
+  await expect(left.locator('[data-left="email"]')).toBeVisible()
+  await expect(left.locator('[data-left="note"]')).toBeVisible()
+  await left.locator('[data-left="note"]').click()
+  await expect(rts(page).getByLabel('A short note')).toBeFocused()
+  await rts(page).getByLabel('A short note').fill('Here you go.')
+  await expect(left.locator('[data-left="note"]')).toHaveCount(0)
+})
+
+test('send to someone else sends to the typed address, once', async ({ page }) => {
+  const s = await open(page)
+  await rts(page).getByRole('button', { name: 'Send to someone else' }).click()
+  await rts(page).getByLabel('Client email').fill('pat@example.com')
+  await rts(page).getByLabel('Their name (optional)').fill('Pat')
+  await rts(page).getByRole('button', { name: 'Send to Pat' }).click()
+  await expect(rts(page).getByRole('status')).toHaveText('✓ Sent to pat@example.com.')
+  expect(s.sends).toHaveLength(1)
+  expect(s.sends[0].clientEmail).toBe('pat@example.com')
+  expect(s.sends[0].clientName).toBe('Pat')
+})
+
+test('copy the email puts the whole email on the clipboard and sends nothing', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const s = await open(page)
+  await rts(page).getByLabel('A short note').fill('See you Thursday.')
+  await rts(page).getByRole('button', { name: 'Copy the email' }).click()
+  await expect(rts(page).getByRole('button', { name: /Email copied/ })).toBeVisible()
+  const text = await page.evaluate(() => navigator.clipboard.readText())
+  expect(text).toContain('See you Thursday.')
+  expect(text).toContain(`/watch/${videoId}`)
+  expect(s.sends).toHaveLength(0)
+})
+
+test('who watched shows each email and how far they got', async ({ page }) => {
+  await page.route(`**/api/videos/${videoId}/viewing`, (r) => r.fulfill({ json: {
+    available: true, steps: [25, 50, 75, 100], totals: { views: 3, plays: 2 },
+    shares: [{ id: 's1', to: 'jordan@example.com', name: 'Jordan Lee', sentAt: '2026-10-01T10:00:00Z', emailOpenedAt: '2026-10-01T11:00:00Z',
+      viewer: { device: 'iPhone · Safari', firstSeen: '2026-10-01T11:05:00Z', lastSeen: '2026-10-01T11:09:00Z', visits: 1, played: true, furthest: 50, reached: [true, true, false, false], clicked: { booking: true, payment: false, download: false } } }],
+    others: [],
+  } }))
+  await open(page)
+  const w = page.getByRole('region', { name: 'Who watched' })
+  await expect(w).toContainText('Jordan Lee')
+  await expect(w).toContainText('Watched half')
+  await expect(w).toContainText('Pressed Book a call')
+  await expect(w.locator('.res-q.on')).toHaveCount(2)
+  await expect(w.getByRole('link', { name: 'change when' })).toHaveAttribute('href', '/activity#view-alerts')
+})
+
+test('the change bar and the More menu are there; nothing re-renders from just looking', async ({ page }) => {
+  await open(page)
+  const bar = page.getByRole('region', { name: 'Ask for a change' })
+  await expect(bar).toBeVisible()
+  expect(await bar.getAttribute('data-editor')).toMatch(/^(fix-scene|older-editor|remake|presentation-editor)$/)
+  await page.getByTestId('more-menu').getByRole('button', { name: /More/ }).click()
+  for (const item of ['Rename', 'Duplicate', 'Social posts', 'Delete']) {
+    await expect(page.getByTestId('more-menu').getByRole('menuitem', { name: item })).toBeVisible()
+  }
+  await page.keyboard.press('Escape')
 })

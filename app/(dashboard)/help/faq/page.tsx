@@ -30,8 +30,8 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Can I edit a video after it has been generated?',
     answer: [
-      'Yes. Open the video from your Library and click **Edit Video**. You can change the wording of each scene or remove scenes, then press **Save & Regenerate** to make a new version.',
-      'For **Slide Deck** videos there is also **Fix a scene** — use it to correct one scene (a glitch, the wording, or how a word is pronounced) without redoing the rest.',
+      'Yes. Open it from your Library and use **Ask for a change** under Ready to send. Pick **This scene** or the whole thing, say what you want, and it opens the right editor for that project — with the price shown before anything is rebuilt. Each change is listed with **Undo**.',
+      'Presentations and slide decks open the slide editor; **Slide Deck** look videos open **Fix a scene** (one scene, without redoing the rest); other looks with slide pictures open the **Scene editor**. A few looks can’t be changed in place — the bar offers **Make a changed copy** instead. See **Changing a Finished Project** in the Help Center.',
     ],
   },
   {
@@ -89,7 +89,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Can I download my video as a PowerPoint file?',
     answer: [
-      'Yes. On the video page, the **MP4**, **PDF** and **PPTX** buttons download the video, the slides as a PDF, and an editable PowerPoint. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
+      'Yes, when the video’s look keeps slide pictures (presentations and slide decks always can). On its page, press **Download** and choose **PowerPoint** — or **MP4** or **PDF**. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
     ],
   },
   {
@@ -137,8 +137,8 @@ const TROUBLESHOOTING: FaqItem[] = [
     answer: [
       'This can happen if the voice failed on one or more scenes. Try these steps:',
       '1. Make sure your device volume and the video player volume are turned up.',
-      '2. Open the video and click **Edit Video**. Check each scene has narration text, then press **Save & Regenerate**.',
-      '3. For a **Slide Deck** video, use **Fix a scene** on the silent scene instead — re-recording is free.',
+      '2. Open the video and use **Ask for a change**. For a **Slide Deck** look video, pick the silent scene and press **The voice glitched** — re-recording is free.',
+      '3. For other looks, the bar opens the **Scene editor**: check each scene has narration text, then press **Save & Regenerate**.',
     ],
   },
   {
@@ -156,17 +156,17 @@ const TROUBLESHOOTING: FaqItem[] = [
     ],
   },
   {
-    question: 'I cannot see the download buttons on my video.',
+    question: 'I cannot find the downloads for my video.',
     answer: [
-      'The **MP4**, **PDF** and **PPTX** buttons appear only after the video has finished. If it is still processing, wait for it to complete.',
-      'On a phone, scroll down below the video player to see them.',
+      'The **Download** menu (top-right of the video page) appears once the video has finished. If it is still processing, wait for it to complete.',
+      'It only lists the files that video has: **PDF** and **PowerPoint** need slide pictures, which some looks don’t keep.',
     ],
   },
   {
     question: 'The share page link is not working.',
     answer: [
       'Check that the video has finished. Share pages only work for completed videos.',
-      'If it is complete but the link shows an error, copy it again with **Copy Link** on the video page, and make sure the whole address was pasted.',
+      'If it is complete but the link shows an error, copy it again with **or copy the link** in the send panel on the video page, and make sure the whole address was pasted.',
     ],
   },
 ]

@@ -127,6 +127,10 @@ export async function POST(req: NextRequest) {
       to_name: name || null,
       subject: subjectLine,
     })
+    // The Watch button carries this email's id (?s=…). The share page passes
+    // it along with its viewing events, so the result page can show how far
+    // THIS person got. An email without a recorded row gets the plain link.
+    const watchUrl = sentEmailId ? `${shareUrl}?s=${sentEmailId}` : shareUrl
     const trackPixel = sentEmailId
       ? `<img src="${appUrl()}/api/email-track?id=${sentEmailId}" width="1" height="1" alt="" style="display:block;" />`
       : ''
@@ -154,7 +158,7 @@ export async function POST(req: NextRequest) {
           ` : ''}
 
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${shareUrl}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">
+            <a href="${watchUrl}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">
               ${isDeck ? 'View Presentation' : 'Watch Video'} &rarr;
             </a>
           </div>

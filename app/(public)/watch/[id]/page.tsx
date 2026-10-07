@@ -827,13 +827,22 @@ export default function PublicWatchPage() {
   const paid = searchParams.get('paid') === 'true'
 
   /* ---- Analytics helper ---- */
+  // A link from a share email carries ?s=<that email's id>. It rides along in
+  // every event so the owner's result page can say how far THAT person got.
+  // Anything that isn't an email id is ignored (a forwarded or hand-typed
+  // link just counts as a viewer on its own).
+  const shareTag = (() => {
+    const s = searchParams.get('s') ?? ''
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null
+  })()
   const trackEvent = useCallback((videoId: string, event: string, metadata?: Record<string, unknown>) => {
+    const meta = shareTag ? { ...(metadata ?? {}), share: shareTag } : metadata
     fetch('/api/track-view', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId, event, metadata }),
+      body: JSON.stringify({ videoId, event, metadata: meta }),
     }).catch(() => {})
-  }, [])
+  }, [shareTag])
 
   /* ---- Presentations: count a "play" on real interaction ---- */
   // A deck has no play button. It used to count a play the moment the iframe
@@ -915,16 +924,21 @@ export default function PublicWatchPage() {
 
   /* ---- Slide tracking ---- */
   const handleTimeUpdate = useCallback(() => {
-    if (!videoRef.current || !video?.slide_urls) return
-    const slideUrls = video.slide_urls as string[]
+    if (!videoRef.current || !video || videoDuration === 0) return
+    // Slide tracking only for looks that save slide pictures. The watch
+    // milestones below used to sit behind this same check, so every look
+    // WITHOUT slide pictures (Aurora and others) never reported how far a
+    // client got. They are now tracked for every video.
+    const slideUrls = (video.slide_urls ?? []) as string[]
     const slideCount = slideUrls.length
-    if (slideCount === 0 || videoDuration === 0) return
-    const segmentDuration = videoDuration / slideCount
-    const idx = Math.min(Math.floor(videoRef.current.currentTime / segmentDuration), slideCount - 1)
-    setCurrentSlideIndex(idx)
+    if (slideCount > 0) {
+      const segmentDuration = videoDuration / slideCount
+      const idx = Math.min(Math.floor(videoRef.current.currentTime / segmentDuration), slideCount - 1)
+      setCurrentSlideIndex(idx)
+    }
 
     // Track watch milestones (25%, 50%, 75%)
-    if (video && videoDuration > 0) {
+    {
       const pct = (videoRef.current.currentTime / videoDuration) * 100
       for (const milestone of [25, 50, 75]) {
         if (pct >= milestone && !milestonesTracked.current.has(milestone)) {

@@ -189,10 +189,12 @@ export default function CreatingVideosPage() {
           <Link href="/help/sharing-videos" style={LINK}>Sharing Videos</Link> guide.
         </p>
         <p style={P}>
-          Further down you can download it (<strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PPTX</strong>,{' '}
-          <strong style={INK}>Script</strong>), make <strong style={INK}>Social Posts</strong>, <strong style={INK}>Delete</strong> it, or use{' '}
-          <strong style={INK}>Edit Video</strong> to change or remove scenes and <strong style={INK}>Save &amp; Regenerate</strong>. For Slide Deck
-          videos, <strong style={INK}>Fix a scene</strong> redoes one scene without starting over. Click the title to rename it.
+          Below it, <strong style={INK}>Ask for a change</strong> changes one scene or the whole thing — it opens the right editor and
+          shows the price first (see <Link href="/help/making-changes" style={LINK}>Changing a Finished Project</Link>).{' '}
+          <strong style={INK}>Who watched</strong> shows how far each person got. At the top, <strong style={INK}>Download</strong> has the files it has
+          (<strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PowerPoint</strong>, <strong style={INK}>Script</strong>) and{' '}
+          <strong style={INK}>More</strong> has Rename, <strong style={INK}>Duplicate</strong>, <strong style={INK}>Social posts</strong> and{' '}
+          <strong style={INK}>Delete</strong>. Click the title to rename it.
         </p>
         <p>
           <strong style={INK}>Duplicate</strong> makes a new project from this one — the same client, goal, source, story, length, look, voice and

@@ -72,6 +72,12 @@ const GUIDES: HelpGuide[] = [
     icon: '🔗',
   },
   {
+    href: '/help/making-changes',
+    title: 'Changing a Finished Project',
+    description: 'One "Ask for a change" bar for every project: this scene or the whole thing, the right editor for it, the price first, and Undo.',
+    icon: '🛠️',
+  },
+  {
     href: '/help/social-sharing',
     title: 'Social Posts & AI Social',
     description: 'Write ready-to-post captions for any finished video, or add AI Social to connect your accounts and post on a schedule.',
@@ -104,7 +110,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/downloads',
     title: 'Downloads & Formats',
-    description: 'MP4 video, PDF slides, PPTX presentations, and the script explained.',
+    description: 'The Download menu: MP4 video, PDF slides, PowerPoint and the script — and why a video only lists the ones its look can make.',
     icon: '📥',
   },
   {
@@ -192,8 +198,8 @@ const ARTICLES: HelpArticle[] = [
       `**1.** Click **${NAMES.newButton}**, say who it\'s for and what it should get them to do, and add your content.`,
       '**2.** Check the story — the same as a video — then press **Looks right — pick the look**.',
       '**3.** Under **What do you want to send?** choose **Interactive presentation**, then pick one of six looks: Heritage, Warm Editorial, Corporate Bold, Midnight, Fresh Mint or Certificate.',
-      `**4.** Press **Make it**. When it\'s ready, open it from your ${NAMES.library} to share the link or **Edit slides**.`,
-      `It costs ${n(CREDIT_COSTS.interactive)} credits. Want a video file too? Export an MP4 from the finished presentation\'s page (${n(CREDIT_COSTS.videoExport)} credits).`,
+      `**4.** Press **Make it**. When it\'s ready, open it from your ${NAMES.library} to send it, or change it with **Ask for a change**.`,
+      `It costs ${n(CREDIT_COSTS.interactive)} credits. Want a video file too? On the finished presentation\'s page, press **Download** and choose **Export video** (${n(CREDIT_COSTS.videoExport)} credits).`,
     ],
   },
   {
@@ -206,7 +212,7 @@ const ARTICLES: HelpArticle[] = [
       '**1 — What\'s this about?** Pick a client (or **No client — general**), say what it should get them to do, and choose where the content comes from: **Website URL**, **Upload file** (up to 5: PDF, Word, PowerPoint, text, CSV or Excel), **Paste text**, or **AI writes it**. When you name a client, their name appears on the cover and share page ("Prepared for [Client]").',
       '**2 — Check the story.** Read the one point and the scenes. Choose the **Length** (Short, Standard or Detailed), edit any scene, or type a change under **Change it by asking**. This step is free.',
       `**3 — Make it yours.** Check **${NAMES.brand}**, choose **Narrated video**, pick the look (see "Video styles explained") and the voice (**Sarah** by default; press play to hear any voice), and add background music if you like. Optionally add a note to your client, then press **Make it**.`,
-      `**4 — Send it.** It finishes in the background and lands in your ${NAMES.library}. From there you can send it, copy the link, download it (MP4 / PDF / PPTX / Script) or make changes.`,
+      `**4 — Send it.** It finishes in the background and lands in your ${NAMES.library}. Its page opens with **Ready to send**: what\'s left, a picture of their page, and Send. Below that are **Ask for a change** and **Who watched**; at the top, **Download** and **More**.`,
     ],
   },
   {
@@ -307,7 +313,7 @@ const ARTICLES: HelpArticle[] = [
       '• **Book a Call** (your booking link) and **Make a Payment**, when set up in Settings > Integrations. Links must start with https://. For Google Calendar, paste the link of a Google booking page (an "Appointment schedule") — there is no direct connection.',
       '**How to share:**',
       '1. Open a completed video from your Library.',
-      '2. Click **Send to Client** to email it, or **Copy Link** to paste the address anywhere.',
+      '2. At the top, under **Ready to send**, fix anything **What\'s left** lists, write **A short note**, and press **Send to** your client — or **or copy the link** to paste the address anywhere.',
       'The page shows your brand and contact details. Business and Enterprise plans remove the Docs2Video branding (white-label).',
     ],
   },
@@ -320,6 +326,18 @@ const ARTICLES: HelpArticle[] = [
       'The video\'s title is what your client sees at the top of the share page and in link previews.',
       'Open the video from your Library, then **click the title** (it shows a small pencil). Type a new title and press Enter (or Save).',
       'The change is instant and updates the public share page too.',
+    ],
+  },
+  {
+    id: 'ask-for-a-change',
+    title: 'Changing a finished video or presentation',
+    category: 'management',
+    icon: '🛠️',
+    content: [
+      'Open it from your Library and use **Ask for a change** (under Ready to send). Pick **This scene** or the whole thing, type what you want or press a suggestion, then press the button.',
+      'It opens the editor that project uses: the slide editor for presentations and slide decks, **Fix a scene** for Slide Deck look videos, the **Scene editor** for other looks with slide pictures. A few looks can\'t be changed in place — the bar offers **Make a changed copy**.',
+      `The first line of the bar says what a change costs. Changing spoken words costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per scene or slide on presentations and Slide Deck videos; fixing a voice glitch or a mispronounced word is free.`,
+      'Your changes are listed under the bar with **Undo**. See **Changing a Finished Project** for more.',
     ],
   },
   {
@@ -426,7 +444,7 @@ const ARTICLES: HelpArticle[] = [
       'Yes. On step 2, **Check the story**, every scene is editable: change the words directly, or open **More — words on screen, ask AI, preview** for the slide headline, stats, an AI edit and **Preview slide**.',
       'Drag scenes to reorder them (the opening and closing stay in place).',
       'To make a big change — like "add a slide about pricing" — type it under **Change it by asking** on the right. You can **Undo that change**.',
-      'After the video is made, open it from the video page to change scenes and make it again.',
+      'After it is made, use **Ask for a change** on its page — see **Changing a Finished Project**.',
     ],
   },
   {
@@ -472,9 +490,10 @@ const ARTICLES: HelpArticle[] = [
     category: 'sharing',
     icon: '📤',
     content: [
-      'Open a completed video from your Library. You have two options:',
-      '• **Send to Client** — sends the video by email. Enter the client\'s email and an optional message.',
-      '• **Copy Link** — copies the share page address. Paste it into any email, chat, or message.',
+      'Open a completed video from your Library. The top of its page is **Ready to send** — one panel for everything:',
+      '• **What\'s left** — chips for anything missing from their page (their email, a note, your booking link, photo or name, a payment link). Press one to fix it.',
+      '• **Send to [client]** — emails it, from your own connected email if you have one. Type an email if the app doesn\'t have one yet, or press **Send to someone else**.',
+      '• **or copy the link** copies the share page address; **Copy the email** copies the whole email to paste into your own inbox. Copying sends nothing.',
       'The share page shows your logo, colors, and contact details, plus your booking and payment buttons if you set them up.',
     ],
   },
@@ -484,7 +503,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'sharing',
     icon: '📣',
     content: [
-      '**Social Posts (free):** on any finished video, click **Social Posts**. It writes a LinkedIn, X/Twitter and Facebook post at once, each with a **Copy** button and your share link.',
+      '**Social Posts (free):** on any finished video, open **More** (top-right) and choose **Social posts**. It writes a LinkedIn, X/Twitter and Facebook post at once, each with a **Copy** button and your share link.',
       '**AI Social ($50/month add-on):** connect your social accounts, let AI write captions and make branded images, and post on a schedule. Open it from the account menu (top-right) > **AI Social**.',
       'AI Social uses your normal credits: 25 per caption set, and 25 per platform each time you post (posting to 3 platforms = 75). See the **Social Posts & AI Social** guide.',
     ],
@@ -500,6 +519,7 @@ const ARTICLES: HelpArticle[] = [
       '• **Watch-through** — how far they got (25 / 50 / 75 / 100%).',
       '• **Actions** — downloads, booking clicks, and payment clicks.',
       '• **Context** — device, browser, and approximate location.',
+      'On the video\'s own page, **Who watched** shows each person you emailed it to — whether they opened the email and how far into the video they got — plus anyone else who opened the link, by device.',
       'You\'re notified by email (and SMS, if you added a phone). Full breakdowns live on the **Analytics** page — see "Analytics — who watched and how far."',
     ],
   },

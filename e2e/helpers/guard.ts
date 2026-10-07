@@ -17,6 +17,12 @@ export const REAL_WORLD_ENDPOINTS: RegExp[] = [
   /\/api\/generate-commercial/,
   /\/api\/re-render/,
   /\/api\/edit-slide/,
+  // The result page's "Ask for a change" bar routes to these editors: a
+  // scene fix or a rebuild re-renders (and can charge), an AI edit is a paid
+  // AI call on our side.
+  /\/api\/fix-scene/,
+  /\/api\/reedit-presentation/,
+  /\/api\/ai-edit-scenes/,
   /\/api\/videos\/[^/]+\/restart/,
   /\/api\/send-video-email/,
   /\/api\/follow-up\/send/,

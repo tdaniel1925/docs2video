@@ -17,9 +17,17 @@
 // two implementations of "what will this cost" always drift apart.
 // =============================================================================
 
+// Phase 4: this editor is where the result page's "Ask for a change" bar
+// sends presentations and decks. It opens with the request already tried
+// (?ask=… and, for "This slide", ?slide=N), lists every AI change with its
+// own Undo, and Undo on the result page opens it with the slides from before
+// a rebuild (?restore=<change id>) — the rebuild button then prices putting
+// them back, as for any edit.
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '../../../../_lib/supabase/client'
+import { addChange, findChange } from '../change/change-log'
 
 type Scene = {
   title?: string
@@ -43,9 +51,16 @@ export default function EditPresentationPage() {
   const [aiError, setAiError] = useState('')
   const [building, setBuilding] = useState(false)
   const [buildDetail, setBuildDetail] = useState('')
-  // One level of undo for AI edits — an instruction that lands wrong should
-  // cost one click to take back, not a page reload and lost manual work.
-  const undoRef = useRef<Scene[] | null>(null)
+  // Every AI change, with the slides as they were just before it — so each
+  // one can be taken back (an instruction that lands wrong should cost one
+  // click, not a page reload and lost manual work). Undoing an earlier change
+  // also takes back the ones after it, since they were made on top of it.
+  const [history, setHistory] = useState<{ label: string; before: Scene[] }[]>([])
+  // The slides as loaded — what a rebuild's Undo on the result page puts back.
+  const loadedRef = useRef<Scene[] | null>(null)
+  const [restored, setRestored] = useState(false)
+  // A request handed over by the result page's bar, tried once on arrival.
+  const askedRef = useRef<{ text: string; slide: number } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -65,11 +80,39 @@ export default function EditPresentationPage() {
         : Array.isArray(data.script) ? data.script : []) as Scene[]
       setTitle(data.title || 'Untitled')
       setOutputType(data.output_type)
-      setScenes(JSON.parse(JSON.stringify(src)))
+      loadedRef.current = JSON.parse(JSON.stringify(src))
+      // Read the address here, not with useSearchParams: nothing about the
+      // first paint depends on it.
+      const q = new URLSearchParams(window.location.search)
+      const restoreId = q.get('restore')
+      const back = restoreId ? findChange(id, restoreId) : null
+      if (back && back.kind === 'presentation' && Array.isArray(back.before) && back.before.length) {
+        setScenes(JSON.parse(JSON.stringify(back.before)))
+        setRestored(true)
+      } else {
+        setScenes(JSON.parse(JSON.stringify(src)))
+        const ask = (q.get('ask') ?? '').trim()
+        const slide = Number(q.get('slide'))
+        if (ask) {
+          askedRef.current = { text: ask.slice(0, 500), slide: Number.isInteger(slide) && slide >= 0 && slide < src.length ? slide : -1 }
+          setAiText(askedRef.current.text)
+          setAiScope(askedRef.current.slide)
+        }
+      }
       setLoading(false)
     }
     load()
   }, [id])
+
+  // Try the bar's request once the slides are in (free — nothing is rebuilt
+  // until the Rebuild button, which shows its price).
+  useEffect(() => {
+    if (loading || !askedRef.current || !scenes.length) return
+    const { text, slide } = askedRef.current
+    askedRef.current = null
+    runAi(text, slide)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, scenes.length])
 
   // Live price: ask the server what THIS state would cost. Debounced — it's a
   // network call per keystroke otherwise.
@@ -109,17 +152,29 @@ export default function EditPresentationPage() {
       return next
     })
 
-  const runAi = async () => {
-    if (!aiText.trim() || aiBusy) return
+  const runAi = async (text = aiText, scope = aiScope) => {
+    if (!text.trim() || aiBusy) return
     setAiBusy(true); setAiError('')
-    undoRef.current = JSON.parse(JSON.stringify(scenes))
+    const before = JSON.parse(JSON.stringify(scenes)) as Scene[]
     const r = await fetch('/api/ai-edit-scenes', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ scenes, instruction: aiText.trim(), ...(aiScope >= 0 ? { targetIndex: aiScope } : {}) }),
+      body: JSON.stringify({ scenes, instruction: text.trim(), ...(scope >= 0 ? { targetIndex: scope } : {}) }),
     }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
     setAiBusy(false)
-    if (r?.scenes) { setScenes(r.scenes); setAiText('') }
-    else { setAiError(r?.error || 'The AI edit failed — nothing was changed.'); undoRef.current = null }
+    if (r?.scenes) {
+      setScenes(r.scenes)
+      setAiText('')
+      setHistory((h) => [...h, { label: `${scope >= 0 ? `Slide ${scope + 1}: ` : ''}${text.trim()}`, before }])
+    } else {
+      setAiError(r?.error || 'The AI edit failed — nothing was changed.')
+    }
+  }
+
+  const undoAt = (k: number) => {
+    const entry = history[k]
+    if (!entry) return
+    setScenes(entry.before)
+    setHistory((h) => h.slice(0, k))
   }
 
   const rebuild = async () => {
@@ -130,6 +185,19 @@ export default function EditPresentationPage() {
       body: JSON.stringify({ videoId: id, scenes }),
     }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
     if (r?.error) { setBuildDetail(''); setBuilding(false); setAiError(r.error); return }
+    // The rebuild started: keep the slides as they were before it, so the
+    // result page can offer Undo for it (kept in this browser only).
+    if (loadedRef.current) {
+      addChange(id, {
+        kind: 'presentation',
+        summary: restored
+          ? 'Put back an earlier version'
+          : history.length
+            ? `Rebuilt after: ${history.map((h) => h.label).join('; ').slice(0, 140)}`
+            : 'Rebuilt with your edits',
+        before: loadedRef.current,
+      })
+    }
     // The rebuild runs server-side; watch the row until it lands.
     const sb = createClient()
     const started = Date.now()
@@ -178,19 +246,32 @@ export default function EditPresentationPage() {
               <option key={i} value={i}>Slide {i + 1}</option>
             ))}
           </select>
-          <button className="btn btn-primary" onClick={runAi} disabled={aiBusy || !aiText.trim()}>
+          <button className="btn btn-primary" onClick={() => runAi()} disabled={aiBusy || !aiText.trim()}>
             {aiBusy ? 'Thinking…' : 'Apply'}
           </button>
-          {undoRef.current && !aiBusy && (
-            <button className="btn btn-outlined" onClick={() => { if (undoRef.current) { setScenes(undoRef.current); undoRef.current = null } }}>
-              Undo AI edit
-            </button>
-          )}
         </div>
         {aiError && <p className="auth-error" style={{ marginTop: 8 }}>{aiError}</p>}
         <p className="wizard-sub" style={{ marginTop: 8, marginBottom: 0 }}>
           AI edits are free to try. You only pay when you rebuild, and only for slides whose narration changed.
         </p>
+        {restored && (
+          <p className="wizard-sub" role="status" style={{ marginTop: 8, marginBottom: 0 }}>
+            These are the slides from before your last rebuild. Press the rebuild button below to put them back.
+          </p>
+        )}
+        {history.length > 0 && (
+          <div style={{ marginTop: 12, borderTop: '1px solid var(--border-light)', paddingTop: 10 }} aria-label="Your changes">
+            <div className="input-label" style={{ marginBottom: 4 }}>Your changes (not rebuilt yet)</div>
+            {history.map((h, k) => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '6px 0', fontSize: 14, flexWrap: 'wrap' }}>
+                <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{k + 1}. {h.label}</span>
+                <button className="btn btn-sm btn-outlined" onClick={() => undoAt(k)} disabled={aiBusy}>
+                  {k === history.length - 1 ? 'Undo' : 'Undo this and later'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Slides ─────────────────────────────────────────────────────── */}

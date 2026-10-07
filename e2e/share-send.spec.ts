@@ -1,56 +1,57 @@
 import { test, expect } from '@playwright/test'
-import { loginAsTestUser } from './helpers/auth'
+import { guardRealWorld, expectNoBlockedCalls, type Guard } from './helpers/guard'
 
 /**
  * THE COMPLAINT THIS GUARDS: "it says Copy email — I cannot figure out if it
  * sent the video or not… there is nowhere to insert an email… no clear screen
  * of what just happened."
  *
- * The modal must now: have a client-email field, a real Send button, refuse a
- * bad address with a visible message, label the copy path as NOT sending, and
- * offer a copy-link row. No real email is sent by this test (the send path is
- * exercised only through its validation branch).
+ * Since phase 4 there is ONE send panel ("Ready to send") — the older send
+ * window is gone. It must have: a client-email field when none is known, a
+ * real Send button, refuse a bad address out loud, a copy-link control and a
+ * copy-the-email control labelled as NOT sending. No real email is sent (the
+ * send path is exercised only through its validation branch; the guard blocks
+ * the send route).
  */
-test.describe('Send to Client modal', () => {
-  test('send flow is explicit: email field, validation, honest copy label', async ({ page }) => {
-    await loginAsTestUser(page)
+let guard: Guard
+test.beforeEach(async ({ page }) => { guard = await guardRealWorld(page) })
+test.afterEach(() => expectNoBlockedCalls(guard))
 
-    // Ask the app's own API for a finished video — no scraping, no guessing.
-    // The send button only renders on status=completed rows with a video_url.
+test.describe('the one send panel', () => {
+  test('send flow is explicit: email field, validation, honest copy label, no second window', async ({ page }) => {
     const res = await page.request.get('/api/videos')
     expect(res.ok(), '/api/videos should answer for a logged-in user').toBeTruthy()
     const rows = (await res.json()) as { id: string; status: string; video_url: string | null }[]
     const done = Array.isArray(rows) ? rows.find((v) => v.status === 'completed' && v.video_url) : undefined
-    test.skip(!done, 'no completed video on this account to exercise the send modal')
+    test.skip(!done, 'no completed video on this account')
+
+    // Pretend no client is known, so the email box shows.
+    await page.route('**/rest/v1/videos?**', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const real = await route.fetch()
+      const body = await real.json()
+      const patch = (v: Record<string, unknown>) => ({ ...v, client_id: null, recipient_name: null, draft_data: null })
+      await route.fulfill({ response: real, json: Array.isArray(body) ? body.map(patch) : patch(body) })
+    })
+    await page.route('**/rest/v1/quotes?**', (r) => r.request().method() === 'GET' ? r.fulfill({ json: [] }) : r.fallback())
 
     await page.goto(`/videos/${done!.id}`)
-    const btn = page.getByRole('button', { name: 'Send to Client' })
-    await expect(btn, 'completed video page must show the Send to Client button').toBeVisible({ timeout: 15000 })
-    await btn.click()
+    const panel = page.getByRole('region', { name: 'Ready to send' })
+    await expect(panel).toBeVisible({ timeout: 20000 })
 
-    // ── The modal is send-first and self-explaining. ──
-    await expect(page.getByRole('heading', { name: 'Send to Your Client' })).toBeVisible()
-    const emailInput = page.getByTestId('share-modal-card').getByPlaceholder('e.g. sarah@example.com')
-    await expect(emailInput, 'the client-email field the old modal never had').toBeVisible()
-    const sendBtn = page.getByTestId('share-modal-card').getByRole('button', { name: 'Send Email Now' })
-    await expect(sendBtn).toBeVisible()
+    // The older window and its button are gone for good.
+    await expect(page.getByRole('button', { name: 'Send to Client' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Send to Your Client' })).toHaveCount(0)
 
-    // ── A bad address is refused OUT LOUD, before anything sends. ──
-    // (Next.js's route announcer is also role=alert, so match the message text.)
-    await emailInput.fill('not-an-email')
-    await sendBtn.click()
-    await expect(page.getByTestId('share-modal-card').getByText(/Enter your client.?s email address first/i)).toBeVisible()
+    const email = panel.getByLabel('Client email')
+    await expect(email).toBeVisible()
+    await expect(panel.getByLabel('Their name (optional)')).toBeVisible()
+    await email.fill('not-an-email')
+    await panel.getByRole('button', { name: /^Send to / }).click()
+    await expect(panel.getByText(/Enter your client.?s email address first/i)).toBeVisible()
 
-    // ── The manual path says plainly that copying does not send. ──
-    await expect(page.getByTestId('share-modal-card').getByText(/Copying does not send anything/i)).toBeVisible()
-    await expect(page.getByRole('button', { name: /Copy email for my own inbox/i })).toBeVisible()
-
-    // ── The watch link has its own copy control (exact case: the page behind
-    // the modal has an older "Copy Link" button too). ──
-    await expect(page.getByTestId('share-modal-card').getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
-
-    // Close cleanly.
-    await page.getByTestId('share-modal-card').getByRole('button', { name: 'Close' }).click()
-    await expect(page.getByRole('heading', { name: 'Send to Your Client' })).toBeHidden()
+    await expect(panel.getByText(/Copying sends nothing/i)).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Copy the email' })).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'or copy the link' })).toBeVisible()
   })
 })

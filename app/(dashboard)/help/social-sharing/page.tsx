@@ -57,13 +57,13 @@ export default function SocialSharingHelpPage() {
             <strong style={INK}>Open a completed video.</strong> Click <strong style={INK}>Library</strong> in the top bar, then click a finished video.
           </Step>
           <Step n={2}>
-            <strong style={INK}>Click &ldquo;Social Posts.&rdquo;</strong> It is in the row of buttons on the video page.
+            <strong style={INK}>Open &ldquo;More,&rdquo; then &ldquo;Social posts.&rdquo;</strong> <strong style={INK}>More</strong> is the menu at the top-right of the video page.
           </Step>
           <Step n={3}>
             <strong style={INK}>Wait a moment.</strong> The AI writes three posts at once — one each for <strong style={INK}>LinkedIn</strong>, <strong style={INK}>X/Twitter</strong> and <strong style={INK}>Facebook</strong> — each with a link to your share page.
           </Step>
           <Step n={4} last>
-            <strong style={INK}>Copy and paste.</strong> Click <strong style={INK}>Copy</strong> under the post you want, open that social site, and paste it into a new post.
+            <strong style={INK}>Copy and paste.</strong> Click <strong style={INK}>Copy</strong> next to the post you want, open that social site, and paste it into a new post.
           </Step>
         </div>
       </div>
@@ -102,10 +102,10 @@ export default function SocialSharingHelpPage() {
         <h2 style={H2}>Sharing the Link Directly</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 10 }}>
-            Every completed video has its own share page at <strong style={INK}>docs2video.com/watch/[id]</strong>. On the video page, click <strong style={INK}>Copy Link</strong> and paste it anywhere — email, text message, or any social site.
+            Every completed video has its own share page at <strong style={INK}>docs2video.com/watch/[id]</strong>. On the video page, press <strong style={INK}>or copy the link</strong> (under the Send button) and paste it anywhere — email, text message, or any social site.
           </p>
           <p>
-            To email it to a client instead, click <strong style={INK}>Send to Client</strong>. See <Link href="/help/sharing-videos" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Sharing & the Client Page</Link> for what they see when they open it.
+            To email it to a client instead, use the send panel at the top of the video page and press <strong style={INK}>Send to</strong> your client. See <Link href="/help/sharing-videos" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Sharing & the Client Page</Link> for what they see when they open it.
           </p>
         </div>
       </div>

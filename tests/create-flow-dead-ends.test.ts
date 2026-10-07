@@ -289,8 +289,8 @@ describe('duplicate: a new draft from one of your projects', () => {
     expect(step1).toMatch(/if \(!duplicateOf \|\| copyStarted\.current\) return/)
   })
 
-  it('the result page’s Duplicate button still points at that link', () => {
-    const result = read('app/(dashboard)/videos/[id]/page.tsx')
+  it('the result page’s Duplicate (More menu) still points at that link', () => {
+    const result = read('app/(dashboard)/videos/[id]/result/ResultHeader.tsx')
     expect(result).toMatch(/\/create\?duplicate=\$\{video\.id\}/)
   })
 })

@@ -17,7 +17,7 @@ export default function DownloadsHelpPage() {
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
           <h1>Downloads & Formats</h1>
-          <p>Every completed video can be downloaded in multiple formats. Here is what each one gives you.</p>
+          <p>Every finished project has a <strong>Download</strong> menu at the top of its page. It lists only the files that project really has — here is what each one gives you.</p>
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Upload to YouTube, Vimeo, or social media. Attach to emails. Play in presentations. Share offline with clients who may not have internet access.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Open any completed video from your Library and click the <strong style={{ color: 'var(--ink)' }}>MP4</strong> button in the row of buttons on the video page.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Open any finished video from your Library, press <strong style={{ color: 'var(--ink)' }}>Download</strong> (top-right) and choose <strong style={{ color: 'var(--ink)' }}>MP4</strong>. For an interactive presentation, choose <strong style={{ color: 'var(--ink)' }}>Export video</strong> first — it shows its price in credits, takes a few minutes, and then <strong style={{ color: 'var(--ink)' }}>Video (MP4)</strong> appears in the same menu.
           </p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Print handouts for in-person meetings. Attach to follow-up emails as a leave-behind. Use as a reference document when the video itself is not needed.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click the <strong style={{ color: 'var(--ink)' }}>PDF</strong> button. The file downloads immediately.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Press <strong style={{ color: 'var(--ink)' }}>Download</strong> and choose <strong style={{ color: 'var(--ink)' }}>PDF</strong>. For a video it is made from the slide pictures, so it only appears for looks that keep slide pictures; presentations and slide decks always have it.
           </p>
         </div>
       </div>
@@ -72,7 +72,7 @@ export default function DownloadsHelpPage() {
         padding: '28px 32px', marginBottom: 20,
       }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
-          PPTX Presentation Download
+          PowerPoint (PPTX) Download
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
@@ -82,7 +82,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> When you need to present live and want to control the pace. When you want to add, remove, or modify slides before a meeting. When your company requires PowerPoint format for compliance or archival.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click the <strong style={{ color: 'var(--ink)' }}>PPTX</strong> button. Open the file in PowerPoint, Google Slides, or Keynote.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Press <strong style={{ color: 'var(--ink)' }}>Download</strong> and choose <strong style={{ color: 'var(--ink)' }}>PowerPoint</strong>. Like the PDF, a video only has it when its look keeps slide pictures. Open the file in PowerPoint, Google Slides, or Keynote.
           </p>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Review narration content for accuracy. Share the script with a colleague for feedback before creating the video. Use as a written summary or blog post. Archive for compliance records.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> On the video detail page, click the <strong style={{ color: 'var(--ink)' }}>Script</strong> button to save the narration as a text file.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Press <strong style={{ color: 'var(--ink)' }}>Download</strong> and choose <strong style={{ color: 'var(--ink)' }}>Script</strong> to save the narration as a text file.
           </p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function DownloadsHelpPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Sending to a client remotely?</strong> Use <strong style={{ color: 'var(--ink)' }}>Send to Client</strong> or <strong style={{ color: 'var(--ink)' }}>Copy Link</strong> (no download needed), or send the MP4 for offline viewing. Your client can only download these files if you send them yourself — the share page does not offer them.
+            <strong style={{ color: 'var(--ink)' }}>Sending to a client remotely?</strong> Use the send panel at the top of the page — <strong style={{ color: 'var(--ink)' }}>Send to</strong> your client, or <strong style={{ color: 'var(--ink)' }}>or copy the link</strong> (no download needed), or send the MP4 for offline viewing. Your client can only download these files if you send them yourself — the share page does not offer them.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Presenting live in a meeting?</strong> Download the PPTX so you can control the pace and navigate to specific slides.

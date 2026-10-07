@@ -44,19 +44,25 @@ export default function SharingVideosPage() {
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={STEP_NUM}>1</div>
             <div>
-              <strong style={INK}>Open the video.</strong> Click <strong style={INK}>Library</strong> in the top bar, then click the video you want to share. You land on the video page with the player and a row of buttons.
+              <strong style={INK}>Open the video.</strong> Click <strong style={INK}>Library</strong> in the top bar, then click the video you want to share. The top of its page is <strong style={INK}>Ready to send</strong>: on the left, a picture of exactly what your client will see; on the right, the send panel.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
             <div style={STEP_NUM}>2</div>
             <div>
-              <strong style={INK}>Click &ldquo;Send to Client.&rdquo;</strong> A window opens. Enter the <strong style={INK}>Client email</strong>, their name (optional) and your <strong style={INK}>Email message</strong>, then send. They get an email with your message and a <strong style={INK}>Watch Video</strong> button.
+              <strong style={INK}>Check &ldquo;What&rsquo;s left.&rdquo;</strong> At the top of the send panel, small chips list anything missing from their page — your client&rsquo;s email, a note, a booking link, your photo or name, a payment link for a quote. Press one to go straight to the fix. When nothing is missing it says <strong style={INK}>All set</strong>.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+            <div style={STEP_NUM}>3</div>
+            <div>
+              <strong style={INK}>Write a note and send.</strong> Write <strong style={INK}>A short note</strong> (it shows on their page and in the email), turn the pieces on or off, then press <strong style={INK}>Send to [your client]</strong>. They get an email with your note and a <strong style={INK}>Watch Video</strong> button. If the app doesn&rsquo;t have their email yet, type it in (and their name, if you like). To send it to someone else this once, press <strong style={INK}>Send to someone else</strong>. The line under the button says whether it goes from your own connected email or from our address (replies still come to you). You see &ldquo;✓ Sent to …&rdquo; when it has really gone.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
-            <div style={STEP_NUM}>3</div>
+            <div style={STEP_NUM}>4</div>
             <div>
-              <strong style={INK}>Or copy the link.</strong> Click <strong style={INK}>Copy Link</strong> to copy the share page address. Paste it into an email, a text message, or anywhere else.
+              <strong style={INK}>Or send it yourself.</strong> Press <strong style={INK}>or copy the link</strong> to copy the share page address, or <strong style={INK}>Copy the email</strong> to copy the whole email (your note, a View button and the link) and paste it into Gmail or Outlook. Copying sends nothing — you press Send there. On insurance videos, a copied link comes with the policy disclosure.
             </div>
           </div>
         </div>
@@ -106,7 +112,7 @@ export default function SharingVideosPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Add a quote.</strong> On the video page, scroll to <strong>Quote / Invoice</strong> and click <strong>Add Quote</strong>. Enter the client&apos;s name and email and your line items, then click <strong>Save Quote</strong>. You&apos;ll see &ldquo;Quote saved&rdquo; — if saving fails, the page says so and keeps your form open.
+            <strong style={{ color: 'var(--ink)' }}>Add a quote.</strong> On the video page, press <strong>Add a quote</strong> in the send panel, or scroll to <strong>More for this video</strong> and open the <strong>Quote / Invoice</strong> tab, then click <strong>Add Quote</strong>. Enter the client&apos;s name and email and your line items, then click <strong>Save Quote</strong>. You&apos;ll see &ldquo;Quote saved&rdquo; — if saving fails, the page says so and keeps your form open.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Mark the deal.</strong> We can&apos;t tell when a client pays you (a click on your payment link isn&apos;t a payment). When it happens, open the video page and click <strong>Mark as paid</strong>, <strong>Mark as accepted</strong> or <strong>Mark as declined</strong> under the quote. The status label changes right away. Paid and accepted also mark the client as converted. Changed your mind? Click <strong>Reopen</strong>.
@@ -115,7 +121,7 @@ export default function SharingVideosPage() {
             <strong style={{ color: 'var(--ink)' }}>Automatic follow-ups (off unless you turn them on).</strong> Tick <strong>Automatic follow-ups</strong> under the quote to send up to two short reminders — about 3 and 7 days after the quote — from your connected email account. Each reminder has an unsubscribe link, and they stop as soon as you mark the deal paid, accepted or declined, or the client unsubscribes. You need a connected email account and the client&apos;s email on the quote.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>Follow-up plan drafts.</strong> The <strong>Follow-Up Plan</strong> section writes draft emails for you, labeled with the day we suggest sending them. They are never sent by themselves — click <strong>Send now</strong> on each one when you&apos;re ready, or <strong>Skip</strong>.
+            <strong style={{ color: 'var(--ink)' }}>Follow-up plan drafts.</strong> The <strong>Follow-Up Plan</strong> tab (under More for this video) writes draft emails for you, labeled with the day we suggest sending them. They are never sent by themselves — click <strong>Send now</strong> on each one when you&apos;re ready, or <strong>Skip</strong>.
           </p>
         </div>
       </div>
@@ -138,10 +144,13 @@ export default function SharingVideosPage() {
         <h2 style={H2}>Knowing When They Watch</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 10 }}>
-            When someone opens your share page you get an email (and a text, if you added a phone number) telling you which video they opened and on what device.
+            When someone opens your share page you get an email (and a text, if you added a phone number) telling you which video they opened and on what device. To choose when that happens — each new viewer, first time only, or off — open the bell, press <strong style={INK}>View all</strong>, then <strong style={INK}>Notifications</strong>, or use the <strong style={INK}>change when</strong> link on the video page.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            On the video page, <strong style={INK}>Who watched</strong> lists each person you emailed it to: when you sent it, whether they opened the email, and a bar in four parts showing how far into the video they got (a quarter, half, three quarters, the end) and when. It also shows if they pressed Book a call or Pay. People who opened a copied link are listed by their device. Your own visits don&rsquo;t count. Presentations show when they were opened and clicked into, not how far.
           </p>
           <p>
-            To see how far people watched and who clicked your buttons, open the account menu (top-right) and choose <strong style={INK}>Analytics</strong>.
+            For totals across all your videos, open the account menu (top-right) and choose <strong style={INK}>Analytics</strong>.
           </p>
         </div>
       </div>
@@ -151,7 +160,7 @@ export default function SharingVideosPage() {
         <h2 style={H2}>Downloading Files for Yourself</h2>
         <div style={BODY}>
           <p>
-            On the video page, the <strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PPTX</strong> and <strong style={INK}>Script</strong> buttons download the files for you — to attach to an email, present in a meeting, or post elsewhere. See <Link href="/help/downloads" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Downloads & Formats</Link>.
+            On the video page, the <strong style={INK}>Download</strong> menu (top-right) has the files this video has — <strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PowerPoint</strong> and <strong style={INK}>Script</strong> — for you — to attach to an email, present in a meeting, or post elsewhere. See <Link href="/help/downloads" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Downloads & Formats</Link>.
           </p>
         </div>
       </div>

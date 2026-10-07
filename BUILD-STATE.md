@@ -13,6 +13,17 @@
 - Guard: `tests/look-samples-content.test.ts` fails on the old names or any `CARRIER_BLOCKLIST` entry in the sample content.
 - Older unused files in the same folder (warm-story, scifi, steampunk, etc. `-cover/-content.png`) are referenced by nothing and were left alone.
 
+## 2026-10-07 — Overhaul phase 4: the result page, built around sending (not deployed)
+
+- **Result page split** (`app/(dashboard)/videos/[id]/`): `page.tsx` (~300 lines) wires `result/` (header, Download ▾ / More ▾ menus, `output.ts`, `downloads.ts`), `send/` (Ready to send + What's left), `change/` (Ask-for-a-change bar, routing, change log, older scene editor), `viewing/` (Who watched), `extras/` (Quote / Invoice + Follow-Up Plan tabs, Social posts dialog), `making/` (progress + failed). Was one 2,700-line file.
+- **One send panel.** The older "Send to Your Client" window and the 10-button grid are gone. Kept in the panel: a name for an unknown client, **Send to someone else**, **Copy the email** (rich + plain, sends nothing), insurance disclosure on copied links, which mailbox it sends from. The sent/opened trail moved to Who watched.
+- **What's left** chips above Send (`send/whats-left.ts`): client email, note, booking link, profile photo, name, payment link for a shown quote — only checkable things; each jumps to the fix. Brand left out on purpose (a finished video can't take one).
+- **Ask for a change** (`change/change-route.ts`): presentations/decks → slide editor (`/videos/[id]/edit?ask=&slide=` — tries the request on arrival, lists every AI change with Undo, `?restore=` puts back pre-rebuild slides); Slide Deck look videos → Fix-a-Scene (now a kit Dialog, opened on the chosen scene/fix); other looks with slide pictures → the older scene editor (the old "Edit Video" window, KEPT — only in-place path for them; free; rebuilds from slide pictures); looks with neither → **Make a changed copy** (duplicate). Prices from credits.ts. Changes listed with Undo (localStorage, this browser only).
+- **Downloads** in one menu, only what exists (video PDF/PowerPoint only when slide pictures exist; Export video for interactive presentations with its price).
+- **Who watched** (`app/api/videos/[id]/viewing`, `app/_lib/viewing.ts`): per email sent — email opened, how far into the video in quarters (the finest the share page reports) and when, Book/Pay clicks; other viewers by device. Share emails now link `/watch/<id>?s=<sent_emails id>`; the share page copies `s` into each event's metadata. **Fixed:** watch milestones were never sent for looks without slide pictures. Links to the existing view-alert setting (`/activity#view-alerts`). **No migration.**
+- e2e guard now also blocks `/api/fix-scene`, `/api/reedit-presentation`, `/api/ai-edit-scenes`. Guard tests: `tests/result-page.test.ts`. Help: new article `/help/making-changes`; sharing, downloads, FAQ, creating-videos, social-sharing, index, help assistant prompt and How-to-use updated.
+- **Needs:** Vercel deploy only (no render-service or Lambda change).
+
 ## 2026-10-07 — Overhaul phase 3: the workspace, free preview, honest waiting, ready email
 
 - **Workspace:** every create step (incl. the making screen) = step rail left, work middle, "Your video so far" right (client, source, one point, output, look, voice, length, server price; "charged" on the making screen). Phones: "Step N of 4 · …" line, main button pinned bottom, summary folds under. Main buttons say what they do and cost; a held-back button says why + "Show me". Moved onto the kit.

@@ -18,6 +18,15 @@ describe('help assistant knowledge', () => {
     }
   })
 
+  it('describes the result page as it is now (phase 4)', () => {
+    for (const now of ['Ready to send', 'What’s left', 'Ask for a change', 'Who watched', 'Download', 'Send to someone else', 'Copy the email']) {
+      expect(prompt, `the help prompt doesn't mention "${now}"`).toContain(now)
+    }
+    // Only ever mentioned as gone — never as a button to press.
+    expect(prompt).not.toMatch(/click (the )?"?(Edit Video|Send to Client|Copy Link)/i)
+    expect(prompt).toContain("CREDIT_COSTS['slide-scene-fix']")
+  })
+
   it('reads prices and pack names from the tables instead of typing them', () => {
     expect(prompt).toContain('CREDIT_PACKS.map')
     expect(prompt).toContain('CREDIT_COSTS.videoStandard')

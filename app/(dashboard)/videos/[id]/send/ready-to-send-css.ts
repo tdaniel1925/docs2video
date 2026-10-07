@@ -46,6 +46,20 @@ export const READY_TO_SEND_CSS = `
 .rts-state.on { color: var(--mint-darker); }
 .rts-link { background: none; border: none; padding: 4px; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
 
+.rts-link--small { font-size: 12.5px; padding: 4px 0; margin-top: 4px; }
+.rts-from { margin-top: 8px; text-align: center; }
+.rts-alt { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px; margin-top: 10px; }
+.rts-dot-sep { color: var(--ink-light); }
+.rts-center { text-align: center; }
+
+/* What's left — chips above Send. Dashed edge = "still to do"; navy words. */
+.rts-left { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border-light); }
+.rts-left-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.rts-left-chip { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 10px; border-radius: 8px; border: 1px dashed var(--border); background: var(--bg-soft); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.rts-left-chip:hover { border-color: var(--accent-ink); background: var(--accent-soft); }
+.rts-left-chip:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.rts-left-done { margin: 0; color: var(--accent-ink); font-weight: 600; }
+
 .rts-switch { position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 0; border: none; border-radius: 12px; background: var(--border); cursor: pointer; transition: background 0.15s; }
 .rts-switch.on { background: var(--ink); }
 .rts-switch:disabled { opacity: 0.5; cursor: not-allowed; }

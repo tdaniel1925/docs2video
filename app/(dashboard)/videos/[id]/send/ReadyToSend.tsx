@@ -1,14 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Link from 'next/link'
 import type { Video } from '../../../../_lib/types'
 import SharePreview from './SharePreview'
 import SendSwitch from './SendSwitch'
+import WhatsLeft from './WhatsLeft'
 import {
   buildPreview, formatCents, quoteSwitch, reminderSwitch, reminderDaysText,
   httpsOnly, type PreviewAgent, type QuoteLike,
 } from './share-options'
+import { whatsLeft, FOCUS_IDS, SETTINGS_INTEGRATIONS } from './whats-left'
+import { isInsuranceVideo, linkToCopy, defaultMessage, emailHtml, emailText } from './share-email'
 import { READY_TO_SEND_CSS } from './ready-to-send-css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -23,13 +26,23 @@ type PublicFacts = {
 }
 
 /**
- * STEP 4 — "Ready to send."
+ * "Ready to send" — THE one place a finished project is sent from.
  *
- * The top of a finished video's page: a picture of exactly what the client
- * will see, and on the right who it goes to, a short note, the on/off pieces,
- * and the Send button. Every switch here changes a real saved setting that
- * the share page reads (see share-options.ts for which one); a switch only
- * moves once the save really worked.
+ * A picture of exactly what the client will see, and beside it: what's still
+ * missing ("What's left"), who it goes to, a short note, the on/off pieces,
+ * and Send. Every switch changes a real saved setting the share page reads
+ * (share-options.ts says which); a switch only moves once the save worked.
+ *
+ * The older send window (a second Send button among the page's buttons) is
+ * retired. What it could do that
+ * this panel could not is here now:
+ *   * a name for a client the app doesn't know yet;
+ *   * sending to someone else than the client on file;
+ *   * "Copy the email" (rich text + plain) for sending from your own inbox —
+ *     copying sends nothing, and it says so;
+ *   * the insurance disclosure with a copied link on policy videos;
+ *   * the "sent / opened" trail — now in "Who watched" below, with how far
+ *     each person got.
  *
  * Deliberately NOT here (no real setting behind them on the share page):
  *   * an on/off for "Book a call" — the share page shows your Settings
@@ -37,7 +50,7 @@ type PublicFacts = {
  *   * "Include the slide deck" — a share page has no slide-deck attachment.
  */
 export default function ReadyToSend({
-  video, setVideo, quote, setQuote, canQuote, onAddQuote,
+  video, setVideo, quote, setQuote, canQuote, onAddQuote, onSent, previewVideoRef,
 }: {
   video: Video
   setVideo: (updater: (prev: Video | null) => Video | null) => void
@@ -46,11 +59,16 @@ export default function ReadyToSend({
   /** Quotes are a paid-plan feature; the quote section below only shows then. */
   canQuote: boolean
   onAddQuote: () => void
+  /** After a send went out (so "Who watched" can show it). */
+  onSent?: () => void
+  /** The preview's player, so the change bar can jump it to a scene. */
+  previewVideoRef?: RefObject<HTMLVideoElement | null>
 }) {
   const v = video as Video & { client_id?: string | null }
   const outputType = String(v.output_type ?? '')
   const isDeck = outputType === 'interactive' || outputType === 'deck'
   const thing = isDeck ? 'presentation' : 'video'
+  const insurance = isInsuranceVideo(video.script)
 
   const [shareUrl, setShareUrl] = useState(`/watch/${video.id}`)
   useEffect(() => { setShareUrl(`${window.location.origin}/watch/${video.id}`) }, [video.id])
@@ -77,14 +95,19 @@ export default function ReadyToSend({
   }, [video.id])
   useEffect(() => { loadFacts() }, [loadFacts])
 
-  // ── Is there a connected mailbox? Automatic reminders only go from one. ──
-  const [hasMailbox, setHasMailbox] = useState<boolean | null>(null)
+  // ── Is there a connected mailbox? Sends go from it; reminders only from it. ──
+  const [mailbox, setMailbox] = useState<{ has: boolean; address: string } | null>(null)
   useEffect(() => {
     fetch('/api/email-connections')
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (Array.isArray(d)) setHasMailbox(d.some((c: { is_default?: boolean }) => c.is_default)) })
+      .then(d => {
+        if (!Array.isArray(d)) return
+        const def = d.find((c: { is_default?: boolean }) => c.is_default) as { email_address?: string } | undefined
+        setMailbox({ has: !!def, address: String(def?.email_address ?? '') })
+      })
       .catch(() => {})
   }, [])
+  const hasMailbox = mailbox ? mailbox.has : null
 
   // ── Who it goes to: the client picked in step 1, else the quote's client ──
   const [client, setClient] = useState<{ name: string; email: string; fromStep1: boolean } | null>(null)
@@ -106,9 +129,17 @@ export default function ReadyToSend({
       .catch(() => { if (!cancelled) setClient({ name: fallbackName, email: fallbackEmail, fromStep1: false }) })
     return () => { cancelled = true }
   }, [clientId, v.recipient_name, quote?.client_name, quote?.client_email])
+
+  // "Send to someone else" replaces the client on file for this send only.
+  const [someoneElse, setSomeoneElse] = useState(false)
   const [typedEmail, setTypedEmail] = useState('')
-  const sendTo = (client?.email || typedEmail).trim().toLowerCase()
-  const clientLabel = client?.name || v.recipient_name || 'your client'
+  const [typedName, setTypedName] = useState('')
+  const askForAddress = someoneElse || !client?.email
+  const sendTo = (askForAddress ? typedEmail : client!.email).trim().toLowerCase()
+  const sendName = askForAddress
+    ? (typedName.trim() || (someoneElse ? '' : (client?.name || v.recipient_name || '')))
+    : (client?.name || v.recipient_name || '')
+  const clientLabel = sendName || (someoneElse ? 'them' : 'your client')
 
   // ── The note: shows on their page (and in the email). Saves as you type. ──
   const savedNote = v.agent_note ?? ''
@@ -216,9 +247,9 @@ export default function ReadyToSend({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId: video.id,
-          clientName: client?.name || v.recipient_name || undefined,
+          clientName: sendName || undefined,
           clientEmail: sendTo,
-          message: note.trim() || `I've put together a short ${thing} for you. It only takes a few minutes — press the button below to see it.`,
+          message: note.trim() || defaultMessage(thing, sendName, insurance),
         }),
       })
       const d = await r.json().catch(() => ({}))
@@ -227,6 +258,7 @@ export default function ReadyToSend({
         return
       }
       setSentTo(sendTo)
+      onSent?.()
     } catch {
       setSendError('The email did NOT send — network problem. Try again, or copy the link and send it yourself.')
     } finally {
@@ -237,11 +269,34 @@ export default function ReadyToSend({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      await navigator.clipboard.writeText(linkToCopy(shareUrl, insurance))
       setCopyState('copied')
       setTimeout(() => setCopyState('idle'), 2500)
     } catch {
       setCopyState('failed')
+    }
+  }
+
+  // "Copy the email" for sending from your own inbox: rich + plain text so it
+  // pastes styled into Gmail/Outlook. Copying sends nothing.
+  const [emailCopied, setEmailCopied] = useState<'idle' | 'copied' | 'failed'>('idle')
+  async function copyEmail() {
+    const body = note.trim() || defaultMessage(thing, sendName, insurance)
+    const html = emailHtml(body, shareUrl, thing, insurance)
+    const text = emailText(body, shareUrl, thing, insurance)
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        })])
+      } else {
+        await navigator.clipboard.writeText(text)
+      }
+      setEmailCopied('copied')
+      setTimeout(() => setEmailCopied('idle'), 3000)
+    } catch {
+      setEmailCopied('failed')
     }
   }
 
@@ -255,6 +310,17 @@ export default function ReadyToSend({
     pipelineBookingUrl: facts?.bookingUrl,
     pipelinePaymentLink: facts?.paymentLink,
   }), [v.recipient_name, note, v.allow_source_download, facts])
+
+  const left = whatsLeft({
+    sendTo: client === null ? 'loading' : sendTo,
+    note,
+    facts: facts ? {
+      bookingUrl: model.bookingUrl,
+      paymentLink: model.paymentLink,
+      agent: facts.agent,
+      unpaidQuoteShown: model.quote?.state === 'unpaid' && Number(model.quote.total) > 0,
+    } : null,
+  })
 
   const qs = quoteSwitch(quote)
   const rs = reminderSwitch(quote, hasMailbox)
@@ -280,42 +346,68 @@ export default function ReadyToSend({
           videoId={video.id}
           videoUrl={video.video_url}
           posterUrl={video.thumbnail_url}
+          musicUrl={video.music_url}
           version={version}
+          videoRef={previewVideoRef}
           notice={factsError ? 'Couldn’t load your share page’s booking and payment details just now, so those buttons may be missing from this picture.' : null}
         />
 
         <aside className="rts-panel">
+          <WhatsLeft items={left} />
+
           {/* WHO */}
           <div className="rts-eyebrow">Send to</div>
           {client === null ? (
             <div className="rts-row-hint">Loading…</div>
-          ) : client.email ? (
+          ) : !askForAddress ? (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name || client.email}</div>
               <div className="rts-row-hint" style={{ marginTop: 2 }}>
                 {client.email}{client.fromStep1 ? ' · from step 1' : ''}
               </div>
+              <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
+                Send to someone else
+              </button>
             </div>
           ) : (
             <div style={{ marginBottom: 16 }}>
-              {client.name && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{client.name}</div>}
-              <label className="input-label" htmlFor="rts-email">Client email</label>
+              {!someoneElse && client.name && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{client.name}</div>}
+              <label className="input-label" htmlFor={FOCUS_IDS.email}>Client email</label>
               <input
-                id="rts-email"
+                id={FOCUS_IDS.email}
                 className="input"
                 type="email"
                 placeholder="e.g. sarah@example.com"
                 value={typedEmail}
                 onChange={e => { setTypedEmail(e.target.value); setSendError('') }}
               />
-              <div className="rts-row-hint">No email is saved for this client yet.</div>
+              {(someoneElse || !client.name) && (
+                <>
+                  <label className="input-label" htmlFor="rts-name" style={{ marginTop: 10 }}>Their name (optional)</label>
+                  <input
+                    id="rts-name"
+                    className="input"
+                    placeholder="e.g. Sarah"
+                    value={typedName}
+                    onChange={e => setTypedName(e.target.value)}
+                  />
+                </>
+              )}
+              <div className="rts-row-hint">
+                {someoneElse ? 'Just for this send — the client on file stays the same.' : 'No email is saved for this client yet.'}
+              </div>
+              {someoneElse && (
+                <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(false); setTypedEmail(''); setTypedName(''); setSendError('') }}>
+                  Back to {client.name || client.email}
+                </button>
+              )}
             </div>
           )}
 
           {/* NOTE */}
-          <label className="input-label" htmlFor="rts-note">A short note</label>
+          <label className="input-label" htmlFor={FOCUS_IDS.note}>A short note</label>
           <textarea
-            id="rts-note"
+            id={FOCUS_IDS.note}
             className="input"
             rows={3}
             maxLength={NOTE_MAX}
@@ -345,8 +437,8 @@ export default function ReadyToSend({
                   <div className="rts-row-hint">
                     {facts === null && !factsError ? 'Checking…'
                       : model.bookingUrl
-                        ? (bookingFromThisVideo ? 'On — uses the booking link you gave for this one.' : <>On — uses your booking link from <Link href="/settings">Settings</Link>. It shows on all your share pages.</>)
-                        : <>Off — add a booking link in <Link href="/settings">Settings</Link> to show it.</>}
+                        ? (bookingFromThisVideo ? 'On — uses the booking link you gave for this one.' : <>On — uses your booking link from <Link href={SETTINGS_INTEGRATIONS}>Settings</Link>. It shows on all your share pages.</>)
+                        : <>Off — add a booking link in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> to show it.</>}
                   </div>
                 </div>
                 <span className={`rts-state${model.bookingUrl ? ' on' : ''}`}>{model.bookingUrl ? 'On' : 'Off'}</span>
@@ -380,7 +472,7 @@ export default function ReadyToSend({
                 <div className="rts-row">
                   <div className="rts-row-label">Quote with a pay button</div>
                   <div className="rts-row-hint">
-                    {qs.status === 'paid' ? 'Shows as paid on their page.' : `This deal is marked ${qs.status}.`} Change it in the Quote section below.
+                    {qs.status === 'paid' ? 'Shows as paid on their page.' : `This deal is marked ${qs.status}.`} Change it under Quote / Invoice below.
                   </div>
                 </div>
               )
@@ -408,7 +500,7 @@ export default function ReadyToSend({
                   error={errors.remind}
                   onToggle={() => putQuote('remind', { autoFollowUp: !rs.on })}
                   hint={rs.blockedOn && !rs.on
-                    ? <>Reminders go from your own email only. Connect it in <Link href="/settings">Settings</Link> first.</>
+                    ? <>Reminders go from your own email only. Connect it in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> first.</>
                     : 'Counted from the day you made the quote. Sent from your email with an unsubscribe link. Stops once you mark the deal paid, accepted or declined.'}
                 />
               ) : (
@@ -436,16 +528,32 @@ export default function ReadyToSend({
           >
             {sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}
           </button>
-          <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <div className="rts-row-hint rts-from">
+            {mailbox === null ? ''
+              : mailbox.has
+                ? <>Sends from your own email{mailbox.address ? ` (${mailbox.address})` : ''}. We tell you when they open it and when they watch.</>
+                : <>Sends from Docs2Video’s address, and replies come to you. <Link href={SETTINGS_INTEGRATIONS}>Connect your email</Link> to send from it.</>}
+          </div>
+          <div className="rts-alt">
             <button type="button" className="rts-link" onClick={copyLink}>
               {copyState === 'copied' ? '✓ Link copied' : 'or copy the link'}
             </button>
-            {copyState === 'failed' && (
-              <div className="rts-row-hint" style={{ wordBreak: 'break-all' }}>
-                Couldn’t copy — here it is: {shareUrl}
-              </div>
-            )}
+            <span aria-hidden="true" className="rts-dot-sep">·</span>
+            <button type="button" className="rts-link" onClick={copyEmail}>
+              {emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}
+            </button>
           </div>
+          <div className="rts-row-hint rts-center">
+            {insurance ? 'Copied links include the policy disclosure. ' : ''}Copying sends nothing — you send it yourself.
+          </div>
+          {copyState === 'failed' && (
+            <div className="rts-row-hint" style={{ wordBreak: 'break-all' }}>
+              Couldn’t copy — here it is: {shareUrl}
+            </div>
+          )}
+          {emailCopied === 'failed' && (
+            <div className="rts-row-hint">Couldn’t copy the email. Copy the link instead and paste it into your message.</div>
+          )}
         </aside>
       </div>
     </section>
