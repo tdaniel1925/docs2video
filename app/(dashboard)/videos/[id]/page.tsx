@@ -204,7 +204,9 @@ export default function VideoDetailPage() {
           <MakingProgress
             status={video.status}
             createdAt={video.created_at}
-            progressDetail={video.progress_detail ?? null}
+            // A leftover "[fail] …" from an earlier attempt is a crash report,
+            // not a step — never show it as the current step's words.
+            progressDetail={video.progress_detail?.startsWith('[fail]') ? null : (video.progress_detail ?? null)}
             progressPct={video.progress_pct ?? null}
             sceneCount={Array.isArray(video.script) ? video.script.length : (video.script as any)?._pipeline_input?.scenes?.length ?? 8}
           />

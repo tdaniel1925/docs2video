@@ -160,7 +160,8 @@ export default function GeneratingPage() {
           <h1 className="s1-title">Something went wrong</h1>
           <Note tone="stop">{error}</Note>
           <div className="s4-buttons">
-            <Button href={`/videos/${videoId}`}>Retry from video page</Button>
+            {/* Back to step 3 with everything filled in — Make it there starts it again. */}
+            <Button href={`/create/theme?id=${videoId}`}>Try again</Button>
             <Button href="/create" variant="secondary">Start over</Button>
             <Button href="/dashboard" variant="secondary">Home</Button>
           </div>
