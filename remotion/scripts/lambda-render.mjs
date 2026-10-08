@@ -64,6 +64,15 @@ const scan = (v) => {
   else if (v && typeof v === 'object') Object.values(v).forEach(scan)
 }
 scan(props)
+// DirectedVideo (slide-deck look) builds some file names IN CODE instead of
+// listing them in the props: one voice clip per scene (dir-vo-<id>.mp3) and the
+// music bed (dir-music.mp3). The scan above can't see those, so they were never
+// uploaded and the render fell back to stale copies inside the bundle (or a 403
+// once assetBase reached the composition). Add them by name.
+if (props.plan && Array.isArray(props.plan.scenes)) {
+  const named = [...props.plan.scenes.map((s) => `dir-vo-${s && s.id}.mp3`), 'dir-music.mp3']
+  for (const n of named) if (existsSync(join(PUBLIC, n))) files.add(n)
+}
 if (props.assetDir && existsSync(join(PUBLIC, props.assetDir))) walk(join(PUBLIC, props.assetDir))
 
 // ---- 2. upload to the Remotion bucket --------------------------------------
