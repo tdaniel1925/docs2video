@@ -107,6 +107,12 @@ const CAM: Record<string, { from: [number, number, number]; to: [number, number,
 }
 
 export const directedMetadata: CalculateMetadataFunction<DirectedProps> = async ({ props }) => {
+  // On Lambda the per-video files (voice, photo, backdrops) live under
+  // props.assetBase. Set it before measuring the voice files, and hand it on in
+  // the props we return — Remotion REPLACES the props with ours, so leaving it
+  // out sent the photo lookup to the bundle's own folder and crashed the render.
+  setAssetBase(props?.assetBase)
+  const assetBase = props?.assetBase
   // STILL (free preview): the caller worked out the timing and there is no
   // voice file to measure, so use exactly what it sent.
   if (props?.still && props.plan && Array.isArray(props.plan.scenes) && props.plan.scenes.length > 0
@@ -141,7 +147,7 @@ export const directedMetadata: CalculateMetadataFunction<DirectedProps> = async 
     t += beatsNeeded * BEATF
   }
   const total = Math.round(t + 4 * BEATF)
-  return { durationInFrames: total, props: { plan, starts, total, intensity: 'premium', bpm }, fps: FPS, width: 1920, height: 1080 }
+  return { durationInFrames: total, props: { assetBase, plan, starts, total, intensity: 'premium', bpm }, fps: FPS, width: 1920, height: 1080 }
 }
 
 function useBeats(totalFrames: number) {
