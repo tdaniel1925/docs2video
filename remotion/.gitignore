@@ -35,3 +35,4 @@ public/sfx/*.png
 ca_*.png
 ss_*.png
 *.log
+.lambda-public/
