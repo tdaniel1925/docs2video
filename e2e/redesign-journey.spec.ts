@@ -19,6 +19,9 @@ test.setTimeout(8 * 60 * 1000)
 
 test('a document becomes a story, gets its look and price, and is discarded from Home', async ({ page }) => {
   const guard = await guardRealWorld(page)
+  // This journey is the one place the REAL story edit runs (Sonnet, a few
+  // cents): let it through the safety net, which blocks it everywhere else.
+  await page.route(/\/api\/ai-edit-scenes/, (route) => route.continue())
   const consoleErrors = collectConsoleErrors(page)
   const purpose = `E2E journey ${Date.now()} — explain the family plan`
   let videoId = ''
