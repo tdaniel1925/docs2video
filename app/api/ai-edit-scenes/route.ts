@@ -23,7 +23,7 @@ import { cardlessPrepGate } from '../../_lib/cardless-prep'
 // =============================================================================
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300 // a 9+ scene rewrite (plus one retry) can take over a minute
 
 let _claude: Anthropic | null = null
 function getClaude() {
