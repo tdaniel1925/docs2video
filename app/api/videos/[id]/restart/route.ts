@@ -61,7 +61,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     refunded = await refundVerifiedCharge(admin, row)
   } catch (err) {
     console.error(`[videos/restart] refund failed for ${id} — the stuck-video cron will retry it:`, err instanceof Error ? err.message : err)
-    return NextResponse.json({ error: 'We stopped the old run but could not restart it yet. Use "Retry Generation" in a moment — you won’t be charged twice.' }, { status: 500 })
+    return NextResponse.json({ error: 'We stopped the old run but could not restart it yet. Press "Try again" in a moment — you won’t be charged twice.' }, { status: 500 })
   }
 
   // Step 3 — ready for a fresh run.
@@ -72,7 +72,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     .eq('status', 'failed')
   if (pendErr) {
     console.error('[videos/restart] could not set the row back to pending:', pendErr.message)
-    return NextResponse.json({ error: 'We stopped the old run but could not restart it. Use "Retry Generation".' }, { status: 500 })
+    return NextResponse.json({ error: 'We stopped the old run but could not restart it. Press "Try again".' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, refunded })

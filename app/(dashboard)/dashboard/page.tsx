@@ -1,18 +1,18 @@
 import Link from 'next/link'
-import { Clapperboard, FileText, Globe, Lightbulb } from 'lucide-react'
+import { ClipboardType, Clapperboard, FileText, Globe, Lightbulb, Palette } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/server'
 import { getBrand } from '../../_lib/brand-server'
 import { getBalance, spendBlockReason } from '../../_lib/credits'
 import { getUserTier } from '../../_lib/pricing'
 import { planLabel } from '../../_lib/names'
-import { Button, Card, CardIcon, CardTitle, CardText, CardGo, Chip, EmptyState, Note, kitButtonClass, type ChipTone } from '../../_components/kit'
+import { Button, Card, Chip, EmptyState, Note, kitButtonClass, type ChipTone } from '../../_components/kit'
 import Greeting from './_home/Greeting'
 import { loadHomeData, type ProjectRow } from './_home/load'
 import { discardDraft, dismissFinished } from './_home/actions'
 import type { ActionCard, Tone } from './_home/derive'
 import { DiscardButton } from './_home/DiscardButton'
-import { START_CARDS, PASTE_HREF, type StartCard } from './_home/start-cards'
+import { START_CARDS, type StartCard } from './_home/start-cards'
 import s from './_home/home.module.css'
 
 // Loom walkthrough — set NEXT_PUBLIC_GETTING_STARTED_VIDEO to a real Loom embed
@@ -86,38 +86,17 @@ export default async function HomePage() {
           tone="warn"
           className={s.banner}
           title="Your last payment didn’t go through."
-          action={<Button href="/settings" size="sm">Update card</Button>}
+          action={<Button href="/settings?tab=billing" size="sm">Update card</Button>}
         >
           Update your card so nothing stops.
         </Note>
       )}
-      {cardless && (
-        <Note
-          tone="info"
-          className={s.banner}
-          title={CARDLESS_TITLE}
-          action={<Button href="/setup-payment?next=/dashboard" size="sm" variant="secondary">Add a card</Button>}
-        >
-          Make your first project and see a free preview of its first scene. Your {credits.toLocaleString()} free credits start when you add a card — we’ll ask when you press <strong>Make it</strong>.
-        </Note>
-      )}
-      {isTrial && !cardless && (
-        <Note
-          tone={credits <= 0 ? 'warn' : 'info'}
-          className={s.banner}
-          title={credits <= 0 ? 'Out of credits.' : 'Free credits:'}
-          action={<Button href="/pricing" size="sm">{credits <= 0 ? 'Choose a plan' : 'Upgrade'}</Button>}
-        >
-          {credits <= 0 ? 'Top up or pick a plan to keep making.' : `${credits.toLocaleString()} left.`}
-        </Note>
-      )}
-
       {/* FINISHED WHILE YOU WERE AWAY — projects that finished since they
           last looked (unread "ready" notices; watching one finish skips it). */}
       {home.finished.length > 0 && (
         <section className={s.section} aria-labelledby="home-finished">
           <div className={s.sectionHead}>
-            <h2 id="home-finished" className={s.sectionTitle}>Finished while you were away</h2>
+            <h2 id="home-finished" className="kit-label">Finished while you were away</h2>
             <form action={dismissFinished.bind(null, home.finished.map(f => f.videoId))}>
               <button type="submit" className={kitButtonClass('quiet', 'sm')}>Got it</button>
             </form>
@@ -137,9 +116,24 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* 1. START SOMETHING NEW */}
+      {/* 1. CREATE — VidWiz's compact quick-start tiles, with the credits
+          said in one quiet line beside the label (it used to be a blue bar). */}
       <section className={s.section} aria-labelledby="home-start">
-        <h2 id="home-start" className={s.sectionTitle}>Start something new</h2>
+        <div className={s.labelRow}>
+          <h2 id="home-start" className="kit-label">Create</h2>
+          {cardless ? (
+            <p className={s.slim}>
+              <strong>{CARDLESS_TITLE}</strong>{' '}Your {credits.toLocaleString()} free credits start when you add one.{' '}
+              <Link href="/setup-payment?next=/dashboard">Add a card</Link>
+            </p>
+          ) : isTrial ? (
+            <p className={credits <= 0 ? `${s.slim} ${s.slimWarn}` : s.slim}>
+              {credits <= 0
+                ? <><strong>Out of credits.</strong> Top up or pick a plan to keep making.{' '}<Link href="/pricing">Choose a plan</Link></>
+                : <>{credits.toLocaleString()} free credits left ·{' '}<Link href="/pricing">Upgrade</Link></>}
+            </p>
+          ) : null}
+        </div>
         {!home.hasAnyProject && (
           <p className={s.welcome}>
             Welcome! Pick how you’d like to start. Nothing is made or charged until you press <strong>Make it</strong> on step 3.{' '}
@@ -149,39 +143,37 @@ export default async function HomePage() {
             <Link href="/help/getting-started">Read the getting-started guide</Link>
           </p>
         )}
-        <ul className={s.startGrid}>
+        <ul className={s.tiles}>
           {START_CARDS.map((c) => (
             <li key={c.key}>
-              <Card href={c.href} className={s.startCard}>
-                <CardIcon><StartIcon kind={c.key} /></CardIcon>
-                <CardTitle>{c.title}</CardTitle>
-                <CardText>{c.text}</CardText>
-                <CardGo>Start →</CardGo>
-              </Card>
+              <Link href={c.href} className="kit-tile">
+                <span className="kit-tile-icon" aria-hidden="true"><StartIcon kind={c.key} /></span>
+                <span className="kit-tile-body">
+                  <span className="kit-tile-title">{c.title}</span>
+                  <span className="kit-tile-text">{c.text}</span>
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
-        <p className={s.pasteLine}>
-          Already have the words? <Link href={PASTE_HREF}>Paste your text</Link>
-        </p>
       </section>
 
       {/* 2. TODAY'S CLIENTS — who clicked to book, who watched, who hasn't opened */}
       {home.cards.length > 0 && (
         <section className={s.section} aria-labelledby="home-today">
-          <h2 id="home-today" className={s.sectionTitle}>Today’s clients</h2>
+          <h2 id="home-today" className="kit-label">Today’s clients</h2>
           <div className={s.cards}>
             {home.cards.map(c => <ActionCardView key={c.key} card={c} />)}
           </div>
         </section>
       )}
 
-      {/* 3. PROJECTS, with "This month" beside them */}
+      {/* 3. RECENT PROJECTS, with "This month" beside them */}
       {home.hasAnyProject && (
         <div className={s.grid}>
           <section aria-labelledby="home-projects">
             <div className={s.sectionHead}>
-              <h2 id="home-projects" className={s.sectionTitle}>Projects</h2>
+              <h2 id="home-projects" className="kit-label">Recent</h2>
               {home.totalProjects > home.projects.length && (
                 <Link href="/videos">See all {home.totalProjects} →</Link>
               )}
@@ -197,7 +189,7 @@ export default async function HomePage() {
               <Stat label="Clicked to book a call" value={home.month.bookingClicks} />
               <Stat label="Credits left" value={credits} />
               <p className={s.boxNote}>
-                {plan} · <Link href="/pricing">Plans &amp; credits</Link>
+                {plan} · <Link href="/settings?tab=billing">Billing &amp; credits</Link>
               </p>
             </Card>
           </aside>
@@ -288,13 +280,15 @@ function Projects({ rows }: { rows: ProjectRow[] }) {
   )
 }
 
-/** The start cards' pictures — the one icon set (lucide), 20px, taking the
+/** The start tiles' pictures — the one icon set (lucide), 20px, taking the
  *  card's colour. Decoration beside the words, so hidden from screen readers. */
 function StartIcon({ kind }: { kind: StartCard['key'] }) {
   switch (kind) {
     case 'document': return <FileText size={20} />
     case 'website': return <Globe size={20} />
     case 'idea': return <Lightbulb size={20} />
+    case 'paste': return <ClipboardType size={20} />
     case 'commercial': return <Clapperboard size={20} />
+    case 'brand': return <Palette size={20} />
   }
 }

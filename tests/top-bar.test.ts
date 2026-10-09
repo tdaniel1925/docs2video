@@ -73,8 +73,8 @@ describe('Text2Art keeps its own bar', () => {
 })
 
 describe('the account menu', () => {
-  it('keeps plan, Analytics, AI Social, Affiliate Program, Settings, Help Center, Admin and Sign out — and not Brands', () => {
-    expect(ACCOUNT_MENU.map((i) => i.label)).toEqual(['Analytics', 'AI Social', 'Affiliate Program', 'Settings', 'Help Center', 'Admin'])
+  it('keeps plan, the account shortcuts (Settings, Billing & credits, Analytics, AI Social, Affiliate), Help Center, Admin and Sign out — and not Brands', () => {
+    expect(ACCOUNT_MENU.map((i) => i.label)).toEqual(['Settings', 'Billing & credits', 'Analytics', 'AI Social', 'Affiliate', 'Help Center', 'Admin'])
     expect(ACCOUNT_MENU.map((i) => i.href)).not.toContain('/brands')
     expect(ACCOUNT_MENU.find((i) => i.label === 'Admin')?.adminOnly).toBe(true)
     expect(SIGN_OUT).toBe('Sign out')

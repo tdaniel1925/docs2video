@@ -11,12 +11,12 @@ export default function InsuranceHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Insurance Illustrations</span>
+        <span>Insurance illustrations</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Insurance Illustrations</h1>
+          <h1>Insurance illustrations</h1>
           <p>How Docs2Video handles insurance documents with automatic compliance, disclaimers, and carrier protection.</p>
         </div>
       </div>

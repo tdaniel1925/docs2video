@@ -37,12 +37,12 @@ export default function MakingChangesPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Changing a Finished Project</span>
+        <span>Changing a finished project</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Changing a Finished Project</h1>
+          <h1>Changing a finished project</h1>
           <p>One bar for every change — what it does for each kind of project, what it costs, and how to undo.</p>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { packsSentence } from '../../../_lib/credit-packs'
 import { NAMES } from '../../../_lib/names'
 import { FREE_PREVIEWS_PER_DAY } from '../../../_lib/first-scene-preview'
 
-// Getting Started guide. Updated for the light start (overhaul phase 5,
+// Getting started guide. Updated for the light start (overhaul phase 5,
 // 2026-10): sign-up → Home → first project (free preview) → a card only when
 // you press Make it. The Setup Wizard is optional (Settings).
 // Every price and credit amount is read from pricing.ts / credits.ts /
@@ -51,12 +51,12 @@ export default function GettingStartedPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Getting Started</span>
+        <span>Getting started</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Getting Started</h1>
+          <h1>Getting started</h1>
           <p>Everything you need to set up your account and start creating.</p>
         </div>
       </div>
@@ -78,7 +78,7 @@ export default function GettingStartedPage() {
             <strong style={INK}>Make your first project.</strong> Pick a start card, let it read your document and check the story. On step 3 (<strong style={INK}>Make it yours</strong>) press <strong style={INK}>See a free preview</strong> to see the first scene in your look and hear the voice — free, {FREE_PREVIEWS_PER_DAY} a day, no card needed.
           </Row>
           <Row n={5} last>
-            <strong style={INK}>Add your brand there too.</strong> On the same step, <strong style={INK}>Add your brand</strong> asks for your name, logo and colours — <strong style={INK}>Fill in from it</strong> reads them from your website. It is optional; with no logo your name shows as text. The old five-page <strong style={INK}>Setup Wizard</strong> is still there if you want it: <strong style={INK}>Re-run Setup Wizard</strong> at the top of Settings.
+            <strong style={INK}>Add your brand there too.</strong> On the same step, <strong style={INK}>Add your brand</strong> asks for your name, logo and colours — <strong style={INK}>Fill in from it</strong> reads them from your website. It is optional; with no logo your name shows as text. The old five-page <strong style={INK}>Setup Wizard</strong> is still there if you want it: <strong style={INK}>Run the setup again</strong> in Settings → Profile.
           </Row>
         </div>
       </div>
@@ -100,7 +100,7 @@ export default function GettingStartedPage() {
             <strong style={INK}>Save your card.</strong> Click the button to save it and continue. Your {FREE_CREDITS} free credits start right away, and you are back where you pressed Make it.
           </Row>
           <p style={{ marginTop: 16 }}>
-            To change your card later, open <strong style={INK}>Settings</strong> from the account menu (click your name, top-right), go to the <strong style={INK}>Subscription</strong> tab, and click <strong style={INK}>Manage billing &amp; invoices</strong>.
+            To change your card later, open <strong style={INK}>Settings</strong> from the account menu (click your name, top-right), choose <strong style={INK}>Billing &amp; credits</strong>, and click <strong style={INK}>Manage billing &amp; invoices</strong>.
           </p>
         </div>
       </div>
@@ -117,7 +117,7 @@ export default function GettingStartedPage() {
           </p>
           <p>
             <strong style={INK}>When they run out:</strong> buy a top-up pack anytime with <strong style={INK}>+ Top Up</strong> next to your balance ({packsSentence()} — they never expire), or subscribe to {PAID_PLANS} for a monthly allowance. See{' '}
-            <Link href="/help/pricing" style={LINK}>Pricing &amp; Plans</Link>.
+            <Link href="/help/pricing" style={LINK}>Pricing &amp; plans</Link>.
           </p>
         </div>
       </div>
@@ -136,16 +136,16 @@ export default function GettingStartedPage() {
             <strong style={INK}>{NAMES.howToUse}</strong> — Opens the steps for the screen you&rsquo;re on, numbered and in plain words. Press Esc or the &times; to close it. On a phone, open the &#9776; menu and choose <strong style={INK}>{NAMES.howToUse} this screen</strong>.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Account menu</strong> — Click your initial (top-right) for your plan, <strong style={INK}>Analytics</strong>, <strong style={INK}>AI Social</strong>, <strong style={INK}>Affiliate Program</strong>, <strong style={INK}>Settings</strong>, <strong style={INK}>Help Center</strong> and <strong style={INK}>Sign out</strong>.
+            <strong style={INK}>Account menu</strong> — Click your initial (top-right) for your plan and shortcuts to <strong style={INK}>Settings</strong>, <strong style={INK}>Billing &amp; credits</strong>, <strong style={INK}>Analytics</strong>, <strong style={INK}>AI Social</strong>, <strong style={INK}>Affiliate</strong>, the <strong style={INK}>Help Center</strong> and <strong style={INK}>Sign out</strong>. Settings, Analytics and Affiliate share one menu down the left (a row at the top on a phone).
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Start something new</strong> — Four cards: <strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong>, <strong style={INK}>From an idea</strong> (AI writes it) and <strong style={INK}>A commercial</strong>. Each one opens the first step with that choice already made. Already have the words? Press <strong style={INK}>Paste your text</strong> under the cards.
+            <strong style={INK}>Create</strong> — Six small tiles: <strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong>, <strong style={INK}>From an idea</strong> (AI writes it), <strong style={INK}>Paste your text</strong>, <strong style={INK}>A commercial</strong> and <strong style={INK}>Your brand</strong>. Each one opens the first step with that choice already made (Your brand opens Brands). Your free credits are on the same line as the word Create.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Today&rsquo;s clients</strong> — Who clicked to book a call, who watched, and who hasn&rsquo;t opened what you sent — each with the next thing to do, like <strong style={INK}>Send the follow-up</strong>.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Projects</strong> — Your latest work and where each one is at (draft, sent, watched). Click <strong style={INK}>Open</strong> on one, or <strong style={INK}>Continue</strong> on a draft. Go to <strong style={INK}>{NAMES.library}</strong> to see everything.
+            <strong style={INK}>Recent</strong> — Your latest work and where each one is at (draft, sent, watched). Click <strong style={INK}>Open</strong> on one, or <strong style={INK}>Continue</strong> on a draft. Go to <strong style={INK}>{NAMES.library}</strong> to see everything.
           </p>
           <p>
             <strong style={INK}>This month</strong> — Beside your projects: emails sent, projects watched, clicks to book a call, your credits left and your plan.

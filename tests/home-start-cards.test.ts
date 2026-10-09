@@ -36,15 +36,19 @@ describe('?source= on step 1', () => {
 })
 
 describe('the start cards', () => {
-  it('are the four from the plan, in order', () => {
-    expect(START_CARDS.map((c) => c.title)).toEqual(['From a document', 'From a website', 'From an idea', 'A commercial'])
+  it('are the six round-B tiles, in order (two rows of three)', () => {
+    expect(START_CARDS.map((c) => c.title)).toEqual(['From a document', 'From a website', 'From an idea', 'Paste your text', 'A commercial', 'Your brand'])
+    // One line each, short enough for a compact tile.
+    for (const c of START_CARDS) expect(c.text.length, c.title).toBeLessThanOrEqual(45)
   })
 
   it('each opens step 1 with a source step 1 knows — the commercial opens its own maker', () => {
-    const want: Record<string, string | null> = { document: 'upload', website: 'url', idea: 'idea', commercial: null }
+    const want: Record<string, string | null> = { document: 'upload', website: 'url', idea: 'idea', paste: 'text', commercial: null, brand: null }
     for (const card of START_CARDS) {
       const url = new URL(card.href, 'https://x.test')
-      if (card.key === 'commercial') {
+      if (card.key === 'brand') {
+        expect(url.pathname).toBe('/brands')
+      } else if (card.key === 'commercial') {
         expect(url.pathname).toBe('/create/commercial')
         expect(existsSync(path.join(ROOT, 'app/(dashboard)/create/commercial/page.tsx'))).toBe(true)
       } else {
@@ -59,10 +63,10 @@ describe('the start cards', () => {
 describe('Home', () => {
   const home = code('app/(dashboard)/dashboard/page.tsx')
 
-  it('shows start cards, then today’s clients, then projects', () => {
-    const start = home.indexOf('Start something new')
-    const today = home.indexOf('Today’s clients')
-    const projects = home.indexOf('>Projects<')
+  it('shows the Create tiles, then today’s clients, then recent projects — under small grey labels', () => {
+    const start = home.indexOf('className="kit-label">Create<')
+    const today = home.indexOf('className="kit-label">Today’s clients<')
+    const projects = home.indexOf('className="kit-label">Recent<')
     expect(start).toBeGreaterThan(0)
     expect(today).toBeGreaterThan(start)
     expect(projects).toBeGreaterThan(today)

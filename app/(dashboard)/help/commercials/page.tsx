@@ -22,12 +22,12 @@ export default function CommercialsHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Creating Commercials</span>
+        <span>Creating commercials</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Creating Commercials</h1>
+          <h1>Creating commercials</h1>
           <p>Turn a website, a document, your own text, or just an idea into a fully-directed, brand-matched commercial — with a written script, professional voiceover, custom visuals, and music.</p>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function CommercialsHelpPage() {
         <p style={{ ...body, margin: 0 }}>
           <strong>Tip:</strong> For regulated industries (like insurance and financial services), the director automatically
           applies compliance safeguards — it avoids guarantees and keeps the messaging generic. See{' '}
-          <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', fontWeight: 600, textDecoration: 'none' }}>Insurance Illustrations</Link>{' '}
+          <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', fontWeight: 600, textDecoration: 'none' }}>Insurance illustrations</Link>{' '}
           for how compliance works.
         </p>
       </div>

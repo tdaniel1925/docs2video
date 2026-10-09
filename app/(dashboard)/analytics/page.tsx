@@ -126,11 +126,11 @@ export default function AnalyticsPage() {
       <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
         <div className="settings-card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.totalViews}</div>
-          <div className="ssub">Total Views</div>
+          <div className="ssub">Total views</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.total}</div>
-          <div className="ssub">Quotes Sent</div>
+          <div className="ssub">Quotes sent</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.accepted}</div>
@@ -138,13 +138,13 @@ export default function AnalyticsPage() {
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.emailStats.openRate}%</div>
-          <div className="ssub">Email Open Rate</div>
+          <div className="ssub">Email open rate</div>
         </div>
       </div>
 
       {/* Daily views chart */}
       <div className="settings-card" style={{ marginBottom: 32 }}>
-        <h3 style={{ marginBottom: 16 }}>Views - Last 30 Days</h3>
+        <h3 style={{ marginBottom: 16 }}>Views — last 30 days</h3>
         {dailyViews.length === 0 ? (
           <p className="ssub">No views in the last 30 days.</p>
         ) : (
@@ -219,7 +219,7 @@ export default function AnalyticsPage() {
 
       {/* Top videos */}
       <div className="settings-card" style={{ marginBottom: 32 }}>
-        <h3 style={{ marginBottom: 16 }}>Top Videos by Views</h3>
+        <h3 style={{ marginBottom: 16 }}>Most-watched videos</h3>
         {data.topVideos.length === 0 ? (
           <p className="ssub">No videos yet.</p>
         ) : (
@@ -288,7 +288,7 @@ export default function AnalyticsPage() {
 
       {/* Email stats */}
       <div className="settings-card" style={{ marginBottom: 32 }}>
-        <h3 style={{ marginBottom: 16 }}>Email Performance</h3>
+        <h3 style={{ marginBottom: 16 }}>Email results</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{data.emailStats.total}</div>
@@ -300,7 +300,7 @@ export default function AnalyticsPage() {
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 24, fontWeight: 700 }}>{data.emailStats.openRate}%</div>
-            <div className="ssub">Open Rate</div>
+            <div className="ssub">Open rate</div>
           </div>
         </div>
       </div>
@@ -308,7 +308,7 @@ export default function AnalyticsPage() {
       {/* Benchmarks */}
       {benchmarks && (
         <div className="settings-card" style={{ marginBottom: 32 }}>
-          <h3 style={{ marginBottom: 4 }}>Your Performance vs. Platform Average</h3>
+          <h3 style={{ marginBottom: 4 }}>You compared with the average</h3>
           <p className="ssub" style={{ marginBottom: 16 }}>See how your presentations compare to other users on the platform.</p>
           <BenchmarkRow
             label="Watch-through rate"

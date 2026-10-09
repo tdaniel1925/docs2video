@@ -27,12 +27,12 @@ export default function SharingVideosPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Sharing & the Client Page</span>
+        <span>Sharing & the client page</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Sharing & the Client Page</h1>
+          <h1>Sharing & the client page</h1>
           <p>How to send a video to a client, and exactly what they see when they open it.</p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function SharingVideosPage() {
             <strong style={INK}>Download Original PDF</strong> — Only if you turned on <strong style={INK}>Let them download the original PDF</strong> on step 3 (Make it yours). This is the only download on the page; your client cannot download the video, slides or PowerPoint.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Integrations</strong> (account menu, top-right). The link must be a full web address starting with <em>https://</em>, or the button won&rsquo;t appear. For Google Calendar, paste the link of a Google <strong style={INK}>booking page</strong> (an &ldquo;Appointment schedule&rdquo;) — Google Calendar can&rsquo;t be connected directly.
+            <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Email &amp; sending</strong> (account menu, top-right). The link must be a full web address starting with <em>https://</em>, or the button won&rsquo;t appear. For Google Calendar, paste the link of a Google <strong style={INK}>booking page</strong> (an &ldquo;Appointment schedule&rdquo;) — Google Calendar can&rsquo;t be connected directly.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Ask a question</strong> — On interactive presentations, your client can send you a question from the last slide. It arrives in your email.
@@ -112,7 +112,7 @@ export default function SharingVideosPage() {
         </h2>
         <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Add a quote.</strong> On the video page, press <strong>Add a quote</strong> in the send panel, or scroll to <strong>More for this video</strong> and open the <strong>Quote / Invoice</strong> tab, then click <strong>Add Quote</strong>. Enter the client&apos;s name and email and your line items, then click <strong>Save Quote</strong>. You&apos;ll see &ldquo;Quote saved&rdquo; — if saving fails, the page says so and keeps your form open.
+            <strong style={{ color: 'var(--ink)' }}>Add a quote.</strong> On the video page, press <strong>Add a quote</strong> in the send panel, or scroll to <strong>More for this video</strong> and open the <strong>Quote / invoice</strong> tab, then click <strong>Add a quote</strong>. Enter the client&apos;s name and email and your line items, then click <strong>Save quote</strong>. You&apos;ll see &ldquo;Quote saved&rdquo; — if saving fails, the page says so and keeps your form open.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Mark the deal.</strong> We can&apos;t tell when a client pays you (a click on your payment link isn&apos;t a payment). When it happens, open the video page and click <strong>Mark as paid</strong>, <strong>Mark as accepted</strong> or <strong>Mark as declined</strong> under the quote. The status label changes right away. Paid and accepted also mark the client as converted. Changed your mind? Click <strong>Reopen</strong>.
@@ -134,7 +134,7 @@ export default function SharingVideosPage() {
             If your video was made from an insurance illustration or proposal, the share page includes the legal disclosures automatically. They sit in a <strong style={INK}>View Legal Disclosures</strong> section that your client can click to open.
           </p>
           <p>
-            For more on how insurance compliance works, see the <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Insurance Illustrations</Link> guide.
+            For more on how insurance compliance works, see the <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Insurance illustrations</Link> guide.
           </p>
         </div>
       </div>
@@ -160,7 +160,7 @@ export default function SharingVideosPage() {
         <h2 style={H2}>Downloading Files for Yourself</h2>
         <div style={BODY}>
           <p>
-            On the video page, the <strong style={INK}>Download</strong> menu (top-right) has the files this video has — <strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PowerPoint</strong> and <strong style={INK}>Script</strong> — for you — to attach to an email, present in a meeting, or post elsewhere. See <Link href="/help/downloads" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Downloads & Formats</Link>.
+            On the video page, the <strong style={INK}>Download</strong> menu (top-right) has the files this video has — <strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PowerPoint</strong> and <strong style={INK}>Script</strong> — for you — to attach to an email, present in a meeting, or post elsewhere. See <Link href="/help/downloads" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Downloads & formats</Link>.
           </p>
         </div>
       </div>

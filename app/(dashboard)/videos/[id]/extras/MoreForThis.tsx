@@ -31,7 +31,7 @@ export default function MoreForThis({ videoId, thing, tab, setTab, quote, setQuo
       <h2 className="res-h2">More for this {thing}</h2>
       <Tabs<ExtrasTab>
         label="More for this"
-        tabs={[{ key: 'quote', label: 'Quote / Invoice' }, { key: 'followup', label: 'Follow-Up Plan' }]}
+        tabs={[{ key: 'quote', label: 'Quote / invoice' }, { key: 'followup', label: 'Follow-up plan' }]}
         current={tab}
         onSelect={setTab}
       />

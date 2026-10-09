@@ -8,10 +8,10 @@ import { displayProgress } from '../../../../_lib/video-progress'
 // (phase 4 split the 2,700-line page into parts).
 const PROGRESS_STEPS = [
   { key: 'starting', label: 'Starting', desc: 'Initializing your video pipeline...', sub: 'Setting up generation environment', icon: '🚀' },
-  { key: 'scripting', label: 'Writing Script', desc: 'AI is crafting your narration script...', sub: 'Analyzing content and creating scenes', icon: '✍️' },
-  { key: 'generating_audio', label: 'Generating Audio', desc: 'Professional voiceover being recorded...', sub: 'Converting script to natural speech', icon: '🎙️' },
-  { key: 'generating_slides', label: 'Creating Slides', desc: 'Designing branded visuals for each scene...', sub: 'Generating and compositing graphics', icon: '🎨' },
-  { key: 'assembling', label: 'Assembling Video', desc: 'Stitching everything into your final video...', sub: 'Encoding video, mixing audio, adding music', icon: '🎬' },
+  { key: 'scripting', label: 'Writing the script', desc: 'AI is crafting your narration script...', sub: 'Analyzing content and creating scenes', icon: '✍️' },
+  { key: 'generating_audio', label: 'Recording the voice', desc: 'Professional voiceover being recorded...', sub: 'Converting script to natural speech', icon: '🎙️' },
+  { key: 'generating_slides', label: 'Drawing the scenes', desc: 'Designing branded visuals for each scene...', sub: 'Generating and compositing graphics', icon: '🎨' },
+  { key: 'assembling', label: 'Putting it together', desc: 'Stitching everything into your final video...', sub: 'Encoding video, mixing audio, adding music', icon: '🎬' },
 ]
 
 const FUN_FACTS = [

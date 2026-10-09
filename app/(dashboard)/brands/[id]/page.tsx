@@ -663,7 +663,7 @@ export default function EditBrandPage() {
             </div>
           </div>
 
-          <div className="section-title" style={{ marginTop: 18 }}>Brand Colors</div>
+          <div className="section-title" style={{ marginTop: 18 }}>Brand colors</div>
           <div className="color-pickers">
             {Object.entries(colors).map(([key, value]) => (
               <div key={key} className="color-picker">
@@ -691,7 +691,7 @@ export default function EditBrandPage() {
 
           {/* Preview */}
           <div className="brand-preview">
-            <div className="brand-preview-label">Live Preview</div>
+            <div className="brand-preview-label">Live preview</div>
             <div className="preview-card-mini">
               {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
                 <div key={key} className="pcm-row" style={{ background: value }}>
@@ -753,7 +753,7 @@ export default function EditBrandPage() {
           </div>
 
           <div className="form-group">
-            <label className="input-label">Target Audience</label>
+            <label className="input-label">Target audience</label>
             <input
               name="target_audience"
               value={targetAudience}
@@ -764,7 +764,7 @@ export default function EditBrandPage() {
           </div>
 
           {/* ───────── Content & Voice Section ───────── */}
-          <div className="section-eyebrow" style={{ marginTop: 28 }}>Content &amp; Voice</div>
+          <div className="section-eyebrow" style={{ marginTop: 28 }}>Content &amp; voice</div>
 
           <div className="form-group">
             <label className="input-label">Brand Values <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(comma-separated)</span></label>
@@ -811,7 +811,7 @@ export default function EditBrandPage() {
           </div>
 
           <div className="form-group">
-            <label className="input-label">Competitor Notes</label>
+            <label className="input-label">Competitor notes</label>
             <textarea
               name="competitor_notes"
               value={competitorNotes}
@@ -824,7 +824,7 @@ export default function EditBrandPage() {
           </div>
 
           {/* ───────── Social & Web Section ───────── */}
-          <div className="section-eyebrow" style={{ marginTop: 28 }}>Social &amp; Web</div>
+          <div className="section-eyebrow" style={{ marginTop: 28 }}>Social &amp; web</div>
 
           <div className="form-group">
             <label className="input-label">Website URL</label>
@@ -1034,7 +1034,7 @@ export default function EditBrandPage() {
         {/* Reference Slides Preview */}
         {brand.reference_slides && brand.reference_slides.length > 0 && (
           <div>
-            <div className="section-title" style={{ marginBottom: 10 }}>Reference Slides</div>
+            <div className="section-title" style={{ marginBottom: 10 }}>Reference slides</div>
             <div
               style={{
                 display: 'grid',

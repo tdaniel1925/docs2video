@@ -48,12 +48,12 @@ export default function CreatingVideosPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Creating Explainer Videos</span>
+        <span>Creating explainer videos</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Creating Explainer Videos</h1>
+          <h1>Creating explainer videos</h1>
           <p>
             Four steps, from your document to a link you can send. The step bar (on the left, or at the top on a phone)
             shows which step you are on. Your work is saved as you go, and nothing is charged until you press{' '}
@@ -64,7 +64,7 @@ export default function CreatingVideosPage() {
 
       <Step n={1} title="What it’s about">
         <p style={P}>
-          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar — or one of the start cards on Home (<strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong> or <strong style={INK}>From an idea</strong>), which opens this screen with that choice already made. The screen asks <strong style={INK}>What&rsquo;s this about?</strong> — three questions.
+          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar — or one of the tiles under Create on Home (<strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong> or <strong style={INK}>From an idea</strong>), which opens this screen with that choice already made. The screen asks <strong style={INK}>What&rsquo;s this about?</strong> — three questions.
         </p>
         <p style={P}>
           <strong style={INK}>Who is it for?</strong> — Search your clients and pick one, click <strong style={INK}>+ New client</strong> to add one,
@@ -202,7 +202,7 @@ export default function CreatingVideosPage() {
         </p>
         <p style={P}>
           Below it, <strong style={INK}>Ask for a change</strong> changes one scene or the whole thing — it opens the right editor and
-          shows the price first (see <Link href="/help/making-changes" style={LINK}>Changing a Finished Project</Link>).{' '}
+          shows the price first (see <Link href="/help/making-changes" style={LINK}>Changing a finished project</Link>).{' '}
           <strong style={INK}>Who watched</strong> shows how far each person got. At the top, <strong style={INK}>Download</strong> has the files it has
           (<strong style={INK}>MP4</strong>, <strong style={INK}>PDF</strong>, <strong style={INK}>PowerPoint</strong>, <strong style={INK}>Script</strong>) and{' '}
           <strong style={INK}>More</strong> has Rename, <strong style={INK}>Duplicate</strong>, <strong style={INK}>Social posts</strong> and{' '}

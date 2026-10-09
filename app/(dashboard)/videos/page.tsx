@@ -173,7 +173,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
     <div>
       <div className="page-head">
         <div>
-          <h1>{activeTab ? `Your ${activeTab.label}` : `Your ${NAMES.library}`}</h1>
+          <h1>{activeTab ? activeTab.label : NAMES.library}</h1>
           <p>{activeTab
             ? `Showing ${activeTab.label.toLowerCase()} only.`
             : typeFilter ? 'Showing some of what you’ve made.' : 'Everything you’ve made.'}</p>

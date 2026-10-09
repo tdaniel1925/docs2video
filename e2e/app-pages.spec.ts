@@ -34,7 +34,7 @@ test.describe('Brands', () => {
     await page.route('**/rest/v1/brands?**', (r) => r.continue())
     const name = `E2E Profile ${Date.now()}`
     await page.goto('/brands')
-    await expect(page.getByRole('heading', { name: 'Your Brands', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Brands', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: '+ New brand' }).click()
     await expect(page).toHaveURL(/\/brands\/new$/)
     await page.getByRole('button', { name: /^company$/i }).click().catch(() => {})
@@ -132,10 +132,10 @@ test.describe('Clients', () => {
     await expect(page.getByRole('heading', { name: 'Clients', level: 1 })).toBeVisible()
 
     // Add Client form: Cancel closes it; Add saves.
-    await page.getByRole('button', { name: 'Add Client' }).click()
+    await page.getByRole('button', { name: 'Add a client' }).click()
     await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByPlaceholder('Client name')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Add Client' }).click()
+    await page.getByRole('button', { name: 'Add a client' }).click()
     await page.getByPlaceholder('Client name').fill(name)
     await page.getByPlaceholder('client@example.com').fill(email)
     await page.getByPlaceholder('Company name').fill('E2E Co')
@@ -162,7 +162,7 @@ test.describe('Clients', () => {
     // Edit and save.
     await page.getByRole('button', { name: 'Edit', exact: true }).click()
     await page.getByPlaceholder('tag1, tag2').fill('e2e, test')
-    await page.getByRole('button', { name: 'Save Changes' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByText('Client updated')).toBeVisible()
     await expect(page.locator('span.tag', { hasText: /^e2e\s*×$/ })).toBeVisible()
     // Quick tag box: Enter adds a tag, clicking a tag removes it.
@@ -195,9 +195,9 @@ test.describe('Clients', () => {
     await page.goto(clientUrl)
     await page.getByRole('button', { name: /^Delete/ }).first().click()
     await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect(page.getByRole('button', { name: 'Confirm Delete' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Yes, delete' })).toHaveCount(0)
     await page.getByRole('button', { name: /^Delete/ }).first().click()
-    await page.getByRole('button', { name: 'Confirm Delete' }).click()
+    await page.getByRole('button', { name: 'Yes, delete' }).click()
     await expect(page).toHaveURL(/\/clients$/)
     await page.getByPlaceholder('Search clients...').fill(`${stamp}`)
     await expect(page.locator('table').getByText(name)).toHaveCount(0)
@@ -205,11 +205,11 @@ test.describe('Clients', () => {
     expect(left.clients, 'really deleted').toEqual([])
   })
 
-  test('Import CSV sends the pasted rows (import mocked) and Export CSV downloads a file', async ({ page }) => {
+  test('Import a CSV file sends the pasted rows (import mocked) and Export CSV downloads a file', async ({ page }) => {
     const imports: any[] = []
     await page.route('**/api/clients/import', async (r) => { imports.push(jsonBody(r.request())); await r.fulfill({ json: { imported: 1, skipped: 0, errors: [] } }) })
     await page.goto('/clients')
-    await page.getByRole('button', { name: 'Import CSV' }).click()
+    await page.getByRole('button', { name: 'Import a CSV file' }).click()
     const box = page.getByPlaceholder(/email,name,company,phone/)
     const importBtn = page.getByRole('button', { name: /^Import/ }).last()
     await expect(importBtn).toBeDisabled()
@@ -230,23 +230,23 @@ test.describe('Clients', () => {
 test.describe('Library (/videos)', () => {
   test('filter tabs, + New, paging and Open', async ({ page }) => {
     await page.goto('/videos')
-    await expect(page.getByRole('heading', { name: 'Your Library', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'Videos', exact: true }).click()
     await expect(page).toHaveURL(/\/videos\?type=video$/)
-    await expect(page.getByRole('heading', { name: 'Your Videos', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Videos', level: 1 })).toBeVisible()
     // Presentations and slide decks have their own tabs, and the tab is kept
     // in the address, so a refresh stays on it.
     await page.getByRole('link', { name: 'Presentations', exact: true }).click()
     await expect(page).toHaveURL(/\/videos\?type=presentation$/)
-    await expect(page.getByRole('heading', { name: 'Your Presentations', level: 1 })).toBeVisible()
-    await page.getByRole('link', { name: 'Slide Decks', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Presentations', level: 1 })).toBeVisible()
+    await page.getByRole('link', { name: 'Slide decks', exact: true }).click()
     await expect(page).toHaveURL(/\/videos\?type=deck$/)
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Your Slide Decks', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Slide decks', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'Custom Graphics', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Your Custom Graphics', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Custom Graphics', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'All', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Your Library', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible()
 
     // Picture cards (round A): each card says where it is in plain words.
     const cards = page.getByRole('list', { name: 'Your work' }).getByRole('listitem')

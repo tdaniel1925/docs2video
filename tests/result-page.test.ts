@@ -108,8 +108,10 @@ describe("what's left only lists checkable things", () => {
     expect(panel).toContain('id={FOCUS_IDS.note}')
     expect(FOCUS_IDS).toEqual({ email: 'rts-email', note: 'rts-note' })
     expect(existsSync(path.join(ROOT, 'app/(dashboard)/settings/page.tsx'))).toBe(true)
-    // the integrations tab is opened by ?tab=integrations
-    expect(read('app/(dashboard)/settings/page.tsx')).toContain("searchParams.get('tab') === 'integrations'")
+    // ?tab=integrations still opens where the email + booking boxes live
+    // (round B: the Email & sending section — settings/account-sections.ts)
+    expect(read('app/(dashboard)/settings/account-sections.ts')).toMatch(/integrations: 'email'/)
+    expect(read('app/(dashboard)/settings/page.tsx')).toContain("section === 'email'")
   })
 })
 

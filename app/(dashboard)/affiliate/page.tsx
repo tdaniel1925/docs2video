@@ -65,7 +65,7 @@ export default function AffiliatePage() {
   if (!stats.enrolled) {
     return (
       <div>
-        <div className="page-head"><div><h1>Affiliate Program</h1><p style={{ color: 'var(--ink-light)' }}>Earn {20}% recurring commission — for life — on every customer you refer.</p></div></div>
+        <div className="page-head"><div><h1>Affiliate program</h1><p style={{ color: 'var(--ink-light)' }}>Earn {20}% recurring commission — for life — on every customer you refer.</p></div></div>
         <div className="card" style={{ padding: 32, maxWidth: 640 }}>
           <h2 style={{ marginTop: 0 }}>Earn for every customer you bring</h2>
           <ul style={{ lineHeight: 1.9, color: 'var(--ink)' }}>
@@ -103,7 +103,7 @@ Happy to answer any questions.
   return (
     <div>
       <div className="page-head">
-        <div><h1>Affiliate Program</h1><p style={{ color: 'var(--ink-light)' }}>{stats.affiliate!.commission_rate}% recurring commission · lifetime</p></div>
+        <div><h1>Affiliate program</h1><p style={{ color: 'var(--ink-light)' }}>{stats.affiliate!.commission_rate}% recurring commission · lifetime</p></div>
       </div>
 
       {!stats.affiliate!.payout_email && (

@@ -31,7 +31,7 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'Can I edit a video after it has been generated?',
     answer: [
       'Yes. Open it from your Library and use **Ask for a change** under Ready to send. Pick **This scene** or the whole thing, say what you want, and it opens the right editor for that project — with the price shown before anything is rebuilt. Each change is listed with **Undo**.',
-      'Presentations and slide decks open the slide editor; **Slide Deck** look videos open **Fix a scene** (one scene, without redoing the rest); other looks with slide pictures open the **Scene editor**. A few looks can’t be changed in place — the bar offers **Make a changed copy** instead. See **Changing a Finished Project** in the Help Center.',
+      'Presentations and slide decks open the slide editor; **Slide Deck** look videos open **Fix a scene** (one scene, without redoing the rest); other looks with slide pictures open the **Scene editor**. A few looks can’t be changed in place — the bar offers **Make a changed copy** instead. See **Changing a finished project** in the Help Center.',
     ],
   },
   {
@@ -82,7 +82,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How do I add a booking link to my share pages?',
     answer: [
-      'Open the account menu (top-right), click **Settings**, then the **Integrations** tab. Choose Calendly, Cal.com or Google Calendar, paste your booking link, and press **Save**. A **Book a Call** button then appears on your share pages.',
+      'Open the account menu (top-right), click **Settings**, then **Email & sending** in the menu on the left. Choose Calendly, Cal.com or Google Calendar, paste your booking link, and press **Save**. A **Book a Call** button then appears on your share pages.',
       'For **Google Calendar**, there is no direct connection — paste a link instead. In Google Calendar, create a booking page (an "Appointment schedule"), copy its link (it starts with https://calendar.app.google/) and paste that. The link must start with https://, or the button will not show.',
     ],
   },
@@ -123,7 +123,7 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'How much does it cost?',
     answer: [
       `Everything uses credits. New accounts get **${n(TIER_CREDITS.free)} free credits** once, when a card is saved (about ${TIER_APPROX_VIDEOS.free.standard} standard videos). Plans: ${PAID_PLANS}.`,
-      `Anyone can buy top-up packs that never expire: ${packsSentence()}. See **Pricing & Plans** for details.`,
+      `Anyone can buy top-up packs that never expire: ${packsSentence()}. See **Pricing & plans** for details.`,
     ],
   },
 ]
@@ -247,12 +247,12 @@ export default function FaqPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>FAQ & Troubleshooting</span>
+        <span>FAQ & troubleshooting</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>FAQ & Troubleshooting</h1>
+          <h1>FAQ & troubleshooting</h1>
           <p>Common questions and solutions to frequently encountered issues.</p>
         </div>
       </div>
@@ -279,7 +279,7 @@ export default function FaqPage() {
         <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
           Click the help button in the bottom-right corner to chat with our AI assistant, or contact support directly.
         </p>
-        <a href="mailto:support@docs2video.com" className="btn btn-soft">Email Support</a>
+        <a href="mailto:support@docs2video.com" className="btn btn-soft">Email support</a>
       </div>
 
       {/* Back link */}

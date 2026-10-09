@@ -25,12 +25,12 @@ export default function LibraryHelpPage() {
       <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--link)', textDecoration: 'none', fontWeight: 600 }}>Help Center</Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Your {NAMES.library}</span>
+        <span>{NAMES.library}</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 24 }}>
         <div>
-          <h1>Your {NAMES.library}</h1>
+          <h1>{NAMES.library}</h1>
           <p>Everything you’ve made, as picture cards. Press <strong>{NAMES.library}</strong> in the top bar to open it.</p>
         </div>
       </div>

@@ -89,7 +89,7 @@ export default function BrandsPage() {
     <div>
       <div className="page-head">
         <div>
-          <h1>Your {NAMES.brands}</h1>
+          <h1>{NAMES.brands}</h1>
           <p>{storefront.showVideoFeatures
             ? 'Each brand is a Company (logo + colors) or a Person (your photo + intro). Your default brand is used automatically on every video; add more if you work under several companies or present as different people.'
             : 'Your logo, your colours and your contact details, saved. The default one is applied to everything you make; add more if you design for more than one business.'}</p>

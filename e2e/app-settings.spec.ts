@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, jsonBody, type Guard } from './helpers/guard'
 
 /*
- * SETTINGS — every tab and button. Saves that would change the real account
+ * SETTINGS — the account area (round B): every section and button. Saves that would change the real account
  * (profile, links, photos, keys, billing, delete) are intercepted and their
  * requests checked; nothing about the test account changes.
  */
@@ -14,14 +14,15 @@ test.beforeEach(async ({ page }) => {
   guard = await guardRealWorld(page)
   consoleErrors = collectConsoleErrors(page, [/status of (400|402|500)/])
   await page.goto('/settings')
-  await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible()
 })
 test.afterEach(() => {
   expectNoBlockedCalls(guard)
   expect(consoleErrors, 'console errors on Settings').toEqual([])
 })
 
-const tab = (page: Page, name: string) => page.locator('.settings-tab', { hasText: name })
+/** An item in the account area's own menu (left on a computer). */
+const tab = (page: Page, name: string) => page.getByRole('navigation', { name: 'Your account' }).getByRole('link', { name, exact: true })
 
 /** Intercept the browser's direct profile saves (supabase REST). */
 async function mockProfileSave(page: Page, status = 204) {
@@ -39,19 +40,47 @@ async function mockStripeRedirect(page: Page) {
   await page.route('https://billing.stripe.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<h1>Stripe billing (mocked)</h1>' }))
 }
 
-test('tabs switch between Profile, Integrations and Subscription', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Personal Info' })).toBeVisible()
-  await tab(page, 'Integrations').click()
-  await expect(page.getByRole('heading', { name: 'Email Connections' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Personal Info' })).toHaveCount(0)
-  await tab(page, 'Subscription').click()
-  await expect(page.getByRole('heading', { name: 'Your Plan' })).toBeVisible()
+test('the menu moves between Profile, Billing & credits, Brand kit and Email & sending', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible()
+  await expect(tab(page, 'Profile')).toHaveAttribute('aria-current', 'page')
+  await tab(page, 'Email & sending').click()
+  await expect(page).toHaveURL(/\/settings\?tab=email$/)
+  await expect(page.getByRole('heading', { name: 'Connected email' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your details' })).toHaveCount(0)
+  await tab(page, 'Billing & credits').click()
+  await expect(page.getByRole('heading', { name: 'Billing & credits', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Current plan' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Credits available' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'This period' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Credit packs' })).toBeVisible()
+  await tab(page, 'Brand kit').click()
+  await expect(page.getByRole('heading', { name: 'Brand kit', level: 1 })).toBeVisible()
   await tab(page, 'Profile').click()
-  await expect(page.getByRole('heading', { name: 'Personal Info' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible()
 })
 
-test('"Re-run Setup Wizard" opens the setup wizard', async ({ page }) => {
-  await page.getByRole('link', { name: 'Re-run Setup Wizard' }).click()
+test('old Settings links still land on the right section', async ({ page }) => {
+  for (const [url, title] of [
+    ['/settings?tab=subscription', 'Billing & credits'],
+    ['/settings?tab=integrations', 'Email & sending'],
+    ['/settings?email_error=access_denied', 'Email & sending'],
+    ['/settings?tab=social', 'AI Social'],
+    ['/settings?tab=profile', 'Profile'],
+    ['/settings?tab=nonsense', 'Profile'],
+  ] as const) {
+    await page.goto(url)
+    await expect(page.getByRole('heading', { name: title, level: 1 }), url).toBeVisible()
+  }
+  // Analytics and Affiliate wear the same menu at their own addresses.
+  await page.goto('/analytics')
+  await expect(tab(page, 'Analytics')).toHaveAttribute('aria-current', 'page')
+  await tab(page, 'Affiliate').click()
+  await expect(page).toHaveURL(/\/affiliate$/)
+  await expect(tab(page, 'Affiliate')).toHaveAttribute('aria-current', 'page')
+})
+
+test('"Run the setup again" opens the setup wizard', async ({ page }) => {
+  await page.getByRole('link', { name: 'Run the setup again' }).click()
   await expect(page).toHaveURL(/\/setup$/)
 })
 
@@ -97,8 +126,8 @@ test('Profile photos: Upload sends the picture and shows it; the photo-fixer lin
   await expect(page).toHaveURL(/\/fix$/)
 })
 
-test('Integrations: mail sign-in links, the SMTP form, and social connect', async ({ page }) => {
-  await tab(page, 'Integrations').click()
+test('Email & sending: mail sign-in links and the SMTP form; AI Social: social connect', async ({ page }) => {
+  await tab(page, 'Email & sending').click()
   const ms = page.locator('a[href="/api/auth/microsoft"]')
   if (await ms.count()) await expect(ms).toBeVisible()
   const g = page.locator('a[href="/api/auth/google"]')
@@ -111,7 +140,9 @@ test('Integrations: mail sign-in links, the SMTP form, and social connect', asyn
   await page.getByRole('button', { name: /^(Cancel|Close|×)$/ }).last().click()
   await expect(smtpHeading).toHaveCount(0)
 
-  // Social connect asks the server for the sign-in link and follows it.
+  // Social connect (AI Social section) asks the server for the sign-in link.
+  await page.goto('/settings?tab=social')
+  await expect(page.getByRole('heading', { name: 'Social accounts' })).toBeVisible()
   const connect = page.getByRole('button', { name: /^(twitter|Connect.*)$/i }).first()
   if (await connect.count()) {
     const bodies: any[] = []
@@ -126,10 +157,10 @@ test('Integrations: mail sign-in links, the SMTP form, and social connect', asyn
   }
 })
 
-test('Integrations: payment and booking links must be https; good ones save', async ({ page }) => {
+test('Email & sending: payment and booking links must be https; good ones save', async ({ page }) => {
   const saves = await mockProfileSave(page)
-  await tab(page, 'Integrations').click()
-  const payCard = page.locator('.settings-card', { has: page.getByRole('heading', { name: 'Payment Link (Stripe)' }) })
+  await tab(page, 'Email & sending').click()
+  const payCard = page.locator('.settings-card', { has: page.getByRole('heading', { name: 'Payment link' }) })
   const pay = page.getByPlaceholder('https://buy.stripe.com/...')
   await pay.fill('http://buy.stripe.com/test')
   await payCard.getByRole('button', { name: /^Save/ }).click()
@@ -141,7 +172,7 @@ test('Integrations: payment and booking links must be https; good ones save', as
   expect(saves[0]).toEqual({ payment_link_url: 'https://buy.stripe.com/test_e2e' })
 
   // Booking link: each provider changes the example, and saving checks https too.
-  const card = page.locator('.settings-card', { has: page.getByRole('heading', { name: 'Calendar Booking' }) })
+  const card = page.locator('.settings-card', { has: page.getByRole('heading', { name: 'Booking link' }) })
   for (const b of await card.getByRole('button').filter({ hasNotText: /Save/ }).all()) await b.click()
   const booking = card.locator('input').first()
   await booking.fill('calendly.com/me')
@@ -165,7 +196,7 @@ test('API keys: Generate shows the new key once, Copy and Done work, Revoke asks
     if (m === 'DELETE') { keys.length = 0; return route.fulfill({ json: { success: true } }) }
     return route.fallback()
   })
-  await tab(page, 'Integrations').click()
+  // API keys live on Profile now.
   await page.getByPlaceholder("Key name (optional, e.g. 'MCP')").fill('E2E key')
   await page.getByRole('button', { name: 'Generate key' }).click()
   await expect(page.getByText('d2v_e2e_secret_value')).toBeVisible()
@@ -180,11 +211,11 @@ test('API keys: Generate shows the new key once, Copy and Done work, Revoke asks
   expect(calls).toContain('DELETE')
 })
 
-test('Subscription: Buy credits opens the packs and a pack goes to Stripe checkout', async ({ page }) => {
+test('Billing: Buy credits opens the packs and a pack goes to Stripe checkout', async ({ page }) => {
   await mockStripeRedirect(page)
   const buys: any[] = []
   await page.route('**/api/credits/buy', async (route) => { buys.push(jsonBody(route.request())); await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_e2e' } }) })
-  await tab(page, 'Subscription').click()
+  await tab(page, 'Billing & credits').click()
   await page.getByRole('button', { name: 'Buy credits' }).click()
   await expect(page.getByRole('heading', { name: 'Buy credits' })).toBeVisible()
   await page.getByRole('button', { name: 'Close' }).click()
@@ -195,12 +226,12 @@ test('Subscription: Buy credits opens the packs and a pack goes to Stripe checko
   expect(buys).toHaveLength(1)
 })
 
-test('Subscription: a plan button starts checkout for that plan (or opens billing for the current one)', async ({ page }) => {
+test('Billing: a plan button starts checkout for that plan (or opens billing for the current one)', async ({ page }) => {
   await mockStripeRedirect(page)
   const subs: any[] = []
   await page.route('**/api/subscribe', async (route) => { subs.push(jsonBody(route.request())); await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_plan' } }) })
   await page.route('**/api/stripe/portal', (route) => route.fulfill({ json: { url: 'https://billing.stripe.com/p/session/test_e2e' } }))
-  await tab(page, 'Subscription').click()
+  await tab(page, 'Billing & credits').click()
   const planBtn = page.getByRole('button', { name: /^(Subscribe to|Switch to) (Pro|Business|Enterprise)$/ }).first()
   const label = (await planBtn.textContent())!.trim()
   await planBtn.click()
@@ -209,27 +240,26 @@ test('Subscription: a plan button starts checkout for that plan (or opens billin
   expect(String(subs[0].tier).toLowerCase()).toBe(label.split(' ').pop()!.toLowerCase())
 })
 
-test('Subscription: billing portal buttons open Stripe billing', async ({ page }) => {
+test('Billing: billing portal buttons open Stripe billing', async ({ page }) => {
   await mockStripeRedirect(page)
   await page.route('**/api/stripe/portal', (route) => route.fulfill({ json: { url: 'https://billing.stripe.com/p/session/test_e2e' } }))
-  await tab(page, 'Subscription').click()
+  await tab(page, 'Billing & credits').click()
   const portal = page.getByRole('button', { name: /Manage billing|Cancel subscription/ }).first()
   test.skip(!(await portal.count()), 'this account has no Stripe customer, so there is no billing portal button')
   await portal.click()
   await expect(page).toHaveURL(/billing\.stripe\.com/)
 })
 
-test('Delete Account asks twice; saying no to either sends nothing', async ({ page }) => {
-  await tab(page, 'Subscription').click()
+test('Delete account (bottom of Profile) asks twice; saying no to either sends nothing', async ({ page }) => {
   const seen: string[] = []
   let answers: boolean[] = [false]
   page.on('dialog', (d) => { seen.push(d.message()); void (answers.shift() ? d.accept() : d.dismiss()) })
-  await page.getByRole('button', { name: 'Delete Account' }).click()
+  await page.getByRole('button', { name: 'Delete account' }).click()
   await expect.poll(() => seen.length).toBe(1)
   expect(seen[0]).toContain('Are you sure you want to delete your account?')
 
   answers = [true, false] // yes to the first question, no to the final one
-  await page.getByRole('button', { name: 'Delete Account' }).click()
+  await page.getByRole('button', { name: 'Delete account' }).click()
   await expect.poll(() => seen.length).toBe(3)
   expect(seen[2]).toContain('This is your final confirmation.')
   // The guard fails this test if /api/account/delete was called.

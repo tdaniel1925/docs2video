@@ -68,13 +68,13 @@ test.describe('1440 wide', () => {
     await expect(page.getByRole('heading', { name: 'Buy credits' })).toHaveCount(0)
   })
 
-  test('the account menu keeps plan, Analytics, AI Social, Affiliate Program, Settings, Help Center and Sign out — not Brands', async ({ page }) => {
+  test('the account menu keeps plan, the account shortcuts, Help Center and Sign out — not Brands', async ({ page }) => {
     await page.goto('/dashboard')
     await page.getByRole('button', { name: 'Your account', exact: true }).click()
     const menu = page.locator('.kit-menu')
     await expect(menu).toBeVisible()
     await expect(menu.locator('.kit-menu-plan')).not.toBeEmpty()
-    for (const label of ['Analytics', 'AI Social', 'Affiliate Program', 'Settings', 'Help Center']) {
+    for (const label of ['Settings', 'Billing & credits', 'Analytics', 'AI Social', 'Affiliate', 'Help Center']) {
       await expect(menu.getByRole('link', { name: new RegExp(`^${label}`) })).toBeVisible()
     }
     await expect(menu.getByRole('button', { name: 'Sign out' })).toBeVisible()
@@ -94,11 +94,11 @@ test.describe('1440 wide', () => {
   })
 
   for (const [path, title, firstWords] of [
-    ['/dashboard', 'Home', /Start something new/],
+    ['/dashboard', 'Home', /Create/],
     ['/videos', 'Library', /Use the tabs/],
     ['/create', 'Step 1 — What it’s about', /Who is it for\?/],
     ['/brands', 'Brands', /Company/],
-    ['/clients', 'Clients', /Add Client/],
+    ['/clients', 'Clients', /Add a client/],
     ['/settings', 'Settings', /Profile/],
   ] as const) {
     test(`How to use on ${path} shows that screen's steps`, async ({ page }) => {

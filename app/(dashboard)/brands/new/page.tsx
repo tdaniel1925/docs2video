@@ -369,7 +369,7 @@ export default function NewBrandPage() {
 
               {/* Brand Voice */}
               <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border)' }}>
-                <SectionHeader id="voice" title="Brand Voice & Tone" icon="&#128172;" />
+                <SectionHeader id="voice" title="Brand voice & tone" icon="&#128172;" />
                 {expandedSections.voice && (
                   <div style={{ padding: '12px 0 16px' }}>
                     {brandGuide.tone && (
@@ -379,7 +379,7 @@ export default function NewBrandPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                         {brandGuide.toneGuide.doSay?.length ? (
                           <div style={{ padding: 12, borderRadius: 10, background: 'rgba(52,211,153,0.08)' }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Do Say</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-darker)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Do say</div>
                             {brandGuide.toneGuide.doSay.map((s, i) => (
                               <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 4, paddingLeft: 12, position: 'relative' }}>
                                 <span style={{ position: 'absolute', left: 0, color: 'var(--mint-darker)' }}>+</span> {s}
@@ -389,7 +389,7 @@ export default function NewBrandPage() {
                         ) : null}
                         {brandGuide.toneGuide.dontSay?.length ? (
                           <div style={{ padding: 12, borderRadius: 10, background: 'rgba(239,68,68,0.06)' }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--error)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--error)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t say</div>
                             {brandGuide.toneGuide.dontSay.map((s, i) => (
                               <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 4, paddingLeft: 12, position: 'relative' }}>
                                 <span style={{ position: 'absolute', left: 0, color: 'var(--error)' }}>-</span> {s}
@@ -401,7 +401,7 @@ export default function NewBrandPage() {
                     )}
                     {brandGuide.toneGuide?.samplePosts?.length ? (
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Sample Posts</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Sample posts</div>
                         {brandGuide.toneGuide.samplePosts.map((post, i) => (
                           <div key={i} style={{
                             padding: 12, borderRadius: 10, background: 'var(--bg-soft)', marginBottom: 8,
@@ -800,7 +800,7 @@ export default function NewBrandPage() {
           </div>
 
           <div className="form-group">
-            <label className="input-label">Primary Color</label>
+            <label className="input-label">Primary color</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <label style={{ display: 'block', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
                 <div
@@ -895,7 +895,7 @@ export default function NewBrandPage() {
 
                 {/* Preview */}
                 <div className="brand-preview">
-                  <div className="brand-preview-label">Live Preview</div>
+                  <div className="brand-preview-label">Live preview</div>
                   <div className="preview-card-mini" style={{ borderRadius: 10, overflow: 'hidden' }}>
                     {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
                       <div key={key} className="pcm-row" style={{ background: value }}>

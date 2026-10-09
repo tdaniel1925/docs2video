@@ -206,7 +206,7 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
   {!followUpPlan && showFollowUpForm && (
     <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client Name</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client name</label>
         <input
           type="text"
           className="input"
@@ -217,7 +217,7 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
         />
       </div>
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client Email</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client email</label>
         <input
           type="email"
           className="input"

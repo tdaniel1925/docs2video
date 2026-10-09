@@ -142,8 +142,8 @@ export default function GeneratingPage() {
     return (
       <Workspace soFar={soFar}>
         <div className="s4-page">
-          <h1 className="s1-title">No video found</h1>
-          <p className="s1-lead">This page needs a video ID. The video creation may not have started properly.</p>
+          <h1 className="s1-title">Nothing to show here</h1>
+          <p className="s1-lead">This page didn’t get a project to show — it may not have started. Start again, or find it in your Library.</p>
           <div className="s4-buttons">
             <Button href="/create">Start over</Button>
             <Button href="/dashboard" variant="secondary">Home</Button>

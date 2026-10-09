@@ -1,23 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, Plug, UserRound, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
 import SmtpSetupModal from '../../_components/SmtpSetupModal'
 import InlineConfirm from '../../_components/InlineConfirm'
 import { useBrand } from '../../_components/BrandProvider'
-import BuyCreditsModal from '../../_components/BuyCreditsModal'
-import { SLIDE_STYLES } from '../../_lib/types'
 import type { Profile, Brand } from '../../_lib/types'
-import { PLANS, getUserTier, isSellablePlan, type PlanTier } from '../../_lib/pricing'
-import { TIER_CREDITS, TIER_APPROX_VIDEOS, CREDIT_COSTS } from '../../_lib/credits'
-import { CREDIT_PACKS, packPrice } from '../../_lib/credit-packs'
-import { NAMES, planName } from '../../_lib/names'
+import { NAMES } from '../../_lib/names'
 import { updatePassword, updateEmail } from '../../_actions/auth'
 import { useToast } from '../../_components/Toast'
 import { cleanWebLink } from '../../_lib/url-validate'
+import { Button, EmptyState, Note } from '../../_components/kit'
+import ViewAlertsSetting from '../activity/ViewAlertsSetting'
+import ApiKeysSection from './ApiKeysSection'
+import BillingSection from './BillingSection'
+import { sectionFromParams, type SectionId } from './account-sections'
+import s from './settings.module.css'
 
 // Plain-language text for the ?email_error= codes the connect flows return.
 function emailErrorText(code: string): string {
@@ -32,155 +32,31 @@ function emailErrorText(code: string): string {
   }
 }
 
-type SettingsTab = 'profile' | 'brand' | 'integrations' | 'subscription'
-
-// Text2Art's plan cards talk about designs, not videos, so they can't use the
-// Docs2Video feature list in pricing.ts. No prices here — those come from
-// PLANS for both storefronts.
-const TEXT2ART_PLAN_FEATURES: Record<PlanTier, string[]> = {
-  free: ['No monthly fee', 'Full print quality', 'Top up any time'],
-  starter: ['Top up any time', 'Full print quality'],
-  pro: ['Top up any time', 'Unlimited brands', 'API access'],
-  business: ['Top up any time', 'Every size and format', 'Priority support'],
-  enterprise: ['Top up any time', 'API access', 'Dedicated support'],
+/** Each section's heading and the line under it. */
+const SECTION_HEAD: Record<SectionId, { title: string; sub: string }> = {
+  profile: { title: 'Profile', sub: 'Your details, sign-in and photos.' },
+  billing: { title: 'Billing & credits', sub: 'Your plan, your credits and your invoices.' },
+  brand: { title: 'Brand kit', sub: 'The logo and colours put on everything you make.' },
+  email: { title: 'Email & sending', sub: 'How your projects reach clients, and what they can click.' },
+  social: { title: 'AI Social', sub: 'The social accounts AI Social posts to.' },
 }
 
-// The real affiliate program lives at /affiliate (Stripe promo-code based with
-// real commission tracking). This card just points there — the previous inline
-// /api/referrals system was a stale, incompatible parallel implementation that
-// showed a second, non-functional referral link + always-zero stats (audit fix).
-function ReferralSection() {
-  return (
-    <div className="settings-card">
-      <h3 style={{ marginBottom: 4 }}>Affiliate Program</h3>
-      <p className="ssub" style={{ margin: '0 0 16px' }}>Earn 20% recurring commission by referring others.</p>
-      <Link href="/affiliate" className="btn btn-primary">Open Affiliate Dashboard →</Link>
-    </div>
-  )
-}
-
-type ApiKey = { id: string; key_prefix: string; name: string | null; is_active: boolean; last_used_at: string | null; created_at: string }
-
-/** Self-serve API key management + MCP usage. A key lets the user (or an MCP
- *  client) drive the app via the API, spending their normal subscription credits. */
-function ApiKeysSection() {
-  const storefront = useBrand()
-  const [keys, setKeys] = useState<ApiKey[]>([])
-  const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [freshKey, setFreshKey] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const showToast = useToast()
-
-  const load = () => fetch('/api/keys').then(r => r.ok ? r.json() : { keys: [] }).then(d => { setKeys(d.keys ?? []); setLoading(false) }).catch(() => setLoading(false))
-  useEffect(() => { load() }, [])
-
-  async function createKey() {
-    setCreating(true)
-    try {
-      const r = await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim() || undefined }) })
-      const d = await r.json()
-      if (!r.ok) { showToast(d.error || 'Could not create key', 'error'); return }
-      setFreshKey(d.api_key); setNewName(''); load()
-    } finally { setCreating(false) }
-  }
-
-  async function revoke(id: string) {
-    const r = await fetch(`/api/keys?id=${id}`, { method: 'DELETE' })
-    if (r.ok) load(); else showToast('Could not revoke', 'error')
-  }
-
-  const activeKeys = keys.filter(k => k.is_active)
-
-  return (
-    <div className="settings-card">
-      <h3 style={{ marginBottom: 4 }}>API &amp; MCP</h3>
-      <p className="ssub" style={{ margin: '0 0 16px' }}>
-        {storefront.showVideoFeatures
-          ? 'Create an API key to build videos and commercials programmatically — from your own scripts or an AI assistant. Usage spends your normal credits.'
-          : 'Create an API key to make designs programmatically — from your own scripts or an AI assistant. Usage spends your normal credits.'}
-      </p>
-
-      {/* The freshly-created key — shown ONCE. */}
-      {freshKey && (
-        <div style={{ padding: '14px 16px', borderRadius: 10, background: 'rgba(199,232,168,0.18)', border: '1px solid var(--accent)', marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Your new key — copy it now, it won&apos;t be shown again:</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <code style={{ flex: 1, fontSize: 13, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'nowrap' }}>{freshKey}</code>
-            <button className="btn btn-sm btn-primary" onClick={() => { navigator.clipboard?.writeText(freshKey); setCopied(true); setTimeout(() => setCopied(false), 2000) }}>{copied ? 'Copied' : 'Copy'}</button>
-            <button className="btn btn-sm btn-soft" onClick={() => setFreshKey(null)}>Done</button>
-          </div>
-        </div>
-      )}
-
-      {/* Create */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <input className="input" placeholder="Key name (optional, e.g. 'MCP')" value={newName} onChange={e => setNewName(e.target.value)} style={{ flex: 1, maxWidth: 280 }} />
-        <button className="btn btn-primary" onClick={createKey} disabled={creating}>{creating ? 'Creating…' : 'Generate key'}</button>
-      </div>
-
-      {/* List */}
-      {loading ? <p className="ssub">Loading…</p> : activeKeys.length === 0 ? (
-        <p className="ssub">No keys yet.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {activeKeys.map(k => (
-            <div key={k.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-card)' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{k.name || 'Untitled key'}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)' }}><code>{k.key_prefix}…</code> · created {new Date(k.created_at).toLocaleDateString()} {k.last_used_at ? `· last used ${new Date(k.last_used_at).toLocaleDateString()}` : '· never used'}</div>
-              </div>
-              <button className="btn btn-sm btn-soft" onClick={() => revoke(k.id)}>Revoke</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* MCP usage hint */}
-      <details style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)' }}>Use it with an AI assistant (MCP)</summary>
-        <div style={{ marginTop: 8, lineHeight: 1.6 }}>
-          <p style={{ margin: '0 0 8px' }}>Point the MCP server at your key to make {storefront.showVideoFeatures ? 'videos and commercials' : 'designs'} from chat. For Claude Code:</p>
-          <code style={{ display: 'block', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'pre', fontSize: 12 }}>{`claude mcp add docs2video \\
-  -e DOCS2VIDEO_API_KEY=YOUR_KEY \\
-  -- node /path/to/mcp/server.mjs`}</code>
-          <p style={{ margin: '8px 0 0' }}>Base URL: <code>{typeof window !== 'undefined' ? window.location.origin : `https://${storefront.domain}`}</code>. See the mcp/README for the full tool list.
-          {!storefront.showVideoFeatures && ' The server and key are named after Docs2Video, which runs the accounts behind both sites — the key is yours either way.'}</p>
-        </div>
-      </details>
-    </div>
-  )
-}
-
+/*
+ * SETTINGS = THE ACCOUNT AREA (round B, 2026-10). The menu down the left is
+ * AccountShell (settings/layout.tsx); this page draws the section the address
+ * names (?tab=…, see account-sections.ts — the old ?tab=subscription and
+ * ?tab=integrations links still land in the right place).
+ */
 export default function SettingsPage() {
   // Which storefront this is (Docs2Video / Text2Art). NOT the customer's
   // brand kit, which is also called `brand` throughout this file.
   const storefront = useBrand()
+  const searchParams = useSearchParams()
+  const section = sectionFromParams((k) => searchParams.get(k), { showVideoFeatures: storefront.showVideoFeatures })
 
-  /**
-   * What a plan gets you, said in the units this storefront actually sells.
-   *
-   * "20 videos/mo" is meaningless to a Text2Art customer, who cannot make a
-   * video — it reads like they are on the wrong product. Credits are the real
-   * shared currency, so the graphics side is quoted in credits and in designs.
-   *
-   * Both numbers are DERIVED from TIER_CREDITS and the flyer credit cost, so
-   * they cannot drift away from what the account is actually given or charged.
-   */
-  const allowance = (tier: PlanTier) => {
-    const credits = TIER_CREDITS[tier]
-    if (storefront.showVideoFeatures) {
-      return tier === 'enterprise'
-        ? `${TIER_APPROX_VIDEOS[tier].standard} videos/mo + API`
-        : `${TIER_APPROX_VIDEOS[tier].standard} videos/mo included`
-    }
-    const designs = Math.floor(credits / CREDIT_COSTS.flyer)
-    return `${credits.toLocaleString()} credits/mo — about ${designs} designs`
-  }
-  const [tab, setTab] = useState<SettingsTab>('profile')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [brand, setBrand] = useState<Brand | null>(null)
+  const [brandsLoaded, setBrandsLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [photoUploading, setPhotoUploading] = useState<string | null>(null)
@@ -227,23 +103,11 @@ export default function SettingsPage() {
   const [paymentLink, setPaymentLink] = useState('')
   const [paymentLinkSaving, setPaymentLinkSaving] = useState(false)
   const [paymentLinkSaved, setPaymentLinkSaved] = useState(false)
-  const [creditBalance, setCreditBalance] = useState<number | null>(null)
-  const [showBuyCredits, setShowBuyCredits] = useState(false)
   const [calendlyUrl, setCalendlyUrl] = useState('')
   const [calendarProvider, setCalendarProvider] = useState<'calendly' | 'calcom' | 'google'>('calendly')
   const [calendarySaving, setCalendarySaving] = useState(false)
   const [calendarySaved, setCalendarySaved] = useState(false)
-  const [defaultStyle, setDefaultStyle] = useState('corporate-clean')
-  const [styleSaving, setStyleSaving] = useState(false)
-  const searchParams = useSearchParams()
   const notify = useToast()
-
-  useEffect(() => {
-    fetch('/api/credits/balance')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && typeof d.balance === 'number') setCreditBalance(d.balance) })
-      .catch(() => {})
-  }, [])
 
   useEffect(() => {
     async function load() {
@@ -255,10 +119,10 @@ export default function SettingsPage() {
         setProfile(p as Profile)
         setCalendlyUrl(p.calendly_url ?? '')
         setPaymentLink((p as any).payment_link_url ?? '')
-        setDefaultStyle(p.default_style ?? 'luxury')
       }
       const { data: brands } = await supabase.from('brands').select('*').eq('user_id', user.id).order('is_default', { ascending: false }).limit(1)
       if (brands && brands.length > 0) setBrand(brands[0] as Brand)
+      setBrandsLoaded(true)
       loadEmailConnections()
       loadSocialAccounts()
 
@@ -269,20 +133,22 @@ export default function SettingsPage() {
       }
     }
     load()
+    // Loaded ONCE. Moving between sections changes the address (?tab=…);
+    // re-loading then would wipe what someone has typed but not saved.
+  }, [])
 
+  useEffect(() => {
+    // The section itself comes from the address (sectionFromParams); these
+    // are the messages the connect flows bring back with them.
     if (searchParams.get('email_connected')) {
-      setEmailMessage(`Successfully connected ${searchParams.get('email_connected')}!`)
-      setTab('integrations')
+      setEmailMessage(`Connected ${searchParams.get('email_connected')}.`)
       setTimeout(() => setEmailMessage(null), 5000)
     }
     if (searchParams.get('email_error')) {
-      setEmailMessage(`Connection failed: ${emailErrorText(searchParams.get('email_error') || '')}`)
-      setTab('integrations')
+      setEmailMessage(`That didn’t connect: ${emailErrorText(searchParams.get('email_error') || '')}`)
     }
-    if (searchParams.get('tab') === 'integrations') setTab('integrations')
     if (searchParams.get('stripe_connected')) {
-      setStripeMessage('Stripe connected successfully!')
-      setTab('integrations')
+      setStripeMessage('Stripe is connected.')
       setTimeout(() => setStripeMessage(null), 5000)
     }
     // Back from an in-place plan change (no second subscription is created).
@@ -383,12 +249,12 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        setTestResults(prev => ({ ...prev, [connectionId]: { success: true, message: 'Test email sent successfully!' } }))
+        setTestResults(prev => ({ ...prev, [connectionId]: { success: true, message: 'Test email sent.' } }))
       } else {
-        setTestResults(prev => ({ ...prev, [connectionId]: { success: false, message: data.error ?? 'Test failed' } }))
+        setTestResults(prev => ({ ...prev, [connectionId]: { success: false, message: data.error ?? 'The test didn’t go through.' } }))
       }
     } catch {
-      setTestResults(prev => ({ ...prev, [connectionId]: { success: false, message: 'Network error' } }))
+      setTestResults(prev => ({ ...prev, [connectionId]: { success: false, message: 'Couldn’t reach the server. Check your connection.' } }))
     }
     setTestingConnection(null)
   }
@@ -518,26 +384,22 @@ export default function SettingsPage() {
     setTimeout(() => setPaymentLinkSaved(false), 3000)
   }
 
-  async function saveDefaultStyle(styleId: string) {
-    if (!profile) return
-    const previous = defaultStyle
-    setDefaultStyle(styleId)
-    setStyleSaving(true)
-    const supabase = createClient()
-    const { error } = await supabase.from('profiles').update({ default_style: styleId }).eq('id', profile.id)
-    setStyleSaving(false)
-    if (error) { setDefaultStyle(previous); notify('Could not save your default style. Please try again.', 'error') }
+  const head = SECTION_HEAD[section]
+  const header = (
+    <div className={s.head}>
+      <h1 className={s.title}>{head.title}</h1>
+      <p className={s.sub}>{head.sub}</p>
+    </div>
+  )
+
+  if (!profile) {
+    return (
+      <div className={s.page}>
+        {header}
+        <p className={s.loading}>Loading…</p>
+      </div>
+    )
   }
-
-  if (!profile) return <div style={{ color: 'var(--ink-light)', padding: 64, textAlign: 'center' }}>Loading...</div>
-
-  // Each tab carries its picture from the one icon set (lucide, 16px).
-  const tabs: { id: SettingsTab; label: string; Icon: LucideIcon }[] = [
-    { id: 'profile', label: 'Profile', Icon: UserRound },
-    // 'Style & Branding' tab removed per product decision (block kept in code).
-    { id: 'integrations', label: 'Integrations', Icon: Plug },
-    { id: 'subscription', label: 'Subscription', Icon: CreditCard },
-  ]
 
   const photoSlots = [
     { type: 'headshot', label: 'Headshot', url: profile.photo_url, required: true, shape: 'circle' as const },
@@ -546,63 +408,42 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div className="page-head">
-        <div>
-          <h1>Settings</h1>
-          <p>Manage your account, brand, and integrations.</p>
-        </div>
-        <Link href="/setup" className="btn btn-soft">Re-run Setup Wizard</Link>
-      </div>
+    <div className={s.page}>
+      {header}
 
-      {/* Tabs */}
-      <div className="settings-tabs">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`settings-tab${tab === t.id ? ' active' : ''}`}
-          >
-            <t.Icon size={16} />
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ===== PROFILE TAB ===== */}
-      {tab === 'profile' && (
+      {/* ===== PROFILE ===== */}
+      {section === 'profile' && (
         <div>
-          {/* Profile form */}
           <form onSubmit={handleProfileSubmit}>
             <div className="settings-card">
-              <h3>Personal Info</h3>
+              <h3>Your details</h3>
               <div className="form-group">
-                <label className="input-label">Email</label>
-                <input type="email" className="input" value={profile.email} readOnly style={{ opacity: 0.5 }} />
+                <label className="input-label" htmlFor="set-email">Email</label>
+                <input id="set-email" type="email" className="input" value={profile.email} readOnly style={{ opacity: 0.6 }} />
               </div>
               <div className="form-group">
-                <label className="input-label">Full Name</label>
-                <input name="full_name" type="text" className="input" defaultValue={profile.full_name ?? ''} />
+                <label className="input-label" htmlFor="set-name">Full name</label>
+                <input id="set-name" name="full_name" type="text" className="input" defaultValue={profile.full_name ?? ''} />
               </div>
               <div className="form-group">
-                <label className="input-label">Company Name</label>
-                <input name="company_name" type="text" className="input" defaultValue={profile.company_name ?? ''} />
+                <label className="input-label" htmlFor="set-company">Company name</label>
+                <input id="set-company" name="company_name" type="text" className="input" defaultValue={profile.company_name ?? ''} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className={s.twoCol}>
                 <div className="form-group">
-                  <label className="input-label">Phone</label>
-                  <input name="phone" type="tel" className="input" defaultValue={profile.phone ?? ''} />
+                  <label className="input-label" htmlFor="set-phone">Phone</label>
+                  <input id="set-phone" name="phone" type="tel" className="input" defaultValue={profile.phone ?? ''} />
                 </div>
                 <div className="form-group">
-                  <label className="input-label">Role</label>
-                  <select name="role" className="input-select" defaultValue={profile.role ?? ''}>
+                  <label className="input-label" htmlFor="set-role">Role</label>
+                  <select id="set-role" name="role" className="input-select" defaultValue={profile.role ?? ''}>
                     <option value="">Select</option>
-                    <option value="agent">Insurance Agent</option>
-                    <option value="agency_owner">Agency Owner</option>
+                    <option value="agent">Insurance agent</option>
+                    <option value="agency_owner">Agency owner</option>
                     <option value="broker">Broker</option>
-                    <option value="financial_advisor">Financial Advisor</option>
+                    <option value="financial_advisor">Financial advisor</option>
                     <option value="consultant">Consultant</option>
-                    <option value="real_estate">Real Estate</option>
+                    <option value="real_estate">Real estate</option>
                     <option value="healthcare">Healthcare</option>
                     <option value="legal">Legal</option>
                     <option value="educator">Educator</option>
@@ -611,12 +452,10 @@ export default function SettingsPage() {
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save changes'}
-                </button>
-                {success && <span style={{ fontSize: 13, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
-                {saveError && <span style={{ fontSize: 13, color: 'var(--error)', fontWeight: 600 }}>{saveError}</span>}
+              <div className={s.saveRow}>
+                <Button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save changes'}</Button>
+                {success && <span className={s.ok}>Saved!</span>}
+                {saveError && <span className={s.err}>{saveError}</span>}
               </div>
             </div>
           </form>
@@ -625,66 +464,49 @@ export default function SettingsPage() {
           <div className="settings-card">
             <h3>Security</h3>
             {securityMsg && (
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: securityMsg.kind === 'ok' ? 'var(--mint-darker)' : 'var(--error)' }}>
+              <div className={securityMsg.kind === 'ok' ? s.ok : s.err} style={{ marginBottom: 12 }}>
                 {securityMsg.text}
               </div>
             )}
             <form onSubmit={handleEmailChange} style={{ marginBottom: 20 }}>
               <div className="form-group">
-                <label className="input-label">Change email</label>
-                <input name="email" type="email" className="input" placeholder="new@email.com" defaultValue={profile.email} />
+                <label className="input-label" htmlFor="set-new-email">Change email</label>
+                <input id="set-new-email" name="email" type="email" className="input" placeholder="new@email.com" defaultValue={profile.email} />
               </div>
-              <button type="submit" className="btn btn-soft" disabled={securityBusy}>Update email</button>
+              <Button type="submit" variant="secondary" size="sm" disabled={securityBusy}>Update email</Button>
             </form>
             <form onSubmit={handlePasswordChange}>
               <div className="form-group">
-                <label className="input-label">Change password</label>
-                <input name="password" type="password" className="input" placeholder="New password (min 8 characters)" autoComplete="new-password" />
+                <label className="input-label" htmlFor="set-password">Change password</label>
+                <input id="set-password" name="password" type="password" className="input" placeholder="New password (min 8 characters)" autoComplete="new-password" />
               </div>
-              <button type="submit" className="btn btn-soft" disabled={securityBusy}>Update password</button>
+              <Button type="submit" variant="secondary" size="sm" disabled={securityBusy}>Update password</Button>
             </form>
           </div>
 
           {/* Photos — Docs2Video only; see note in brand.ts. */}
           {storefront.showVideoFeatures && (
           <div className="settings-card">
-            <h3>Profile Photos</h3>
-            <p className="ssub">These photos appear on your presentation slides and share pages.</p>
+            <h3>Profile photos</h3>
+            <p className="ssub">These appear on your presentation slides and share pages.</p>
             {uploadError && (
-              <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: 'var(--error-text)', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Note tone="stop" className={s.noteGap} action={<Button variant="quiet" size="sm" onClick={() => setUploadError(null)}>Close</Button>}>
                 {uploadError}
-                <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--error-text)', lineHeight: 1 }}>&times;</button>
-              </div>
+              </Note>
             )}
-            <Link href="/fix" style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, color: 'var(--mint-darker)', marginBottom: 8 }}>
-              Need to fix a photo? Try AI Photo Fixer &rarr;
-            </Link>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 16 }}>
+            <Link href="/fix" className={s.inlineLink}>Need to fix a photo? Try AI Photo Fixer &rarr;</Link>
+            <div className={s.photos}>
               {photoSlots.map(slot => (
-                <div key={slot.type} style={{ textAlign: 'center' }}>
+                <div key={slot.type} className={s.photo}>
                   {slot.url ? (
-                    <img src={slot.url} alt={slot.label} style={{
-                      width: 100, height: 100,
-                      borderRadius: slot.shape === 'circle' ? '50%' : 10,
-                      objectFit: 'cover', border: '2px solid var(--border-light)',
-                      display: 'block', margin: '0 auto 8px',
-                    }} />
+                    <img src={slot.url} alt={slot.label} className={s.photoImg} data-shape={slot.shape} />
                   ) : (
-                    <div style={{
-                      width: 100, height: 100,
-                      borderRadius: slot.shape === 'circle' ? '50%' : 10,
-                      border: '2px dashed var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      margin: '0 auto 8px', color: 'var(--ink-light)', fontSize: 12,
-                      background: 'var(--bg-soft)',
-                    }}>
-                      No photo
-                    </div>
+                    <div className={s.photoEmpty} data-shape={slot.shape}>No photo</div>
                   )}
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{slot.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-light)', marginBottom: 8 }}>{slot.required ? 'Required' : 'Optional'}</div>
+                  <div className={s.photoLabel}>{slot.label}</div>
+                  <div className={s.photoNeed}>{slot.required ? 'Required' : 'Optional'}</div>
                   <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer', display: 'inline-flex' }}>
-                    {photoUploading === slot.type ? 'Uploading...' : slot.url ? 'Change' : 'Upload'}
+                    {photoUploading === slot.type ? 'Uploading…' : slot.url ? 'Change' : 'Upload'}
                     <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f, slot.type) }} />
                   </label>
@@ -693,96 +515,288 @@ export default function SettingsPage() {
             </div>
           </div>
           )}
-        </div>
-      )}
 
-      {/* ===== BRAND & STYLE TAB ===== */}
-      {tab === 'brand' && (
-        <div>
-          {/* Brand/Logo */}
-          {brand && (
-            <div className="settings-card">
-              <h3>Your default brand</h3>
-              <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
-                This is applied automatically to everything you make. Manage additional brands on the <Link href="/brands" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>{NAMES.brands}</Link> page.
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16 }}>
-                {brand.logo_file_url || brand.logo_url ? (
-                  <img src={brand.logo_file_url ?? brand.logo_url!} alt="Logo"
-                    style={{ height: 56, width: 'auto', maxWidth: 160, borderRadius: 10, border: '1px solid var(--border)', objectFit: 'contain', padding: 6, background: 'white' }} />
-                ) : (
-                  <div style={{ width: 56, height: 56, borderRadius: 10, border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-light)', fontSize: 11 }}>No logo</div>
-                )}
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 4 }}>{brand.name}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
-                      {logoUploading ? 'Uploading...' : 'Change Logo'}
-                      <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" style={{ display: 'none' }}
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }} />
-                    </label>
-                    <Link href={`/brands/${brand.id}`} className="btn btn-soft btn-sm">Edit Colors</Link>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6 }}>Your logo can be added to any design — upload it under your photos when you make one.</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[brand.primary_color, brand.secondary_color, brand.accent_color, brand.background_color, brand.text_color].map((c, i) => (
-                  <div key={i} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: c?.toLowerCase() === '#ffffff' ? '1.5px solid var(--border)' : 'none' }} />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* API keys — both storefronts sell this. */}
+          <ApiKeysSection />
 
-          {/* Default Template */}
           <div className="settings-card">
-            <h3>Default Template</h3>
-            <p className="ssub">{storefront.showVideoFeatures ? 'This style is pre-selected when you create new presentations. You can always change it per project.' : 'This style is pre-selected when you start something new. You can always change it per project.'}</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 16 }}>
-              {SLIDE_STYLES.map(style => (
-                <div
-                  key={style.id}
-                  onClick={() => saveDefaultStyle(style.id)}
-                  style={{
-                    borderRadius: 10,
-                    overflow: 'hidden',
-                    border: defaultStyle === style.id ? '2px solid var(--ink)' : '1px solid var(--border-light)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    opacity: styleSaving ? 0.7 : 1,
-                  }}
-                >
-                  <img src={`/style-previews/${style.id}.png`} alt={style.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                  <div style={{ padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, fontWeight: defaultStyle === style.id ? 700 : 500, color: defaultStyle === style.id ? 'var(--ink)' : 'var(--ink-soft)' }}>
-                      {style.name} {defaultStyle === style.id && '✓'}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h3>Setup</h3>
+            <p className="ssub">Walk through the first-time setup again: your details, voice and look.</p>
+            <Button href="/setup" variant="secondary" size="sm">Run the setup again</Button>
+          </div>
+
+          {/* Delete account — plain words, at the bottom of Profile. Asks
+              twice; nothing is sent unless both answers are yes. */}
+          <div className={`settings-card ${s.delete}`}>
+            <h3>Delete account</h3>
+            <p className="ssub">This removes your account and everything in it for good. It can’t be undone.</p>
+            <button
+              type="button"
+              className={s.deleteBtn}
+              onClick={async () => {
+                if (!window.confirm(`Are you sure you want to delete your account? All your ${storefront.showVideoFeatures ? 'videos' : 'designs'}, brands, and data will be permanently removed. This cannot be undone.`)) return
+                if (!window.confirm('This is your final confirmation. Type OK in the next prompt to proceed.')) return
+                const res = await fetch('/api/account/delete', { method: 'POST' })
+                if (res.ok) {
+                  window.location.href = '/login?deleted=1'
+                } else {
+                  const data = await res.json()
+                  notify(data.error || 'Failed to delete account', 'error')
+                }
+              }}
+            >
+              Delete account
+            </button>
           </div>
         </div>
       )}
 
-      {/* ===== INTEGRATIONS TAB ===== */}
-      {tab === 'integrations' && (
-        <div>
-          {/* Social Accounts */}
-          <div className="settings-card">
-            <h3>Social Accounts</h3>
-            <p className="ssub">Connect your social media accounts to post directly from {storefront.name}.</p>
+      {/* ===== BILLING & CREDITS ===== */}
+      {section === 'billing' && <BillingSection profile={profile} />}
 
-            {socialError && (
-              <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 12, color: 'var(--error-text)', fontWeight: 600 }}>
-                {socialError}
+      {/* ===== BRAND KIT — your default brand; every brand lives on Brands ===== */}
+      {section === 'brand' && (
+        <div>
+          {uploadError && (
+            <Note tone="stop" className={s.noteGap} action={<Button variant="quiet" size="sm" onClick={() => setUploadError(null)}>Close</Button>}>
+              {uploadError}
+            </Note>
+          )}
+          {brand ? (
+            <div className="settings-card">
+              <h3>Your default brand</h3>
+              <p className="ssub">
+                Put on everything you make unless you pick another. All your brands are on the <Link href="/brands" className={s.inlineLink}>{NAMES.brands}</Link> page.
+              </p>
+              <div className={s.brandRow}>
+                {brand.logo_file_url || brand.logo_url ? (
+                  <img src={brand.logo_file_url ?? brand.logo_url!} alt="Logo" className={s.brandLogo} />
+                ) : (
+                  <div className={s.brandNoLogo}>No logo</div>
+                )}
+                <div>
+                  <div className={s.brandName}>{brand.name}</div>
+                  <div className={s.brandActions}>
+                    <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
+                      {logoUploading ? 'Uploading…' : 'Change logo'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" style={{ display: 'none' }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }} />
+                    </label>
+                    <Button href={`/brands/${brand.id}`} variant="secondary" size="sm">Edit colors</Button>
+                  </div>
+                </div>
+              </div>
+              <div className={s.swatches} aria-label="Brand colors">
+                {[brand.primary_color, brand.secondary_color, brand.accent_color, brand.background_color, brand.text_color].map((c, i) => (
+                  <span key={i} className={s.swatch} style={{ background: c ?? undefined }} />
+                ))}
+              </div>
+            </div>
+          ) : brandsLoaded ? (
+            <EmptyState
+              title="No brand yet."
+              actions={<Button href="/brands/new">{NAMES.newBrand}</Button>}
+            >
+              Save your logo and colours once and they go on everything you make.
+            </EmptyState>
+          ) : null}
+          <div className={s.manage}>
+            <Button href="/brands" variant="secondary" size="sm">See all {NAMES.brands.toLowerCase()}</Button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== EMAIL & SENDING — Docs2Video only (they attach to a share page) ===== */}
+      {section === 'email' && storefront.showVideoFeatures && (
+        <div>
+          <div className="settings-card">
+            <h3>Connected email</h3>
+            <p className="ssub">Send projects to clients from your own mailbox.</p>
+
+            {emailMessage && (
+              <Note tone={emailMessage.startsWith('That didn’t') ? 'stop' : 'ok'} className={s.noteGap}>{emailMessage}</Note>
+            )}
+
+            {emailConnections.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                {emailConnections.map((conn: any) => {
+                  const testResult = testResults[conn.id]
+                  const isTesting = testingConnection === conn.id
+                  const hasLastTest = conn.last_tested_at != null
+                  const lastTestOk = conn.last_test_success === true
+                  // Use the live test result if there is one, else the last stored result.
+                  const statusOk = testResult ? testResult.success : (hasLastTest ? lastTestOk : null)
+
+                  return (
+                    <div key={conn.id} className={s.row}>
+                      <div className={s.rowMain}>
+                        <span className={s.badge}>{conn.provider === 'microsoft' ? 'MS' : conn.provider === 'google' ? 'G' : 'SM'}</span>
+                        <div>
+                          <div className={s.rowTitle}>
+                            {conn.email_address}
+                            {statusOk !== null && (
+                              <span className={statusOk ? s.ok : s.err}>{statusOk ? 'Connected' : 'Not working'}</span>
+                            )}
+                          </div>
+                          <div className={s.rowSub}>{conn.provider === 'smtp' ? 'SMTP/IMAP' : conn.provider === 'google' ? 'Gmail' : 'Microsoft 365'}</div>
+                        </div>
+                      </div>
+                      <div className={s.rowActions}>
+                        <Button variant="secondary" size="sm" onClick={() => testEmailConnection(conn.id)} disabled={isTesting}>
+                          {isTesting ? 'Sending…' : 'Send a test email'}
+                        </Button>
+                        <InlineConfirm message="Disconnect?" confirmLabel="Yes" onConfirm={() => disconnectEmail(conn.id)}><button className="btn btn-danger btn-sm">Disconnect</button></InlineConfirm>
+                      </div>
+                      {testResult && (
+                        <div className={testResult.success ? s.ok : s.err} style={{ flexBasis: '100%' }}>{testResult.message}</div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
 
+            <div className={s.connectList}>
+              {oauthProviders.microsoft ? (
+                <a href="/api/auth/microsoft" className={`kit-card kit-card--link ${s.connect}`}>
+                  <span className={s.badge}>M</span>
+                  <span>
+                    <span className={s.rowTitle}>Microsoft 365 / Outlook</span>
+                    <span className={s.rowSub}>Sign in with Microsoft — one click</span>
+                  </span>
+                </a>
+              ) : (
+                // The server has no Outlook app registration, so the one-click
+                // button would only reach a Microsoft error page.
+                <div className={`${s.connect} ${s.connectOff}`}>
+                  <span className={s.badge}>M</span>
+                  <span>
+                    <span className={s.rowTitle}>Microsoft 365 / Outlook</span>
+                    <span className={s.rowSub}>One-click Outlook connect isn&apos;t available yet. Use SMTP below with smtp.office365.com.</span>
+                  </span>
+                </div>
+              )}
+              {oauthProviders.google && (
+                <a href="/api/auth/google" className={`kit-card kit-card--link ${s.connect}`}>
+                  <span className={s.badge}>G</span>
+                  <span>
+                    <span className={s.rowTitle}>Gmail / Google Workspace</span>
+                    <span className={s.rowSub}>Sign in with Google — send from your Gmail</span>
+                  </span>
+                </a>
+              )}
+              <button type="button" onClick={() => setShowSmtpModal(true)} className={`kit-card kit-card--link ${s.connect}`}>
+                <span className={s.badge}>SM</span>
+                <span>
+                  <span className={s.rowTitle}>SMTP / IMAP</span>
+                  <span className={s.rowSub}>Set it up by hand — any provider</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Booking link */}
+          <div className="settings-card">
+            <h3>Booking link</h3>
+            <p className="ssub">Clients can book a meeting from your share pages.</p>
+
+            <div style={{ marginBottom: 12 }}>
+              <span className="input-label" style={{ marginBottom: 6, display: 'block' }}>Where you take bookings</span>
+              <div className={s.pills}>
+                {([
+                  { id: 'calendly' as const, label: 'Calendly' },
+                  { id: 'calcom' as const, label: 'Cal.com' },
+                  { id: 'google' as const, label: 'Google Calendar' },
+                ]).map(p => (
+                  <Button
+                    key={p.id}
+                    size="sm"
+                    variant={calendarProvider === p.id ? 'primary' : 'secondary'}
+                    onClick={() => setCalendarProvider(p.id)}
+                    aria-pressed={calendarProvider === p.id}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Google Calendar has no direct connection yet — it takes a
+                booking page link, like the others. */}
+            <div className={s.inputRow}>
+              <input
+                value={calendlyUrl}
+                onChange={e => setCalendlyUrl(e.target.value)}
+                className="input"
+                aria-label="Booking link"
+                placeholder={calendarProvider === 'calendly' ? 'https://calendly.com/your-name/30min' : calendarProvider === 'google' ? 'https://calendar.app.google/…' : 'https://cal.com/your-name'}
+              />
+              <Button size="sm" onClick={saveCalendly} disabled={calendarySaving}>
+                {calendarySaving ? 'Saving…' : 'Save'}
+              </Button>
+              {calendarySaved && <span className={s.ok}>Saved!</span>}
+            </div>
+            <p className={s.hint}>
+              {calendarProvider === 'google'
+                ? 'In Google Calendar, create a booking page (Appointment schedule), copy its link, and paste it here.'
+                : 'Paste your booking link from Calendly, Cal.com, or any scheduling tool.'}
+            </p>
+          </div>
+
+          {/* Payment link — a Stripe Payment Link shown as "Pay" on share pages */}
+          <div className="settings-card">
+            <h3>Payment link</h3>
+            <p className="ssub">
+              Paste a Stripe Payment Link and your share pages show a <strong>Pay</strong> button.{' '}
+              <a href="https://dashboard.stripe.com/payment-links" target="_blank" rel="noopener noreferrer" className={s.inlineLink}>
+                Make one in Stripe →
+              </a>
+            </p>
+            {stripeMessage && <Note tone="ok" className={s.noteGap}>{stripeMessage}</Note>}
+            <div className="form-group">
+              <label className="input-label" htmlFor="set-pay">Stripe Payment Link</label>
+              <div className={s.inputRow}>
+                <input
+                  id="set-pay"
+                  className="input"
+                  type="url"
+                  value={paymentLink}
+                  onChange={e => setPaymentLink(e.target.value)}
+                  placeholder="https://buy.stripe.com/..."
+                />
+                <Button size="sm" onClick={savePaymentLink} disabled={paymentLinkSaving}>
+                  {paymentLinkSaving ? 'Saving…' : 'Save'}
+                </Button>
+                {paymentLinkSaved && <span className={s.ok}>Saved!</span>}
+              </div>
+              <p className={s.hint}>Leave it empty to hide the Pay button.</p>
+            </div>
+          </div>
+
+          {/* View alerts — the same setting as Activity → Notifications. */}
+          <ViewAlertsSetting />
+        </div>
+      )}
+
+      {/* ===== AI SOCIAL ===== */}
+      {section === 'social' && (
+        <div>
+          {!(profile as Profile & { social_addon_active?: boolean }).social_addon_active && (
+            <p className={s.slimNote}>
+              <strong>AI Social is an add-on.</strong> If you just added it, it switches on here within a minute.{' '}
+              <Link href="/social-media" className={s.inlineLink}>See what it does</Link>
+            </p>
+          )}
+          <div className="settings-card">
+            <h3>Social accounts</h3>
+            <p className="ssub">Connect the accounts AI Social posts to for you.</p>
+
+            {socialError && <Note tone="stop" className={s.noteGap}>{socialError}</Note>}
+
             {!socialConnected ? (
               <div>
-                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 10 }}>Connect each account you want to post to:</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <p className={s.hint} style={{ marginBottom: 10 }}>Connect each account you want to post to:</p>
+                <div className={s.pills}>
                   {(['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok'] as const).map((pl) => (
                     <button key={pl} className="btn btn-soft btn-sm" onClick={() => connectSocial(pl)} disabled={socialLoading} style={{ textTransform: 'capitalize' }}>
                       {socialLoading ? '…' : `Connect ${pl === 'twitter' ? 'X' : pl}`}
@@ -794,45 +808,35 @@ export default function SettingsPage() {
               <>
                 {socialPlatforms.length > 0 ? (
                   <div style={{ marginBottom: 16 }}>
-                    {socialPlatforms.map((p) => {
-                      const icons: Record<string, string> = { twitter: 'X', linkedin: 'in', facebook: 'f', instagram: 'IG', youtube: 'YT', tiktok: 'TT' }
-                      const colors: Record<string, string> = { twitter: '#000', linkedin: '#0077B5', facebook: '#1877F2', instagram: '#E4405F', youtube: '#FF0000', tiktok: '#000' }
-                      return (
-                        <div key={p.platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', marginBottom: 6 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${colors[p.platform] || '#666'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: colors[p.platform] || '#666' }}>
-                              {icons[p.platform] || p.platform[0].toUpperCase()}
-                            </div>
-                            <div>
-                              <span style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize' }}>{p.platform}</span>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#2d8a4e', marginLeft: 8 }}>
-                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2d8a4e', display: 'inline-block' }} />
-                                Connected
-                              </span>
-                            </div>
+                    {socialPlatforms.map((p) => (
+                      <div key={p.platform} className={s.row}>
+                        <div className={s.rowMain}>
+                          <span className={s.badge}>{({ twitter: 'X', linkedin: 'in', facebook: 'f', instagram: 'IG', youtube: 'YT', tiktok: 'TT' } as Record<string, string>)[p.platform] || p.platform[0].toUpperCase()}</span>
+                          <div className={s.rowTitle}>
+                            <span style={{ textTransform: 'capitalize' }}>{p.platform}</span>
+                            <span className={s.ok}>Connected</span>
                           </div>
-                          <InlineConfirm message="Disconnect?" confirmLabel="Yes" onConfirm={() => disconnectSocialPlatform(p.platform)}>
-                            <button className="btn btn-danger btn-sm">Disconnect</button>
-                          </InlineConfirm>
                         </div>
-                      )
-                    })}
+                        <InlineConfirm message="Disconnect?" confirmLabel="Yes" onConfirm={() => disconnectSocialPlatform(p.platform)}>
+                          <button className="btn btn-danger btn-sm">Disconnect</button>
+                        </InlineConfirm>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12 }}>Profile created. Click below to connect your social accounts.</p>
+                  <p className={s.hint} style={{ marginBottom: 12 }}>Your profile is ready. Connect your social accounts below.</p>
                 )}
-                <button className="btn btn-soft" onClick={() => connectSocial('twitter')} disabled={socialLoading}>
-                  {socialLoading ? 'Opening...' : 'Connect another account'}
-                </button>
+                <Button variant="secondary" onClick={() => connectSocial('twitter')} disabled={socialLoading}>
+                  {socialLoading ? 'Opening…' : 'Connect another account'}
+                </Button>
               </>
             )}
 
-            {/* Social Voice & Topics */}
             {socialConnected && (
-              <div style={{ marginTop: 20, borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
+              <div className={s.divider}>
                 <div className="form-group">
-                  <label className="input-label">Social Voice</label>
-                  <select className="input-select" value={socialVoice} onChange={e => setSocialVoice(e.target.value)}>
+                  <label className="input-label" htmlFor="set-voice">Social voice</label>
+                  <select id="set-voice" className="input-select" value={socialVoice} onChange={e => setSocialVoice(e.target.value)}>
                     <option value="professional">Professional</option>
                     <option value="casual">Casual</option>
                     <option value="witty">Witty</option>
@@ -841,431 +845,38 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="input-label">Content Topics</label>
+                  <label className="input-label" htmlFor="set-topics">What to post about</label>
                   <input
+                    id="set-topics"
                     className="input"
                     value={socialTopics}
                     onChange={e => setSocialTopics(e.target.value)}
                     placeholder="e.g. insurance tips, market trends, client success stories"
                   />
-                  <p style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>Comma-separated topics for AI content generation</p>
+                  <p className={s.hint}>Separate topics with commas.</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button className="btn btn-primary btn-sm" onClick={saveSocialSettings} disabled={socialSaving}>
-                    {socialSaving ? 'Saving...' : 'Save Social Settings'}
-                  </button>
-                  {socialSaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
+                <div className={s.saveRow}>
+                  <Button size="sm" onClick={saveSocialSettings} disabled={socialSaving}>
+                    {socialSaving ? 'Saving…' : 'Save'}
+                  </Button>
+                  {socialSaved && <span className={s.ok}>Saved!</span>}
                 </div>
               </div>
             )}
           </div>
-
-          {/* Email, payments and booking all attach to a SHARE PAGE, which
-              only the video product has. */}
-          {storefront.showVideoFeatures && (<>
-          <div className="settings-card">
-            <h3>Email Connections</h3>
-            <p className="ssub">Connect your email to send presentations directly to clients.</p>
-
-            {emailMessage && (
-              <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 14, fontWeight: 600, background: emailMessage.includes('failed') ? 'var(--error-bg)' : 'rgba(199,232,168,0.2)', color: emailMessage.includes('failed') ? 'var(--error)' : 'var(--mint-darker)' }}>
-                {emailMessage}
-              </div>
-            )}
-
-            {emailConnections.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                {emailConnections.map((conn: any) => {
-                  const testResult = testResults[conn.id]
-                  const isTesting = testingConnection === conn.id
-                  const hasLastTest = conn.last_tested_at != null
-                  const lastTestOk = conn.last_test_success === true
-                  // Determine status: use live test result if available, else use last stored result
-                  const statusOk = testResult ? testResult.success : (hasLastTest ? lastTestOk : null)
-
-                  return (
-                    <div key={conn.id} style={{ borderRadius: 10, border: '1px solid var(--border-light)', padding: '12px 16px', marginBottom: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: conn.provider === 'microsoft' ? 'rgba(74,144,217,0.15)' : conn.provider === 'google' ? 'rgba(234,67,53,0.12)' : 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: conn.provider === 'microsoft' ? '#4A90D9' : conn.provider === 'google' ? '#EA4335' : 'var(--ink-soft)' }}>
-                            {conn.provider === 'microsoft' ? 'MS' : conn.provider === 'google' ? 'G' : 'SM'}
-                          </div>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 13, fontWeight: 600 }}>{conn.email_address}</span>
-                              {statusOk !== null && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: statusOk ? 'var(--mint-darker)' : 'var(--error)' }}>
-                                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusOk ? '#2d8a4e' : 'var(--error)', display: 'inline-block' }} />
-                                  {statusOk ? 'Connected' : 'Error'}
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{conn.provider === 'smtp' ? 'SMTP/IMAP' : conn.provider === 'google' ? 'Gmail' : 'Microsoft 365'}</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            onClick={() => testEmailConnection(conn.id)}
-                            disabled={isTesting}
-                            className="btn btn-soft btn-sm"
-                          >
-                            {isTesting ? 'Sending...' : 'Send Test Email'}
-                          </button>
-                          <InlineConfirm message="Disconnect?" confirmLabel="Yes" onConfirm={() => disconnectEmail(conn.id)}><button className="btn btn-danger btn-sm">Disconnect</button></InlineConfirm>
-                        </div>
-                      </div>
-                      {testResult && (
-                        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: testResult.success ? 'var(--mint-darker)' : 'var(--error)' }}>
-                          {testResult.message}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {oauthProviders.microsoft ? (
-                <a href="/api/auth/microsoft" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(74,144,217,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#4A90D9' }}>M</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Microsoft 365 / Outlook</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>One-click OAuth setup</div>
-                  </div>
-                </a>
-              ) : (
-                // The server has no Outlook app registration, so the one-click
-                // button would only reach a Microsoft error page.
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px dashed var(--border-light)', padding: '14px 16px', color: 'var(--ink-light)' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>M</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>Microsoft 365 / Outlook</div>
-                    <div style={{ fontSize: 12 }}>One-click Outlook connect isn&apos;t available yet. Use SMTP below with smtp.office365.com.</div>
-                  </div>
-                </div>
-              )}
-              {oauthProviders.google && <a href="/api/auth/google" style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(234,67,53,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#EA4335' }}>G</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Gmail / Google Workspace</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Connect with OAuth — send from your Gmail</div>
-                </div>
-              </a>}
-              <button onClick={() => setShowSmtpModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 10, border: '1px solid var(--border-light)', padding: '14px 16px', background: 'none', cursor: 'pointer', color: 'var(--ink)', textAlign: 'left', width: '100%' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>SM</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>SMTP / IMAP</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>Manual setup — any provider</div>
-                </div>
-              </button>
-            </div>
+          <div className={s.manage}>
+            <Button href="/social-media" variant="secondary" size="sm">Open AI Social</Button>
           </div>
-
-          {/* Payments — Stripe Payment Link */}
-          <div className="settings-card">
-            <h3>Payment Link (Stripe)</h3>
-            <p className="ssub">
-              Paste a Stripe Payment Link. It appears on your share pages so recipients can pay you directly.
-              {' '}
-              <a href="https://dashboard.stripe.com/payment-links" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mint-darker)', fontWeight: 600 }}>
-                Create one in Stripe →
-              </a>
-            </p>
-
-            <div className="form-group">
-              <label className="input-label">Stripe Payment Link URL</label>
-              <input
-                className="input"
-                type="url"
-                value={paymentLink}
-                onChange={e => setPaymentLink(e.target.value)}
-                placeholder="https://buy.stripe.com/..."
-              />
-              <p style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
-                Leave blank to hide the “Pay” button on your share pages.
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button onClick={savePaymentLink} disabled={paymentLinkSaving} className="btn btn-primary btn-sm">
-                {paymentLinkSaving ? 'Saving…' : 'Save Payment Link'}
-              </button>
-              {paymentLinkSaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
-            </div>
-          </div>
-
-          {/* Calendar */}
-          <div className="settings-card">
-            <h3>Calendar Booking</h3>
-            <p className="ssub">Connect your scheduling tool so clients can book meetings from your share pages.</p>
-
-            <div style={{ marginBottom: 12 }}>
-              <label className="input-label" style={{ marginBottom: 6, display: 'block' }}>Provider</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {([
-                  { id: 'calendly' as const, label: 'Calendly' },
-                  { id: 'calcom' as const, label: 'Cal.com' },
-                  { id: 'google' as const, label: 'Google Calendar' },
-                ]).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setCalendarProvider(p.id)}
-                    className={`btn btn-sm ${calendarProvider === p.id ? 'btn-primary' : 'btn-soft'}`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Google Calendar has no direct connection yet (the old button
-                went through Google and saved nothing) — it takes a booking
-                page link, like the others. */}
-            {(
-              <div>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <input
-                    value={calendlyUrl}
-                    onChange={e => setCalendlyUrl(e.target.value)}
-                    className="input"
-                    placeholder={calendarProvider === 'calendly' ? 'https://calendly.com/your-name/30min' : calendarProvider === 'google' ? 'https://calendar.app.google/…' : 'https://cal.com/your-name'}
-                    style={{ flex: 1 }}
-                  />
-                  <button onClick={saveCalendly} disabled={calendarySaving} className="btn btn-primary btn-sm">
-                    {calendarySaving ? 'Saving...' : 'Save'}
-                  </button>
-                  {calendarySaved && <span style={{ fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600 }}>Saved!</span>}
-                </div>
-                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 8 }}>
-                  {calendarProvider === 'google'
-                    ? 'In Google Calendar, create a booking page (Appointment schedule), copy its link, and paste it here.'
-                    : 'Tip: Paste your booking link from Calendly, Cal.com, or any scheduling tool.'}
-                </p>
-              </div>
-            )}
-          </div>
-          </>)}
-
-          {/* API & MCP — self-serve key management. Both storefronts sell this. */}
-          <ApiKeysSection />
         </div>
       )}
-
-      {/* ===== SUBSCRIPTION TAB ===== */}
-      {tab === 'subscription' && (
-        <div>
-          {/* Credits & top-ups */}
-          <div className="settings-card">
-            <h3>Credits &amp; Top-Ups</h3>
-            <p className="ssub">Buy credit packs anytime. Credits never expire and are used after your monthly allotment.</p>
-            {/* Both storefronts bill through ONE Stripe account, so the name on
-                the statement is Docs2Video whichever site the customer bought
-                from. Said here plainly rather than discovered on a bank
-                statement, where an unrecognised name means a chargeback. Only
-                shown where it would be a surprise. */}
-            {storefront.id !== 'docs2video' && (
-              <p className="ssub" style={{ fontSize: 12, color: 'var(--ink-light)' }}>
-                Billing is handled by <strong>Docs2Video</strong> — that is the name that appears
-                on your card statement and on your receipts.
-              </p>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginTop: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Current balance</div>
-                <div style={{ fontSize: 28, fontWeight: 800 }}>
-                  {creditBalance === null ? '—' : creditBalance.toLocaleString()}<span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-light)' }}> credits</span>
-                </div>
-              </div>
-              <button className="btn btn-primary" onClick={() => setShowBuyCredits(true)}>Buy credits</button>
-            </div>
-            {/* Same packs, names and prices as the top-up window (credit-packs.ts). */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 16 }}>
-              {CREDIT_PACKS.map(p => (
-                <button key={p.key} onClick={() => setShowBuyCredits(true)}
-                  style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-soft)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <div style={{ fontWeight: 700 }}>{p.name} pack</div>
-                  <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{p.credits.toLocaleString()} credits</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4 }}>{packPrice(p)}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Current plan summary */}
-          <div className="settings-card">
-            <h3>Your Plan</h3>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div>
-                {/* The plan's name from pricing.ts via names.ts — the same
-                    words as the avatar menu. A hand-typed list here missed
-                    'agency', which showed Enterprise customers "Pay As You Go". */}
-                <div style={{ fontSize: 24, fontWeight: 800 }}>
-                  {planName(profile.subscription_status)}
-                </div>
-                <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4 }}>
-                  {(() => {
-                    const s = profile.subscription_status?.toLowerCase() ?? ''
-                    if (s === 'past_due') return 'Your last payment did not go through. Update your card under Manage billing.'
-                    // Described in whatever this storefront actually sells. A
-                    // Text2Art customer cannot make videos, so "20 videos/mo"
-                    // tells them nothing about what they are paying for.
-                    const tier = getUserTier(s)
-                    return tier === 'free' ? 'Free credits to start, then top up as you need them' : allowance(tier)
-                  })()}
-                </div>
-              </div>
-              {(profile as any).stripe_customer_id && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={async () => {
-                    const res = await fetch('/api/stripe/portal', { method: 'POST' })
-                    const data = await res.json()
-                    if (data.url) window.location.href = data.url
-                  }} className="btn btn-soft">Manage billing &amp; invoices</button>
-                  {(() => {
-                    const s = profile.subscription_status?.toLowerCase() ?? ''
-                    const paidStatuses = ['active', 'starter', 'pro', 'professional', 'business', 'agency', 'enterprise', 'enterprise-plus', 'enterprise_plus', 'past_due']
-                    return paidStatuses.includes(s) ? (
-                      <button onClick={async () => {
-                        const res = await fetch('/api/stripe/portal', { method: 'POST' })
-                        const data = await res.json()
-                        if (data.url) window.location.href = data.url
-                      }} className="btn btn-soft" style={{ color: 'var(--error)' }}>Cancel subscription</button>
-                    ) : null
-                  })()}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Pricing tiers */}
-          <div className="settings-card">
-            <h3>Plans</h3>
-            <p className="ssub">Choose the plan that fits your needs. Upgrade or downgrade anytime.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginTop: 16 }}>
-              {/* Every card is built from pricing.ts — name, price and (on
-                  Docs2Video) the feature list the pricing page shows. The
-                  prices used to be typed here by hand. Starter is retired,
-                  so only free + the plans checkout sells get a card. */}
-              {PLANS.filter(p => p.tier === 'free' || isSellablePlan(p.tier)).map(p => {
-                const plan = {
-                  tier: p.tier,
-                  label: p.label,
-                  period: p.monthlyPrice > 0 ? '/mo' : '',
-                  highlight: storefront.showVideoFeatures && p.tier === 'free'
-                    ? `${TIER_CREDITS.free.toLocaleString()} free credits (~${TIER_APPROX_VIDEOS.free.standard} videos), one time`
-                    : allowance(p.tier),
-                  // The allowance line is already the highlight above, so it
-                  // is not repeated in the list.
-                  features: storefront.showVideoFeatures
-                    ? p.features.filter(f => !/^[\d,]+ (free )?credits/.test(f))
-                    : TEXT2ART_PLAN_FEATURES[p.tier],
-                }
-                const currentTier = getUserTier(profile.subscription_status ?? null)
-                const isCurrent = currentTier === plan.tier
-
-                return (
-                  <div key={plan.tier} style={{
-                    padding: '20px 16px', borderRadius: 10, textAlign: 'center', position: 'relative',
-                    background: isCurrent ? 'rgba(168,240,212,0.1)' : 'white',
-                    border: isCurrent ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
-                  }}>
-                    {isCurrent && (
-                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: 'var(--ink)', fontSize: 10, fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
-                        CURRENT PLAN
-                      </div>
-                    )}
-                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, marginTop: 4 }}>{plan.label}</div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
-                      {/* Price driven from pricing.ts (audit L5) so the displayed
-                          amount can't drift from the canonical source. */}
-                      <span style={{ fontSize: 28, fontWeight: 800 }}>{`$${Math.round(p.monthlyPrice / 100)}`}</span>
-                      {plan.period && <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{plan.period}</span>}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-darker)', marginBottom: 12 }}>
-                      {plan.highlight}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16, textAlign: 'left' }}>
-                      {plan.features.map(f => (
-                        <div key={f} style={{ padding: '3px 0' }}>&#10003; {f}</div>
-                      ))}
-                    </div>
-                    {isCurrent ? (
-                      <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                        Current Plan
-                      </div>
-                    ) : plan.tier === 'free' ? (
-                      (profile as any).stripe_customer_id ? (
-                        <button onClick={async () => {
-                          const res = await fetch('/api/stripe/portal', { method: 'POST' })
-                          const data = await res.json()
-                          if (data.url) window.location.href = data.url
-                        }} className="btn btn-soft" style={{ width: '100%', fontSize: 13 }}>
-                          Downgrade
-                        </button>
-                      ) : (
-                        <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-soft)', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}>
-                          Default
-                        </div>
-                      )
-                    ) : (
-                      <button onClick={async () => {
-                        const res = await fetch('/api/subscribe', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ tier: plan.tier }),
-                        })
-                        const data = await res.json().catch(() => ({}))
-                        // url = Stripe Checkout, the billing portal, or back
-                        // here after an in-place plan change.
-                        if (data.url) window.location.href = data.url
-                        else notify(data.error || 'Could not change your plan. Please try again.', 'error')
-                      }} className="btn btn-primary" style={{ width: '100%', fontSize: 13 }}>
-                        {currentTier !== 'free' ? `Switch to ${plan.label}` : `Subscribe to ${plan.label}`}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Affiliate program — functional referral section */}
-          <ReferralSection />
-        </div>
-      )}
-
-      {/* ===== DANGER ZONE ===== */}
-      <div className="settings-card" style={{ marginTop: 40, border: '1px solid var(--error-border)' }}>
-        <h3 style={{ color: 'var(--error)' }}>Danger Zone</h3>
-        <p className="ssub">Permanently delete your account and all associated data. This action cannot be undone.</p>
-        <button
-          className="btn"
-          style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none', marginTop: 8 }}
-          onClick={async () => {
-            if (!window.confirm(`Are you sure you want to delete your account? All your ${storefront.showVideoFeatures ? 'videos' : 'designs'}, brands, and data will be permanently removed. This cannot be undone.`)) return
-            if (!window.confirm('This is your final confirmation. Type OK in the next prompt to proceed.')) return
-            const res = await fetch('/api/account/delete', { method: 'POST' })
-            if (res.ok) {
-              window.location.href = '/login?deleted=1'
-            } else {
-              const data = await res.json()
-              notify(data.error || 'Failed to delete account', 'error')
-            }
-          }}
-        >
-          Delete Account
-        </button>
-      </div>
 
       {/* SMTP Modal */}
       {showSmtpModal && (
         <SmtpSetupModal
           onClose={() => setShowSmtpModal(false)}
-          onConnected={() => { setShowSmtpModal(false); loadEmailConnections(); setEmailMessage('SMTP connected!'); setTimeout(() => setEmailMessage(null), 5000) }}
+          onConnected={() => { setShowSmtpModal(false); loadEmailConnections(); setEmailMessage('SMTP connected.'); setTimeout(() => setEmailMessage(null), 5000) }}
         />
       )}
-
-      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
     </div>
   )
 }

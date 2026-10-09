@@ -21,11 +21,14 @@ export function topBarWords(brand: Brand): string[] {
  * (planLabel in names.ts) and Sign out at the bottom.
  */
 export const ACCOUNT_MENU: { href: string; label: string; addOnBadge?: boolean; adminOnly?: boolean }[] = [
+  // Round B: shortcuts into the account area (settings/account-sections.ts),
+  // which has every one of these in its own menu too.
+  { href: '/settings', label: 'Settings' },
+  { href: '/settings?tab=billing', label: 'Billing & credits' },
   { href: '/analytics', label: 'Analytics' },
   // AI Social is a paid add-on; without it the page explains the add-on.
   { href: '/social-media', label: 'AI Social', addOnBadge: true },
-  { href: '/affiliate', label: 'Affiliate Program' },
-  { href: '/settings', label: 'Settings' },
+  { href: '/affiliate', label: 'Affiliate' },
   { href: '/help', label: 'Help Center' },
   { href: '/admin', label: 'Admin', adminOnly: true },
 ]

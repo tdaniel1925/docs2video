@@ -61,7 +61,7 @@ describe('library tabs', () => {
     expect(kindOfOutput(null)).toBe('video')
   })
 
-  it('has Videos, Presentations, Slide Decks and Custom Graphics tabs, kept in the address', () => {
+  it('has Videos, Presentations, Slide decks and Custom Graphics tabs, kept in the address', () => {
     const page = code('app/(dashboard)/videos/page.tsx')
     for (const kind of ['video', 'presentation', 'deck', 'graphic'] as const) {
       expect(page).toMatch(new RegExp(`kind: '${kind}', label: KIND_NAMES\\.${kind}\\.many`))

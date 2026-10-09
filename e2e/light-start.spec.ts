@@ -113,9 +113,9 @@ test.describe('help knows the screen', () => {
 test.describe('375 wide (phone)', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  test('help is in the ☰ menu, not floating over a start card', async ({ page }) => {
+  test('help is in the ☰ menu, not floating over a start tile', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page.getByRole('heading', { name: 'Start something new' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Create', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Help', exact: true })).toBeHidden()
     await page.getByRole('button', { name: 'Menu', exact: true }).click()
     await page.getByRole('navigation', { name: 'Phone menu' }).getByRole('button', { name: 'Ask the help assistant' }).click()

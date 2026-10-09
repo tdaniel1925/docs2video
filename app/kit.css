@@ -125,12 +125,9 @@
   border-radius: 10px;
   color: var(--ink);
 }
-/* A whole card that is one link (start cards). The edge darkens on hover. */
-.kit-card--link {
-  text-decoration: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.kit-card--link:hover { border-color: var(--ink); box-shadow: var(--shadow-sm); }
+/* A whole card that is one link. Its hover (lift + accent edge) is with the
+   other round-B feedback rules at the end of this file. */
+.kit-card--link { text-decoration: none; }
 .kit-card-icon {
   display: inline-flex;
   align-items: center;
@@ -496,4 +493,162 @@
   .kit-focusbar-steps { gap: 6px; }
   .kit-focusbar-help { display: block; }
   .kit-focusbar .kit-icon-btn { width: 36px; height: 36px; }
+}
+
+/* =============================================================================
+   ROUND B (2026-10) — feedback every screen gets, the account area, the
+   small grey section labels.
+   ============================================================================= */
+
+/* ── Hover: a card you can click lifts a little and its edge turns the
+   accent (VidWiz's feel). Only cards that ARE links/buttons — a form card
+   that moved under the mouse would feel broken. ─────────────────────────── */
+.kit-card--link,
+a.card,
+.kit-tile {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.kit-card--link:hover,
+a.card:hover,
+.kit-tile:hover {
+  border-color: var(--accent-ink);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.kit-choice:hover { border-color: var(--accent-ink); }
+.kit-tab:not([aria-selected='true']):not([aria-current='page']):hover { border-color: var(--accent-ink); }
+
+/* ── Focus: one visible ring for the keyboard on everything you can press,
+   the old .btn classes and plain links included. Mouse clicks don't show it
+   (:focus-visible). Text boxes keep their own border and get the ring too. */
+:where(a, button, summary, select, [role='button'], [role='tab'], [role='menuitem'], [tabindex]:not([tabindex='-1'])):focus-visible,
+.btn:focus-visible,
+.kit-tile:focus-visible,
+.kit-account-link:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+.input:focus-visible,
+.input-select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 1px;
+}
+
+/* Nothing slides or lifts for people who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .kit-card--link, a.card, .kit-tile, .kit-btn, .btn, .btn-primary, .kit-choice, .kit-account-link {
+    transition: none !important;
+  }
+  .kit-card--link:hover, a.card:hover, .kit-tile:hover, .btn-primary:hover, .btn:hover {
+    transform: none !important;
+  }
+}
+
+/* ── Section label — small grey capitals over a group ("CREATE",
+   "TODAY'S CLIENTS", "RECENT"). Grey, not green: colour is for actions. ── */
+.kit-label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+
+/* ── Tile — a compact one-line start choice (icon · title · one line). ──── */
+.kit-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.kit-tile-icon {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.kit-tile-body { display: flex; flex-direction: column; min-width: 0; }
+.kit-tile-title { font-size: 15px; font-weight: 800; line-height: 1.3; color: var(--ink); }
+.kit-tile-text { font-size: 13.5px; line-height: 1.4; color: var(--ink-soft); }
+
+/* ── The account area: menu left, section right (VidWiz). Phones: the menu
+   is one row you swipe sideways, above the section. ────────────────────── */
+.kit-account {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+.kit-account-menu { position: sticky; top: 24px; }
+.kit-account-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.kit-account-title { padding: 0 12px; }
+.kit-account-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.kit-account-link:hover { background: var(--surface); color: var(--ink); }
+.kit-account-link[aria-current='page'] {
+  background: var(--bg-card);
+  border-left-color: var(--accent-ink);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+.kit-account-link[aria-current='page'] svg { color: var(--accent-ink); }
+.kit-account-body { min-width: 0; }
+/* Cards inside the account area are a little lighter than the old 36px. */
+.kit-account-body .settings-card { padding: 24px; }
+.kit-account-body .settings-card h3 { font-size: 18px; margin-bottom: 4px; letter-spacing: -0.01em; }
+.kit-account-body .settings-card .ssub { margin-bottom: 18px; }
+
+@media (max-width: 900px) {
+  .kit-account { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .kit-account-menu {
+    position: static;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .kit-account-menu::-webkit-scrollbar { display: none; }
+  .kit-account-title { display: none; }
+  .kit-account-menu ul { flex-direction: row; gap: 4px; width: max-content; }
+  .kit-account-link {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 8px 8px 0 0;
+    font-size: 14px;
+  }
+  .kit-account-link[aria-current='page'] { border-bottom-color: var(--accent-ink); box-shadow: none; background: transparent; }
+  .kit-account-body .settings-card { padding: 18px; }
+}
+.kit-account-body .settings-card h3 + .form-group,
+.kit-account-body .settings-card h3 + div { margin-top: 12px; }
+@media (max-width: 520px) {
+  .kit-tile-icon { width: 32px; height: 32px; }
 }

@@ -58,8 +58,9 @@ test.describe('Subscription — management (Settings UI)', () => {
     await page.goto('/settings?tab=subscription')
   })
 
-  test('subscription tab shows the current plan', async ({ page }) => {
-    await expect(page.getByText(/plan|subscription/i).first()).toBeVisible({ timeout: 10000 })
+  test('the old subscription link opens Billing & credits with the current plan', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Billing & credits', level: 1 })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: 'Current plan' })).toBeVisible()
   })
 
   test('subscription tab exposes a billing action (manage / upgrade / top-up)', async ({ page }) => {

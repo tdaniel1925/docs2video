@@ -150,7 +150,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
         Attach pricing. Your client sees it on their page with a payment button.
       </p>
       <button onClick={() => setShowQuoteBuilder(true)} className="btn btn-primary">
-        Add Quote &rarr;
+        Add a quote &rarr;
       </button>
     </div>
   )}
@@ -273,7 +273,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
   {showQuoteBuilder && (
     <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client Name</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client name</label>
         <input
           type="text"
           className="input"
@@ -284,7 +284,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
         />
       </div>
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client Email</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client email</label>
         <input
           type="email"
           className="input"
@@ -296,7 +296,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Line Items</label>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Line items</label>
         {quoteLineItems.map((item, i) => (
           <div key={i} style={{
             display: 'flex',
@@ -382,7 +382,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
           className="btn btn-primary"
           style={quoteSaving ? { opacity: 0.6 } : undefined}
         >
-          {quoteSaving ? 'Saving...' : 'Save Quote'}
+          {quoteSaving ? 'Saving...' : 'Save quote'}
         </button>
         <button
           onClick={() => setShowQuoteBuilder(false)}

@@ -163,8 +163,8 @@ export default function ClientsPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-soft btn-sm" onClick={handleExport}>Export CSV</button>
-          <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(!showImport); setShowAddForm(false) }}>Import CSV</button>
-          <button className="btn btn-primary btn-sm" onClick={() => { setShowAddForm(!showAddForm); setShowImport(false) }}>Add Client</button>
+          <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(!showImport); setShowAddForm(false) }}>Import a CSV file</button>
+          <button className="btn btn-primary btn-sm" onClick={() => { setShowAddForm(!showAddForm); setShowImport(false) }}>Add a client</button>
         </div>
       </div>
 
@@ -180,11 +180,11 @@ export default function ClientsPage() {
         </div>
         <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
           <div className="stat-value">{engagedThisWeek}</div>
-          <div className="stat-label">Engaged This Week</div>
+          <div className="stat-label">Engaged this week</div>
         </div>
         <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
           <div className="stat-value">${(totalRevenue / 100).toLocaleString()}</div>
-          <div className="stat-label">Total Revenue</div>
+          <div className="stat-label">Total revenue</div>
         </div>
       </div>
 
@@ -203,7 +203,7 @@ export default function ClientsPage() {
       {/* Add Client Form */}
       {showAddForm && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3>Add New Client</h3>
+          <h3>Add a client</h3>
           <form onSubmit={handleAddClient}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
@@ -229,7 +229,7 @@ export default function ClientsPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Save Client'}
+                {submitting ? 'Saving...' : 'Save client'}
               </button>
               <button type="button" className="btn btn-soft btn-sm" onClick={() => setShowAddForm(false)}>Cancel</button>
             </div>
@@ -237,7 +237,7 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Import CSV */}
+      {/* Import a CSV file */}
       {showImport && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <h3>Import Clients from CSV</h3>

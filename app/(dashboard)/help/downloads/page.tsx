@@ -11,12 +11,12 @@ export default function DownloadsHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Downloads & Formats</span>
+        <span>Downloads & formats</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Downloads & Formats</h1>
+          <h1>Downloads & formats</h1>
           <p>Every finished project has a <strong>Download</strong> menu at the top of its page. It lists only the files that project really has — here is what each one gives you.</p>
         </div>
       </div>

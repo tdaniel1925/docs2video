@@ -36,12 +36,12 @@ export default function SocialSharingHelpPage() {
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Social Posts & AI Social</span>
+        <span>Social posts & AI Social</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Social Posts & AI Social</h1>
+          <h1>Social posts & AI Social</h1>
           <p>Two ways to get your videos onto social media: free copy-and-paste posts, or the AI Social add-on that posts for you.</p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function SocialSharingHelpPage() {
             <strong style={INK}>Open AI Social.</strong> Click your name (top-right) to open the account menu and choose <strong style={INK}>AI Social</strong>. If you don&rsquo;t have the add-on yet, you&rsquo;ll see what it includes and an <strong style={INK}>Add AI Social — $50/mo</strong> button that takes you to checkout.
           </Step>
           <Step n={2}>
-            <strong style={INK}>Connect your accounts.</strong> After subscribing, click <strong style={INK}>Connect Social Accounts in Settings</strong>. This opens <strong style={INK}>Settings &gt; Integrations</strong>, where you connect each social account.
+            <strong style={INK}>Connect your accounts.</strong> After subscribing, click <strong style={INK}>Connect Social Accounts in Settings</strong>. This opens <strong style={INK}>Settings &gt; AI Social</strong>, where you connect each social account.
           </Step>
           <Step n={3}>
             <strong style={INK}>Set up your voice.</strong> Back in AI Social, the <strong style={INK}>Brand &amp; Setup</strong> tab lets you pick a tone (professional, casual, and so on), the topics you post about, and how often to post (daily, 3 times a week, or weekly).
@@ -105,7 +105,7 @@ export default function SocialSharingHelpPage() {
             Every completed video has its own share page at <strong style={INK}>docs2video.com/watch/[id]</strong>. On the video page, press <strong style={INK}>or copy the link</strong> (under the Send button) and paste it anywhere — email, text message, or any social site.
           </p>
           <p>
-            To email it to a client instead, use the send panel at the top of the video page and press <strong style={INK}>Send to</strong> your client. See <Link href="/help/sharing-videos" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Sharing & the Client Page</Link> for what they see when they open it.
+            To email it to a client instead, use the send panel at the top of the video page and press <strong style={INK}>Send to</strong> your client. See <Link href="/help/sharing-videos" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Sharing & the client page</Link> for what they see when they open it.
           </p>
         </div>
       </div>

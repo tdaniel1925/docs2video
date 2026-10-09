@@ -34,16 +34,17 @@ test('greeting follows the viewer’s own clock', async ({ page }) => {
   await expect(page.getByText(/^(Let’s make your first project\.|\d+ clients? needs? you today\.|Nobody is waiting on you right now\.)$/)).toBeVisible()
 })
 
-test('the start cards come first, and each opens step 1 with its source already chosen', async ({ page }) => {
+test('the Create tiles come first, and each opens step 1 with its source already chosen', async ({ page }) => {
   await page.goto('/dashboard')
-  const start = page.getByRole('region', { name: 'Start something new' })
-  await expect(start.getByRole('link')).toHaveCount(5) // four cards + "Paste your text"
+  const start = page.getByRole('region', { name: 'Create' })
+  // Six compact tiles (round B): document, website, idea, paste, commercial, brand.
+  await expect(start.getByRole('listitem')).toHaveCount(6)
   // Order on the page: start cards, then today's clients (when any), then projects.
   const y = async (name: string) => {
     const h = page.getByRole('heading', { name, exact: true })
     return (await h.count()) ? (await h.boundingBox())?.y ?? null : null
   }
-  const [startY, todayY, projectsY] = [await y('Start something new'), await y('Today’s clients'), await y('Projects')]
+  const [startY, todayY, projectsY] = [await y('Create'), await y('Today’s clients'), await y('Recent')]
   if (todayY != null) expect(todayY).toBeGreaterThan(startY!)
   if (projectsY != null) expect(projectsY).toBeGreaterThan(todayY ?? startY!)
   // The old right-hand box is gone (the cards replace it).
@@ -70,7 +71,11 @@ test('the start cards come first, and each opens step 1 with its source already 
   await page.goto('/dashboard')
   await start.getByRole('link', { name: /^A commercial/ }).click()
   await expect(page).toHaveURL(/\/create\/commercial$/)
-  await expect(page.getByRole('heading', { name: 'Create a Commercial' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Make a commercial' })).toBeVisible()
+
+  await page.goto('/dashboard')
+  await start.getByRole('link', { name: /^Your brand/ }).click()
+  await expect(page).toHaveURL(/\/brands$/)
 })
 
 test('step 1 without ?source starts with nothing picked', async ({ page }) => {
@@ -85,8 +90,9 @@ test('This month shows the real credit balance and links to plans', async ({ pag
   const bal = await (await page.request.get('/api/credits/balance')).json()
   const box = page.locator('div', { has: page.getByRole('heading', { name: 'This month' }) }).last()
   await expect(box.getByText('Credits left').locator('..')).toContainText(Number(bal.balance).toLocaleString('en-US'))
-  await box.getByRole('link', { name: 'Plans & credits' }).click()
-  await expect(page).toHaveURL(/\/pricing$/)
+  await box.getByRole('link', { name: 'Billing & credits' }).click()
+  await expect(page).toHaveURL(/\/settings\?tab=billing$/)
+  await expect(page.getByRole('heading', { name: 'Billing & credits', level: 1 })).toBeVisible()
 })
 
 test('every project row opens its project, and "See all" opens the library', async ({ page }) => {
@@ -157,7 +163,8 @@ test('banners, when shown, lead to the right place', async ({ page }) => {
   }
   const plan = page.getByRole('link', { name: /^(Choose a plan|Upgrade)$/ })
   if (await plan.count()) {
-    await expect(page.getByText(/^(Out of credits\.|Free credits:)/)).toBeVisible()
+    // Round B: a slim line beside the Create label, not a blue bar.
+    await expect(page.getByText(/(Out of credits\.|free credits left)/)).toBeVisible()
     await plan.click()
     await expect(page).toHaveURL(/\/pricing/)
   }

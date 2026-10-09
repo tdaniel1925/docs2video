@@ -97,7 +97,7 @@ export default function BrandGuidePage() {
         </div>
 
         {/* Visual Identity */}
-        <SectionTitle>Visual Identity</SectionTitle>
+        <SectionTitle>Visual identity</SectionTitle>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
           <ColorSwatch color={brand.primary_color} label="Primary" />
           <ColorSwatch color={brand.secondary_color} label="Secondary" />
@@ -121,7 +121,7 @@ export default function BrandGuidePage() {
         )}
 
         {/* Brand Voice */}
-        <SectionTitle>Brand Voice</SectionTitle>
+        <SectionTitle>Brand voice</SectionTitle>
         {brand.tone && (
           <p style={{ fontSize: 14, marginBottom: 12 }}>Voice: <strong style={{ textTransform: 'capitalize' }}>{brand.tone}</strong></p>
         )}
@@ -133,7 +133,7 @@ export default function BrandGuidePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             {toneGuide.doSay?.length ? (
               <div style={{ padding: 14, borderRadius: 10, background: 'rgba(52,211,153,0.08)' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--mint-darker)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Do Say</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--mint-darker)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Do say</div>
                 {toneGuide.doSay.map((s, i) => (
                   <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 5, paddingLeft: 14, position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 0, color: 'var(--mint-darker)', fontWeight: 700 }}>+</span> {s}
@@ -143,7 +143,7 @@ export default function BrandGuidePage() {
             ) : null}
             {toneGuide.dontSay?.length ? (
               <div style={{ padding: 14, borderRadius: 10, background: 'rgba(239,68,68,0.06)' }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--error)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t Say</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--error)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Don&apos;t say</div>
                 {toneGuide.dontSay.map((s, i) => (
                   <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 5, paddingLeft: 14, position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 0, color: 'var(--error)', fontWeight: 700 }}>-</span> {s}
@@ -156,7 +156,7 @@ export default function BrandGuidePage() {
 
         {toneGuide?.samplePosts?.length ? (
           <>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Sample Posts</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Sample posts</div>
             {toneGuide.samplePosts.map((post, i) => (
               <div key={i} style={{
                 padding: 14, borderRadius: 10, background: 'var(--bg-soft)', marginBottom: 8,
@@ -170,7 +170,7 @@ export default function BrandGuidePage() {
 
         {socialMediaBio && (
           <>
-            <div style={{ fontSize: 13, fontWeight: 700, marginTop: 16, marginBottom: 8 }}>Suggested Social Bio</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginTop: 16, marginBottom: 8 }}>Suggested social bio</div>
             <div style={{ padding: 14, borderRadius: 10, background: 'var(--bg-soft)', fontSize: 13.5, color: 'var(--ink)', lineHeight: 1.5 }}>
               {socialMediaBio}
             </div>
@@ -178,11 +178,11 @@ export default function BrandGuidePage() {
         )}
 
         {/* Content Strategy */}
-        <SectionTitle>Content Strategy</SectionTitle>
+        <SectionTitle>Content strategy</SectionTitle>
 
         {brand.content_themes?.length > 0 && (
           <>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Content Themes</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Content themes</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
               {brand.content_themes.map((t, i) => <Pill key={i} text={t} />)}
             </div>
@@ -207,7 +207,7 @@ export default function BrandGuidePage() {
 
         {brand.unique_selling_points?.length > 0 && (
           <>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Unique Selling Points</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Unique selling points</div>
             {brand.unique_selling_points.map((u, i) => (
               <div key={i} style={{ fontSize: 13.5, color: 'var(--ink-soft)', marginBottom: 6, paddingLeft: 20, position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 0, fontWeight: 700 }}>{i + 1}.</span> {u}
@@ -219,7 +219,7 @@ export default function BrandGuidePage() {
         {/* Services */}
         {brand.services?.length > 0 && (
           <>
-            <SectionTitle>Services / Products</SectionTitle>
+            <SectionTitle>Services / products</SectionTitle>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {brand.services.map((s, i) => <Pill key={i} text={s} />)}
             </div>
@@ -229,7 +229,7 @@ export default function BrandGuidePage() {
         {/* Core Values */}
         {brand.brand_values?.length > 0 && (
           <>
-            <SectionTitle>Core Values</SectionTitle>
+            <SectionTitle>Core values</SectionTitle>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {brand.brand_values.map((v, i) => <Pill key={i} text={v} />)}
             </div>
@@ -239,7 +239,7 @@ export default function BrandGuidePage() {
         {/* Social Links */}
         {brand.social_links && Object.keys(brand.social_links).length > 0 && (
           <>
-            <SectionTitle>Social Media</SectionTitle>
+            <SectionTitle>Social media</SectionTitle>
             {Object.entries(brand.social_links).map(([platform, url]) => (
               <div key={platform} style={{ fontSize: 13.5, marginBottom: 6 }}>
                 <strong style={{ textTransform: 'capitalize' }}>{platform}:</strong>{' '}
@@ -252,7 +252,7 @@ export default function BrandGuidePage() {
         {/* Competitor Notes */}
         {brand.competitor_notes && (
           <>
-            <SectionTitle>Positioning Notes</SectionTitle>
+            <SectionTitle>Positioning notes</SectionTitle>
             <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{brand.competitor_notes}</p>
           </>
         )}

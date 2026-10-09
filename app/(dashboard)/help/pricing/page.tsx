@@ -208,7 +208,7 @@ export default function PricingHelpPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
             }}>2</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Find the Subscription section.</strong> Your current plan and credit balance are displayed.
+              <strong style={{ color: 'var(--ink)' }}>Choose Billing &amp; credits in the menu on the left.</strong> Three boxes show your plan, your credits and what you used this period.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>

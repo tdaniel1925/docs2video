@@ -332,7 +332,7 @@ export default function ClientDetailPage() {
                 <button className="btn btn-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text)', border: '1px solid var(--error-border)' }} onClick={() => setConfirmDelete(true)}>Delete</button>
               ) : (
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn btn-sm" style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none' }} onClick={handleDelete}>Confirm Delete</button>
+                  <button className="btn btn-sm" style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none' }} onClick={handleDelete}>Yes, delete</button>
                   <button className="btn btn-soft btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
                 </div>
               )}
@@ -368,7 +368,7 @@ export default function ClientDetailPage() {
       ) : (
         /* Edit form */
         <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3>Edit Client</h3>
+          <h3>Edit client</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label className="input-label">Name *</label>
@@ -406,7 +406,7 @@ export default function ClientDetailPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button className="btn btn-primary btn-sm" onClick={saveEdit}>Save Changes</button>
+            <button className="btn btn-primary btn-sm" onClick={saveEdit}>Save changes</button>
             <button className="btn btn-soft btn-sm" onClick={() => setEditing(false)}>Cancel</button>
           </div>
         </div>
@@ -431,7 +431,7 @@ export default function ClientDetailPage() {
         <div>
           {/* Add Note form */}
           <div className="settings-card" style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14 }}>Add Note</h3>
+            <h3 style={{ fontSize: 14 }}>Add note</h3>
             <div className="form-group">
               <input
                 className="input"
@@ -489,7 +489,7 @@ export default function ClientDetailPage() {
         <div>
           <div style={{ marginBottom: 16 }}>
             <Link href={`/create/client?clientId=${clientId}`} className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
-              Create Video for This Client
+              Make a video for this client
             </Link>
           </div>
           {videos.length === 0 ? (
@@ -572,7 +572,7 @@ export default function ClientDetailPage() {
           ) : (
             <>
               <div style={{ marginBottom: 16, fontSize: 15, fontWeight: 700 }}>
-                Total Revenue: ${quotes.filter(q => q.status === 'paid').reduce((s, q) => s + q.total, 0).toLocaleString()}
+                Total revenue: ${quotes.filter(q => q.status === 'paid').reduce((s, q) => s + q.total, 0).toLocaleString()}
               </div>
               {quotes.map(q => (
                 <div key={q.id} className="activity-row" style={{
