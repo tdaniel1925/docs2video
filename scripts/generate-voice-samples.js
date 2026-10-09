@@ -1,7 +1,7 @@
 /**
  * Generate voice sample MP3 files for the wizard voice picker.
  * Run: node scripts/generate-voice-samples.js
- * Requires OPENAI_API_KEY in .env.local
+ * Requires FAL_KEY in .env.local (solo samples); the podcast sample still uses OPENAI_API_KEY
  */
 const fs = require('fs')
 const path = require('path')
@@ -22,26 +22,25 @@ const SAMPLE_TEXT = "Welcome to your personalized video overview. We've analyzed
 const VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
 const OUT_DIR = path.join(__dirname, '..', 'public', 'samples')
 
+// Solo samples (step 3 voice picker plays /samples/solo-<id>.mp3). Since
+// 2026-10-09 every voice is spoken by fal.ai (render-service/fal-tts.js —
+// the same voice map + loudness the finished videos use), so the sample is
+// what the customer will hear. --force regenerates existing files.
 async function generateSoloSamples() {
+  const { falSpeak } = require('../render-service/fal-tts.js')
+  const { speakable } = require('../render-service/slides.js')
   fs.mkdirSync(OUT_DIR, { recursive: true })
-
+  const force = process.argv.includes('--force')
   for (const voice of VOICES) {
     const outFile = path.join(OUT_DIR, `solo-${voice}.mp3`)
-    if (fs.existsSync(outFile)) {
-      console.log(`Skip ${voice} (exists)`)
+    if (fs.existsSync(outFile) && !force) {
+      console.log(`Skip ${voice} (exists — pass --force to remake)`)
       continue
     }
     console.log(`Generating ${voice}...`)
-    const resp = await openai.audio.speech.create({
-      model: 'tts-1-hd',
-      voice,
-      input: SAMPLE_TEXT,
-      response_format: 'mp3',
-      speed: 0.95,
-    })
-    const buf = Buffer.from(await resp.arrayBuffer())
-    fs.writeFileSync(outFile, buf)
-    console.log(`  Saved ${outFile} (${(buf.length / 1024).toFixed(0)}KB)`)
+    const r = await falSpeak(speakable(SAMPLE_TEXT), { voiceId: voice })
+    fs.writeFileSync(outFile, r.audio)
+    console.log(`  Saved ${outFile} (${(r.audio.length / 1024).toFixed(0)}KB, fal voice ${r.voice}, ${r.ms}ms)`)
   }
 }
 

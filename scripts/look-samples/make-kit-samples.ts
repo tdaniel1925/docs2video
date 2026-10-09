@@ -6,7 +6,7 @@
 // Renders, LOCALLY, three full videos with the real production code path:
 //   plan:   .shots/kit/plans/<story>.json — written by kit-plan-try.ts with
 //           the REAL Claude planner (run that first)
-//   voice:  render-service/slides.js ttsTimed (ElevenLabs, word timings),
+//   voice:  render-service/slides.js ttsTimed (fal first since 2026-10-09, word timings),
 //           cached in .shots/kit/vo-cache so re-runs cost nothing
 //   prep:   render-service/kit.js prepareKitPlan (what /generate-kit runs)
 //   render: KitVideo, files served from a local web server as `assetBase`
@@ -38,7 +38,12 @@ import { contactSheet } from './kit-sheet.mjs'
 
 const ROOT = path.resolve(__dirname, '..', '..')
 const REMOTION_DIR = path.join(ROOT, 'remotion')
-const OUT = path.join(ROOT, '.shots', 'kit')
+// --out=<dir under the repo> renders somewhere else (e.g. .shots/fal-voice) with its own
+// voice cache; the plans are always read from .shots/kit/plans and the step-3
+// card pictures are only rewritten for the default folder.
+const OUT_ARG = (process.argv.find((a) => a.startsWith('--out=')) || '').slice(6)
+const OUT = OUT_ARG ? path.resolve(ROOT, OUT_ARG) : path.join(ROOT, '.shots', 'kit')
+const PLANS = path.join(ROOT, '.shots', 'kit', 'plans')
 const WORK = path.join(OUT, 'work')
 const VO_CACHE = path.join(OUT, 'vo-cache')
 const FIX = path.join(REMOTION_DIR, 'qa-public', 'kit-qa')
@@ -47,7 +52,7 @@ const reqRoot = createRequire(path.join(ROOT, 'package.json'))
 
 for (const line of fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split(/\r?\n/)) {
   const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim())
-  if (m && /^(ELEVENLABS_|OPENAI_API_KEY)/.test(m[1]) && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
+  if (m && /^(ELEVENLABS_|OPENAI_API_KEY|FAL_KEY)/.test(m[1]) && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const slides: any = reqRoot(path.join(ROOT, 'render-service/slides.js'))
@@ -71,7 +76,7 @@ const JOBS: Job[] = [
 ]
 
 // Voice, cached by text: same story in two looks = one set of voice calls.
-// The real services first (ElevenLabs, then OpenAI — slides.ttsTimed). When
+// The real services first (fal, then ElevenLabs, then OpenAI — slides.ttsTimed). When
 // both refuse (2026-10-09: ElevenLabs "payment_required", OpenAI "no credits"),
 // Windows' built-in voice reads the line instead, free, with word timings
 // estimated from the text (the same estimate the OpenAI path uses).
@@ -141,7 +146,7 @@ function serve(dir: string): Promise<{ url: string; close: () => void }> {
 }
 
 async function prepare(job: Job): Promise<{ plan: KitPlan; timeline: { starts: number[]; durations: number[]; voFrames: number[]; cut: number; total: number }; dirName: string }> {
-  const planned = JSON.parse(fs.readFileSync(path.join(OUT, 'plans', `${job.story.id}.json`), 'utf8')) as { scenes: KitScene[] }
+  const planned = JSON.parse(fs.readFileSync(path.join(PLANS, `${job.story.id}.json`), 'utf8')) as { scenes: KitScene[] }
   const s = job.story
   const base = assembleKitPlan({
     title: s.beats[0].title, scenes: planned.scenes, look: job.look, brandName: s.brandName,
@@ -227,7 +232,7 @@ async function main() {
     await contactSheet(path.join(OUT, `${job.id}-motion.png`), motion, 6, 320)
 
     // Step-3 card pictures from the insurance story (the made-up Rivera family).
-    if (job.story.id === 'insurance' || job.id === 'bakery-bright') {
+    if (!OUT_ARG && (job.story.id === 'insurance' || job.id === 'bakery-bright')) {
       const sharp = reqRoot('sharp')
       const pick = { cover: plan.scenes.findIndex((s) => s.type === 'title'), data: plan.scenes.findIndex((s) => s.type === 'bignumber'), closing: plan.scenes.findIndex((s) => s.type === 'cta') }
       for (const [kind, idx] of Object.entries(pick)) {

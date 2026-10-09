@@ -81,7 +81,7 @@ if (invoked) {
     const files = fs.readdirSync(assetDir)
     const mf = files.find((f) => f === 'music.mp3')
     if (mf) { musicFile = path.join(assetDir, mf); musicSec = ffprobeDur(musicFile) }
-    voFiles = files.filter((f) => /^(dv|ax|bm|sv|cm|il|sc|pz|ih|bx)-\d+\.mp3$/.test(f)).map((f) => path.join(assetDir, f))
+    voFiles = files.filter((f) => /^(dv|ax|bm|sv|cm|il|sc|pz|ih|bx|vo)-\d+\.mp3$/.test(f)).map((f) => path.join(assetDir, f))
   }
   if (args.music) musicSec = parseFloat(args.music)
   const r = preflight({ src, assetDir, musicFile, voFiles, videoSec, musicSec })
