@@ -1,5 +1,7 @@
 import { AbsoluteFill, Series, Sequence, Audio, Img, useCurrentFrame, interpolate, Easing, spring, useVideoConfig } from 'remotion'
 import { staticFile, setAssetBase } from '../lib/asset'
+import { DuckedMusic } from '../lib/musicbed'
+import { sceneVoiceWindows } from '../lib/audio'
 import type { V3Props, V3Scene } from './schema'
 import { FullScreenScene, type Placement } from './FullScreenScene'
 import { SlidePanelScene } from './SlidePanelScene'
@@ -127,7 +129,7 @@ const ColdOpen: React.FC<{ text: string; theme: Theme & { logo?: LogoSource }; p
   )
 }
 
-export const V3Video: React.FC<V3Props & { logoChip?: boolean; assetBase?: string }> = ({ assetBase, theme, scenes, music, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop, frame, recipient }) => {
+export const V3Video: React.FC<V3Props & { logoChip?: boolean; assetBase?: string }> = ({ assetBase, theme, scenes, music, musicFrames, logo, logoChip, brandName, presenter, presenterOnCover, presenterOnClosing, look, backdrop, frame, recipient }) => {
   setAssetBase(assetBase)
   const total = scenes.reduce((s, sc) => s + sc.durationInFrames, 0) + COLD_OPEN_FRAMES
   const openText = brandName || presenter?.name || scenes[0]?.title || ''
@@ -226,7 +228,8 @@ export const V3Video: React.FC<V3Props & { logoChip?: boolean; assetBase?: strin
       ) : null}
 
       {music ? (
-        <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.04, 0.04, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
+        // Looped to the whole video and ducked under the voice (0.20 / 0.08).
+        <DuckedMusic src={music} musicFrames={musicFrames} windows={sceneVoiceWindows(scenes, openText ? COLD_OPEN_FRAMES : 0)} />
       ) : null}
       {logo ? <LogoWatermark logo={logo as LogoSource} theme={theme} chip={logoChip} corner="bottom-right" height={96} opacity={0.92} /> : null}
     </AbsoluteFill>

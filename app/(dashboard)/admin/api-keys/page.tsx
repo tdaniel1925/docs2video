@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Chip } from '../../../_components/kit'
+import { useConfirm } from '../_components/useConfirm'
 
 interface ApiKeyRow {
   id: string
@@ -13,6 +15,8 @@ interface ApiKeyRow {
   created_at: string
   email: string | null
   api_balance: number
+  /** The Jordyn platform's partner key — revoking it stops Jordyn. */
+  is_partner?: boolean
 }
 
 export default function AdminApiKeysPage() {
@@ -25,6 +29,21 @@ export default function AdminApiKeysPage() {
   const [topupEmail, setTopupEmail] = useState('')
   const [topupAmount, setTopupAmount] = useState('')
   const [msg, setMsg] = useState('')
+  const [ask, confirmDialog] = useConfirm()
+
+  async function revoke(k: ApiKeyRow) {
+    const r = await ask({
+      title: `Revoke the key ${k.key_prefix}…${k.name ? ` (${k.name})` : ''}?`,
+      body: 'Anything using this key stops working straight away. It can’t be switched back on — you would have to make a new key and send it to them.',
+      warning: k.is_partner ? <><b>This is the Jordyn partner key.</b> Revoking it stops Jordyn making videos for ALL of its customers until a new key is put into Jordyn.</> : undefined,
+      danger: true,
+      typeToConfirm: k.is_partner ? 'JORDYN' : undefined,
+      confirmLabel: 'Revoke key',
+    })
+    if (!r.ok) return
+    const res = await act({ action: 'revoke', keyId: k.id })
+    if (res?.ok) load()
+  }
 
   async function load() {
     const res = await fetch('/api/admin/api-keys')
@@ -91,6 +110,7 @@ export default function AdminApiKeysPage() {
           <input className="input" type="number" placeholder="Credits to add" value={topupAmount} onChange={e => setTopupAmount(e.target.value)} style={{ marginBottom: 8, width: '100%' }} />
           <button className="btn btn-sm btn-primary" disabled={busy || !topupEmail || !topupAmount}
             onClick={async () => {
+              if (!(await ask({ title: `Add ${Number(topupAmount).toLocaleString('en-US')} API credits to ${topupEmail.trim()}?`, body: 'They are free for that account and are saved in the audit log.', confirmLabel: 'Add credits' })).ok) return
               const r = await act({ action: 'topup', email: topupEmail.trim(), amount: Number(topupAmount) })
               if (r?.ok) { setTopupEmail(''); setTopupAmount(''); setMsg('Credits added.'); load() }
             }}>Add credits</button>
@@ -116,7 +136,7 @@ export default function AdminApiKeysPage() {
               <tr key={k.id} style={{ borderBottom: '1px solid var(--border-light)', opacity: k.is_active ? 1 : 0.5 }}>
                 <td style={{ padding: 10 }}>{k.email || k.user_id.slice(0, 8)}</td>
                 <td style={{ padding: 10, fontFamily: 'monospace' }}>{k.key_prefix}…</td>
-                <td style={{ padding: 10 }}>{k.name || '—'}</td>
+                <td style={{ padding: 10 }}>{k.name || '—'}{k.is_partner && <> <Chip tone="warn">Partner</Chip></>}</td>
                 <td style={{ padding: 10 }}>{k.api_balance}</td>
                 <td style={{ padding: 10 }}>{fmt(k.last_used_at)}</td>
                 <td style={{ padding: 10 }}>
@@ -125,7 +145,7 @@ export default function AdminApiKeysPage() {
                 <td style={{ padding: 10 }}>
                   {k.is_active && (
                     <button className="btn btn-sm btn-soft" disabled={busy}
-                      onClick={async () => { const r = await act({ action: 'revoke', keyId: k.id }); if (r?.ok) load() }}>Revoke</button>
+                      onClick={() => revoke(k)}>Revoke</button>
                   )}
                 </td>
               </tr>
@@ -133,6 +153,7 @@ export default function AdminApiKeysPage() {
           </tbody>
         </table>
       </div>
+      {confirmDialog}
     </div>
   )
 }

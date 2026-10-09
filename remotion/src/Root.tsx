@@ -736,13 +736,8 @@ export const RemotionRoot: React.FC = () => {
         if (Array.isArray(passedInfo?.scenes) && passedInfo.scenes.length > 0 && ((props as any).__preview === true || passedInfo.scenes.some((s: any) => s?.audio))) {
           return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
-        try {
-          const res = await fetch(staticFile('infographic.json'))
-          if (res.ok) {
-            const data = (await res.json()) as InfographicProps
-            return { props: data, durationInFrames: infoTotal(data), fps: FPS, width: 1920, height: 1080 }
-          }
-        } catch {}
+        // No fallback to public/infographic.json: that file is whatever video was
+        // made last on the box (someone else's content). No real scenes → placeholder.
         return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />
@@ -765,14 +760,8 @@ export const RemotionRoot: React.FC = () => {
         if (passed && Array.isArray(passed.scenes) && passed.scenes.length > 0) {
           return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
-        // Fallback: read the editorial.json written to public/ (legacy path).
-        try {
-          const res = await fetch(staticFile('editorial.json'))
-          if (res.ok) {
-            const data = (await res.json()) as EditorialProps
-            return { props: data, durationInFrames: editorialTotal(data), fps: FPS, width: 1920, height: 1080 }
-          }
-        } catch {}
+        // No fallback to public/editorial.json: that file is whatever video was
+        // made last on the box (someone else's content). No real scenes → placeholder.
         return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />
@@ -799,13 +788,8 @@ export const RemotionRoot: React.FC = () => {
         if (Array.isArray(passedV3?.scenes) && passedV3.scenes.length > 0 && ((props as any).__preview === true || passedV3.scenes.some((s: any) => s?.audio))) {
           return { props, durationInFrames: v3Total(props), fps: FPS, width: 1920, height: 1080 }
         }
-        try {
-          const res = await fetch(staticFile('v3.json'))
-          if (res.ok) {
-            const data = (await res.json()) as V3Props
-            return { props: data, durationInFrames: v3Total(data), fps: FPS, width: 1920, height: 1080 }
-          }
-        } catch {}
+        // No fallback to public/v3.json: that file is whatever video was made
+        // last on the box (someone else's content). No real scenes → placeholder.
         return { props, durationInFrames: v3Total(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />

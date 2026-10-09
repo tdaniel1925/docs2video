@@ -5,7 +5,8 @@ import { checkCredits, deductCredits } from '../../_lib/credits'
 import { creditDeniedResponse } from '../../_lib/credit-charge'
 import { presentationCreditCost } from '../../_lib/price-quote'
 import { refundPresentationCharge } from '../../_lib/video-billing'
-import { buildShareColumns } from '../../_lib/wizard-draft'
+import { buildShareColumns, normalizeDetailLevel } from '../../_lib/wizard-draft'
+import { storyTooBigMessage } from '../../_lib/length-limits'
 import { logError } from '../../_lib/error-logger'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from '../../_lib/presentation'
@@ -68,6 +69,12 @@ export async function POST(request: NextRequest) {
   let scenes = (draft.scenes ?? []) as PresentationScene[]
   if (!Array.isArray(scenes) || scenes.length === 0) {
     return NextResponse.json({ error: 'No scenes yet — finish the script step first.' }, { status: 400 })
+  }
+  // SCENE CAP (audit 2026-10-09): the saved scenes come from the browser; they
+  // may not be bigger than the length chosen on the Story step. Before any charge.
+  {
+    const tooBig = storyTooBigMessage(scenes, normalizeDetailLevel(draft.detailLevel) ?? 'standard')
+    if (tooBig) return NextResponse.json({ error: tooBig, code: 'story_too_long' }, { status: 400 })
   }
 
   // ── COMPLIANCE: same hard rule as every other engine — a regulated

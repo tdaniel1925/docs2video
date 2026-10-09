@@ -68,7 +68,8 @@ describe('customer website boxes and the routes behind them', () => {
   })
 
   it('the routes clean the address before using it', () => {
-    for (const r of ['extract-url', 'brand-from-url', 'reference-url', 'scrape-brand', 'generate-commercial', 'generate-slides', 'try-demo']) {
+    // ('reference-url' was retired 2026-10-09 — no caller, uncapped AI.)
+    for (const r of ['extract-url', 'brand-from-url', 'scrape-brand', 'generate-commercial', 'generate-slides', 'try-demo']) {
       expect(read(`app/api/${r}/route.ts`), r).toMatch(/normalizeUrl\(/)
     }
     // generate-commercial cleans it BEFORE the "does this site exist?" check.

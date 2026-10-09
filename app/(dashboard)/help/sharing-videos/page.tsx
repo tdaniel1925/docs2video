@@ -91,13 +91,16 @@ export default function SharingVideosPage() {
             <strong style={INK}>Download Original PDF</strong> — Only if you turned on <strong style={INK}>Let them download the original PDF</strong> on step 3 (The look). This is the only download on the page; your client cannot download the video, slides or PowerPoint.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Email &amp; sending</strong> (account menu, top-right). The link must be a full web address starting with <em>https://</em>, or the button won&rsquo;t appear. For Google Calendar, paste the link of a Google <strong style={INK}>booking page</strong> (an &ldquo;Appointment schedule&rdquo;) — Google Calendar can&rsquo;t be connected directly.
+            <strong style={INK}>The next step</strong> — Under the video your client always sees one clear thing to do. With a booking link it is <strong style={INK}>Book a call with</strong> you. Without one it is <strong style={INK}>Reply to</strong> you (a short message form that lands in your email), plus <strong style={INK}>Call</strong> you when your phone number is in your profile.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Book a call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Email &amp; sending</strong> (account menu, top-right). The link must be a full web address starting with <em>https://</em>, or the button won&rsquo;t appear. For Google Calendar, paste the link of a Google <strong style={INK}>booking page</strong> (an &ldquo;Appointment schedule&rdquo;) — Google Calendar can&rsquo;t be connected directly.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Ask a question</strong> — On interactive presentations, your client can send you a question from the last slide. It arrives in your email.
           </p>
           <p>
-            <strong style={INK}>Branding</strong> — A small &ldquo;Powered by Docs2Video&rdquo; line appears at the top and bottom of the page. On the <strong style={INK}>Business</strong> and <strong style={INK}>Enterprise</strong> plans it is removed (white-label).
+            <strong style={INK}>Branding</strong> — A small &ldquo;Powered by Docs2Video&rdquo; line appears once, at the bottom of the page. On the <strong style={INK}>Business</strong> and <strong style={INK}>Enterprise</strong> plans it is removed (white-label). Your client never sees a cookie notice — they don&rsquo;t log in. An old or wrong link says &ldquo;We can&rsquo;t find this video&rdquo; and asks them to get a fresh link from you.
           </p>
         </div>
       </div>

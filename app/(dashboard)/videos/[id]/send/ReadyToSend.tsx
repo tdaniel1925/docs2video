@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { sizedPicture } from '../../../../_lib/picture-size'
 import Link from 'next/link'
 import { Link2, Mail, Send, UserRoundPlus } from 'lucide-react'
 import type { Video } from '../../../../_lib/types'
@@ -354,7 +355,10 @@ export default function ReadyToSend({
           isDeck={isDeck}
           videoId={video.id}
           videoUrl={video.video_url}
-          posterUrl={video.thumbnail_url}
+          // The poster stands in until Play (the player loads nothing before
+          // that — preload="none", audit 2026-10-09): the thumbnail, else the
+          // first slide picture.
+          posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 960)}
           musicUrl={video.music_url}
           version={version}
           videoRef={previewVideoRef}

@@ -24,14 +24,14 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How long does it take to generate a video?',
     answer: [
-      'Most videos take 3–5 minutes. The **Slide Deck** style takes about 10 minutes. You can leave the page while the video generates — it keeps going in the background and appears in your Library when complete.',
+      'Most videos take 3–5 minutes. The **Animated slides** style takes about 10 minutes. You can leave the page while the video generates — it keeps going in the background and appears in your Library when complete.',
     ],
   },
   {
     question: 'Can I edit a video after it has been generated?',
     answer: [
       'Yes. Open it from your Library and use **Ask for a change** under Ready to send. Pick **This scene** or the whole thing, say what you want, and it opens the right editor for that project — with the price shown before anything is rebuilt. Each change is listed with **Undo**.',
-      'Presentations and slide decks open the slide editor; **Slide Deck** look videos open **Fix a scene** (one scene, without redoing the rest); other looks with slide pictures open the **Scene editor**. A few looks can’t be changed in place — the bar offers **Make a changed copy** instead. See **Changing a finished project** in the Help Center.',
+      'Presentations and slide decks open the slide editor; **Animated slides** look videos open **Fix a scene** (one scene, without redoing the rest); other looks with slide pictures open the **Scene editor**. A few looks can’t be changed in place — the bar offers **Make a changed copy** instead. See **Changing a finished project** in the Help Center.',
     ],
   },
   {
@@ -132,10 +132,10 @@ const TROUBLESHOOTING: FaqItem[] = [
   {
     question: 'My video is stuck on "Generating" and has not completed.',
     answer: [
-      'Most videos finish in 3–5 minutes (Slide Deck about 10). If yours has been generating much longer than that:',
+      'Most videos finish in 3–5 minutes (Animated slides about 10). If yours has been generating much longer than that:',
       '1. Refresh the page and check your Library — the video may have finished but the screen did not update.',
       '2. If it still shows as generating, wait a few more minutes. Busy times can cause delays.',
-      '3. After about 5 minutes the progress screen shows **Restart Generation**. Clicking it stops the stuck run, gives back the credits it took, and starts again — so you are only charged once.',
+      '3. After about 5 minutes the progress screen shows **Restart Generation**. It works once the video has shown no progress for 15 minutes (or has failed) — if it is still moving, you will see "This video is still being made" and should give it longer. When it restarts, it stops the stuck run, gives back the credits it took, and starts again — so you are only charged once.',
       '4. If it has not finished after 30 minutes, email support@docs2video.com with the video title and roughly when you started it.',
     ],
   },
@@ -144,7 +144,7 @@ const TROUBLESHOOTING: FaqItem[] = [
     answer: [
       'This can happen if the voice failed on one or more scenes. Try these steps:',
       '1. Make sure your device volume and the video player volume are turned up.',
-      '2. Open the video and use **Ask for a change**. For a **Slide Deck** look video, pick the silent scene and press **The voice glitched** — re-recording is free.',
+      '2. Open the video and use **Ask for a change**. For an **Animated slides** look video, pick the silent scene and press **The voice glitched** — re-recording is free.',
       '3. For other looks, the bar opens the **Scene editor**: check each scene has narration text, then press **Save & Regenerate**.',
     ],
   },

@@ -44,8 +44,11 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
               ? <img className="cf-look-thumb" src={l.thumb.src} alt="" loading="lazy" />
               : <Swatch swatch={l.thumb.swatch} />}
             <span className="cf-look-cap">
-              {l.name}
-              {l.tag ? <small>{l.tag}</small> : null}
+              <span className="cf-look-name">
+                {l.name}
+                {l.tag ? <small>{l.tag}</small> : null}
+              </span>
+              <span className="cf-look-short">{l.short}</span>
             </span>
           </button>
         ))}

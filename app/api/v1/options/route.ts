@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 
 // The user-selectable explainer looks (kept in sync with the wizard's Theme step).
 const VIDEO_STYLES = [
-  { id: 'slides', name: 'Slide Deck', description: 'Animated explainer deck — headings, bullets, data cards, charts synced to the voice. Recommended.' },
+  { id: 'slides', name: 'Animated slides', description: 'Animated explainer deck — headings, bullets, data cards, charts synced to the voice. Recommended.' },
   { id: 'aurora', name: 'Aurora', description: 'Modern motion graphics — one flowing branded backdrop, kinetic type, no stock imagery.' },
   { id: 'cinematic', name: 'Cinematic', description: 'Film-style imagery with kinetic text and motion. Best for story-led videos.' },
   { id: 'editorial', name: 'Editorial', description: 'Clean, warm magazine layout with refined serif typography on your brand color.' },

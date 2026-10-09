@@ -493,7 +493,11 @@ a.kit-focusbar-step:focus-visible { outline: 2px solid var(--link); outline-offs
   .kit-focusbar-exit { padding: 8px 6px; }
   .kit-focusbar-exit span { display: none; }
   .kit-focusbar-step .kit-focusbar-word { display: none; }
-  .kit-focusbar-steps { gap: var(--space-1); }
+  /* …except the step you're on: its name sits next to the dots, so a phone
+     says WHERE you are, not just "2" (audit 2026-10-09). */
+  .kit-focusbar-step.is-now .kit-focusbar-word { display: inline; font-size: var(--fs-ui); }
+  .kit-focusbar-step.is-now { gap: var(--space-2); }
+  .kit-focusbar-steps { gap: var(--space-1); min-width: 0; }
   .kit-focusbar-step { padding: 6px; }
   .kit-focusbar-help { display: block; }
   .kit-focusbar .kit-icon-btn { width: 36px; height: 36px; }

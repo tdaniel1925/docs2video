@@ -7,13 +7,12 @@ import { generateScript } from '../../_lib/script-generator'
 import { sendNotification, createJob, updateJobProgress } from '../../_lib/notify'
 import type { Brand, ExtractedPolicyData, SlideStyleId } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
-import { isAdmin } from '../../_lib/admin'
 import { getFlag, getSetting } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
-import { resolveClientName, resolveAgentName, buildOpeningNarration } from '../../_lib/personalize'
+import { resolveClientName, resolveAgentName, buildOpeningNarration, resolvePreparerName } from '../../_lib/personalize'
 import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor } from '../../_lib/compliance'
 import { speakable } from '../../_lib/tts'
 import { waitUntil } from '@vercel/functions'
@@ -35,6 +34,8 @@ import { inngest } from '../../_lib/inngest/client'
 import { getBrand } from '../../_lib/brand-server'
 import { isRetiredOutput, RETIRED_MESSAGE } from '../../_lib/videos-only'
 import { buildDrawnSlides, drawStyleOf, DRAWN_LOOK_ID } from '../../_lib/drawn-slides'
+import { storyTooBigMessage } from '../../_lib/length-limits'
+import { alertOps } from '../../_lib/ops-alert'
 
 export const runtime = 'nodejs'
 
@@ -192,7 +193,7 @@ export async function POST(request: Request) {
   const db = isInternalCall ? createAdminClient() : supabase
   const { data: profile } = await db
     .from('profiles')
-    .select('subscription_status, is_admin, is_beta')
+    .select('subscription_status, is_admin, is_beta, full_name, company_name')
     .eq('id', user.id)
     .single()
 
@@ -209,7 +210,7 @@ export async function POST(request: Request) {
   // rendered free (internal calls skipped the deduction entirely).
   const internalChargeOwner = isInternalCall && (body as any).chargeOwner === true
   const isPrivileged = (isInternalCall && !internalChargeOwner) ||
-    videoIsFree({ emailIsAdmin: isAdmin(user.email), isAdmin: profile?.is_admin, isBeta: profile?.is_beta })
+    videoIsFree({ isAdmin: profile?.is_admin, isBeta: profile?.is_beta })
   const subStatus = (profile?.subscription_status ?? '').toLowerCase()
   const isPaidUser = isPaidTier(subStatus)
 
@@ -351,6 +352,14 @@ export async function POST(request: Request) {
   )
   const detailLevel: DetailLevel = priceInputs.detailLevel
 
+  // --- SCENE CAP (audit 2026-10-09) --- scenes sent by the browser may not be
+  // bigger than the length that is charged (a Short price for a 60-scene story).
+  // Refused here, before anything is claimed or charged.
+  if (Array.isArray(preGeneratedScenes) && preGeneratedScenes.length) {
+    const tooBig = storyTooBigMessage(preGeneratedScenes, detailLevel)
+    if (tooBig) return refuse(400, { error: tooBig, code: 'story_too_long' })
+  }
+
   // Docs2Video no longer makes PowerPoint / PDF projects (videos-only.ts): an
   // old draft saved as one is refused in plain words. The public API's own
   // calls (isInternalCall) are left as they were.
@@ -468,7 +477,15 @@ export async function POST(request: Request) {
     await adminC.from('videos').update({ status: videoStatus, error_message: videoStatus === 'failed' ? message : null }).eq('id', videoId)
     if (deductedCost > 0) {
       // refund-now policy (incl. insurance review holds: refund now, recharge on approval)
-      await refundVideoCredits(user.id, deductedCost, videoId)
+      try {
+        await refundVideoCredits(user.id, deductedCost, videoId)
+      } catch (refundErr) {
+        await alertOps({
+          source: 'generate-video', stage: 'refund',
+          message: `Refund of ${deductedCost} credits failed (the stuck-video cron will retry): ${refundErr instanceof Error ? refundErr.message : String(refundErr)}`,
+          videoId, userId: user.id,
+        })
+      }
     }
     return NextResponse.json({ error: message }, { status })
   }
@@ -967,7 +984,9 @@ export async function POST(request: Request) {
     // force the name as the on-screen brand/masthead — let the doc title lead.
     // (The name still appears in the spoken intro + closing card.)
     const personHidesName = isPersonProfile(brand) && brand?.show_name_on_slides === false
-    const effectiveBrandName = personHidesName ? null : (brand?.name || (body as any).companyName || null)
+    // No brand → the agent's own company/name from their profile, else nothing.
+    // Never our platform name (resolvePreparerName drops it).
+    const effectiveBrandName = resolvePreparerName({ brandName: brand?.name, companyName: (body as any).companyName, profile, hideName: personHidesName })
 
     // Save title to DB so it shows in the library
     await admin.from('videos').update({ title: videoTitle }).eq('id', videoId)
@@ -1465,6 +1484,13 @@ export async function POST(request: Request) {
         console.log(`[video ${videoId}] Refunded ${deductedCost} credits after generation failure`)
       } catch (refundErr) {
         console.error(`[video ${videoId}] Credit refund failed:`, refundErr)
+        // Silent before (audit 2026-10-09). The stuck-video cron retries failed
+        // rows with a charge still noted, but Trent hears about it now.
+        await alertOps({
+          source: 'generate-video', stage: 'refund',
+          message: `Refund of ${deductedCost} credits failed after a video failed (the stuck-video cron will retry): ${refundErr instanceof Error ? refundErr.message : String(refundErr)}`,
+          videoId, userId: user.id,
+        })
       }
     }
     // The customer sees a plain sentence; the raw detail went to logError above.
@@ -1484,10 +1510,10 @@ export async function POST(request: Request) {
       const dd = (vrow?.draft_data as any) || {}
       if (dd.source === 'api') {
         try {
-          const { refundApiCredits } = await import('../../_lib/api-auth')
-          const { fireApiWebhook } = await import('../../_lib/api-webhook')
-          if (dd.apiCost && dd.apiCost > 0) await refundApiCredits(user.id, dd.apiCost)
-          await fireApiWebhook(videoId)
+          // Once per job, shared with the cron sweep (api-job-finalize.ts):
+          // refund keyed by the job + one webhook.
+          const { finalizeApiJob } = await import('../../_lib/api-job-finalize')
+          await finalizeApiJob(admin, { id: videoId, user_id: user.id, status: 'failed', draft_data: dd })
         } catch (e) {
           console.error(`[video ${videoId}] API failure handling error:`, e)
         }

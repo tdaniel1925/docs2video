@@ -30,6 +30,24 @@ const REMOVED_API_ROUTES = [
   // The first infographic maker: no caller left, but it still charged 300
   // credits to anyone who POSTed to it directly.
   'generate',
+  // Audit 2026-10-09: free AI routes with no caller left in the app and no
+  // charge or daily cap — anyone signed in could run them without limit.
+  'quick-preview',
+  'preview-slide',
+  'script-chat',
+  'ai-research',
+  'classify-images',
+  'pre-generate-audio',
+  'preview-theme',
+  'regenerate-slide',
+  'proposal-chat',
+  'smart-followup',
+  'reference-url',
+  'auto-select',
+  'generate-slide',
+  'style-preview-from-brand',
+  'style-preview-from-ref',
+  'translate-presentation',
 ]
 
 // Old page → where an old bookmark should land now.

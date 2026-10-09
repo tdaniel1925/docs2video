@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import CardMenu from './CardMenu'
-import { openHref, sendHref, shortDate, statusLine, type LibraryItem } from './library-items'
+import { openHref, sendHref, statusLine, type LibraryItem } from './library-items'
+import LocalDate from './LocalDate'
 import s from './library.module.css'
 
 /*
@@ -53,7 +54,7 @@ export default function LibraryTable({ rows, menuFor, onMenu, onDelete }: {
                 <td className={`${s.wide} ${s.soft}`}>{item.recipient || '—'}</td>
                 <td className={s.statusCol}><span className={s.status} data-tone={status.tone}>{status.words}</span></td>
                 <td className={`${s.wide} ${s.num} ${s.soft}`}>{item.creditsUsed != null ? item.creditsUsed : '—'}</td>
-                <td className={`${s.wide} ${s.num} ${s.soft}`}>{shortDate(item.createdAt)}</td>
+                <td className={`${s.wide} ${s.num} ${s.soft}`}><LocalDate iso={item.createdAt} /></td>
                 <td className={s.num}>
                   <span className={s.rowActions}>
                     {send

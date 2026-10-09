@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
 import { generateApiKey, addApiCredits } from '../../../_lib/api-auth'
+import { logAdminAction } from '../../../_lib/audit'
+import { isPartnerKey } from '../../../_lib/admin/partner-key'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -29,6 +31,7 @@ export async function GET() {
       ...k,
       email: emailById.get(k.user_id) ?? null,
       api_balance: balById.get(k.user_id) ?? 0,
+      is_partner: isPartnerKey(k),
     })),
   })
 }
@@ -40,7 +43,8 @@ export async function GET() {
  * { action: 'topup', email, amount } → adds credits to the API pool.
  */
 export async function POST(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  const me = await requireAdmin()
+  if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const admin = createAdminClient()
   const body = await request.json() as { action: string; email?: string; name?: string; keyId?: string; amount?: number }
 
@@ -65,13 +69,16 @@ export async function POST(request: Request) {
       { user_id: profile.id, balance: 0, updated_at: new Date().toISOString() },
       { onConflict: 'user_id', ignoreDuplicates: true },
     )
+    await logAdminAction(me.id, 'api_key_create', profile.id, { prefix, name: body.name || null })
     // The raw key is shown exactly once — it cannot be recovered later.
     return NextResponse.json({ ok: true, api_key: raw, prefix })
   }
 
   if (body.action === 'revoke') {
     if (!body.keyId) return NextResponse.json({ error: 'keyId required' }, { status: 400 })
+    const { data: key } = await admin.from('api_keys').select('user_id, key_prefix, name').eq('id', body.keyId).maybeSingle()
     await admin.from('api_keys').update({ is_active: false }).eq('id', body.keyId)
+    await logAdminAction(me.id, 'api_key_revoke', key?.user_id ?? undefined, { keyId: body.keyId, prefix: key?.key_prefix ?? null, name: key?.name ?? null, partner: key ? isPartnerKey(key) : false })
     return NextResponse.json({ ok: true })
   }
 
@@ -80,6 +87,7 @@ export async function POST(request: Request) {
     const { data: profile } = await admin.from('profiles').select('id').eq('email', body.email.toLowerCase()).single()
     if (!profile) return NextResponse.json({ error: 'No account with that email' }, { status: 404 })
     await addApiCredits(profile.id, Math.floor(body.amount))
+    await logAdminAction(me.id, 'api_credits_topup', profile.id, { amount: Math.floor(body.amount) })
     return NextResponse.json({ ok: true })
   }
 

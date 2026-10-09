@@ -1,6 +1,7 @@
 import React from 'react'
 import { Audio, Sequence, useVideoConfig } from 'remotion'
 import { staticFile } from './asset'
+import { explainerMusicDuck, type VoWindow } from './audio'
 
 /* ============================================================================
  * MusicBed — GUARANTEES the music covers the ENTIRE video. Root-causes the
@@ -25,7 +26,8 @@ export const MusicBed: React.FC<{
 }> = ({ src, musicFrames, volume, seam = 12 }) => {
   const { durationInFrames } = useVideoConfig()
   const total = durationInFrames
-  if (!musicFrames || musicFrames < 1) return <Audio src={staticFile(src)} volume={volume} />
+  // Length unknown: let the player loop it (still covers the whole video).
+  if (!musicFrames || musicFrames < 1) return <Audio loop src={staticFile(src)} volume={volume} />
 
   // how many loops to cover the whole video (each loop overlaps the seam)
   const step = Math.max(1, musicFrames - seam)
@@ -57,4 +59,13 @@ export const MusicBed: React.FC<{
       })}
     </>
   )
+}
+
+/**
+ * Music for an explainer: looped by MusicBed to cover the whole video, ducked
+ * under the voice windows with the explainer envelope (0.20 / 0.08).
+ */
+export const DuckedMusic: React.FC<{ src: string; musicFrames?: number; windows: VoWindow[] }> = ({ src, musicFrames = 0, windows }) => {
+  const { durationInFrames } = useVideoConfig()
+  return <MusicBed src={src} musicFrames={musicFrames} volume={explainerMusicDuck(windows, durationInFrames)} />
 }

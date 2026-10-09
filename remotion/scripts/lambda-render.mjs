@@ -103,8 +103,29 @@ const { renderId, bucketName } = await renderMediaOnLambda({
 })
 console.log(`lambda: render ${renderId} on ${functionName}`)
 let last = -1
+// POLLING ERRORS (audit 2026-10-09): one failed progress call (a network blip,
+// AWS throttling) used to crash this script with an unhandled error and no
+// reason — the job failed as "render exit 1". Now a few in a row are retried;
+// only a run of them gives up, with a clear line the render service puts in
+// its failure alert to the owner.
+const MAX_POLL_ERRORS = 8
+let pollErrors = 0
 for (;;) {
-  const p = await getRenderProgress({ renderId, bucketName, functionName, region })
+  let p
+  try {
+    p = await getRenderProgress({ renderId, bucketName, functionName, region })
+    pollErrors = 0
+  } catch (e) {
+    pollErrors++
+    const msg = e && e.message ? e.message : String(e)
+    console.error(`lambda: progress check failed (${pollErrors}/${MAX_POLL_ERRORS}): ${msg}`)
+    if (pollErrors >= MAX_POLL_ERRORS) {
+      console.error(`lambda: FAILED — lost contact with render ${renderId} after ${MAX_POLL_ERRORS} polling errors in a row: ${msg}`)
+      process.exit(1)
+    }
+    await new Promise((r) => setTimeout(r, Math.min(30000, 2500 * 2 ** (pollErrors - 1))))
+    continue
+  }
   if (p.fatalErrorEncountered) { console.error('lambda: FAILED', JSON.stringify(p.errors?.slice(0, 2))); process.exit(1) }
   // Progress line in the same shape as the local renderer prints, so the VPS
   // parser ("Rendered frames N/TOTAL") keeps driving the customer's progress bar.

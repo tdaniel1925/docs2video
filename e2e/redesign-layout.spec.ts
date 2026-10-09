@@ -74,8 +74,8 @@ for (const width of [1440, 375]) {
             if (i + 1 === s.step) await expect(item).toHaveAttribute('aria-current', 'step')
             else await expect(item).not.toHaveAttribute('aria-current', 'step')
             const word = item.getByText(STEP_WORDS[i], { exact: true })
-            // Phone: dots only.
-            if (width < 500) await expect(word).toBeHidden()
+            // Phone: dots, plus the name of the step you're on (audit 2026-10-09).
+            if (width < 500 && i + 1 !== s.step) await expect(word).toBeHidden()
             else await expect(word).toBeVisible()
           }
         }

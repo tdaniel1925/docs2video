@@ -1,0 +1,78 @@
+/* ===== Admin pieces (2026-10-09 admin fixes) =====
+   Colour NAMES only (they switch for dark and light). Corners ≤ 10px.
+   The sidebar itself stays in globals.css ("Admin sidebar layout"). */
+
+/* Phone: the side menu becomes one dropdown. */
+.admin-phone-nav { display: none; }
+@media (max-width: 900px) {
+  .admin-sidebar { display: none !important; }
+  .admin-phone-nav { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; }
+  .admin-phone-nav .input { width: 100%; }
+}
+
+.admin-muted { margin: 4px 0 0; font-size: var(--fs-small); color: var(--ink-light); }
+.admin-link { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-small); font-weight: 700; color: var(--link); text-decoration: none; }
+.admin-link:hover { text-decoration: underline; }
+
+.admin-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.admin-select { width: auto; min-width: 120px; padding: 6px 10px; font-size: var(--fs-small); }
+
+/* Dialog insides */
+.admin-dialog-buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; width: 100%; }
+.admin-dialog-text { margin: 0 0 12px; font-size: var(--fs-body); color: var(--ink-soft); }
+.admin-dialog-text p { margin: 0 0 8px; }
+.admin-dialog-text a { color: var(--link); font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.admin-field { display: flex; flex-direction: column; gap: var(--space-1); margin: 12px 0 0; }
+.admin-field-label { font-size: var(--fs-small); font-weight: 700; color: var(--ink-soft); }
+.admin-btn-danger.kit-btn--primary { background: var(--error-bg); border-color: var(--error); color: var(--error-text); }
+.admin-btn-danger.kit-btn--primary:hover { background: var(--rose); }
+.admin-choice-row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: 12px; }
+.admin-choice {
+  min-width: 72px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--bg-card); color: var(--ink); font-weight: 700; font-size: var(--fs-ui); cursor: pointer;
+}
+.admin-choice.is-on { border-color: var(--ink); background: var(--accent); color: var(--ink); }
+.admin-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: 0 0 12px; }
+.admin-facts dt { font-size: var(--fs-caption); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-light); }
+.admin-facts dd { margin: 2px 0 0; font-weight: 700; color: var(--ink); }
+@media (max-width: 520px) { .admin-facts { grid-template-columns: 1fr; } }
+
+/* What needs you */
+.admin-needs { padding: 20px 22px; margin-bottom: 20px; }
+.admin-needs-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.admin-needs-title { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-h3); font-weight: 800; color: var(--ink); }
+.admin-needs-sec { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-light); }
+.admin-needs-sec.is-empty { display: flex; align-items: center; gap: 8px; font-size: var(--fs-small); color: var(--ink-light); }
+.admin-ok-icon { color: var(--success); flex-shrink: 0; }
+.admin-needs-sec-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-needs-sec-head h3 { margin: 0; font-size: var(--fs-ui); font-weight: 800; color: var(--ink); }
+.admin-needs-sec-head .admin-link { margin-left: auto; }
+.admin-needs-sec.tone-stop .admin-needs-sec-head svg { color: var(--error); }
+.admin-needs-sec.tone-warn .admin-needs-sec-head svg { color: var(--warning-text); }
+.admin-needs-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.admin-needs-list > li { display: flex; gap: var(--space-3); align-items: flex-start; justify-content: space-between; flex-wrap: wrap; padding: 10px 12px; border-radius: 8px; background: var(--bg-soft); }
+.admin-needs-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.admin-needs-item-title { font-weight: 700; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.admin-needs-item-title:hover { text-decoration: underline; }
+.admin-needs-item-detail { font-size: var(--fs-small); color: var(--ink-soft); overflow-wrap: anywhere; }
+.admin-tech summary { cursor: pointer; font-size: var(--fs-caption); color: var(--ink-light); }
+.admin-tech pre { white-space: pre-wrap; word-break: break-word; font-size: var(--fs-caption); background: var(--bg-card); border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; color: var(--ink-soft); max-height: 180px; overflow: auto; }
+
+/* Lists (users / videos) */
+.admin-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: 14px; }
+.admin-toolbar .input { max-width: 360px; }
+.admin-list { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px; overflow: hidden; }
+.admin-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: 12px 16px; border-bottom: 1px solid var(--border-light); font-size: var(--fs-ui); }
+.admin-row:last-child { border-bottom: none; }
+.admin-row-main { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.admin-row-title { font-weight: 700; color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-row-sub { font-size: var(--fs-small); color: var(--ink-light); overflow-wrap: anywhere; }
+.admin-row-reason { font-size: var(--fs-small); color: var(--error-text); }
+.admin-row-meta { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; font-size: var(--fs-small); color: var(--ink-light); }
+.admin-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: 12px; font-size: var(--fs-small); color: var(--ink-light); }
+
+.admin-stat-hint { font-size: var(--fs-caption); color: var(--ink-light); margin-top: 4px; }
+.admin-plan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); margin-top: 12px; }
+.admin-plan-cell { background: var(--bg-soft); border-radius: 10px; padding: 14px; }
+.admin-plan-cell b { display: block; font-size: var(--fs-h3); color: var(--ink); }
+.admin-plan-cell span { font-size: var(--fs-small); color: var(--ink-soft); }

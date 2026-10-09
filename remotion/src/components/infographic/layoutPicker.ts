@@ -1,5 +1,5 @@
 import { parseMetric } from './format'
-import type { GlyphName } from './Glyph'
+import type { GlyphName } from './glyph-names'
 
 /**
  * The layout-picker — the pure-code brain of the auto infographic theme. Given a
@@ -93,6 +93,9 @@ export function pickKind(s: SceneContent): SceneKind {
  * sensible default icon when the generator didn't specify one. Pure + cheap.
  */
 const KEYWORD_GLYPH: Array<[RegExp, GlyphName]> = [
+  // A date or an end point ("Covered until", "Renews", "Expires", "Until age 95")
+  // is TIME, not protection — it gets a calendar, never the shield. Checked first.
+  [/\buntil\b|expir|\bends?\b|renew|\bdates?\b|deadline|matur|effective|\bthrough\b|\bage\s*\d/i, 'calendar'],
   [/death|benefit|protect|cover|shield|guarant/i, 'shield'],
   [/premium|pay|cost|price|fee|annual/i, 'coin'],
   [/cash|value|growth|return|gain|index|account|interest/i, 'growth'],

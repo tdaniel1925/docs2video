@@ -114,8 +114,11 @@ endpoint to that URL once, when the job reaches `completed` or `failed`. The
 request has `Content-Type: application/json` and a 10‑second timeout; it is
 best‑effort and not retried, so always treat polling as the source of truth.
 
-> Note: push callbacks fire on the Creatomate (pipeline v2) path. On the legacy
-> VPS path (v1), poll the job for completion; failure callbacks still fire.
+> Since 2026-10-10 the callback fires for every API job that was given a
+> `webhook_url` once it is `completed` or `failed` — within a few
+> minutes of the render finishing. A job that fails gives its API credits back
+> automatically (once). The `webhook_url` must be a public `http(s)` address;
+> private, loopback and cloud-metadata addresses are never called.
 
 ## Check API credit balance — `GET /api/v1/credits`
 

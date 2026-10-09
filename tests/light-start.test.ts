@@ -45,6 +45,12 @@ vi.mock('../app/_lib/supabase/admin', () => ({
 }))
 vi.mock('../app/_lib/rate-limit', () => ({
   checkRateLimit: async (key: string) => { db.rateCalls.push(key); return { allowed: db.rateAllowed } },
+  // The caps now use the fail-closed counter (audit 2026-10-09). Only the
+  // cardless counter follows db.rateAllowed; the every-account ceiling allows.
+  hitRateLimitStrict: async (key: string) => {
+    db.rateCalls.push(key)
+    return key.startsWith('cardless-prep:') && !db.rateAllowed ? 'over' : 'allowed'
+  },
   rateLimit: () => ({ allowed: true, remaining: 9 }),
   getRateLimitKey: () => 'k',
   LIMITS: {},
@@ -53,7 +59,7 @@ vi.mock('../app/_lib/rate-limit', () => ({
 import { checkCredits, deductCredits, spendBlockReason } from '../app/_lib/credits'
 import { cardlessPrepGate, isCardless } from '../app/_lib/cardless-prep'
 import {
-  CARDLESS_PREP_PER_DAY, afterSignupPath, cardlessPrepKey, landingAfterEmailLink,
+  CARDLESS_PREP_PER_DAY, afterSignupPath, cardlessPrepKey, landingAfterEmailLink, aiDailyKey,
 } from '../app/_lib/light-start'
 
 const CARDLESS = { is_admin: false, is_beta: false, subscription_status: 'free', card_on_file: false }
@@ -122,7 +128,7 @@ describe('a cardless account CAN reach the free preview', () => {
     db.profile = CARDLESS
     expect(await isCardless('u1')).toBe(true)
     expect(await cardlessPrepGate('u1')).toBeNull()
-    expect(db.rateCalls).toEqual([cardlessPrepKey('u1', new Date())])
+    expect(db.rateCalls).toEqual([cardlessPrepKey('u1', new Date()), aiDailyKey('u1', new Date())])
     expect(cardlessPrepKey('u1', new Date('2026-10-07T23:59:00Z'))).toBe('cardless-prep:u1:2026-10-07')
 
     db.rateAllowed = false
@@ -130,11 +136,12 @@ describe('a cardless account CAN reach the free preview', () => {
     expect(capped?.status).toBe(429)
     expect(await capped?.json()).toMatchObject({ code: 'cardless_prep_cap' })
 
-    // An account with a card is never counted.
+    // An account with a card is never counted against the NO-CARD cap — only
+    // the every-account daily ceiling (audit 2026-10-09).
     db.rateCalls = []
     db.profile = TRIAL_WITH_CARD
     expect(await cardlessPrepGate('u2')).toBeNull()
-    expect(db.rateCalls).toEqual([])
+    expect(db.rateCalls).toEqual([aiDailyKey('u2', new Date())])
     expect(CARDLESS_PREP_PER_DAY).toBeGreaterThan(5)
     expect(CARDLESS_PREP_PER_DAY).toBeLessThanOrEqual(50)
   })

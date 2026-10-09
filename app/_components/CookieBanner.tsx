@@ -1,16 +1,29 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
+
+/**
+ * Pages a CLIENT opens from a share link. They never log in, so there is no
+ * login cookie to tell them about, and the bar covered the agent's video and
+ * contact card (audit 2026-10-09). Exported for the guard test.
+ */
+export function isClientSharePage(pathname: string | null | undefined): boolean {
+  return /^\/watch(\/|$)/.test(pathname ?? '')
+}
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
   const bar = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
+  const hidden = isClientSharePage(pathname)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !localStorage.getItem('cookie_consent')) {
-      setVisible(true)
-    }
-  }, [])
+    if (hidden) { setVisible(false); return }
+    let seen: string | null = null
+    try { seen = localStorage.getItem('cookie_consent') } catch { /* blocked storage: show it */ }
+    if (!seen) setVisible(true)
+  }, [hidden])
 
   /**
    * SAY HOW TALL YOU ARE, so pages can get out of the way.
@@ -36,7 +49,7 @@ export default function CookieBanner() {
   }, [visible])
 
   function accept() {
-    localStorage.setItem('cookie_consent', 'accepted')
+    try { localStorage.setItem('cookie_consent', 'accepted') } catch { /* fine */ }
     setVisible(false)
   }
 

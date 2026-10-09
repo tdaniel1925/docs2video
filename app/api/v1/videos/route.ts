@@ -156,7 +156,7 @@ export async function POST(request: Request) {
 
   // Helper to refund + log + respond on any downstream failure.
   const fail = async (status: number, message: string, videoId?: string) => {
-    await refundApiCredits(caller.userId, cost)
+    await refundApiCredits(caller.userId, cost, videoId)
     await logApiUsage({
       apiKeyId: caller.keyId,
       userId: caller.userId,

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
+import { recordCronRun } from '../../../_lib/cron-heartbeat'
+import { alertOps } from '../../../_lib/ops-alert'
+import { sweepApiJobs } from '../../../_lib/api-job-finalize'
 import { getRender } from '../../../_lib/creatomate'
 import { deductCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
@@ -33,6 +36,8 @@ export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Heartbeat: the health cron emails Trent if this stops running (audit 2026-10-09).
+  await recordCronRun('fix-stuck-videos')
 
   const admin = createAdminClient()
   const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
@@ -92,7 +97,10 @@ export async function GET(request: Request) {
       try {
         if (await refundVerifiedCharge(admin, v) > 0) refundedFailed++
       } catch (e) {
-        console.error(`[fix-stuck-videos] refund check failed for ${v.id}:`, e instanceof Error ? e.message : e)
+        const msg = e instanceof Error ? e.message : String(e)
+        console.error(`[fix-stuck-videos] refund check failed for ${v.id}:`, msg)
+        // Silent before (audit 2026-10-09). Retried every run; Trent is told.
+        await alertOps({ source: 'cron/fix-stuck-videos', stage: 'refund', message: `Refund for a failed video could not be made (will retry every 2 minutes): ${msg}`, videoId: v.id, userId: v.user_id })
       }
     }
   } catch { /* non-fatal — next run retries */ }
@@ -152,6 +160,14 @@ export async function GET(request: Request) {
   let readyEmails = 0
   try { readyEmails = await sweepReadyVideos(admin) } catch { /* non-fatal — next run retries */ }
 
+  // Public-API jobs that finished or failed on the render service (audit
+  // 2026-10-09): give a failed job its API credits back and fire the caller's
+  // webhook, once per job (api-job-finalize.ts).
+  let apiJobsFinished = 0
+  try { apiJobsFinished = await sweepApiJobs(admin) } catch (e) {
+    await alertOps({ source: 'cron/fix-stuck-videos', stage: 'api-jobs', message: `API job sweep failed: ${e instanceof Error ? e.message : String(e)}` })
+  }
+
   const { data: stuckVideos } = await admin
     .from('videos')
     .select('id, user_id, title, status, output_type, created_at, progress_updated_at, deducted_cost, creatomate_render_id, slide_urls, thumbnail_url')
@@ -160,7 +176,7 @@ export async function GET(request: Request) {
     .limit(25)
 
   if (!stuckVideos || stuckVideos.length === 0) {
-    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed, recharged, readyEmails })
+    return NextResponse.json({ fixed: 0, failed: 0, recovered: 0, checked: 0, scriptsFailed, refundedFailed, recharged, readyEmails, apiJobsFinished })
   }
 
   let fixed = 0, failed = 0, recovered = 0
@@ -176,12 +192,14 @@ export async function GET(request: Request) {
     if (!flipped || flipped.length === 0) return false
     let refunded = 0
     try { refunded = await refundVerifiedCharge(admin, video) } catch (e) {
-      console.error(`[fix-stuck-videos] refund failed for ${video.id}:`, e instanceof Error ? e.message : e)
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error(`[fix-stuck-videos] refund failed for ${video.id}:`, msg)
+      await alertOps({ source: 'cron/fix-stuck-videos', stage: 'refund', message: `Refund for a timed-out video failed (the failed-video sweep will retry): ${msg}`, videoId: video.id, userId: video.user_id })
     }
     await sendNotification(admin, video.user_id, {
       type: 'video_failed',
-      title: 'Video generation failed',
-      message: `${video.title?.slice(0, 40) || 'Your video'} could not be completed.${refunded > 0 ? ' Your credits were refunded.' : ''}`,
+      title: 'Didn’t finish',
+      message: `${video.title?.slice(0, 40) || 'Your video'} didn’t finish.${refunded > 0 ? ' Your credits were refunded.' : ''}`,
       link: `/videos/${video.id}`,
     }).catch(() => {})
     return true
@@ -245,11 +263,12 @@ export async function GET(request: Request) {
           const slideCheck = await fetch(slideUrl.publicUrl, { method: 'HEAD', signal: AbortSignal.timeout(3000) }).catch(() => null)
           if (slideCheck?.ok) slideUrls.push(slideUrl.publicUrl); else break
         }
+        // Only while still running (it may have been failed + refunded since the read).
         await admin.from('videos').update({
           video_url: urlData.publicUrl, thumbnail_url: thumbUrl.publicUrl, status: 'completed',
           progress_detail: null, progress_pct: 100,
           ...(slideUrls.length > 0 ? { slide_urls: slideUrls } : {}),
-        }).eq('id', video.id)
+        }).eq('id', video.id).in('status', RUNNING)
         await announceVideoReady(admin, { ...video, status: 'completed' }).catch(() => 'skipped')
         fixed++
       } else {
@@ -267,5 +286,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed, recharged, readyEmails })
+  return NextResponse.json({ fixed, failed, recovered, checked: stuckVideos.length, scriptsFailed, refundedFailed, recharged, readyEmails, apiJobsFinished })
 }

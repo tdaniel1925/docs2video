@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { normalizeUrl } from '../../_lib/normalize-url'
 import { createClient } from '../../_lib/supabase/server'
 import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl, extractFonts, logoAsDataUrl } from '../../_lib/brand-scraper'
@@ -23,6 +24,9 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   const body = await req.json().catch(() => null) as { url?: string } | null
   const url = normalizeUrl(body?.url) // no one has to type https:// (normalize-url.ts)

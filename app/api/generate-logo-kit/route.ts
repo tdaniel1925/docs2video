@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { createClient } from '../../_lib/supabase/server'
 import { generateFullLogoKit } from '../../_lib/logo-styler'
 import { isSafePublicUrl } from '../../_lib/brand-scraper'
@@ -8,6 +9,9 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   const { brandId } = await request.json()
   if (!brandId) return NextResponse.json({ error: 'brandId required' }, { status: 400 })

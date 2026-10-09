@@ -9,6 +9,8 @@ const { Readable } = require('stream')
 const { pipeline } = require('stream/promises')
 const { createClient } = require('@supabase/supabase-js')
 const WebSocket = require('ws')
+// Audit 2026-10-09: finish only still-running rows; fetch outside URLs only to public addresses.
+const { completeIfRunning, guardedFetch } = require('./job-guards')
 
 const app = express()
 app.use(express.json({ limit: '200mb' }))
@@ -43,6 +45,22 @@ async function reportError({ source, videoId, userId, stage, message, detail }) 
     console.error('[reportError] failed to send alert:', e?.message)
   }
 }
+
+// Crashes and job errors nobody caught (audit 2026-10-09): a background job
+// that throws outside its own try/catch used to die silently in the logs.
+// Now the owner gets the same alert email. An uncaught exception still ends
+// the process (state is unknown) — after the alert has had a moment to send.
+process.on('unhandledRejection', (reason) => {
+  const msg = reason && reason.message ? reason.message : String(reason)
+  console.error('[render-service] unhandled job error:', msg)
+  reportError({ source: 'render-service', stage: 'unhandled-rejection', message: msg.slice(0, 1000), detail: reason && reason.stack ? String(reason.stack).slice(0, 4000) : undefined }).catch(() => {})
+})
+process.on('uncaughtException', (err) => {
+  console.error('[render-service] CRASH:', err && err.message)
+  const done = () => process.exit(1)
+  reportError({ source: 'render-service', stage: 'crash', message: `Render service crashed: ${err && err.message}`.slice(0, 1000), detail: err && err.stack ? String(err.stack).slice(0, 4000) : undefined }).then(done, done)
+  setTimeout(done, 8000).unref()
+})
 
 // Auth middleware — constant-time compare (review S2: `!==` short-circuits on
 // the first differing byte, leaking a timing side-channel on the shared secret).
@@ -505,34 +523,16 @@ app.post('/assemble', authCheck, async (req, res) => {
     if (musicUrl) {
       try {
         console.log(`[${videoId}] Downloading background music from: ${musicUrl}`)
-        const musicRes = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
+        const musicRes = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
         console.log(`[${videoId}] Music fetch status: ${musicRes.status} ${musicRes.statusText}`)
         if (musicRes.ok) {
           const musicPath = join(workDir, 'bgmusic.mp3')
           const musicBuf = Buffer.from(await musicRes.arrayBuffer())
           await writeFile(musicPath, musicBuf)
 
-          const totalDuration = durations.reduce((sum, d) => sum + d, 0)
-          const fadeOutStart = Math.max(0, totalDuration - 3)
-
           const mixedPath = join(workDir, 'output_with_music.mp4')
-          await runFfmpeg([
-            '-i', outputPath,
-            '-stream_loop', '-1',
-            '-i', musicPath,
-            '-filter_complex',
-            // normalize=0 stops amix from auto-ducking the narration; narration stays
-            // at full volume and music sits as a quiet bed underneath at ~4%.
-            `[0:a]volume=1.0[narr];[1:a]volume=0.04,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[narr][music]amix=inputs=2:duration=first:normalize=0[out]`,
-            '-map', '0:v',
-            '-map', '[out]',
-            '-c:v', 'copy',
-            '-c:a', 'aac',
-            '-b:a', '192k',
-            '-movflags', '+faststart',
-            '-y',
-            mixedPath,
-          ])
+          // Voice at full level, music ducked under it and looped (audio-mix.js).
+          await mixMusicUnderVoice({ videoIn: outputPath, musicPath, outPath: mixedPath })
           finalPath = mixedPath
           console.log(`[${videoId}] Music mixed`)
           await updateProgress('Music added, finalizing...', 93)
@@ -586,7 +586,7 @@ app.post('/assemble', authCheck, async (req, res) => {
 
       // Mark video as completed directly — don't rely on Vercel (it may have timed out)
       const totalDuration = durations.reduce((s, d) => s + d, 0)
-      await supabase.from('videos').update({
+      await completeIfRunning(supabase, videoId, {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
@@ -595,7 +595,7 @@ app.post('/assemble', authCheck, async (req, res) => {
         status: 'completed',
         progress_detail: null,
         progress_pct: 100,
-      }).eq('id', videoId)
+      }, { tag: 'assemble', report: reportError })
 
       console.log(`[${videoId}] Marked as completed in database`)
 
@@ -633,6 +633,9 @@ app.post('/assemble', authCheck, async (req, res) => {
 // PPTX/PPT to PDF conversion (for Gemini extraction)
 // Presentation -> MP4 export (interactive presentations; HTML-first pipeline)
 const { exportPresentation } = require('./present-export')
+// Music under the voice: voice at full level (amix normalize=0), music ducked
+// 0.20 between lines / 0.08 under them, looped to the video's full length.
+const { mixMusicUnderVoice } = require('./audio-mix')
 app.post('/export-presentation', authCheck, (req, res) => {
   const sUrl = process.env.SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_KEY
   if (!sUrl || !sKey) return res.status(500).json({ error: 'Supabase not configured' })
@@ -1455,7 +1458,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       const dl = async (url, name) => {
         if (!url) return undefined
         try {
-          const r = await fetch(url, { signal: AbortSignal.timeout(15000) })
+          const r = await guardedFetch(url, { signal: AbortSignal.timeout(15000) })
           if (!r.ok) return undefined
           await writeFile(join(pub, name), Buffer.from(await r.arrayBuffer()))
           return name
@@ -1474,7 +1477,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       let photoName
       if (presenter.photo) {
         try {
-          const r = await fetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
+          const r = await guardedFetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
           if (r.ok) { photoName = `r3-${videoId}-presenter.png`; await writeFile(join(pub, photoName), Buffer.from(await r.arrayBuffer())) }
         } catch { /* no photo → name/role still render */ }
       }
@@ -1552,7 +1555,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`)
         let haveMusic = false
         if (musicUrl) {
-          const mr = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
+          const mr = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
           if (mr.ok) { await writeFile(musicPath, Buffer.from(await mr.arrayBuffer())); haveMusic = true }
         } else {
           // Lyria generate — EXACT same model + call shape as the /generate
@@ -1570,12 +1573,8 @@ app.post('/render-v3', authCheck, async (req, res) => {
         }
         if (haveMusic) {
           const mixedPath = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
-          await new Promise((resolve, reject) => {
-            execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath,
-              '-filter_complex', '[0:a]volume=1.0[narr];[1:a]volume=0.024,afade=t=in:st=0:d=2[bg];[narr][bg]amix=inputs=2:duration=first:dropout_transition=3[a]',
-              '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixedPath],
-              { timeout: 120000 }, (e) => e ? reject(e) : resolve())
-          })
+          // Voice at full level, music ducked under it and looped (audio-mix.js).
+          await mixMusicUnderVoice({ videoIn: outFile, musicPath, outPath: mixedPath })
           await rm(outFile, { force: true }).catch(() => {})
           outFile = mixedPath
           console.log(`[render-v3 ${videoId}] music mixed`)
@@ -1608,13 +1607,13 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // Labels come from the script (titles) the UI already reads — store them on
     // the script too so the panel shows chapter names per thumbnail.
     const scriptForPanel = outScenes.map((s) => ({ title: s.title || '', headline: s.title || '' }))
-    await sb.from('videos').update({
+    await completeIfRunning(sb, videoId, {
       status: 'completed', video_url: urlData.publicUrl,
       ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       ...(slideUrls.length ? { slide_urls: slideUrls } : {}),
       slide_durations: slideDurations, script: scriptForPanel,
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-    }).eq('id', videoId)
+    }, { tag: 'render-v3', userId, report: reportError })
     console.log(`[render-v3 ${videoId}] DONE -> ${urlData.publicUrl}`)
   } catch (err) {
     console.error(`[render-v3 ${videoId}] error:`, err.message)
@@ -1672,7 +1671,7 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     await Promise.all(entries.map(async ([sub, url]) => {
       const dest = join(assetDir, sub)
       await mkdir(dirname(dest), { recursive: true })
-      const r = await fetch(url, { signal: AbortSignal.timeout(60000) })
+      const r = await guardedFetch(url, { signal: AbortSignal.timeout(60000) })
       if (!r.ok) throw new Error(`asset fetch ${sub}: ${r.status}`)
       await writeFile(dest, Buffer.from(await r.arrayBuffer()))
     }))
@@ -1707,11 +1706,11 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     let thumbUrl = null
     try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
 
-    await sb.from('videos').update({
+    await completeIfRunning(sb, videoId, {
       status: 'completed', video_url: urlData.publicUrl,
       ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-    }).eq('id', videoId)
+    }, { tag: 'render-commercial', userId, report: reportError })
     console.log(`[render-commercial ${videoId}] DONE -> ${urlData.publicUrl}`)
   } catch (err) {
     console.error(`[render-commercial ${videoId}] error:`, err.message)
@@ -1780,7 +1779,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         // SILENT mp3 so the file exists and the render never dies — we retry
         // rather than ship a generic bed on a paid commercial.
         stageMusic: async (_mood, outPath) => {
-          if (musicUrl) { try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {} }
+          if (musicUrl) { try { const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {} }
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
       }
@@ -1858,11 +1857,11 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
       await rm(thumbPath, { force: true }).catch(() => {})
 
-      await sb.from('videos').update({
+      await completeIfRunning(sb, videoId, {
         status: 'completed', video_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-      }).eq('id', videoId)
+      }, { tag: 'generate-commercial', userId, report: reportError })
       // Mirror the finished result into prospect_demos → 'ready_for_review' (the
       // status the admin dashboard shows before an admin sends it to the lead).
       await mirrorProspect({
@@ -1969,11 +1968,11 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       if (!suppliedScenes && (!source.text || source.text.trim().length < 60)) throw new Error('Not enough readable text in the source.')
 
       // stage logo if provided (so the plan can reference brand-logo.png)
-      if (logoUrl) { try { const r = await fetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
+      if (logoUrl) { try { const r = await guardedFetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
       // stage presenter headshot if provided → brand-presenter.png (real agent photo)
       let presenterForPlan = null
       if (presenter && (presenter.photoUrl || presenter.photo) && (presenter.photoUrl || presenter.photo).startsWith('http')) {
-        try { const r = await fetch(presenter.photoUrl || presenter.photo, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-presenter.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p); presenterForPlan = { name: presenter.name, role: presenter.role, photo: 'brand-presenter.png' } } } catch {}
+        try { const r = await guardedFetch(presenter.photoUrl || presenter.photo, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-presenter.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p); presenterForPlan = { name: presenter.name, role: presenter.role, photo: 'brand-presenter.png' } } } catch {}
       }
 
       await setProgress(20, 'Understanding your document...')
@@ -1994,7 +1993,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
         // the file exists (useBeats handles a silent/empty track gracefully).
         stageMusic: async (_mood, outPath) => {
           if (musicUrl) {
-            try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {}
+            try { const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {}
           }
           // The user turned music ON in the wizard → generate it (the setting
           // used to be dropped, so the deck was always silent).
@@ -2009,7 +2008,9 @@ app.post('/generate-slides', authCheck, async (req, res) => {
         },
       }
       const { plan, assetNames, sceneMeta, starts: slideStarts } = await generateSlidePlan({
-        pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
+        // The agent's brand or own name (the app sends it), else nothing —
+        // NEVER our platform name on a client's cover ("Docs2Video — Prepared for …").
+        pub, source, preparer: (preparer || '').trim(), recipient, music, glass, footer, forcedAccent: accent,
         shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps,
         // The pipeline's log lines are for us ("comprehending pdf (48210 chars)...");
         // the customer gets plain words for the step it is on.
@@ -2081,13 +2082,13 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       // MAIN update: only CONFIRMED-existing columns, so a missing optional column
       // can never fail the whole completion write (a known footgun — a bad column
       // 400s the entire update, leaving the video stuck 'processing').
-      await sb.from('videos').update({
+      await completeIfRunning(sb, videoId, {
         status: 'completed', video_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         ...(slideUrlsClean.length ? { slide_urls: slideUrlsClean } : {}),
         slide_durations: slideDurations, script: scriptForPanel,
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-      }).eq('id', videoId)
+      }, { tag: 'generate-slides', userId, report: reportError })
       // OPTIONAL columns (may not exist in this schema) — separate best-effort
       // writes so their absence never breaks the completion above.
       sb.from('videos').update({ total_scenes: (sceneMeta || []).length }).eq('id', videoId).then(() => {}, () => {})
@@ -2289,7 +2290,7 @@ RULES:
       // persist the edited scene's new VO + the updated plan
       try { const vb = await readFile(join(pub, voName)); await sb.storage.from('videos').upload(`${userId}/${videoId}_${voName}`, vb, { contentType: 'audio/mpeg', upsert: true }) } catch {}
       try { saved.plan = plan; await sb.storage.from('videos').upload(planKey, Buffer.from(JSON.stringify(saved)), { contentType: 'application/json', upsert: true }) } catch {}
-      await sb.from('videos').update({ status: 'completed', video_url: urlData.publicUrl, progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+      await completeIfRunning(sb, videoId, { status: 'completed', video_url: urlData.publicUrl, progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }, { tag: 're-render-scene', userId, report: reportError })
       console.log(`[re-render-scene ${videoId}] scene ${sceneId} re-rendered -> ${urlData.publicUrl}`)
     } catch (err) {
       console.error(`[re-render-scene ${videoId}] error:`, err.message)
@@ -2339,7 +2340,7 @@ app.post('/render-visual-director', authCheck, async (req, res) => {
     await setJob({ status: 'running', stage: 'Downloading source video', progress: 5, attempts: 1, started_at: new Date().toISOString(), lease_expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() })
     await sb.from('vd_projects').update({ status: 'rendering' }).eq('id', projectId).eq('user_id', userId)
 
-    const sourceResponse = await fetch(sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(180000) })
+    const sourceResponse = await guardedFetch(sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(180000) })
     if (!sourceResponse.ok || !sourceResponse.body) throw new Error(`source download failed: ${sourceResponse.status}`)
     const mime = String(sourceResponse.headers.get('content-type') || '').split(';')[0]
     const extension = mime === 'video/webm' ? 'webm' : mime === 'video/quicktime' ? 'mov' : 'mp4'
@@ -2351,7 +2352,7 @@ app.post('/render-visual-director', authCheck, async (req, res) => {
     if (logo?.sourceUrl) {
       const parsedLogo = new URL(logo.sourceUrl)
       if (parsedLogo.protocol !== 'https:') throw new Error('Logo URL must use HTTPS')
-      const logoResponse = await fetch(logo.sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(60000) })
+      const logoResponse = await guardedFetch(logo.sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(60000) })
       if (!logoResponse.ok) throw new Error(`logo download failed: ${logoResponse.status}`)
       const logoBytes = Buffer.from(await logoResponse.arrayBuffer())
       if (logoBytes.length > 10 * 1024 * 1024) throw new Error('Logo exceeds the 10 MB export limit')
@@ -2503,7 +2504,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       for (const a of (assets || [])) {
         if (!a || !a.name || !a.url) continue
         const dest = join(pub, a.name)
-        const r = await fetch(a.url, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
+        const r = await guardedFetch(a.url, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
         if (!r.ok) throw new Error(`asset ${a.name} download failed: ${r.status}`)
         await writeFile(dest, Buffer.from(await r.arrayBuffer()))
         staged.push(dest)
@@ -2511,7 +2512,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       // A separate musicUrl (optional) overrides/fills dir-music.mp3.
       if (musicUrl) {
         const dest = join(pub, 'dir-music.mp3')
-        const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
+        const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
         if (r.ok) { await writeFile(dest, Buffer.from(await r.arrayBuffer())); if (!staged.includes(dest)) staged.push(dest) }
       }
 
@@ -2564,11 +2565,11 @@ app.post('/render-directed', authCheck, async (req, res) => {
       } catch { /* best-effort */ }
       await rm(thumbPath, { force: true }).catch(() => {})
 
-      await sb.from('videos').update({
+      await completeIfRunning(sb, videoId, {
         status: 'completed', video_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-      }).eq('id', videoId)
+      }, { tag: 'render-directed', userId, report: reportError })
       console.log(`[render-directed ${videoId}] DONE -> ${urlData.publicUrl}`)
     } catch (err) {
       console.error(`[render-directed ${videoId}] error:`, err.message)
@@ -2726,7 +2727,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       let photoName
       if (presenter.photo) {
         try {
-          const r = await fetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
+          const r = await guardedFetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
           if (r.ok) { photoName = `ed-${videoId}-presenter.png`; await writeFile(join(pub, photoName), Buffer.from(await r.arrayBuffer())) }
         } catch { /* name/role still render */ }
       }
@@ -2771,11 +2772,11 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       try {
         await setProgress(88, 'Adding the music')
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`); let have = false
-        if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
+        if (musicUrl) { const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
         else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
         if (have) {
           const mixed = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
-          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath, '-filter_complex', '[0:a]volume=1.0[n];[1:a]volume=0.02,afade=t=in:st=0:d=2[b];[n][b]amix=inputs=2:duration=first:dropout_transition=3[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { timeout: 120000 }, (e) => e ? reject(e) : resolve()))
+          await mixMusicUnderVoice({ videoIn: outFile, musicPath, outPath: mixed })   // voice at full level, music ducked + looped
           await rm(outFile, { force: true }).catch(() => {}); outFile = mixed
         }
       } catch (e) { console.error(`[render-editorial ${videoId}] music skipped: ${e.message}`) }
@@ -2819,12 +2820,12 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     const slideUrls = out.map((_, i) => previews.find((p) => p.idx === i)?.url).filter(Boolean)
     const slideDurations = out.map((s) => Math.round((s.durationInFrames || 0) / 30 * 10) / 10)
     const scriptForPanel = out.map((s) => ({ title: s.title || '', headline: s.title || '' }))
-    await sb.from('videos').update({
+    await completeIfRunning(sb, videoId, {
       status: 'completed', video_url: url, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       ...(slideUrls.length ? { slide_urls: slideUrls } : {}),
       slide_durations: slideDurations, script: scriptForPanel,
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-    }).eq('id', videoId)
+    }, { tag: 'render-editorial', userId, report: reportError })
     console.log(`[render-editorial ${videoId}] DONE -> ${url}`)
   } catch (err) {
     console.error(`[render-editorial ${videoId}] error:`, err.message)
@@ -2864,10 +2865,16 @@ app.post('/generate', authCheck, async (req, res) => {
     realtime: { transport: WebSocket },
   })
 
+  // Every progress write stamps progress_updated_at (so the stuck-video cron
+  // sees a slow drawn job is alive) and only touches a row that is still
+  // running (so it can never revive a video the app already failed/refunded).
   async function updateStatus(status, detail, pct) {
-    try { await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct }).eq('id', videoId) } catch(e) { console.error('Progress update failed:', e.message) }
+    try { await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct, progress_updated_at: new Date().toISOString() }).eq('id', videoId).in('status', RUNNING_STATUSES) } catch(e) { console.error('Progress update failed:', e.message) }
   }
 
+  // The one render queue every other route uses (withRenderSlotFor): a waiting
+  // job stamps its row every two minutes, so it is not failed while in line.
+  await withRenderSlotFor(videoId)(async () => {
   try {
     console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, ${slidePrompts.length} prompts`)
 
@@ -2924,7 +2931,7 @@ app.post('/generate', authCheck, async (req, res) => {
     let logoBase64 = null
     if (logoUrl) {
       try {
-        const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
+        const logoRes = await guardedFetch(logoUrl, { signal: AbortSignal.timeout(8000) })
         if (logoRes.ok) logoBase64 = Buffer.from(await logoRes.arrayBuffer()).toString('base64')
       } catch (e) { console.log(`[${videoId}] Logo fetch failed:`, e.message) }
     }
@@ -2935,7 +2942,7 @@ app.post('/generate', authCheck, async (req, res) => {
     if (templateRefUrl) {
       try {
         console.log(`[${videoId}] Downloading template reference from ${templateRefUrl}`)
-        const tRes = await fetch(templateRefUrl, { signal: AbortSignal.timeout(10000) })
+        const tRes = await guardedFetch(templateRefUrl, { signal: AbortSignal.timeout(10000) })
         if (tRes.ok) {
           templateRefBase64 = Buffer.from(await tRes.arrayBuffer()).toString('base64')
           console.log(`[${videoId}] Template reference loaded (${Math.round(templateRefBase64.length / 1024)}KB)`)
@@ -3211,8 +3218,20 @@ app.post('/generate', authCheck, async (req, res) => {
 
     const outputPath = join(workDir, 'output.mp4')
     let durations = []
+    let voiceSegments = null   // exact voice times (Drawn slides) → music ducking
 
-    if (process.env.ASSEMBLY_V2 === 'true') {
+    if (useFal) {
+      // ── Drawn slides: slow Ken Burns zoom on every slide + 0.5 s cross-fades
+      // instead of hard cuts (drawn-assembly.js). Same per-slide timing.
+      const { assembleDrawnSlides } = require('./drawn-assembly')
+      await updateStatus('assembling', 'Assembling your video...', 72)
+      const drawn = await assembleDrawnSlides({
+        workDir, slideCount: slideBuffers.length, audioBuffers, outputPath, runFfmpeg, probeAudioDuration,
+        onClip: (i) => updateStatus('assembling', `Animating slide ${i + 1} of ${slideBuffers.length}...`, 72 + Math.round(((i + 1) / slideBuffers.length) * 13)),
+      })
+      durations = drawn.durations
+      voiceSegments = drawn.voice
+    } else if (process.env.ASSEMBLY_V2 === 'true') {
       // ── V2: single-filtergraph assembly (one ffmpeg pass, no concat seams) ──
       await updateStatus('assembling', 'Assembling your video...', 75)
       console.log(`[${videoId}] ASSEMBLY_V2: single-filtergraph for ${slideBuffers.length} slides`)
@@ -3323,25 +3342,11 @@ app.post('/generate', authCheck, async (req, res) => {
 
             // Mix music under narration
             await updateStatus('assembling', 'Mixing background music...', 91)
-            const fadeOutStart = Math.max(0, totalDurationEst - 3)
             const mixedPath = join(workDir, 'output_with_music.mp4')
-            await runFfmpeg([
-              '-i', outputPath,
-              '-stream_loop', '-1',
-              '-i', musicPath,
-              '-filter_complex',
-              // normalize=0 stops amix from auto-ducking the narration; narration stays
-              // at full volume and music sits as a quiet bed underneath at ~4%.
-              `[0:a]volume=1.0[narr];[1:a]volume=0.04,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[narr][music]amix=inputs=2:duration=first:normalize=0[out]`,
-              '-map', '0:v',
-              '-map', '[out]',
-              '-c:v', 'copy',
-              '-c:a', 'aac',
-              '-b:a', '192k',
-              '-movflags', '+faststart',
-              '-y',
-              mixedPath,
-            ])
+            // Voice at full level, music ducked under it and looped (audio-mix.js).
+            // Drawn slides know exactly when each slide's voice plays; the
+            // classic path finds the lines in the narration itself.
+            await mixMusicUnderVoice({ videoIn: outputPath, musicPath, outPath: mixedPath, segments: voiceSegments || undefined })
             finalPath = mixedPath
             musicSaved = true
             console.log(`[${videoId}] Music mixed successfully`)
@@ -3386,7 +3391,7 @@ app.post('/generate', authCheck, async (req, res) => {
     // Mark complete — with explicit error logging
     const totalDuration = totalDurationEst
     try {
-      const { error: updateError } = await supabase.from('videos').update({
+      const marked = await completeIfRunning(supabase, videoId, {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
@@ -3399,12 +3404,9 @@ app.post('/generate', authCheck, async (req, res) => {
         status: 'completed',
         progress_detail: null,
         progress_pct: 100,
-      }).eq('id', videoId)
-      if (updateError) {
-        console.error(`[${videoId}] DB UPDATE ERROR:`, updateError.message, updateError.details, updateError.hint)
-      } else {
-        console.log(`[${videoId}] Database updated to completed`)
-      }
+        progress_updated_at: new Date().toISOString(),
+      }, { tag: 'generate', userId, report: reportError })
+      if (marked) console.log(`[${videoId}] Database updated to completed`)
     } catch (dbErr) {
       console.error(`[${videoId}] DB UPDATE CRASHED:`, dbErr.message)
     }
@@ -3425,6 +3427,7 @@ app.post('/generate', authCheck, async (req, res) => {
       }).eq('id', videoId)
     } catch(e2) { console.error('Failed to update failure status:', e2.message) }
   }
+  }) // end withRenderSlotFor (classic /generate shares the one render queue)
 })
 
 
@@ -3620,12 +3623,13 @@ function previewDirectedJob(body, deps) {
     const visual = (k === 'slide' || k === 'figure') ? { type: 'slide' } : { type: 'kinetic' }
     return { id: s.id, beat: s.beat, narration: s.narration, on_screen: (s.layout && s.layout.heading) || s.on_screen || '', layout: s.layout, blocks, visual }
   })
-  const company = preparer || 'docs2video' // same default as /generate-slides
+  // The agent's brand or own name, else nothing — never our platform name.
+  const company = (preparer || '').trim() || undefined
   const doc = {
     title: w.title, look: ['noir', 'ledger', 'datamesh'].includes(w.look) ? w.look : 'noir',
     chrome: { company, logo: logoUrl || undefined, recipient: recipient || null, footer: footer || company, glass: 'vivid' },
     intro: { ...w.intro, preparer: company, recipient },
-    cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: (w.cta && w.cta.contact) || footer || company },
+    cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: (w.cta && w.cta.contact) || footer || company || null },
     scenes: outScenes,
     noSfx: true,
   }

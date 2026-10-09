@@ -177,7 +177,7 @@ export default function FixScene({ videoId, planUrl, slideUrls = [], script = []
           <div className="fix-list">
             {scenes.map((s) => (
               <button key={s.index} type="button" onClick={() => pick(s, start?.action, start?.text)} className="fix-scene">
-                {s.thumb ? <img src={s.thumb} alt="" className="fix-thumb" /> : <div className="fix-thumb fix-thumb--empty">{s.index + 1}</div>}
+                {s.thumb ? <img src={s.thumb} alt="" className="fix-thumb" loading="lazy" decoding="async" /> : <div className="fix-thumb fix-thumb--empty">{s.index + 1}</div>}
                 <div style={{ minWidth: 0 }}>
                   <div className="fix-scene-title">{s.index + 1}. {s.label}</div>
                   {s.narration ? <div className="fix-scene-words">{s.narration}</div> : null}

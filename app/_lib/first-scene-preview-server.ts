@@ -89,7 +89,7 @@ export type PreviewPlan = {
  * Everything needed to draw the first content scene in the chosen look, built
  * with the SAME builders the real engines use (buildV3Payload,
  * buildPresentationHtml; the render service runs planFromSuppliedScenes for the
- * Slide Deck look). Returns null when there is no content scene yet.
+ * Animated slides look). Returns null when there is no content scene yet.
  */
 export function buildPreviewPlan(o: {
   output: string; look: string; draft: Draft; brand: Brand | null; rowTitle?: string | null
@@ -137,7 +137,7 @@ export function buildPreviewPlan(o: {
       }),
     }
   } else if (engine === 'directed') {
-    // The Slide Deck look: the same scene list generate-video hands to the
+    // The Animated slides look: the same scene list generate-video hands to the
     // render service (cover, content, closing in the {role, …} shape).
     const toSupplied = (s: PreviewScene | undefined, role: 'cover' | 'content' | 'closing') =>
       s ? { role, title: s.title, narration: s.narration || s.title || ' ', beat: s.beat, slideData: s.slideData } : null

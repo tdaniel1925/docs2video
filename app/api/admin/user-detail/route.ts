@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
 import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
+import { ADMIN_USER_DETAIL_COLUMNS, ADMIN_VIDEO_COLUMNS, ADMIN_QUOTE_COLUMNS, ADMIN_EMAIL_CONNECTION_COLUMNS } from '../../../_lib/admin/columns'
 export const maxDuration = 30
 
 export async function GET(request: Request) {
@@ -18,10 +19,10 @@ export async function GET(request: Request) {
 
   try {
     const [profileRes, videosRes, quotesRes, emailsRes, referralsRes, balanceRes] = await Promise.all([
-      admin.from('profiles').select('*').eq('id', id).single(),
-      admin.from('videos').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-      admin.from('quotes').select('*').eq('user_id', id).order('created_at', { ascending: false }),
-      admin.from('email_connections').select('*').eq('user_id', id).order('created_at', { ascending: false }),
+      admin.from('profiles').select(ADMIN_USER_DETAIL_COLUMNS).eq('id', id).single(),
+      admin.from('videos').select(ADMIN_VIDEO_COLUMNS).eq('user_id', id).order('created_at', { ascending: false }).limit(100),
+      admin.from('quotes').select(ADMIN_QUOTE_COLUMNS).eq('user_id', id).order('created_at', { ascending: false }),
+      admin.from('email_connections').select(ADMIN_EMAIL_CONNECTION_COLUMNS).eq('user_id', id).order('created_at', { ascending: false }),
       admin.from('profiles').select('id, email, full_name').eq('referred_by', id),
       admin.from('credit_balances').select('balance, topup_balance').eq('user_id', id).maybeSingle(),
     ])

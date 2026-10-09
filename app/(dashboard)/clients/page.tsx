@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { CLIENT_STATUSES, statusTone, statusWords } from './client-status'
 
 interface Client {
   id: string
@@ -20,15 +21,11 @@ interface Client {
   recent_activity_count: number
 }
 
-const STATUS_OPTIONS = ['all', 'lead', 'active', 'engaged', 'converted', 'inactive'] as const
-// One chip colour per status, from the shared names. "Active" stays blue (a
-// tint of the link colour) so it never reads the same as "engaged" (mint).
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  lead: { bg: 'var(--surface)', color: 'var(--ink-soft)' },
-  active: { bg: 'color-mix(in srgb, var(--link) 12%, var(--bg-card))', color: 'var(--link)' },
-  engaged: { bg: 'var(--accent)', color: 'var(--accent-ink)' },
-  converted: { bg: 'var(--warning-bg)', color: 'var(--warning-text)' },
-  inactive: { bg: 'var(--error-bg)', color: 'var(--error-text)' },
+const STATUS_OPTIONS = ['all', ...CLIENT_STATUSES] as const
+
+/** A client's status as a soft chip in plain words (client-status.ts). */
+function StatusChip({ status }: { status: string }) {
+  return <span className="cl-status" data-tone={statusTone(status)}>{statusWords(status)}</span>
 }
 
 export default function ClientsPage() {
@@ -150,7 +147,6 @@ export default function ClientsPage() {
     }
   }
 
-  const totalRevenue = clients.reduce((sum, c) => sum + (c.total_revenue ?? 0), 0)
   const activeCount = clients.filter(c => c.status === 'active' || c.status === 'engaged').length
   const engagedThisWeek = clients.filter(c => c.recent_activity_count > 0).length
 
@@ -159,32 +155,30 @@ export default function ClientsPage() {
       <div className="page-head">
         <div>
           <h1>Clients</h1>
-          <p>Manage your clients and track engagement across all interactions.</p>
+          <p>The people you make videos for — and who has watched.</p>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          <button className="btn btn-soft btn-sm" onClick={handleExport}>Export CSV</button>
-          <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(!showImport); setShowAddForm(false) }}>Import a CSV file</button>
+        {/* "Add a client" first: it's the thing people come here to do. */}
+        <div className="cl-actions">
           <button className="btn btn-primary btn-sm" onClick={() => { setShowAddForm(!showAddForm); setShowImport(false) }}>Add a client</button>
+          <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(!showImport); setShowAddForm(false) }}>Import a CSV file</button>
+          <button className="btn btn-soft btn-sm" onClick={handleExport}>Export CSV</button>
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 24 }}>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
+      {/* Three counts. The "Total revenue $0" tile is gone: nothing records a
+          client's payments here, so it only ever said $0 (audit 2026-10-09). */}
+      <div className="cl-stats">
+        <div className="stat-card">
           <div className="stat-value">{clients.length}</div>
-          <div className="stat-label">Total Clients</div>
+          <div className="stat-label">Clients</div>
         </div>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
+        <div className="stat-card">
           <div className="stat-value">{activeCount}</div>
-          <div className="stat-label">Active Clients</div>
+          <div className="stat-label">In touch</div>
         </div>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
+        <div className="stat-card">
           <div className="stat-value">{engagedThisWeek}</div>
-          <div className="stat-label">Engaged this week</div>
-        </div>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
-          <div className="stat-value">${(totalRevenue / 100).toLocaleString()}</div>
-          <div className="stat-label">Total revenue</div>
+          <div className="stat-label">Active this week</div>
         </div>
       </div>
 
@@ -285,9 +279,9 @@ export default function ClientsPage() {
               key={s}
               className={`btn btn-sm ${statusFilter === s ? 'btn-primary' : 'btn-soft'}`}
               onClick={() => setStatusFilter(s)}
-              style={{ textTransform: 'capitalize' }}
+              aria-pressed={statusFilter === s}
             >
-              {s === 'all' ? 'All' : s}
+              {s === 'all' ? 'All' : statusWords(s)}
             </button>
           ))}
         </div>
@@ -317,7 +311,30 @@ export default function ClientsPage() {
           )}
         </div>
       ) : (
-        <div style={{
+        <>
+        {/* Phones: one card per client (the table scrolled sideways). */}
+        <ul className="cl-cards" aria-label="Your clients">
+          {clients.map(client => (
+            <li key={client.id} className="cl-card">
+              <div className="cl-card-head">
+                <div style={{ minWidth: 0 }}>
+                  <Link href={`/clients/${client.id}`} className="cl-card-name">{client.name}</Link>
+                  {client.company && <div className="cl-card-sub">{client.company}</div>}
+                </div>
+                <StatusChip status={client.status} />
+              </div>
+              <div className="cl-card-meta">
+                {client.email ?? 'No email'} · {client.total_videos_sent} {client.total_videos_sent === 1 ? 'video' : 'videos'} sent · {client.last_activity_at ? formatRelativeTime(client.last_activity_at) : 'No activity yet'}
+              </div>
+              <div className="cl-card-actions">
+                <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm">View</Link>
+                <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm">Send a video</Link>
+                {client.email && <a href={`mailto:${client.email}`} className="btn btn-soft btn-sm">Email</a>}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="cl-table" style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
@@ -343,7 +360,6 @@ export default function ClientsPage() {
               </thead>
               <tbody>
                 {clients.map(client => {
-                  const sc = STATUS_COLORS[client.status] ?? STATUS_COLORS.lead
                   return (
                     <tr key={client.id} className="activity-row">
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)' }}>
@@ -356,12 +372,7 @@ export default function ClientsPage() {
                         {client.email ?? '--'}
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)' }}>
-                        <span className="tag" style={{
-                          background: sc.bg,
-                          color: sc.color,
-                          borderColor: sc.bg,
-                          textTransform: 'capitalize',
-                        }}>{client.status}</span>
+                        <StatusChip status={client.status} />
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontWeight: 700 }}>
                         {client.total_videos_sent}
@@ -377,7 +388,7 @@ export default function ClientsPage() {
                             View
                           </Link>
                           <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
-                            Send Video
+                            Send a video
                           </Link>
                           {client.email && (
                             <a href={`mailto:${client.email}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
@@ -393,6 +404,7 @@ export default function ClientsPage() {
             </table>
           </div>
         </div>
+        </>
       )}
     </div>
   )

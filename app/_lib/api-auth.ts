@@ -79,17 +79,35 @@ export async function chargeApiCredits(userId: string, amount: number): Promise<
   return deductCredits(userId, amount, 'api', undefined, 'API/MCP usage')
 }
 
+/** The ONE refund key for an API job: every path that refunds a failed job
+ *  (the v1 route, generate-video's failure path, the cron sweep) uses it, so a
+ *  job is refunded once — they used to use a random key each, and a job that
+ *  failed in generate-video was refunded twice. */
+export function apiJobRefundKey(jobId: string): string {
+  return `api-refund:job:${jobId}`
+}
+
 /** Refund a previously charged amount (e.g. generation failed to start) back to
- *  the shared pool. Unique idempotency key per call so repeat refunds aren't
- *  swallowed (each API charge is independently refundable). */
-export async function refundApiCredits(userId: string, amount: number): Promise<void> {
-  if (!amount || amount <= 0) return
+ *  the shared pool. Pass `jobId` whenever the charge belongs to a job (it makes
+ *  the refund once-only); without it each call is its own refund. Returns true
+ *  when credits were added; a failure is emailed to the owner, never thrown. */
+export async function refundApiCredits(userId: string, amount: number, jobId?: string): Promise<boolean> {
+  if (!amount || amount <= 0) return false
   const { addTopupCredits } = await import('./credits')
   const { randomUUID } = await import('crypto')
   try {
-    await addTopupCredits(userId, amount, 'api-refund', { action: 'api_refund', idempotencyKey: `api-refund:${userId}:${randomUUID()}` })
+    return await addTopupCredits(userId, amount, 'api-refund', {
+      action: 'api_refund',
+      idempotencyKey: jobId ? apiJobRefundKey(jobId) : `api-refund:${userId}:${randomUUID()}`,
+      // The job's row id on the ledger line, so a later sweep can see it was refunded.
+      ...(jobId ? { videoId: jobId } : {}),
+    })
   } catch (e) {
-    console.error(`[api-auth] refundApiCredits error for ${userId}:`, e instanceof Error ? e.message : e)
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error(`[api-auth] refundApiCredits error for ${userId}:`, msg)
+    const { alertOps } = await import('./ops-alert')
+    await alertOps({ source: 'api', stage: 'refund', message: `An API refund of ${amount} credits failed — add them back by hand: ${msg}`, userId, videoId: jobId ?? null })
+    return false
   }
 }
 

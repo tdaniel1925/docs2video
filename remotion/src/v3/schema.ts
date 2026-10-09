@@ -54,6 +54,8 @@ export const v3Schema = z.object({
   theme: themeSchema,
   brandName: z.string().optional(),
   music: z.string().optional(),
+  /** The music file's length in frames — lets the bed loop to cover the video. */
+  musicFrames: z.number().optional(),
   /** Visual look:
    *  - 'aurora'          → continuous code-rendered ThemedBackground ($0, no images)
    *  - 'editorial-cinema'→ ONE shared backdrop image behind every scene

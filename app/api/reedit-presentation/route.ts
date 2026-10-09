@@ -5,6 +5,8 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { CREDIT_COSTS, deductCredits, getBalance } from '../../_lib/credits'
 import { PRESENTATION_EDIT_CHARGE_ACTION, refundPresentationEditCharge } from '../../_lib/video-billing'
 import type { PresentationScene } from '../../_lib/presentation'
+import { storyTooBigMessage } from '../../_lib/length-limits'
+import { normalizeDetailLevel } from '../../_lib/wizard-draft'
 
 // =============================================================================
 // Save edited slides and rebuild the presentation.
@@ -72,6 +74,11 @@ export async function POST(req: Request) {
   // Price = narration changes only. Compare against what is CURRENTLY stored,
   // by position; added slides count as narration changes (they need a voice).
   const draft = (row.draft_data ?? {}) as Record<string, unknown>
+  // SCENE CAP (audit 2026-10-09): an edit can't grow the story past its length.
+  {
+    const tooBig = storyTooBigMessage(scenes, normalizeDetailLevel(draft.detailLevel) ?? 'standard')
+    if (tooBig) return NextResponse.json({ error: tooBig, code: 'story_too_long' }, { status: 400 })
+  }
   const before = (Array.isArray(draft.scenes) ? draft.scenes : []) as PresentationScene[]
   const norm = (t: unknown) => String(t ?? '').replace(/\s+/g, ' ').trim()
   let changed = 0

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { createClient } from '../../_lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { PLANS } from '../../_lib/pricing'
@@ -52,7 +53,7 @@ STARTING OUT (no card needed to try it):
 
 KEY FEATURES:
 - ${NAMES.brands}: a brand is either a Company (logo, colors, contact info) or a Person (name, role, photo, intro line). Applied automatically. Manage them from "${NAMES.brands}" in the top bar, or add one inside a project: on step 3, "The look", press "Add your brand", type your name, upload your logo and pick two colours — "Fill in from it" reads the colours and logo from your website — then "Save my brand" (your first brand becomes the default for every new project). "More brand options" adds a photo and contact details. Logos are only ever your real logo — we never draw one; with no logo your name shows as text.
-- Video looks: Slide Deck (recommended, ~10 min), Aurora, Cinematic, Editorial, Explainer, Infographic and Drawn slides (NEW). Picked on step 3, "The look" (look cards; BEST marks the recommended one).
+- Video looks: Animated slides (recommended, ~10 min), Aurora, Cinematic, Editorial, Explainer, Infographic and Drawn slides (NEW). Picked on step 3, "The look" (look cards; BEST marks the recommended one).
 - Drawn slides: the AI draws every slide as one finished picture (headline, up to 4 short points and the numbers drawn in), then the voice (Sarah by default) and optional music play over it. Picking it shows a "Drawing style" line with three chips: 3D infographic (default, glossy isometric 3D), Illustrated (flat illustration) and Classic (clean corporate slide). Same price as any other look, about 4–6 minutes. Words are kept short so they're spelled right, money keeps its $ and commas, no logos or company/product names are drawn, and the contact line on the last slide is added as plain text. Free preview works for it (draws the first scene in the chosen style). Each slide is drawn fresh, so the finished slides differ a little from the preview.
 - The story step: after the document is read, the AI shows the one point (a big card) and the numbers it will use (big tiles) — each can be changed or removed right there — and the scenes as title cards ("Edit" opens a scene). You pick the length (Short, Standard or Detailed — changing it offers a free "Rewrite at this length"), or type a change under "Ask for a change" and press "Change", with Undo. Changing the point or a number after the story is written offers a free "Rewrite the story with it". This step is free.
 - ${NAMES.library}: everything you've made as picture cards (a picture, the name, a coloured status line — "Ready to send · 1:30", "Making… 65%", "Didn't finish" or "Draft — not made yet" — the date and who it's for), with tabs All / ${KIND_NAMES.video.many} / ${KIND_NAMES.presentation.many}, plus "Older items" (slide decks and graphics made before) when the account has any. Press a card to open it; a ready video has a "Send" button that jumps to its "Ready to send" panel. "Search by name or client", an order box (Newest first / Oldest first / Name A–Z), and a Cards / List switch (List is a table with type, recipient, status, credits and date; the choice is remembered on that computer). Delete is in each card's "…" menu ("Delete…") and always asks first. Paginate 24/48/96 per page. Duplicate is on the project's own page under "More".
@@ -60,22 +61,26 @@ KEY FEATURES:
 - The finished project's page (open it from the ${NAMES.library}) is built around sending:
   * Top: the name (click to rename), a "Download" menu and a "More" menu (Rename, Duplicate, Social posts, Delete).
   * "Ready to send": a picture of exactly what the client will see, and ONE send panel. "What’s left" chips list what's missing from their page (client email, a note, a booking link, your photo or name, a payment link for a quote) — each opens the fix. Then "Send to" (the client from step 1, a typed email, or "Send to someone else"), "A short note", the on/off pieces (quote with a pay button, original PDF, quote reminders), and the Send button. It sends from the agent's connected email if there is one, otherwise from our address with replies to the agent. "or copy the link" copies the share link; "Copy the email" copies the whole email to paste into their own inbox (copying sends nothing). There is no separate "Send to Client" window any more.
-  * "Ask for a change": pick "This scene" or the whole thing, type the change or press a suggestion. It opens the editor for that kind of project — the slide editor for presentations and older slide decks (trying a change is free; rebuilding costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per slide whose spoken words change), "Fix a scene" for Slide Deck look videos (voice glitch or mispronounced word free, changing the words ${n(CREDIT_COSTS['slide-scene-fix'])} credits), the older Scene editor for other looks that keep slide pictures (free), and for looks that can't be changed in place, "Make a changed copy" (a new video). Changes are listed under the bar with Undo. There is no "Edit Video" button any more.
+  * "Ask for a change": pick "This scene" or the whole thing, type the change or press a suggestion. It opens the editor for that kind of project — the slide editor for presentations and older slide decks (trying a change is free; rebuilding costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per slide whose spoken words change), "Fix a scene" for Animated slides look videos (voice glitch or mispronounced word free, changing the words ${n(CREDIT_COSTS['slide-scene-fix'])} credits), the older Scene editor for other looks that keep slide pictures (free), and for looks that can't be changed in place, "Make a changed copy" (a new video). Changes are listed under the bar with Undo. There is no "Edit Video" button any more.
   * "Who watched": for each email sent — sent time, whether the email was opened, and how far into the video they got in quarters (25/50/75/100%) and when, plus Book/Pay clicks; others who opened the link are listed by device. Presentations show opened/clicked-in only. View-alert emails are set under Activity > Notifications.
   * "More for this video" (paid plans): tabs "Quote / invoice" and "Follow-up plan".
 - Downloads: the "Download" menu lists only what the project has — MP4, PDF and PowerPoint (for videos only when the look keeps slide pictures), Script; for interactive presentations also "Export video" (${n(CREDIT_COSTS.videoExport)} credits).
 - Clients: A lightweight CRM — add clients, see videos sent to them, notes/activity, sent-email history, and quotes/payments.
 - Quotes & Payments: Attach a quote to a video; clients pay via your Stripe Payment Link on the share page.
 - Affiliate (/affiliate, in the account menu on the left of Settings): Earn 20% recurring commission. Share your referral link; when someone subscribes through it the discount + your commission are applied automatically at checkout.
-- Notifications: The bell shows generation progress, completed/failed videos (with refunds), and lets you mark read, delete, or clear all.
+- Notifications: The bell (its button reads "Notifications, N new") shows what's being made and the last 30 days of notes: ready videos, and ones that "Didn't finish" (each links to its page, where "Try again" is; refunds are mentioned). The same note repeated shows once ("2 times"). Mark read, delete, or clear all; older notes are in Activity.
+- Share page (what the client sees, always light): the video, the agent's note, and one clear next step — "Book a call with <agent>" when a booking link is set, otherwise "Reply to <agent>" (a message form emailed to the agent) and "Call <agent>" when a phone number is set. No cookie notice there. "Powered by Docs2Video" appears once, in the footer. A wrong or old share link says "We can't find this video".
+- Library: All shows videos and presentations; older slide decks and graphics are only under "Older items". Home's "See all N" counts the same things as All. A wrong or deleted video link says "We can't find this video" with "Back to Library".
+- Clients: "Add a client" first; three counts (Clients, In touch, Active this week); statuses in plain words — New, In touch, Watched your video, Customer, Quiet lately. On a phone each client is a card.
+- Brands: making a brand whose name you already used warns you first ("You already have a brand called …"); on the Brands page, copies with the same name are grouped (newest shown, "N copies" opens the rest). Nothing is deleted.
 
 PLANS & PRICING (monthly):
 ${planLine('free')}
 ${planLine('pro')}
 ${planLine('business')}
 ${planLine('enterprise')}
-Top-up credit packs (never expire): ${CREDIT_PACKS.map(p => `${p.name} pack ${n(p.credits)} credits (${packPrice(p)})`).join(', ')}. Buy via the "+ Top Up" button or Settings > Billing & credits ("Credit packs").
-Anyone (Free or paid) can buy top-up packs. There is no per-video overage fee — extra usage is covered by packs. The old $29 Starter plan is no longer sold.
+Top-up credit packs (never expire): ${CREDIT_PACKS.map(p => `${p.name} pack ${n(p.credits)} credits (${packPrice(p)})`).join(', ')}. Buy via the "+ Top up" button or Settings > Billing & credits ("Credit packs").
+Anyone (${PLANS.find(p => p.tier === 'free')?.label} or paid) can buy top-up packs. The free plan is called "${PLANS.find(p => p.tier === 'free')?.label}" everywhere. There is no per-video overage fee — extra usage is covered by packs. The old $29 Starter plan is no longer sold.
 Add-on: AI Social — $50/mo to connect social accounts and auto-post AI content. Captions/images use normal credits, and each post costs 25 credits per platform. Open it from the account menu (top-right) > "AI Social".
 
 CREDIT COSTS (per creation):
@@ -87,8 +92,8 @@ Failed generations are automatically refunded.
 HOW TO MAKE ONE (three steps, shown at the top of the screen; each step has one bar at the bottom with the price on the left and the one main button on the right; nothing is charged until "Make it"):
 1. Your content. Click "${NAMES.newButton}" (or a start card on Home — step 1 opens on that choice): drop a document in the big box (up to 5 files), or switch with "Use a website" (just "yourcompany.com" — nobody has to type https://; every website box in the app adds it), "Paste text" or "Describe an idea". Optional: "For" (pick a client, "+ New" or "Find") and "Goal". Press "Read it →".
 2. The story. "Here’s the story.": the one point and the numbers it will use (fix or remove any), the scenes (press "Edit" on one), the length, and "Ask for a change". Free. Press "Pick a look →".
-3. The look. Pick a look card. One line shows the voice, music and length ("Sarah · music off · standard") — "Change" opens "More options": voice (Sarah by default), music, "Make" (Video or Presentation), the length, photo backgrounds (Slide Deck look), and for your client (a note, the original PDF). The brand line shows the brand ("Add your brand" adds it right there). The bottom bar shows the price and what's left after; "Free preview" shows the first scene free; "Make it" starts it (a new account adds its card at this point).
-After that it is made in the background (most videos 3–5 minutes, the Slide Deck look about 10) and lands in the ${NAMES.library}; you can close the page — we email you when it’s ready, and Home shows it under "Finished while you were away". Then send it from "Ready to send", ask for a change, or download it from the "Download" menu.
+3. The look. Pick a look card. One line shows the voice, music and length ("Sarah · music off · standard") — "Change" opens "More options": voice (Sarah by default), music, "Make" (Video or Presentation), the length, photo backgrounds (Animated slides look), and for your client (a note, the original PDF). The brand line shows the brand ("Add your brand" adds it right there). The bottom bar shows the price and what's left after; "Free preview" shows the first scene free; "Make it" starts it (a new account adds its card at this point).
+After that it is made in the background (most videos 3–5 minutes, the Animated slides look about 10) and lands in the ${NAMES.library}; you can close the page — we email you when it’s ready, and Home shows it under "Finished while you were away". Then send it from "Ready to send", ask for a change, or download it from the "Download" menu.
 Commercials start from "A commercial" on Home or the link under step 1.
 
 SETTINGS = YOUR ACCOUNT (a menu down the left; on a phone a row at the top you swipe). Old links like Settings > Subscription / Integrations still open the matching part:
@@ -119,6 +124,9 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   // Rate limiting per user
   const now = Date.now()

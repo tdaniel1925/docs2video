@@ -56,7 +56,7 @@ export default function CreatingVideosPage() {
           <h1>Creating explainer videos</h1>
           <p>
             Three steps, from your document to a video you can send: <strong>Your content</strong>, <strong>The story</strong> and{' '}
-            <strong>The look</strong>. The steps are shown at the top of the screen (just the numbers on a phone) — press a step you&rsquo;ve
+            <strong>The look</strong>. The steps are shown at the top of the screen (on a phone, the numbers and the name of the step you&rsquo;re on) — press a step you&rsquo;ve
             done to go back to it. Each step ends in one bar at the bottom of the screen: the price on the left, the one button that moves
             you on, on the right. Your work is saved as you go, and nothing is charged until you press <strong>Make it</strong> on step 3.
           </p>
@@ -136,17 +136,17 @@ export default function CreatingVideosPage() {
 
       <Step n={3} title="The look">
         <p style={P}>
-          The screen says <strong style={INK}>Pick a look.</strong> For a video the looks are <strong style={INK}>Slide Deck</strong> (marked{' '}
+          The screen says <strong style={INK}>Pick a look.</strong> For a video the looks are <strong style={INK}>Animated slides</strong> (marked{' '}
           <strong style={INK}>BEST</strong>, and picked for you), <strong style={INK}>Aurora</strong>, <strong style={INK}>Cinematic</strong>,{' '}
           <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong>, <strong style={INK}>Infographic</strong> and{' '}
           <strong style={INK}>Drawn slides</strong> (marked <strong style={INK}>NEW</strong>). Press a card to pick it;{' '}
-          <strong style={INK}>See examples</strong> shows more of it. Presentations have their own color sets.
+          Each card has one short line saying what it looks like; <strong style={INK}>See examples</strong> shows more of it. Presentations have their own color sets.
         </p>
         <p style={P}>
           <strong style={INK}>Drawn slides</strong> — the AI draws every slide as one finished picture, with the headline, a few short points and your
           numbers drawn right in. When you pick it, a <strong style={INK}>Drawing style</strong> line appears under the cards with three choices, each with a
           small sample: <strong style={INK}>3D infographic</strong> (glossy 3D objects and cards — picked for you), <strong style={INK}>Illustrated</strong>{' '}
-          (friendly flat drawings) and <strong style={INK}>Classic</strong> (a clean business slide). The voice and music play over the slides as a video.
+          (friendly flat drawings) and <strong style={INK}>Classic</strong> (a clean business slide). The voice and music play over the slides as a video: each slide drifts in slowly and fades softly into the next, and the music dips while the voice talks.
           Each slide keeps its words short so they are drawn correctly, money shows with a $ and commas, and no logos or company or product names are
           drawn (your contact details go on the last slide as plain text). After each slide is drawn, its words are read back and checked — if a
           word is missing or two words are squeezed together, that slide is drawn again. It costs the same as any other look and takes about 4–6 minutes.
@@ -163,7 +163,7 @@ export default function CreatingVideosPage() {
           at their own pace, with narration); each shows its price. Docs2Video no longer makes silent slide decks; a presentation&rsquo;s slides
           still download as PDF or PowerPoint. <strong style={INK}>Length</strong> — the length your story was written at;{' '}
           <strong style={INK}>Change the length</strong> takes you straight to the length choice on step 2. <strong style={INK}>Photos</strong> — the
-          Slide Deck look can <strong style={INK}>Add photo backgrounds</strong> (same price, a few minutes longer). <strong style={INK}>For your client</strong> —{' '}
+          Animated slides look can <strong style={INK}>Add photo backgrounds</strong> (same price, a few minutes longer). <strong style={INK}>For your client</strong> —{' '}
           <strong style={INK}>A note to your client</strong> (shown on the share page, up to 400 characters) and, if your source was a PDF,{' '}
           <strong style={INK}>Let them download the original PDF</strong>. <strong style={INK}>Price</strong> — the lines that make up the price.
         </p>
@@ -194,7 +194,7 @@ export default function CreatingVideosPage() {
         <p style={P}>
           A progress screen lists the real stages — writing the script, recording the voice, drawing the scenes, putting it together — with a
           tick as each one finishes and what is happening right now (for example &ldquo;Drawing scene 3 of 6&rdquo;). Most videos take{' '}
-          <strong style={INK}>3–5 minutes</strong>; the Slide Deck look takes about <strong style={INK}>10 minutes</strong>.{' '}
+          <strong style={INK}>3–5 minutes</strong>; the Animated slides look takes about <strong style={INK}>10 minutes</strong>.{' '}
           <strong style={INK}>You can close the page</strong> — it keeps going, we email you when it&rsquo;s ready, the finished one appears in
           your <strong style={INK}>{NAMES.library}</strong>, and Home lists it under <strong style={INK}>Finished while you were away</strong>.
         </p>

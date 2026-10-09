@@ -3,7 +3,7 @@
 //
 // There were three different editors, each behind a different button with
 // different words: "Edit Video" (an older scene editor), "Fix a scene" (only
-// on Slide Deck look videos) and "Edit slides" (presentations). Customers had
+// on Animated slides look videos) and "Edit slides" (presentations). Customers had
 // to know which one their project used. Now there is ONE bar with the same
 // words everywhere, and this file decides where the request goes. No new AI
 // editor — each route is an editor that already exists:

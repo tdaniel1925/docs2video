@@ -20,6 +20,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'action and userId are required' }, { status: 400 })
   }
 
+  // Money actions need a written reason — it goes into the audit log so the
+  // owner can always see why credits were added or wiped.
+  const why = (reason || '').trim()
+  if ((action === 'add_credits' || action === 'reset_credits') && why.length < 3) {
+    return NextResponse.json({ error: 'Please write a short reason.' }, { status: 400 })
+  }
+
   const admin = createAdminClient()
 
   try {
@@ -52,10 +59,11 @@ export async function POST(request: Request) {
         // Route through the real credit system (credit_balances.topup_balance),
         // not the legacy profiles.credits_remaining column which the app no
         // longer spends from. This is what makes admin grants actually usable.
-        const amount = Number(value) || 0
-        if (amount > 0) {
-          await addTopupCredits(userId, amount, `admin grant${reason ? ` (${reason})` : ''}`)
+        const amount = Math.floor(Number(value) || 0)
+        if (amount <= 0 || amount > 100_000) {
+          return NextResponse.json({ error: 'Credits must be between 1 and 100,000.' }, { status: 400 })
         }
+        await addTopupCredits(userId, amount, `admin grant (${why})`)
         // Do NOT write profiles.credits_remaining — it's the dead store and a
         // non-additive write here would re-introduce drift (audit #8).
         break
@@ -93,8 +101,10 @@ export async function POST(request: Request) {
       case 'toggle_ban': {
         const { data: profile } = await admin.from('profiles').select('subscription_status').eq('id', userId).single()
         const isBanned = profile?.subscription_status === 'banned'
-        await admin.from('profiles').update({ subscription_status: isBanned ? null : 'banned' }).eq('id', userId)
-        break
+        const { error: banErr } = await admin.from('profiles').update({ subscription_status: isBanned ? null : 'banned' }).eq('id', userId)
+        if (banErr) return NextResponse.json({ error: `Could not ${isBanned ? 'unban' : 'ban'}: ${banErr.message}` }, { status: 500 })
+        await logAdminAction(user.id, isBanned ? 'unban' : 'ban', userId, reason ? { reason } : undefined)
+        return NextResponse.json({ success: true, banned: !isBanned })
       }
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 })

@@ -39,6 +39,31 @@ export async function checkRateLimit(
   }
 }
 
+/**
+ * The same shared counter, but FAIL CLOSED: for caps that guard real spend
+ * (free AI steps), "the counter is broken" must mean "stop", not "unlimited".
+ * Returns 'error' when the counter could not be read or written — the caller
+ * refuses the request (audit 2026-10-09, like the free preview's counter).
+ */
+export async function hitRateLimitStrict(
+  key: string,
+  max: number,
+  windowSecs: number,
+): Promise<'allowed' | 'over' | 'error'> {
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin.rpc('rate_limit_hit', { p_key: key, p_max: max, p_window_secs: windowSecs })
+    if (error) {
+      console.error(`[rate-limit] strict counter failed for ${key}: ${error.message} — failing CLOSED`)
+      return 'error'
+    }
+    return data === true ? 'allowed' : 'over'
+  } catch (e) {
+    console.error(`[rate-limit] strict counter error for ${key} — failing CLOSED:`, e instanceof Error ? e.message : e)
+    return 'error'
+  }
+}
+
 const requests = new Map<string, { count: number; resetAt: number }>()
 
 export function rateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; remaining: number } {

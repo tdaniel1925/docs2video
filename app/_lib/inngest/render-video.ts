@@ -52,7 +52,7 @@ export const renderVideoV2 = inngest.createFunction(
       }).eq('id', videoId)
       await sendNotification(admin, userId, {
         type: 'video_failed',
-        title: 'Video generation failed',
+        title: 'Didn’t finish',
         message: error?.message || 'Video generation failed',
         link: `/videos/${videoId}`,
       })

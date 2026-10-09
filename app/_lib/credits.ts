@@ -315,6 +315,44 @@ export async function checkCredits(userId: string, needed: number): Promise<Cred
 }
 
 /**
+ * Put back a deduction whose ledger row could not be written. Compare-and-set
+ * on the CURRENT balances (a few tries, in case another charge lands at the
+ * same moment), so it never overwrites someone else's change. True when the
+ * credits are back.
+ */
+export async function restoreDeduction(
+  admin: SupabaseClient,
+  userId: string,
+  monthly: number,
+  topup: number,
+  amount: number,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: row, error: readErr } = await admin
+      .from('credit_balances')
+      .select('balance, topup_balance, cycle_credits_used')
+      .eq('user_id', userId)
+      .single()
+    if (readErr || !row) return false
+    const { data: put, error: putErr } = await admin
+      .from('credit_balances')
+      .update({
+        balance: row.balance + monthly,
+        topup_balance: row.topup_balance + topup,
+        cycle_credits_used: Math.max(0, (row.cycle_credits_used || 0) - amount),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .eq('balance', row.balance)
+      .eq('topup_balance', row.topup_balance)
+      .select('user_id')
+    if (putErr) return false
+    if (put && put.length > 0) return true
+  }
+  return false
+}
+
+/**
  * Deduct credits — BACKWARD COMPATIBLE.
  * Accepts the old (admin, userId, amount) signature so existing API routes keep working.
  * Also supports new extended signature with action tracking.
@@ -454,7 +492,11 @@ export async function deductCredits(
       return deductCredits(adminOrUserId, userIdOrAmount, amountOrAction, videoId, description, _attempt + 1)
     }
 
-    await admin.from('credit_transactions').insert({
+    // The ledger row is what every refund is checked against (video-billing.ts):
+    // a charge with no ledger row can never be refunded. So if this write fails,
+    // the deduction is put back and the charge is refused (audit 2026-10-09 —
+    // it used to be unchecked: money taken, nothing on record).
+    const { error: ledgerErr } = await admin.from('credit_transactions').insert({
       user_id: userId,
       amount: -amount,
       balance_after: newTotal,
@@ -462,6 +504,19 @@ export async function deductCredits(
       video_id: videoId || null,
       description: description || `${action}: -${amount} credits`,
     })
+    if (ledgerErr) {
+      console.error(`[credits] ledger write failed for user ${userId} (${action}, ${amount}) — putting the credits back:`, ledgerErr.message)
+      const restored = await restoreDeduction(admin, userId, monthlyDeduct, topupDeduct, amount)
+      const { alertOps } = await import('./ops-alert')
+      await alertOps({
+        source: 'credits', stage: 'ledger-write',
+        message: restored
+          ? `A charge of ${amount} credits (${action}) could not be written to the ledger, so it was put back and refused.`
+          : `A charge of ${amount} credits (${action}) could not be written to the ledger AND could not be put back — the customer is short ${amount} credits. Add them back by hand.`,
+        detail: ledgerErr.message, userId, videoId: videoId || null,
+      })
+      return false
+    }
 
     console.log(`[credits] Deducted ${amount} from user ${userId}: ${total} -> ${newTotal}`)
     // Free-trial-then-auto-bill: once what's left can't pay for even the

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import ViewAlertsSetting from './ViewAlertsSetting'
+import { tidyNotice } from '../../_lib/bell'
 
 interface Notification {
   id: string
@@ -230,7 +231,9 @@ export default function ActivityPage() {
             </div>
           ) : (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
-              {notifications.map((n, i) => (
+              {/* Same words as the bell ("Didn't finish", linked to the result
+                  page) — Activity keeps every notice, the bell only recent ones. */}
+              {notifications.map(tidyNotice).map((n, i) => (
                 <Link
                   key={n.id}
                   href={n.link ?? '#'}
@@ -241,7 +244,7 @@ export default function ActivityPage() {
                     textDecoration: 'none', color: 'var(--ink)',
                   }}
                 >
-                  <span style={{ fontSize: 'var(--fs-lead)', flexShrink: 0 }}>{NOTIF_ICONS[n.type] ?? '📋'}</span>
+                  <span style={{ fontSize: 'var(--fs-lead)', flexShrink: 0 }}>{n.failed ? '⚠️' : (NOTIF_ICONS[n.type] ?? '📋')}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: n.read ? 500 : 700, fontSize: 'var(--fs-ui)' }}>{n.title}</div>
                     {n.message && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2 }}>{n.message}</div>}

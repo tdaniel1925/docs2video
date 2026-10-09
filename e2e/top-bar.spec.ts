@@ -56,7 +56,7 @@ test.describe('1440 wide', () => {
     await page.goto('/dashboard')
     const chip = page.getByRole('button', { name: /credits(, running low)?\. Top up$/ })
     await expect(chip).toBeVisible()
-    await expect(chip).toContainText('+ Top Up')
+    await expect(chip).toContainText('+ Top up')
     const { color, gold, amber, level } = await chip.evaluate((el) => {
       const probe = (v: string) => { const d = document.createElement('i'); d.style.color = `var(${v})`; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c }
       return { color: getComputedStyle(el).color, gold: probe('--gold'), amber: probe('--warning-text'), level: el.getAttribute('data-level') }
@@ -70,7 +70,7 @@ test.describe('1440 wide', () => {
 
   test('the account menu keeps plan, the account shortcuts, Help Center and Sign out — not Brands', async ({ page }) => {
     await page.goto('/dashboard')
-    await page.getByRole('button', { name: 'Your account', exact: true }).click()
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click()
     const menu = page.locator('.kit-menu')
     await expect(menu).toBeVisible()
     await expect(menu.locator('.kit-menu-plan')).not.toBeEmpty()
@@ -83,12 +83,12 @@ test.describe('1440 wide', () => {
     await expect(menu).toHaveCount(0)
 
     // A click elsewhere closes it too.
-    await page.getByRole('button', { name: 'Your account', exact: true }).click()
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click()
     await expect(menu).toBeVisible()
     await page.getByRole('heading', { level: 1 }).click()
     await expect(menu).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Your account', exact: true }).click()
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click()
     await menu.getByRole('link', { name: 'Settings' }).click()
     await expect(page).toHaveURL(/\/settings/)
   })

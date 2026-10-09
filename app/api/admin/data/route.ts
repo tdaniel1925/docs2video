@@ -1,50 +1,71 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
+import { isTestAccount } from '../../../_lib/admin/money'
+import { testEmails } from '../../../_lib/admin/money-server'
+import { ADMIN_USER_COLUMNS } from '../../../_lib/admin/columns'
 export const maxDuration = 30
 
+const head = { count: 'exact' as const, head: true }
+
+/**
+ * GET /api/admin/data — the admin home's small numbers + the audit log.
+ * Every number is COUNTED BY THE DATABASE (it used to send up to 1,000
+ * profiles and 2,000 videos — every column, secrets included — to the browser
+ * and count them there). Users and videos have their own paged routes
+ * (/api/admin/users, /api/admin/videos).
+ */
 export async function GET() {
   try {
     const user = await requireAdmin()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
-    const admin = createAdminClient()
+    const db = createAdminClient()
+    const dayAgo = new Date(Date.now() - 86_400_000).toISOString()
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
 
-    const [profilesRes, videosRes, brandsRes, auditRes, analyticsRes, balancesRes] = await Promise.all([
-      admin.from('profiles').select('*').order('created_at', { ascending: false }).limit(1000),
-      admin.from('videos').select('*').order('created_at', { ascending: false }).limit(2000),
-      admin.from('brands').select('*').order('created_at', { ascending: false }).limit(2000),
-      admin.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(200),
-      admin.from('video_analytics').select('video_id, event_type').limit(20000),
-      admin.from('credit_balances').select('user_id, balance, topup_balance').limit(2000),
+    const [users, videos, completed, failed, failed24h, waiting, thisWeek, cards, signups, auditRes] = await Promise.all([
+      db.from('profiles').select('id', head),
+      db.from('videos').select('id', head).neq('status', 'draft'),
+      db.from('videos').select('id', head).eq('status', 'completed'),
+      db.from('videos').select('id', head).eq('status', 'failed'),
+      db.from('videos').select('id', head).eq('status', 'failed').gte('updated_at', dayAgo),
+      db.from('videos').select('id', head).eq('status', 'review_required'),
+      db.from('videos').select('id', head).neq('status', 'draft').gte('created_at', weekAgo),
+      db.from('profiles').select('id', head).eq('card_on_file', true),
+      db.from('profiles').select(ADMIN_USER_COLUMNS).order('created_at', { ascending: false }).limit(10),
+      db.from('admin_audit_log').select('id, admin_id, action, target_user_id, details, created_at').order('created_at', { ascending: false }).limit(300),
     ])
 
-    // Real spendable balance per user (credit_balances), NOT the dead legacy
-    // profiles.credits_remaining column. Overlay it so the admin table shows the
-    // correct number.
-    const balanceByUser: Record<string, number> = {}
-    for (const b of (balancesRes.data ?? [])) {
-      balanceByUser[b.user_id] = (b.balance ?? 0) + (b.topup_balance ?? 0)
-    }
-    const profilesWithBalance = (profilesRes.data ?? []).map((p: any) => ({
-      ...p,
-      credits_remaining: balanceByUser[p.id] ?? 0,
-    }))
-
-    // Build per-video analytics counts
-    const analyticsMap: Record<string, { views: number; plays: number }> = {}
-    for (const row of (analyticsRes.data ?? [])) {
-      if (!analyticsMap[row.video_id]) analyticsMap[row.video_id] = { views: 0, plays: 0 }
-      if (row.event_type === 'view') analyticsMap[row.video_id].views++
-      if (row.event_type === 'play') analyticsMap[row.video_id].plays++
-    }
+    // Emails for the audit rows, and which of them are test accounts.
+    const audit = auditRes.data ?? []
+    const ids = [...new Set(audit.flatMap((a) => [a.admin_id, a.target_user_id]).filter(Boolean) as string[])]
+    const { data: people } = ids.length ? await db.from('profiles').select('id, email').in('id', ids) : { data: [] as { id: string; email: string }[] }
+    const emailOf = new Map((people ?? []).map((p) => [p.id, p.email]))
+    const tests = testEmails()
 
     return NextResponse.json({
-      profiles: profilesWithBalance,
-      videos: videosRes.data ?? [],
-      brands: brandsRes.data ?? [],
-      auditLog: auditRes.data ?? [],
-      videoAnalytics: analyticsMap,
+      counts: {
+        users: users.count ?? 0,
+        videos: videos.count ?? 0,
+        completed: completed.count ?? 0,
+        failed: failed.count ?? 0,
+        failed24h: failed24h.count ?? 0,
+        waitingReview: waiting.count ?? 0,
+        thisWeek: thisWeek.count ?? 0,
+        cardsOnFile: cards.count ?? 0,
+      },
+      recentSignups: signups.data ?? [],
+      auditLog: audit.map((a) => {
+        const adminEmail = emailOf.get(a.admin_id) ?? null
+        const targetEmail = a.target_user_id ? emailOf.get(a.target_user_id) ?? null : null
+        return {
+          ...a,
+          admin_email: adminEmail,
+          target_email: targetEmail,
+          is_test: isTestAccount(adminEmail, tests) || isTestAccount(targetEmail, tests),
+        }
+      }),
     })
   } catch (err) {
     console.error('[admin/data] Error:', err)

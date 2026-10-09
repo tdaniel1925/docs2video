@@ -854,8 +854,12 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // (app) builds `footer` from the agent's profile (website/calendly/phone/email/
   // company). Fall back to the agent's own company/name — never docs2video.com,
   // which is our brand and has no business on a client-facing insurance video.
-  const agentContact = footer || preparer || (u.brand && u.brand.company) || null
-  const chrome = { company: preparer, logo, recipient: chromeRecipient, footer: agentContact, glass: glass || 'vivid' }
+  // (On a regulated illustration the document's own company is the CARRIER —
+  // never put that on the closing card.) `preparer` is the agent's brand or
+  // own name, or empty — never our platform name (the cover then shows the
+  // title alone).
+  const agentContact = footer || preparer || (!regulated && u.brand && u.brand.company) || null
+  const chrome = { company: preparer || undefined, logo, recipient: chromeRecipient, footer: agentContact, glass: glass || 'vivid' }
   // Closing CTA contact: prefer a real contact the writer found in the source,
   // then the agent's own footer/contact — but NEVER the source URL if it is ours
   // or empty. This is what stops "docs2video.com" appearing on the last slide.
@@ -872,6 +876,8 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
       onCover: pl === 'cover' || pl === 'both' || pl === 'auto', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
   }
   if (palette) doc.palette = palette
+  // Insurance / financial illustration → the renderer plays its quieter sound set.
+  if (regulated) doc.regulated = true
   // Remember the voice so Fix-a-Scene re-records a scene in the SAME voice.
   if (voiceId) doc.voiceId = voiceId
   // SFX safety: the renderer's Sfx component loads sfx/*.wav and a missing file

@@ -14,6 +14,9 @@ const { writeFile, stat } = require('fs/promises')
 const { join } = require('path')
 const { execFile } = require('child_process')
 const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable, CARRIER_BLOCKLIST, isRegulated } = require('./slides')
+// SSRF guard (audit 2026-10-09): the website, its logo and the screenshot are outside URLs —
+// never let them reach our own network (every redirect hop is checked).
+const { guardedFetch } = require('./job-guards')
 
 const FPS = 30
 const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
@@ -22,7 +25,7 @@ const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').sli
 
 // ---------- single-page HTML fetch → text (no browser; enough for a commercial) ----------
 async function fetchText(url) {
-  const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; docs2video/1.0)' }, signal: AbortSignal.timeout(20000) })
+  const r = await guardedFetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; docs2video/1.0)' }, signal: AbortSignal.timeout(20000) })
   if (!r.ok) throw new Error(`fetch ${r.status}`)
   return await r.text()
 }
@@ -109,7 +112,7 @@ function findLogoCandidates(html, pageUrl) {
 // Returns { buffer, width, height } or null.
 async function downloadImage(u) {
   try {
-    const r = await fetch(u, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) })
+    const r = await guardedFetch(u, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) })
     if (!r.ok) return null
     const ct = r.headers.get('content-type') || ''
     if (!/image|octet-stream/i.test(ct) && !/\.(png|jpe?g|svg|webp|ico)(\?|$)/i.test(u)) return null
@@ -362,7 +365,7 @@ async function captureScreenshot(pageUrl, dir) {
     const j = await r.json()
     const shotUrl = j && j.data && j.data.screenshot && j.data.screenshot.url
     if (!shotUrl) return null
-    const img = await fetch(shotUrl, { signal: AbortSignal.timeout(25000) })
+    const img = await guardedFetch(shotUrl, { signal: AbortSignal.timeout(25000) })
     if (!img.ok) return null
     const buf = Buffer.from(await img.arrayBuffer())
     if (buf.length < 3000) return null              // reject blank/error images

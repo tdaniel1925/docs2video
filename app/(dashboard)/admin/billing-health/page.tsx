@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useToast } from '../../../_components/Toast'
+import { useConfirm } from '../_components/useConfirm'
 
 type DriftKind = 'flagged_paid_no_stripe_sub' | 'has_stripe_sub_not_flagged' | 'tier_mismatch' | 'past_due'
 
@@ -39,6 +40,7 @@ const money = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { m
 
 export default function AdminBillingHealthPage() {
   const notify = useToast()
+  const [ask, confirmDialog] = useConfirm()
   const [data, setData] = useState<HealthData | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -71,7 +73,9 @@ export default function AdminBillingHealthPage() {
       plan = row.stripePlan
       confirmMsg = `Set ${row.email} to ${plan?.toUpperCase()} to match Stripe?`
     }
-    if (!plan || !confirm(confirmMsg)) return
+    if (!plan) return
+    const ok = (await ask({ title: confirmMsg, body: 'This changes the plan in the app only — Stripe is not changed. Saved in the audit log.', confirmLabel: 'Change plan' })).ok
+    if (!ok) return
 
     setBusy(row.userId)
     try {
@@ -205,6 +209,7 @@ export default function AdminBillingHealthPage() {
         </div>
         )
       })()}
+      {confirmDialog}
     </div>
   )
 }

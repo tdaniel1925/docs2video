@@ -61,3 +61,24 @@ export function cardlessPrepKey(userId: string, now: Date): string {
 /** Said when the day's free reading/writing is used up. */
 export const CARDLESS_PREP_CAP_MESSAGE =
   'You’ve tried a lot today without a card. Add a card to keep going now, or come back tomorrow.'
+
+// ── The daily ceiling on free AI steps for EVERY account ────────────────────
+//
+// Audit 2026-10-09: the free AI steps (reading, writing, chat helpers, the
+// microphone) were unlimited for any account with a card. One account could
+// run them all day at our cost. Every non-admin account now has a generous
+// daily ceiling — far above real use (a busy day is a few dozen) — counted the
+// same way as the cardless cap.
+export const AI_STEPS_PER_DAY = 300
+
+/** The rate_limits key for one account's free AI steps today (UTC). */
+export function aiDailyKey(userId: string, now: Date): string {
+  return `ai-daily:${userId}:${now.toISOString().slice(0, 10)}`
+}
+
+export const AI_DAILY_CAP_MESSAGE =
+  'You’ve reached today’s limit for the free AI helpers. It resets at midnight UTC — or contact support if you need more today.'
+
+/** Said when the counter itself can't be checked (we stop rather than run unmetered). */
+export const AI_CAP_UNAVAILABLE_MESSAGE =
+  'This step is resting for a moment. Please try again in a minute.'

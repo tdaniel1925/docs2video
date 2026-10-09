@@ -71,7 +71,7 @@ function MakeItYours() {
   const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
   const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
   const [aiMusic, setAiMusic] = useState(false)
-  const [slidePhotos, setSlidePhotos] = useState(false) // Slide Deck look: photo backgrounds (opt-in, slower)
+  const [slidePhotos, setSlidePhotos] = useState(false) // Animated slides look: photo backgrounds (opt-in, slower)
   const [drawStyle, setDrawStyle] = useState<DrawStyleId>(DEFAULT_DRAW_STYLE) // Drawn slides look: 3D / Illustrated / Classic
   const [allowSourceDownload, setAllowSourceDownload] = useState(false)
   const [agentNote, setAgentNote] = useState('')

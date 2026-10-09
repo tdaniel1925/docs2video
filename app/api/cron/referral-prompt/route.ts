@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
+import { recordCronRun } from '../../../_lib/cron-heartbeat'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Heartbeat: the health cron emails Trent if this stops running (audit 2026-10-09).
+  await recordCronRun('referral-prompt')
 
   const supabase = createAdminClient()
   let sentCount = 0

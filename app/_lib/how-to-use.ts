@@ -56,7 +56,8 @@ export const HOW_TO: HowToEntry[] = [
     steps: [
       'To start something new, pick a tile under **Create**: **From a document**, **From a website**, **From an idea**, **Paste your text** or **A commercial**. Step 1 opens with that choice already made. **Your brand** opens your logos and colours.',
       'Under **Today’s clients** are the people who need you — someone who **Clicked to book**, **Watched it**, or hasn’t opened it yet. Each card has the next thing to do, like **Send the follow-up**.',
-      '**Recent** lists your latest work and where each one is at. Press **Continue** on a draft or **Open** on the rest. **See all** opens your Library.',
+      '**Recent** lists your latest videos and presentations and where each one is at. Press **Continue** on a draft or **Open** on the rest. **See all** opens your Library — its number counts the same things as the Library’s **All** tab.',
+      'The bell shows notes from the last 30 days: what’s ready, and anything that **Didn’t finish** (press it to open that video and try again). A note that repeated shows once. Older notes are under Activity.',
       '**This month** counts emails sent, projects watched and clicks to book a call, plus the credits you have left.',
       'Your credits are the gold box at the top. Press it to top up. New here? You can make your first project and see a free preview before you add a card — the line beside **Create** says **Try it before you add a card.**',
     ],
@@ -110,7 +111,7 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Step 3 — The look',
     intro: 'Pick the look. The price and Make it are in the bar at the bottom.',
     steps: [
-      'Press a look card to pick it. **BEST** marks the one we recommend; **See examples** shows more of the one you picked.',
+      'Press a look card to pick it. Each card has one short line saying what it looks like. **BEST** marks the one we recommend (**Animated slides**); **See examples** shows more of the one you picked.',
       'Picked **Drawn slides**? A **Drawing style** line appears under the cards: **3D infographic** (picked for you), **Illustrated** or **Classic**. The AI draws every slide as one picture in that style.',
       'The line under the looks shows the voice, the music and the length. Press **Change** (or open **More options**) to pick **Video** or **Presentation**, another voice (press ▶ to hear one), music, and **A note to your client**.',
       'The brand line shows the brand it will use. No brand yet? Press **Add your brand**: type your name, upload your logo and pick your colours right here — **Fill in from it** reads them from your website. **Save my brand** keeps it for every new project.',
@@ -134,7 +135,7 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Making it',
     intro: 'Your project is being made. Then you send it.',
     steps: [
-      'The list shows each real stage — a tick when it’s done, and what is happening right now (like “Drawing scene 3 of 6”). **This usually takes** **about 3–5 minutes** — the Slide Deck look takes about 10.',
+      'The list shows each real stage — a tick when it’s done, and what is happening right now (like “Drawing scene 3 of 6”). **This usually takes** **about 3–5 minutes** — the Animated slides look takes about 10.',
       '**You can close this page** — **we’ll email you when it’s ready**. It keeps going and lands in your Library, and Home shows it under **Finished while you were away**.',
       'When it’s done, its page opens on its own, at **Ready to send**.',
       'There you check what your client will see, write **A short note**, and press **Send to** your client — or **or copy the link** to send it yourself.',
@@ -170,9 +171,9 @@ export const HOW_TO: HowToEntry[] = [
   {
     routes: ['/videos'],
     title: NAMES.library,
-    intro: 'Everything you’ve made, as picture cards.',
+    intro: 'Your videos and presentations, as picture cards.',
     steps: [
-      `Use the tabs — ${LIBRARY_TABS} — to show one kind. Slide decks and graphics made before are under **Older items** (only there when you have some); they still open, download and share.`,
+      `Use the tabs — ${LIBRARY_TABS} — to show one kind. **All** is your videos and presentations. Slide decks and graphics made before are ONLY under **Older items** (only there when you have some); they still open, download and share.`,
       'Each card shows a picture, the name and a coloured line that says where it is: **Ready to send**, **Making…** or **Didn’t finish**, plus the date and who it’s for.',
       'Press a card to open it. On a ready video, press **Send** to go straight to sending it.',
       'Type in **Search by name or client** to find one, change the order with **Newest first**, or switch between **Cards** and **List** (it remembers your choice on this computer).',
@@ -191,6 +192,8 @@ export const HOW_TO: HowToEntry[] = [
       'A brand is a **Company** (logo and colors) or a **Person** (name, role and photo). It goes on your covers, closing slides and client pages.',
       `Press **${NAMES.newBrand}**. For a company, **Import from website** and **Analyze brand** can fill it in for you.`,
       'Fill in the details. Tick **Set as default brand** to use it on every new project, then press **Create brand →**.',
+      'Already have a brand with that name? It says so under the name and asks once before making a second copy — **Open it** takes you to the one you have.',
+      'Saved the same name more than once? The page shows one card with a button saying how many copies there are — press it to see the others. Nothing is deleted for you.',
       'Click a brand to change it, then press **Save changes →**. The × on a brand’s card deletes it (it asks first).',
     ],
     helpHref: '/help/brands',
@@ -202,14 +205,15 @@ export const HOW_TO: HowToEntry[] = [
     title: NAMES.clients,
     intro: 'The people you send to, and what they’ve done with it.',
     steps: [
-      'Press **Add a client**, type their **Name** (email, company and phone if you have them) and press **Save client**. Have a list? Use **Import a CSV file**.',
-      'Use the search box and the filters to find someone.',
-      'On a row, **View** opens their page, **Send Video** starts a project for them and **Email** writes to them.',
+      'Press **Add a client** (the first button), type their **Name** (email, company and phone if you have them) and press **Save client**. Have a list? Use **Import a CSV file**.',
+      'The three boxes count your **Clients**, who you’re **In touch** with, and who was **Active this week**.',
+      'Each client has a status in plain words: **New**, **In touch**, **Watched your video**, **Customer** or **Quiet lately**. Use the search box and those filters to find someone.',
+      'On a client (a row, or a card on a phone), **View** opens their page, **Send a video** starts a project for them and **Email** writes to them.',
       'A client’s page has **Activity**, **Videos**, **Emails** and **Payments**. Keep notes with **Add note**, or press **Make a video for this client**.',
     ],
     helpHref: '/help',
     asks: ['How do I import my client list?', 'How do I send a client a video?', 'Where do I see what a client watched?'],
-    sources: ['app/(dashboard)/clients/page.tsx', 'app/(dashboard)/clients/[id]/page.tsx'],
+    sources: ['app/(dashboard)/clients/page.tsx', 'app/(dashboard)/clients/[id]/page.tsx', 'app/(dashboard)/clients/client-status.ts'],
   },
   {
     routes: ['/settings'],
@@ -235,13 +239,14 @@ export const GETTING_AROUND: HowToGuide = {
   steps: [
     `**${NAMES.newButton}** starts something new: a video or a presentation.`,
     `**${NAMES.library}** has everything you’ve made. **${NAMES.clients}** are the people you send to. **${NAMES.brands}** are your logos and colors.`,
-    'Your credits are the gold box. Press it to top up.',
-    'Press your initial at the top right for your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center, a Dark mode / Light mode switch and Sign out.',
+    'Your credits are the gold box. Press it (**+ Top up**) to buy more.',
+    'The bell shows the last 30 days of notes; its number is how many are new.',
+    'Press your initial at the top right (**Account menu**) for your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center, a Dark mode / Light mode switch and Sign out.',
     'The logo takes you Home.',
   ],
   helpHref: '/help/getting-started',
   asks: ['How do I make a video?', 'What do credits cost?', 'How do I add my brand logo?', 'Can I download as PDF?'],
-  sources: ['app/_lib/names.ts', 'app/_lib/brand.ts'],
+  sources: ['app/_lib/names.ts', 'app/_lib/brand.ts', 'app/_components/Header.tsx'],
 }
 
 function routeRegex(route: string): RegExp {

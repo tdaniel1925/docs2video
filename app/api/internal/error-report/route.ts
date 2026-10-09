@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { upsertErrorLog, type ErrorSource } from '../../../_lib/error-logger'
+import { ownerAlertEmail } from '../../../_lib/owner-inbox'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-const ALERT_TO = 'tdaniel@botmakers.ai'
+// One inbox for every owner alert (the daily "What needs you" email too) —
+// OWNER_ALERT_EMAIL, else tdaniel@botmakers.ai. See owner-inbox.ts.
 
 /**
  * POST /api/internal/error-report
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
     // knows the alert never reached anyone.
     const { error: sendError } = await resend.emails.send({
       from: 'Docs2Video Alerts <support@docs2video.com>',
-      to: ALERT_TO,
+      to: ownerAlertEmail(),
       subject: `⚠️ Docs2Video error: ${source}${videoId ? ` (${videoId.slice(0, 8)})` : ''}`,
       html,
     })

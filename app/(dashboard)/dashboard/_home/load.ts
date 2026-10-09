@@ -1,4 +1,6 @@
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { videosFilterFor } from '../../videos/library-tabs'
+import { kindOfOutput } from '../../../_lib/names'
 import {
   TRACKED_EVENTS, BOOKING_EVENTS, buildActionCards, peopleCount, projectStatus, recipientName,
   madeLabel, resumeUrl,
@@ -21,7 +23,8 @@ import {
  *                  video_views is NOT used: its time column is opened_at and it
  *                  only holds 'view' rows; video_analytics has every event.
  *   clients        '*' (same as /api/clients) — we read name/phone if present.
- *   creations      '*' (same as the old dashboard) for old-builder decks.
+ *   (old slide decks / graphics are not read here: they live in Library →
+ *    Older items, and "See all N" counts the Library's All rule.)
  * A failed query is logged and treated as "unknown" (shown as —), never as 0.
  */
 
@@ -94,32 +97,30 @@ export async function loadHomeData(userId: string): Promise<HomeData> {
   const recentSince = new Date(now - RECENT_DAYS * 86_400_000).toISOString()
   const windowStart = monthStart < recentSince ? monthStart : recentSince
 
-  const [allIdsRes, recentRes, decksRes, deckCountRes, monthSentRes] = await Promise.all([
+  const [allIdsRes, recentRes, mainCountRes, monthSentRes] = await Promise.all([
     admin.from('videos').select('id').eq('user_id', userId),
     admin.from('videos')
       .select('id, title, status, output_type, draft_data, created_at, updated_at, client_id, progress_pct')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false })
       .limit(TABLE_ROWS * 2),
-    admin.from('creations').select('*')
-      .eq('user_id', userId).in('type', ['deck', 'brand-deck'])
-      .order('created_at', { ascending: false }).limit(TABLE_ROWS),
-    admin.from('creations').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).in('type', ['deck', 'brand-deck']),
+    // "See all N" counts what the Library's All tab lists — the SAME rule
+    // (videosFilterFor('')), so the two numbers always agree. Older slide
+    // decks and graphics are under Older items, not in N.
+    admin.from('videos').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).or(videosFilterFor('').or!),
     admin.from('sent_emails').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).gte('created_at', monthStart),
   ])
   logErr('videos ids', allIdsRes.error)
   logErr('videos recent', recentRes.error)
-  logErr('creations', decksRes.error)
   logErr('sent_emails month', monthSentRes.error)
 
   const allIds = ((allIdsRes.data ?? []) as { id: string }[]).map(r => r.id)
   const recentVideos = ((recentRes.data ?? []) as VideoRow[])
     // Drafts of the parked tools (graphics etc.) never belonged on this list.
     .filter(v => v.status !== 'draft' || !v.output_type || CORE_OUTPUTS.includes(v.output_type))
-  const decks = (decksRes.data ?? []) as { id: string; title: string | null; file_url: string | null; created_at: string }[]
-  const totalProjects = allIds.length + (deckCountRes.count ?? 0)
+  const totalProjects = mainCountRes.error ? allIds.length : (mainCountRes.count ?? 0)
 
   // Sends: the last 30 days for the cards, plus any age for the table's rows.
   const tableVideoIds = recentVideos.slice(0, TABLE_ROWS).map(v => v.id)
@@ -190,7 +191,12 @@ export async function loadHomeData(userId: string): Promise<HomeData> {
   })
 
   // ── Projects table ──
-  const videoRows: (ProjectRow & { at: string })[] = recentVideos.slice(0, TABLE_ROWS).map(v => {
+  // Same rule as the Library's All tab: older slide decks / exports are not
+  // listed here (they live under Library → Older items), so "Recent" and
+  // "See all N" describe the same things (audit 2026-10-09).
+  const videoRows: (ProjectRow & { at: string })[] = recentVideos
+    .filter(v => kindOfOutput(v.output_type) !== 'deck')
+    .slice(0, TABLE_ROWS).map(v => {
     const isDraft = v.status === 'draft'
     const typedTitle = typeof v.draft_data?.purpose === 'string' ? (v.draft_data.purpose as string) : null
     const name = v.title?.trim() || typedTitle?.trim() || 'Untitled'
@@ -207,18 +213,7 @@ export async function loadHomeData(userId: string): Promise<HomeData> {
       at: v.updated_at ?? v.created_at,
     }
   })
-  const deckRows: (ProjectRow & { at: string })[] = decks.map(c => ({
-    key: `deck-${c.id}`,
-    name: c.title?.trim() || 'Untitled deck',
-    client: null,
-    made: madeLabel('deck'),
-    status: { label: 'Ready', tone: 'ready' as const },
-    href: c.file_url ?? '/videos',
-    external: !!c.file_url,
-    draftId: null,
-    at: c.created_at,
-  }))
-  const projects = [...videoRows, ...deckRows]
+  const projects = [...videoRows]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, TABLE_ROWS)
     .map(({ at: _at, ...row }) => row)

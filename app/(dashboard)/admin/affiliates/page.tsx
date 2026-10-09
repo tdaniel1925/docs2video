@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useConfirm } from '../_components/useConfirm'
 
 interface AffRow {
   id: string
@@ -24,6 +25,7 @@ export default function AdminAffiliatesPage() {
   const [state, setState] = useState<'loading' | 'denied' | 'ok'>('loading')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [ask, confirmDialog] = useConfirm()
 
   async function load() {
     const res = await fetch('/api/admin/affiliates')
@@ -71,12 +73,12 @@ export default function AdminAffiliatesPage() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         <button className="btn btn-sm btn-soft" disabled={busy}
-          onClick={async () => { const r = await act({ action: 'approve-pending' }); if (r) { setMsg(`Approved ${r.approved} commissions past the 30-day hold.`); load() } }}>
+          onClick={async () => { if (!(await ask({ title: 'Approve commissions past the 30-day hold?', body: 'Commissions older than 30 days with no refund become “approved” — money you owe. Nothing is paid yet.', confirmLabel: 'Approve them' })).ok) return; const r = await act({ action: 'approve-pending' }); if (r) { setMsg(`Approved ${r.approved} commissions past the 30-day hold.`); load() } }}>
           Approve pending (30d+)
         </button>
         <button className="btn btn-sm btn-soft" onClick={exportCsv}>Export payout CSV</button>
         <button className="btn btn-sm btn-primary" disabled={busy}
-          onClick={async () => { if (!confirm('Mark all approved commissions as PAID? Do this only after you have sent the money.')) return; const r = await act({ action: 'mark-paid' }); if (r) { setMsg(`Marked ${r.paid} commissions paid (${r.batch}).`); load() } }}>
+          onClick={async () => { if (!(await ask({ title: 'Mark every approved commission as PAID?', body: 'Only do this AFTER you have sent the money (use the payout file). It is saved in the audit log and can’t be undone here.', danger: true, typeToConfirm: 'PAID', confirmLabel: 'Mark as paid' })).ok) return; const r = await act({ action: 'mark-paid' }); if (r) { setMsg(`Marked ${r.paid} commissions paid (${r.batch}).`); load() } }}>
           Mark approved as paid
         </button>
       </div>
@@ -114,14 +116,15 @@ export default function AdminAffiliatesPage() {
                 <td style={{ padding: 10 }}><span className={`tag ${a.status === 'active' ? 'mint' : 'rose'}`}>{a.status}</span></td>
                 <td style={{ padding: 10 }}>
                   {a.status === 'active'
-                    ? <button className="btn btn-sm btn-soft" disabled={busy} onClick={async () => { const r = await act({ action: 'set-status', affiliateId: a.id, status: 'paused' }); if (r) load() }}>Pause</button>
-                    : <button className="btn btn-sm btn-soft" disabled={busy} onClick={async () => { const r = await act({ action: 'set-status', affiliateId: a.id, status: 'active' }); if (r) load() }}>Activate</button>}
+                    ? <button className="btn btn-sm btn-soft" disabled={busy} onClick={async () => { if (!(await ask({ title: `Pause ${a.email || 'this affiliate'}?`, body: 'Their link stops earning new commission until you activate them again. Money already earned is kept.', confirmLabel: 'Pause affiliate' })).ok) return; const r = await act({ action: 'set-status', affiliateId: a.id, status: 'paused' }); if (r) load() }}>Pause</button>
+                    : <button className="btn btn-sm btn-soft" disabled={busy} onClick={async () => { if (!(await ask({ title: `Activate ${a.email || 'this affiliate'}?`, body: 'Their link earns commission again.', confirmLabel: 'Activate' })).ok) return; const r = await act({ action: 'set-status', affiliateId: a.id, status: 'active' }); if (r) load() }}>Activate</button>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {confirmDialog}
     </div>
   )
 }

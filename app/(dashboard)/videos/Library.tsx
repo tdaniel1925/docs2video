@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, FileText, Film, GalleryVerticalEnd, Image as ImageIcon, LayoutGrid, List, Presentation, Search, Send, Trash2, X, type LucideIcon } from 'lucide-react'
@@ -10,10 +10,27 @@ import { NAMES, type LibraryKind } from '../../_lib/names'
 import LibraryTable from './LibraryTable'
 import CardMenu from './CardMenu'
 import {
-  PAGE_SIZES, SORTS, VIEW_KEY, openHref, searchAndSort, sendHref, shortDate, statusLine,
+  PAGE_SIZES, SORTS, VIEW_KEY, openHref, searchAndSort, sendHref, statusLine,
   type LibraryItem, type SortId,
 } from './library-items'
+import LocalDate from './LocalDate'
+import { pictureSrcSet, sizedPicture } from '../../_lib/picture-size'
 import s from './library.module.css'
+
+/** Set when the server already paged/searched/sorted (All · Videos · Presentations). */
+export type ServerPaging = { type: string; page: number; per: number; total: number; q: string; sort: SortId }
+
+/** The Library address for a page / search / order (defaults left out). */
+export function libraryHref(p: Pick<ServerPaging, 'type'> & Partial<Omit<ServerPaging, 'type' | 'total'>>): string {
+  const u = new URLSearchParams()
+  if (p.type) u.set('type', p.type)
+  if (p.q && p.q.trim()) u.set('q', p.q.trim())
+  if (p.sort && p.sort !== 'newest') u.set('sort', p.sort)
+  if (p.per && p.per !== PAGE_SIZES[0]) u.set('per', String(p.per))
+  if (p.page && p.page > 1) u.set('page', String(p.page))
+  const qs = u.toString()
+  return qs ? `/videos?${qs}` : '/videos'
+}
 
 /*
  * THE LIBRARY — VidWiz's picture cards (round A, 2026-10).
@@ -30,14 +47,31 @@ import s from './library.module.css'
  * Everything is already on the page (one query per table on the server), so
  * search, sort and paging cost no extra database work.
  */
-export default function Library({ items, emptyLabel = null }: { items: LibraryItem[]; emptyLabel?: string | null }) {
+export default function Library({ items, emptyLabel = null, paging = null }: { items: LibraryItem[]; emptyLabel?: string | null; paging?: ServerPaging | null }) {
   const router = useRouter()
   const notify = useToast()
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<SortId>('newest')
+  const [pending, startTransition] = useTransition()
+  const [query, setQuery] = useState(paging?.q ?? '')
+  const [sort, setSortLocal] = useState<SortId>(paging?.sort ?? 'newest')
   const [view, setView] = useState<'grid' | 'list'>('grid')
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0])
-  const [page, setPage] = useState(1)
+  const [pageSize, setPageSizeLocal] = useState<number>(paging?.per ?? PAGE_SIZES[0])
+  const [page, setPageLocal] = useState(paging?.page ?? 1)
+  // Server-paged: every change is a new address the server answers.
+  const go = (next: Partial<Omit<ServerPaging, 'type' | 'total'>>) => {
+    if (!paging) return
+    startTransition(() => router.push(libraryHref({ type: paging.type, q: query, sort, per: pageSize, page: 1, ...next }), { scroll: false }))
+  }
+  const setSort = (v: SortId) => { setSortLocal(v); setPageLocal(1); go({ sort: v }) }
+  const setPageSize = (n: number) => { setPageSizeLocal(n); setPageLocal(1); go({ per: n }) }
+  const setPage = (n: number) => { setPageLocal(n); go({ page: n }) }
+  // Keep in step when the address changes (back button, tab change).
+  useEffect(() => { if (paging) { setPageLocal(paging.page); setSortLocal(paging.sort); setPageSizeLocal(paging.per) } }, [paging?.page, paging?.sort, paging?.per]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Typing searches after a short pause (one request, not one per letter).
+  useEffect(() => {
+    if (!paging || query.trim() === (paging.q ?? '').trim()) return
+    const t = setTimeout(() => { setPageLocal(1); go({ q: query, page: 1 }) }, 400)
+    return () => clearTimeout(t)
+  }, [query]) // eslint-disable-line react-hooks/exhaustive-deps
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<LibraryItem | null>(null)
@@ -53,8 +87,9 @@ export default function Library({ items, emptyLabel = null }: { items: LibraryIt
     try { window.localStorage.setItem(VIEW_KEY, next) } catch { /* not remembered, still switched */ }
   }
 
-  // A new search or order starts from page 1.
-  useEffect(() => { setPage(1) }, [query, sort, pageSize])
+  // A new search or order starts from page 1 (the server-paged Library does
+  // this in go()).
+  useEffect(() => { if (!paging) setPageLocal(1) }, [query, sort, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The "…" menu closes on a click elsewhere or Escape.
   useEffect(() => {
@@ -69,12 +104,13 @@ export default function Library({ items, emptyLabel = null }: { items: LibraryIt
   }, [menuFor])
 
   const live = useMemo(() => items.filter((i) => !removed.has(i.id)), [items, removed])
-  const shown = useMemo(() => searchAndSort(live, query, sort), [live, query, sort])
-  const total = shown.length
+  // Server-paged: the rows ARE this page, already searched and sorted.
+  const shown = useMemo(() => (paging ? live : searchAndSort(live, query, sort)), [paging, live, query, sort])
+  const total = paging ? Math.max(0, paging.total - (items.length - live.length)) : shown.length
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const safePage = Math.min(page, totalPages)
   const from = (safePage - 1) * pageSize
-  const rows = shown.slice(from, from + pageSize)
+  const rows = paging ? shown : shown.slice(from, from + pageSize)
 
   async function confirmDelete() {
     const item = confirming
@@ -96,7 +132,7 @@ export default function Library({ items, emptyLabel = null }: { items: LibraryIt
 
   const askDelete = (item: LibraryItem) => { setMenuFor(null); setConfirming(item) }
 
-  if (live.length === 0) {
+  if (live.length === 0 && !(paging && (paging.q || paging.page > 1))) {
     return (
       <EmptyState
         title={emptyLabel ? `No ${emptyLabel} yet` : 'Nothing here yet'}
@@ -133,12 +169,12 @@ export default function Library({ items, emptyLabel = null }: { items: LibraryIt
         </div>
       </div>
 
-      {total === 0 ? (
+      {total === 0 || (paging && rows.length === 0) ? (
         <EmptyState title={`Nothing matches “${query}”.`} actions={<Button variant="secondary" onClick={() => setQuery('')}>Clear search</Button>}>
           Try part of the title or the client’s name.
         </EmptyState>
       ) : view === 'grid' ? (
-        <ul className={s.grid} aria-label="Your work">
+        <ul className={s.grid} aria-label="Your work" aria-busy={pending || undefined} style={pending ? { opacity: 0.6 } : undefined}>
           {rows.map((item) => (
             <LibraryCard
               key={item.id}
@@ -218,6 +254,8 @@ export function Placeholder({ item }: { item: LibraryItem }) {
 /** A picture that falls back to the placeholder if it fails to load. */
 function Thumb({ item }: { item: LibraryItem }) {
   const [failed, setFailed] = useState(false)
+  // A resized copy first (picture-size.ts); if that fails, the original.
+  const [original, setOriginal] = useState(false)
   const ref = useRef<HTMLImageElement>(null)
   // A picture that failed before the page woke up never fires onError.
   useEffect(() => {
@@ -231,7 +269,21 @@ function Thumb({ item }: { item: LibraryItem }) {
     <>
       <Placeholder item={item} />
       {/* eslint-disable-next-line @next/next/no-img-element -- stored pictures on many hosts; a plain lazy img keeps the Library light */}
-      <img ref={ref} className={s.thumb} data-kind={item.kind ?? 'other'} src={item.picture} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      <img
+        ref={ref}
+        className={s.thumb}
+        data-kind={item.kind ?? 'other'}
+        src={original ? item.picture : (sizedPicture(item.picture, 480) ?? item.picture)}
+        srcSet={original ? undefined : (pictureSrcSet(item.picture) ?? undefined)}
+        sizes="(max-width: 600px) 100vw, 320px"
+        alt=""
+        width={384}
+        height={216}
+        loading="lazy"
+        decoding="async"
+        fetchPriority="low"
+        onError={() => { if (!original && sizedPicture(item.picture, 480) !== item.picture) setOriginal(true); else setFailed(true) }}
+      />
     </>
   )
 }
@@ -275,7 +327,7 @@ function LibraryCard({ item, menuOpen, onMenu, onDelete }: {
         <strong className={s.title} title={title}>{title}</strong>
         <span className={s.status} data-tone={status.tone}>{status.words}</span>
         <span className={s.meta}>
-          {shortDate(item.createdAt)}{item.recipient ? ` · for ${item.recipient}` : ''}
+          <LocalDate iso={item.createdAt} />{item.recipient ? ` · for ${item.recipient}` : ''}
         </span>
         <CardMenu item={item} open={menuOpen} onMenu={onMenu} onDelete={onDelete} />
       </div>

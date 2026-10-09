@@ -27,7 +27,7 @@ export type OutputKind =
   | 'deck'
   /** Old PowerPoint / PDF exports. They are slide pictures plus a video. */
   | 'slides-file'
-  /** A video in the Slide Deck look — the render service keeps a plan for it,
+  /** A video in the Animated slides look — the render service keeps a plan for it,
    *  so one scene can be fixed without remaking the rest (Fix-a-Scene). */
   | 'slide-deck-video'
   /** Every other video look (Cinematic, Editorial, Explainer, Aurora, …). */

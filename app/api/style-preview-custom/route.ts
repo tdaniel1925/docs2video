@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
 import { runCharged } from '../../_lib/credit-charge'
-import { isAdmin } from '../../_lib/admin'
+import { isAdminRequest } from '../../_lib/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   // Charge BEFORE generating (this used to charge afterwards and ignore a
   // failed deduction) and refund on any failure (audit H5). Admins are free.
-  const cost = isAdmin(user.email) ? 0 : PREVIEW_COST
+  const cost = (await isAdminRequest(user)) ? 0 : PREVIEW_COST
   return runCharged({ userId: user.id, amount: cost, action: 'style_preview' }, async () => {
   try {
     // Step 1: Analyze the reference image style

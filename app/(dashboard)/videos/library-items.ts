@@ -81,11 +81,23 @@ export function canDelete(item: Pick<LibraryItem, 'videoId'>): boolean {
   return !!item.videoId
 }
 
-/** "Oct 3" this year, "Oct 3, 2025" before. */
-export function shortDate(iso: string, now = new Date()): string {
+/**
+ * "Oct 3" this year, "Oct 3, 2025" before.
+ *
+ * `timeZone` pins the answer: the server (UTC) and the person's browser can
+ * be on different days, and a date that differed between the two broke the
+ * page waking up (React error #418, audit 2026-10-09). The first draw uses
+ * 'UTC' on both sides; LocalDate then switches to the person's own day.
+ */
+export function shortDate(iso: string, now = new Date(), timeZone?: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) })
+  const yearOf = (x: Date) => Number(x.toLocaleDateString('en-US', { year: 'numeric', ...(timeZone ? { timeZone } : {}) }))
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric',
+    ...(timeZone ? { timeZone } : {}),
+    ...(yearOf(d) !== yearOf(now) ? { year: 'numeric' } : {}),
+  })
 }
 
 export const SORTS = [

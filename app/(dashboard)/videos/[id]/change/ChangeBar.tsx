@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { sizedPicture } from '../../../../_lib/picture-size'
 import { useRouter } from 'next/navigation'
 import type { Video } from '../../../../_lib/types'
 import { Dialog } from '../../../../_components/kit'
@@ -133,7 +134,7 @@ export default function ChangeBar({ video, scenes, selectedScene, onPickScene, o
           {scenes.map((s, i) => (
             <div key={i} className={`res-scene${i === selectedScene ? ' on' : ''}`}>
               <button type="button" role="option" aria-selected={i === selectedScene} className="res-scene-pick" onClick={() => onPickScene(i)}>
-                {s.thumb && <img src={s.thumb} alt="" className="res-scene-thumb" />}
+                {s.thumb && <img src={sizedPicture(s.thumb, 320) ?? s.thumb} alt="" className="res-scene-thumb" width={160} height={90} loading="lazy" decoding="async" fetchPriority="low" onError={(e) => { if (e.currentTarget.src !== s.thumb) e.currentTarget.src = s.thumb! }} />}
                 <span className="res-scene-text">
                   {clock(s.start) && <span className="res-scene-time">{clock(s.start)}</span>}
                   <span className="res-scene-label">{i + 1}. {s.label}</span>

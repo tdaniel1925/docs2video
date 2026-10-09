@@ -107,7 +107,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   const fail = async (status: number, message: string, videoId?: string) => {
-    await refundApiCredits(caller.userId, cost)
+    await refundApiCredits(caller.userId, cost, videoId)
     await logApiUsage({
       apiKeyId: caller.keyId,
       userId: caller.userId,
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed'
       console.error(`[v1/presentations:bg ${jobId}] FAILED:`, message)
-      await refundApiCredits(caller.userId, cost).catch(() => {})
+      await refundApiCredits(caller.userId, cost, jobId).catch(() => {})
       await admin.from('videos').update({ status: 'failed', error_message: message }).eq('id', jobId)
     }
   })())

@@ -112,8 +112,8 @@ describe('the credit chip', () => {
     expect(code('app/(dashboard)/layout.tsx')).toMatch(/lowCreditsAt=\{CREDIT_COSTS\.videoStandard\}/)
   })
 
-  it('keeps "+ Top Up"', () => {
-    expect(read('app/_components/Header.tsx')).toContain('+ Top Up')
+  it('keeps "+ Top up" (sentence case)', () => {
+    expect(read('app/_components/Header.tsx')).toContain('+ Top up')
   })
 })
 

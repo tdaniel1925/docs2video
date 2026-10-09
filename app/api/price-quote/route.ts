@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { getBalance, spendBlockReason } from '../../_lib/credits'
-import { isAdmin } from '../../_lib/admin'
 import {
   outputsOffered,
   presentationIsFree,
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
   }
 
   const free = {
-    video: videoIsFree({ emailIsAdmin: isAdmin(user.email), isAdmin: profile?.is_admin, isBeta: profile?.is_beta }),
+    video: videoIsFree({ isAdmin: profile?.is_admin, isBeta: profile?.is_beta }),
     presentation: presentationIsFree({ isAdmin: profile?.is_admin, isBeta: profile?.is_beta }),
   }
   const inputs = videoPriceInputs(row)

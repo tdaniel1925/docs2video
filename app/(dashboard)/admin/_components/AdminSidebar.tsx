@@ -2,7 +2,8 @@
 
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import '../admin.css'
 
 // Admin index tabs live on /admin?tab=X — the page reads the query param.
 const OVERVIEW_TABS: { tab: string; label: string }[] = [
@@ -46,21 +47,31 @@ const GROUPS: { label: string; links: { href: string; label: string }[] }[] = [
   },
 ]
 
-function SidebarNav() {
+const tabHref = (tab: string) => (tab === 'dashboard' ? '/admin' : `/admin?tab=${tab}`)
+
+function useCurrent() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const activeTab = searchParams.get('tab') ?? 'dashboard'
   const onIndex = pathname === '/admin'
+  const current = onIndex
+    ? tabHref(activeTab)
+    : GROUPS.flatMap((g) => g.links).find((l) => pathname.startsWith(l.href))?.href ?? ''
+  return { pathname, activeTab, onIndex, current }
+}
 
+function SidebarNav() {
+  const { pathname, activeTab, onIndex } = useCurrent()
   return (
-    <nav>
+    <nav aria-label="Admin">
       <div className="admin-nav-group">
         <div className="admin-nav-label">Overview</div>
         {OVERVIEW_TABS.map(t => (
           <Link
             key={t.tab}
-            href={t.tab === 'dashboard' ? '/admin' : `/admin?tab=${t.tab}`}
+            href={tabHref(t.tab)}
             className={`admin-nav-link ${onIndex && activeTab === t.tab ? 'active' : ''}`}
+            aria-current={onIndex && activeTab === t.tab ? 'page' : undefined}
           >
             {t.label}
           </Link>
@@ -74,6 +85,7 @@ function SidebarNav() {
               key={l.href}
               href={l.href}
               className={`admin-nav-link ${pathname.startsWith(l.href) ? 'active' : ''}`}
+              aria-current={pathname.startsWith(l.href) ? 'page' : undefined}
             >
               {l.label}
             </Link>
@@ -81,6 +93,28 @@ function SidebarNav() {
         </div>
       ))}
     </nav>
+  )
+}
+
+/** Phones: the whole side menu as ONE dropdown (it used to fill the first screen). */
+function PhoneNav() {
+  const router = useRouter()
+  const { current } = useCurrent()
+  return (
+    <label className="admin-phone-nav">
+      <span className="admin-field-label">Admin page</span>
+      <select className="input" value={current} onChange={(e) => { if (e.target.value) router.push(e.target.value) }}>
+        {!current && <option value="">Pick a page…</option>}
+        <optgroup label="Overview">
+          {OVERVIEW_TABS.map((t) => <option key={t.tab} value={tabHref(t.tab)}>{t.label}</option>)}
+        </optgroup>
+        {GROUPS.map((g) => (
+          <optgroup key={g.label} label={g.label}>
+            {g.links.map((l) => <option key={l.href} value={l.href}>{l.label}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -94,6 +128,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <SidebarNav />
         </Suspense>
       </aside>
+      <Suspense fallback={null}>
+        <PhoneNav />
+      </Suspense>
       <div className="admin-content">{children}</div>
     </div>
   )

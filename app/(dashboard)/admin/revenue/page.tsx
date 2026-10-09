@@ -8,18 +8,23 @@ interface RevenueData {
     mrr: number
     totalRevenue30d: number
     netRevenue30d: number
-    activeSubscriptions: number
-    activeSubscribers: number
-    totalUsers: number
+    otherProducts30d: number
+    paying: number
+    trialing: number
+    pastDue: number
+    paused: number
+    cancelling: number
     conversionRate: number
+    conversionPaying: number
+    conversionEligible: number
   }
-  tierBreakdown: Record<string, number>
+  byPlan: { name: string; paying: number; trialing: number; pastDue: number; mrrCents: number }[]
+  other: { count: number; payingMrrCents: number; byName: { name: string; count: number; payingMrrCents: number }[] }
   dailyRevenue: { date: string; amount: number }[]
   recentPayments: {
     id: string
     amount: number
     currency: string
-    customer: string | null
     description: string
     date: string
     email: string
@@ -45,7 +50,7 @@ export default function RevenuePage() {
   if (error) return <div style={s.page}><div style={s.container}><p style={s.error}>{error}</p></div></div>
   if (!data) return null
 
-  const { summary, tierBreakdown, dailyRevenue, recentPayments } = data
+  const { summary, byPlan, other, dailyRevenue, recentPayments } = data
   const maxDailyRev = Math.max(...dailyRevenue.map(d => d.amount), 1)
 
   return (
@@ -54,48 +59,51 @@ export default function RevenuePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
             <h1 style={s.title}>Stripe Revenue</h1>
-            <p style={s.subtitle}>Live data from Stripe</p>
+            <p style={s.subtitle}>Live from Stripe. Docs2Video customers only — the same numbers as the Dashboard and Billing.</p>
           </div>
           <Link href="/admin" style={s.backLink}>&larr; Admin</Link>
         </div>
 
         {/* Summary Cards */}
         <div style={s.grid4}>
-          <div style={{ ...s.card, borderLeft: '4px solid #22c55e' }}>
-            <div style={s.cardLabel}>Monthly Recurring Revenue</div>
+          <div style={{ ...s.card, borderLeft: '4px solid var(--success)' }}>
+            <div style={s.cardLabel}>MRR (paying only)</div>
             <div style={s.cardValue}>{fmtCents(summary.mrr)}</div>
-            <div style={s.cardSub}>{summary.activeSubscriptions} active subscriptions</div>
+            <div style={s.cardSub}>{summary.paying} paying · {summary.trialing} on trial · {summary.pastDue} late</div>
           </div>
-          <div style={{ ...s.card, borderLeft: '4px solid #3b82f6' }}>
+          <div style={{ ...s.card, borderLeft: '4px solid var(--link)' }}>
             <div style={s.cardLabel}>Revenue (30 days)</div>
             <div style={s.cardValue}>{fmtCents(summary.totalRevenue30d)}</div>
-            <div style={s.cardSub}>Gross charges</div>
+            <div style={s.cardSub}>Gross charges{summary.otherProducts30d > 0 ? ` · other products: ${fmtCents(summary.otherProducts30d)} (not included)` : ''}</div>
           </div>
-          <div style={{ ...s.card, borderLeft: '4px solid #8b5cf6' }}>
+          <div style={{ ...s.card, borderLeft: '4px solid var(--ink-soft)' }}>
             <div style={s.cardLabel}>Net Revenue (30 days)</div>
             <div style={s.cardValue}>{fmtCents(summary.netRevenue30d)}</div>
             <div style={s.cardSub}>After Stripe fees</div>
           </div>
-          <div style={{ ...s.card, borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ ...s.card, borderLeft: '4px solid var(--warning)' }}>
             <div style={s.cardLabel}>Conversion Rate</div>
             <div style={s.cardValue}>{summary.conversionRate}%</div>
-            <div style={s.cardSub}>{summary.activeSubscribers} of {summary.totalUsers} users</div>
+            <div style={s.cardSub}>{summary.conversionPaying} of {summary.conversionEligible} real sign-ups pay (no test, banned or admin accounts)</div>
           </div>
         </div>
 
         {/* Tier Breakdown + Daily Revenue */}
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 24 }}>
           <div style={s.card}>
-            <h2 style={s.sectionTitle}>Subscribers by Tier</h2>
-            {Object.entries(tierBreakdown).length > 0 ? (
-              Object.entries(tierBreakdown).sort((a, b) => b[1] - a[1]).map(([tier, count]) => (
-                <div key={tier} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', textTransform: 'capitalize' }}>{tier}</span>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{count}</span>
-                </div>
-              ))
-            ) : (
-              <p style={{ fontSize: 13, color: 'var(--ink-light)' }}>No active subscriptions</p>
+            <h2 style={s.sectionTitle}>Paying by plan</h2>
+            {byPlan.length > 0 ? byPlan.map((p) => (
+              <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{p.name}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{p.paying}{p.trialing ? <span style={{ fontWeight: 500, color: 'var(--ink-light)' }}> +{p.trialing} trial</span> : null}</span>
+              </div>
+            )) : (
+              <p style={{ fontSize: 13, color: 'var(--ink-light)' }}>No Docs2Video subscriptions</p>
+            )}
+            {other.count > 0 && (
+              <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 12 }}>
+                Also on this Stripe account (not Docs2Video, not counted): {other.byName.map((o) => `${o.name} ×${o.count}`).join(', ')}.
+              </p>
             )}
           </div>
 
@@ -106,7 +114,7 @@ export default function RevenuePage() {
                 <div key={d.date} style={{ flex: 1 }}>
                   <div style={{
                     width: '100%', borderRadius: '4px 4px 0 0',
-                    background: d.amount > 0 ? '#22c55e' : 'var(--border-light)',
+                    background: d.amount > 0 ? 'var(--success)' : 'var(--border-light)',
                     height: Math.max(2, (d.amount / maxDailyRev) * 100),
                   }} title={`${d.date}: ${fmtCents(d.amount)}`} />
                 </div>
@@ -120,7 +128,7 @@ export default function RevenuePage() {
         </div>
 
         {/* Recent Payments */}
-        <div style={s.card}>
+        <div style={{ ...s.card, overflowX: 'auto' }}>
           <h2 style={s.sectionTitle}>Recent Payments</h2>
           <table style={s.table}>
             <thead>
@@ -159,7 +167,7 @@ const s: Record<string, React.CSSProperties> = {
   backLink: { fontSize: 13, color: 'var(--ink-light)', textDecoration: 'none' },
   loading: { textAlign: 'center', padding: 48, color: 'var(--ink-light)' },
   error: { textAlign: 'center', padding: 48, color: 'var(--error)' },
-  grid4: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
+  grid4: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 },
   card: { padding: 20, borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)' },
   cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 },
   cardValue: { fontSize: 28, fontWeight: 800, color: 'var(--ink)' },

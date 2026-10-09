@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useBrand } from '../../_components/BrandProvider'
 import { createClient } from '../../_lib/supabase/client'
 import { useToast } from '../../_components/Toast'
 import type { Brand } from '../../_lib/types'
 import { NAMES } from '../../_lib/names'
+import { groupBrands } from '../../_lib/brand-dupes'
 
 export default function BrandsPage() {
   // Which storefront this is. A Text2Art customer has no presenter and no
@@ -21,6 +22,15 @@ export default function BrandsPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null) // brand id or 'bulk'
+  // Same-name brands fold into one card + "N copies" (brand-dupes.ts).
+  const groups = useMemo(() => groupBrands(brands), [brands])
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
+  const toggleGroup = (key: string) => setOpenGroups(prev => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  })
 
   useEffect(() => {
     async function load() {
@@ -144,9 +154,10 @@ export default function BrandsPage() {
           </div>
 
           <div className="brands-grid">
-            {brands.map((brand) => (
+            {groups.flatMap((g) => [g.lead, ...(openGroups.has(g.key) ? g.copies : [])].map((brand) => (
               <div
                 key={brand.id}
+                data-copy={brand !== g.lead || undefined}
                 className="brand-card"
                 style={{
                   position: 'relative',
@@ -260,8 +271,21 @@ export default function BrandsPage() {
                     )}
                   </div>
                 </Link>
+                {/* Same name saved more than once: say so, and let the copies
+                    open underneath. Nothing is deleted for you. */}
+                {brand === g.lead && g.copies.length > 0 && (
+                  <button
+                    type="button"
+                    className="brand-copies-btn"
+                    aria-expanded={openGroups.has(g.key)}
+                    onClick={() => toggleGroup(g.key)}
+                  >
+                    {openGroups.has(g.key) ? 'Hide copies' : `${g.copies.length} ${g.copies.length === 1 ? 'copy' : 'copies'} with this name`}
+                  </button>
+                )}
+                {brand !== g.lead && <div className="brand-copy-note">A copy of {g.lead.name}</div>}
               </div>
-            ))}
+            )))}
           </div>
         </>
       )}

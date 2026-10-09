@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
@@ -6,6 +7,8 @@ import { synthesizeSpeech } from '../../_lib/tts'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { videoServiceUrl } from '../../_lib/video-service'
 import { fetchOurStorageImage, isOurStorageUrl } from '../../_lib/our-storage-image'
+import { storyTooBigMessage } from '../../_lib/length-limits'
+import { normalizeDetailLevel } from '../../_lib/wizard-draft'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -17,6 +20,9 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
   if (!rl.allowed) {
@@ -48,6 +54,13 @@ export async function POST(request: Request) {
   const { data: video } = await admin.from('videos').select('*').eq('id', videoId).eq('user_id', user.id).single()
   if (!video) {
     return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+  }
+  // SCENE CAP (audit 2026-10-09): a free re-render can't carry a bigger story
+  // than the length this video was made (and charged) at.
+  {
+    const dd = (video.draft_data ?? {}) as Record<string, unknown>
+    const tooBig = storyTooBigMessage(updatedScenes, normalizeDetailLevel(dd.detailLevel) ?? normalizeDetailLevel(video.detail_level) ?? 'standard')
+    if (tooBig) return NextResponse.json({ error: tooBig, code: 'story_too_long' }, { status: 400 })
   }
 
   try {

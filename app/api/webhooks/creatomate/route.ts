@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     if (deductedCost && deductedCost > 0) {
       try {
         if (isApiJob) {
-          await refundApiCredits(userId, deductedCost)
+          await refundApiCredits(userId, deductedCost, videoId)
         } else {
           // Idempotent — won't double-refund if Inngest onFailure also fired.
           await refundVideoCredits(userId, deductedCost, videoId)
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     }).eq('id', videoId)
     await sendNotification(admin, userId, {
       type: 'video_failed',
-      title: 'Video generation failed',
+      title: 'Didn’t finish',
       message,
       link: `/videos/${videoId}`,
     })

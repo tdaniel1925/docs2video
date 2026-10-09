@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import path from 'path'
 import { NAMES, KIND_NAMES, kindOfOutput, planLabel, planName } from '../app/_lib/names'
-import { PLANS } from '../app/_lib/pricing'
+import { PLANS, getPlan } from '../app/_lib/pricing'
 import { DOCS2VIDEO } from '../app/_lib/brand'
 
 const read = (p: string) => readFileSync(path.join(__dirname, '..', p), 'utf8')
@@ -22,7 +22,8 @@ describe('plan label in the avatar menu', () => {
   })
 
   it('says what a trial, a failed payment and a free account really are', () => {
-    expect(planLabel('trial')).toBe('Free trial')
+    // One name for the free plan everywhere — pricing.ts's label.
+    expect(planLabel('trial')).toBe(getPlan('free').label)
     expect(planLabel('past_due')).toBe('Payment due')
     expect(planLabel(null)).toBe(PLANS.find(p => p.tier === 'free')!.label)
     expect(planLabel('cancelled')).toBe(PLANS.find(p => p.tier === 'free')!.label)

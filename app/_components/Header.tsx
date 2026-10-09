@@ -76,7 +76,7 @@ function CreditChip({ credits, lowCreditsAt, onTopUp }: { credits: number; lowCr
       <Coins size={16} />
       <span>{balance}<span className="kit-credit-long"> credits</span></span>
       <span className="kit-credit-top">
-        <span className="kit-credit-long">+ Top Up</span>
+        <span className="kit-credit-long">+ Top up</span>
         <span className="kit-credit-short">+</span>
       </span>
     </button>
@@ -89,7 +89,8 @@ function CreditChip({ credits, lowCreditsAt, onTopUp }: { credits: number; lowCr
  * The steps come from steps.ts. A step already done links back to it for
  * the same draft; on the making screen all three show done. Leaving is safe:
  * drafts are saved as you go and wait on Home.
- * On a phone: the arrow, the numbers alone, one help button and the balance.
+ * On a phone: the arrow, the numbers with the CURRENT step's name beside
+ * them (audit 2026-10-09), one help button and the balance.
  */
 function FocusHeader({ brand, pathname, lowCreditsAt }: { brand: Brand; pathname: string; lowCreditsAt: number }) {
   const credits = useCredits()
@@ -267,7 +268,7 @@ function TopBar({ profile, brand, lowCreditsAt }: { profile: Profile; brand: Bra
               className="app-user kit-avatar-btn"
               aria-haspopup="true"
               aria-expanded={menuOpen}
-              aria-label="Your account"
+              aria-label="Account menu"
             >
               <span className="app-avatar">{initial}</span>
             </button>

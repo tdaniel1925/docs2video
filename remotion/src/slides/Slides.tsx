@@ -6,6 +6,7 @@ import { FitOdometer } from '../charts/Odometer'
 import { legibleOn, type Palette } from '../charts/Charts'
 import type { GPalette } from '../cinematic/Glass'
 import { Fit } from '../lib/fit'
+import { parseNum, isRealComparison } from './compare'
 
 const { fontFamily: MONT } = loadMont()
 const { fontFamily: SANS } = loadSans()
@@ -119,6 +120,14 @@ export const DataCards: React.FC<{ cards: Card[]; sceneStart: number; palette: G
   // the value line's size: numbers roll in on the Odometer, words are text;
   // both shrink to the card's inner width.
   const capBig = many ? sc(60) : sc(82)
+  // Every card's label, value and note sit in slots of the SAME height, top
+  // down, so labels line up across the row (a one-line label next to a
+  // two-line one used to float to three different heights).
+  const labelSize = many ? sc(15) : sc(18)
+  const labelH = Math.ceil(labelSize * 1.2 * 2)
+  const valueH = Math.ceil(capBig * 1.12)
+  // 'vs' only between two things really being compared (isRealComparison).
+  const showVs = !!vs && isRealComparison(cards)
   return (
     <div style={{ display: 'flex', gap, alignItems: 'stretch', justifyContent: 'center', flexWrap: n > 5 ? 'wrap' : 'nowrap', maxWidth: n > 5 ? perRow * cardW + (perRow - 1) * gap : undefined }}>
       {cards.map((c, i) => {
@@ -130,22 +139,25 @@ export const DataCards: React.FC<{ cards: Card[]; sceneStart: number; palette: G
           <React.Fragment key={i}>
             <div style={{
               position: 'relative', width: cardW, flexShrink: 0, boxSizing: 'border-box', padding: `${many ? sc(28) : sc(36)}px ${padX}px`, borderRadius: 10,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', overflow: 'hidden',
               background: win ? hexA(palette.accent, 0.14) : hexA(palette.bg, 0.4), backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
               border: `1.5px solid ${win ? hexA(acc, 0.6) : hexA(palette.text, 0.2)}`, boxShadow: win ? `0 0 46px ${hexA(acc, 0.3)}, 0 20px 50px rgba(0,0,0,0.45)` : '0 18px 46px rgba(0,0,0,0.45)',
               opacity: s, transform: `translateY(${(1 - s) * 30}px) scale(${Math.min(1, 0.94 + s * 0.06)})`, textAlign: 'center',
             }}>
               {win && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${acc}, transparent)` }} />}
-              {c.label ? (
-                <Fit max={many ? sc(15) : sc(18)} min={14} lines={2} style={{ fontFamily: SANS, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: win ? acc : palette.muted, marginBottom: many ? sc(14) : sc(18), lineHeight: 1.2 }}>{c.label}</Fit>
-              ) : null}
-              {/* value line — shrinks to the card's inner width, so it can never spill the card */}
-              {num != null
-                ? <FitOdometer value={num.value} at={at + 8} max={capBig} min={Math.round(capBig * 0.35)} color={win ? acc : palette.text} prefix={num.prefix} suffix={num.suffix} decimals={num.decimals} />
-                : c.value ? <Fit max={capBig} min={Math.round(capBig * 0.3)} lines={2} style={{ fontFamily: MONT, fontWeight: 800, lineHeight: 1.08, color: win ? acc : palette.text }}>{c.value}</Fit> : null}
+              {/* label slot: two lines tall on every card, label sits at its bottom */}
+              <div style={{ width: '100%', height: labelH, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: many ? sc(14) : sc(18), flexShrink: 0 }}>
+                {c.label ? <Fit max={labelSize} min={14} lines={2} style={{ width: '100%', fontFamily: SANS, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: win ? acc : palette.muted, lineHeight: 1.2 }}>{c.label}</Fit> : null}
+              </div>
+              {/* value slot — same height on every card; the value shrinks to the card's inner width, so it can never spill the card */}
+              <div style={{ width: '100%', minHeight: valueH, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {num != null
+                  ? <FitOdometer value={num.value} at={at + 8} max={capBig} min={Math.round(capBig * 0.35)} color={win ? acc : palette.text} prefix={num.prefix} suffix={num.suffix} decimals={num.decimals} />
+                  : c.value ? <Fit max={capBig} min={Math.round(capBig * 0.3)} lines={2} style={{ width: '100%', fontFamily: MONT, fontWeight: 800, lineHeight: 1.08, color: win ? acc : palette.text }}>{c.value}</Fit> : null}
+              </div>
               {c.sub && <Fit max={many ? sc(15) : sc(20)} min={14} lines={3} style={{ fontFamily: SANS, fontWeight: 600, color: palette.muted, marginTop: many ? sc(12) : sc(16), lineHeight: 1.3 }}>{c.sub}</Fit>}
             </div>
-            {vs && i === 0 && cards.length === 2 && (
+            {showVs && i === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', fontFamily: MONT, fontWeight: 800, fontSize: sc(30), color: palette.muted, opacity: spring({ frame: frame - at - 8, fps, config: { damping: 16, stiffness: 140 } }) }}>vs</div>
             )}
           </React.Fragment>
@@ -153,18 +165,6 @@ export const DataCards: React.FC<{ cards: Card[]; sceneStart: number; palette: G
       })}
     </div>
   )
-}
-
-// "$399/mo" | "$15,000" | "15s" | "10" → { value, prefix, suffix } for the odometer.
-// ONLY when the whole value IS a number: "$100–$200/mo", "Oct 10, 2026 – Oct 10,
-// 2027", "8–12%" or "100% High Cap Rate Acct" used to become "$100/mo", "10",
-// "8%", "100%" — the rest silently dropped. Those now show as written.
-function parseNum(raw: string): { value: number; prefix: string; suffix: string; decimals: number } | null {
-  const m = String(raw ?? '').trim().match(/^(~?\$?)\s?(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?)\s?(%|\/mo|\/yr|\/year|\/month|k|K|M|s|x|\+)?$/)
-  if (!m) return null
-  const value = parseFloat(m[2].replace(/,/g, ''))
-  if (!Number.isFinite(value)) return null
-  return { value, prefix: m[1] || '', suffix: m[4] || '', decimals: m[3] ? Math.min(2, m[3].length) : 0 }
 }
 
 export type Pin = { x: number; y: number; label: string; cueFrame?: number }

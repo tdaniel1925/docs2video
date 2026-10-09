@@ -30,6 +30,9 @@ export const NAMES = {
   newBrand: '+ New brand',
   /** The top-bar button that explains the screen you're on. */
   howToUse: 'How to use',
+  /** The recommended video look (id 'slides'). Was "Slide Deck", which read
+   *  like the retired silent slide-deck product (audit 2026-10-09). */
+  animatedSlidesLook: 'Animated slides',
 } as const
 
 /**
@@ -67,17 +70,18 @@ export function kindOfOutput(outputType: string | null | undefined): LibraryKind
  * to say "Pro Member" only for pro/professional/active/agency, so Business,
  * Enterprise and trial customers were told they had a "Free Account".
  *
- * Trial and past-due are said as what they are: a trial hasn't been charged
- * yet, and a past-due account's tier can't be read from the status.
+ * Past-due is said as what it is (its tier can't be read from the status).
+ * A 'trial' account IS the free plan, so it gets the free plan's ONE name
+ * from pricing.ts — the billing card used to say "Free trial" right above a
+ * plan list that said "Pay As You Go" (audit 2026-10-09).
  */
 export function planName(subscriptionStatus: string | null | undefined): string {
   const status = (subscriptionStatus ?? '').toLowerCase()
-  if (status === 'trial') return 'Free trial'
   if (status === 'past_due') return 'Payment due'
   return getPlan(getUserTier(status)).label
 }
 
-/** planName as a line on its own: "Pro plan", "Pay As You Go", "Free trial". */
+/** planName as a line on its own: "Pro plan", "Pay As You Go". */
 export function planLabel(subscriptionStatus: string | null | undefined): string {
   const name = planName(subscriptionStatus)
   const status = (subscriptionStatus ?? '').toLowerCase()

@@ -15,6 +15,8 @@ import { FilmGrade } from './cinematic/FilmGrade'
 import { LogoReveal, LogoClose } from './cinematic/LogoScenes'
 import { SlideHeading, BulletList, DataCards, ScreenshotFrame, SCALE, type Bullet, type Card, type Pin } from './slides/Slides'
 import { IconMotif, pickIcon } from './slides/IconMotif'
+import { MusicBed } from './lib/musicbed'
+import { explainerMusicDuck, type VoWindow } from './lib/audio'
 const SL = (n: number) => Math.round(n * SCALE)  // slide-scale helper (shares the global SCALE)
 import { loadFont as loadPlayfair } from '@remotion/google-fonts/PlayfairDisplay'
 
@@ -85,6 +87,11 @@ export type DirPlan = {
 }
 export type DirectedProps = {
   assetBase?: string; plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number
+  /** Each scene's voice length in frames (measured in calculateMetadata) — the
+   *  music ducks under exactly these windows. Missing → up to the next scene. */
+  voFrames?: number[]
+  /** The music file's length in frames, so MusicBed can loop it to cover the video. */
+  musicFrames?: number
   /** A single PICTURE (the free first-scene preview), not a video: the caller
    *  supplies `starts`/`total` itself, and there is no voice, music or sound
    *  effect to load — so none is fetched. Without this a still would ask for
@@ -119,35 +126,34 @@ export const directedMetadata: CalculateMetadataFunction<DirectedProps> = async 
     && Array.isArray(props.starts) && props.starts.length === props.plan.scenes.length && props.total > 0) {
     return { durationInFrames: props.total, props: { ...props, intensity: props.intensity ?? 'premium', bpm: props.bpm ?? 128 }, fps: FPS, width: 1920, height: 1080 }
   }
-  // The plan is passed via --props (dir-plan wrapped) OR fetched from public/.
-  let plan = props?.plan
-  if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
-    // No plan on props — try public/dir-plan.json. This is ABSENT during a bare
-    // `remotion compositions` listing (and before the generator runs), so guard
-    // every failure and fall back to safe placeholder metadata instead of
-    // throwing (a throwing calculateMetadata breaks the whole composition list).
-    try {
-      const res = await fetch(staticFile('dir-plan.json'))
-      if (res.ok) plan = (await res.json()) as DirPlan
-    } catch { /* no plan file — use placeholder below */ }
-  }
+  // The plan is passed via --props (dir-plan wrapped).
+  const plan = props?.plan
+  // No plan on props → a placeholder. It used to read public/dir-plan.json,
+  // but that is whatever video was made last on the box — someone else's
+  // content (and their dir-vo-*.mp3 voice) could play. A real render always
+  // passes a full plan via --props.
   if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
     // placeholder: a valid, renderable-but-empty composition so listing/preview
-    // never crash. A real render always passes a full plan via --props.
+    // never crash (a throwing calculateMetadata breaks the whole composition list).
     return { durationInFrames: 30, props: { plan: { title: '', scenes: [] } as unknown as DirPlan, starts: [], total: 30, intensity: 'premium', bpm: 128 }, fps: FPS, width: 1920, height: 1080 }
   }
   // Scene starts snap to the beat grid so every cut lands ON a beat. We give each
   // scene enough beats to cover its VO, rounding UP to a whole beat.
   const bpm = 128, BEATF = (60 / bpm) * FPS
   const starts: number[] = []; let t = Math.round(BEATF)   // start on beat 1
+  const voFrames: number[] = []
   for (const sc of plan.scenes) {
     starts.push(Math.round(t))
     const dur = Math.round((await getAudioDurationInSeconds(staticFile(`dir-vo-${sc.id}.mp3`))) * FPS)
+    voFrames.push(dur)
     const beatsNeeded = Math.max(2, Math.ceil((dur + GAP) / BEATF))   // whole beats
     t += beatsNeeded * BEATF
   }
   const total = Math.round(t + 4 * BEATF)
-  return { durationInFrames: total, props: { assetBase, plan, starts, total, intensity: 'premium', bpm }, fps: FPS, width: 1920, height: 1080 }
+  // The music's own length → MusicBed loops it so it never runs out early.
+  let musicFrames = 0
+  try { musicFrames = Math.round((await getAudioDurationInSeconds(staticFile('dir-music.mp3'))) * FPS) } catch { /* no music file — the bed falls back to a plain loop */ }
+  return { durationInFrames: total, props: { assetBase, plan, starts, total, intensity: 'premium', bpm, voFrames, musicFrames }, fps: FPS, width: 1920, height: 1080 }
 }
 
 function useBeats(totalFrames: number) {
@@ -464,7 +470,7 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   )
 }
 
-export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128, still = false }) => {
+export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128, still = false, voFrames, musicFrames = 0 }) => {
   setAssetBase(assetBase)
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   // LOOK drives the background STYLE; a brand palette (plan.palette, extracted
@@ -486,6 +492,17 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
   const reslamBeats = intensity === 'highenergy' ? 2 : intensity === 'premium' ? 4 : 0
   const idx = Math.max(0, S.filter((s) => frame >= s - 8).length - 1)
   const lastIdx = plan.scenes.length - 1
+  const regulated = (plan as { regulated?: boolean }).regulated === true
+  // MUSIC DUCKING — the commercial template's levels: 0.20 between lines, 0.08
+  // under the voice, short smooth ramps, fade in/out at the ends. Each voice
+  // window is the scene's measured voice length (voFrames); without it, up to
+  // the next scene's start.
+  const voWin: VoWindow[] = starts.map((st, i) => {
+    const next = i < starts.length - 1 ? starts[i + 1] : total
+    const len = voFrames && voFrames[i] > 0 ? voFrames[i] : Math.max(1, next - st - GAP)
+    return { start: st, end: Math.min(total, st + len) }
+  })
+  const musicDuck = explainerMusicDuck(voWin, total)
   // Interior scenes cross-fade at their next start; the LAST scene holds all the
   // way to `total` (no fade-out — otherwise the tail goes blank navy).
   const ends = [...S.slice(1), total]
@@ -562,7 +579,7 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
       {/* loop the composed bed so music NEVER cuts out mid-video (the bed is
           ~130s; longer videos need it to repeat). Fades in/out at the ends. */}
       {!still && <MusicAnalysis total={total} />}
-      {!still && <Audio loop src={staticFile('dir-music.mp3')} volume={(f) => { const fi = Math.min(30, total * 0.1); const fo = Math.max(fi + 1, total - Math.min(45, total * 0.15)); const fe = Math.max(fo + 1, total - 6); return interpolate(f, [0, fi, fo, fe], [0, 0.28, 0.28, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }} />}
+      {!still && <MusicBed src="dir-music.mp3" musicFrames={musicFrames} volume={musicDuck} />}
       {!still && S.map((st, i) => <Sequence key={i} from={st}><Audio src={staticFile(`dir-vo-${plan.scenes[i].id}.mp3`)} /></Sequence>)}
 
       {/* SFX layer — TASTEFUL and VARIED. Quiet accents, not slaps. Not every
@@ -570,8 +587,10 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
           consecutive scenes use the same sound. Silent when intensity='calm'. */}
       {!still && intensity !== 'calm' && (plan as any).noSfx !== true && (() => {
         // base volume much lower than before (was 0.6) — accents, not slaps.
-        const VOL = intensity === 'highenergy' ? 0.34 : 0.24
-        const whooshCycle = ['whoosh-short', 'whoosh', 'whoosh-short']
+        // Insurance / financial illustrations (plan.regulated) get the QUIETER
+        // set: softer level, only the short whoosh + soft impact, no sub-drop.
+        const VOL = (intensity === 'highenergy' ? 0.34 : 0.24) * (regulated ? 0.6 : 1)
+        const whooshCycle = regulated ? ['whoosh-short'] : ['whoosh-short', 'whoosh', 'whoosh-short']
         let wi = 0
         return S.map((st, i) => {
           const s2 = plan.scenes[i]
@@ -591,7 +610,9 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
               {/* the number landing on a figure/odometer gets one soft impact */}
               {fig && <Sfx name="impact-soft" at={st + Math.round(1.6 * fps)} total={total} volume={VOL} />}
               {/* the final CTA gets a single sub-drop — the one big moment */}
-              {isLast && <Sfx name="subdrop" at={st + 6} total={total} volume={VOL * 1.3} />}
+              {isLast && (regulated
+                ? <Sfx name="impact-soft" at={st + 6} total={total} volume={VOL} />
+                : <Sfx name="subdrop" at={st + 6} total={total} volume={VOL * 1.3} />)}
             </React.Fragment>
           )
         })

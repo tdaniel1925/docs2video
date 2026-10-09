@@ -81,7 +81,10 @@ export default function SharePreview({
                   src={`${videoUrl}${videoUrl.includes('?') ? '&' : '?'}v=${version}`}
                   poster={posterUrl ?? undefined}
                   controls
-                  preload="metadata"
+                  // Nothing downloads until Play: on a slow phone the old
+                  // "metadata" preload pulled ~300 KB of video before the page
+                  // was usable. The poster shows meanwhile (audit 2026-10-09).
+                  preload="none"
                   playsInline
                   onPlay={() => { const m = musicRef.current; if (m) { m.volume = 0.01; m.play().catch(() => {}) } }}
                   onPause={() => musicRef.current?.pause()}

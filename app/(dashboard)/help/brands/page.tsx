@@ -242,6 +242,9 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>Default Brand</strong> — Tick <strong style={{ color: 'var(--ink)' }}>Set as default brand</strong> when creating or editing a brand. That brand is picked for you first when you make something new.
           </p>
           <p style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>The same name twice</strong> — If you type a name you already used, a line under the name says so with <strong style={{ color: 'var(--ink)' }}>Open it</strong>. Pressing <strong style={{ color: 'var(--ink)' }}>Create brand</strong> asks once more before making a second copy. On the Brands page, brands with the same name show as one card (your default one, or else the newest) with <strong style={{ color: 'var(--ink)' }}>N copies with this name</strong> — press it to see the others. Nothing is deleted for you.
+          </p>
+          <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Choosing a Brand for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>The look</strong> step, click <strong style={{ color: 'var(--ink)' }}>Change</strong> next to the brand and pick the one you want. The video uses that brand&apos;s logo, colors, photo and contact details.
           </p>
           <p>

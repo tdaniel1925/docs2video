@@ -1,70 +1,52 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
-import { getStripe, listAllStripe } from '../../../_lib/stripe'
-import { tierFromPriceId } from '../../../_lib/stripe'
+import { getStripe } from '../../../_lib/stripe'
+import { logAdminAction } from '../../../_lib/audit'
+import { loadMoneySnapshot } from '../../../_lib/admin/money-server'
 import type Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 /**
- * GET /api/admin/billing
- * Admin Billing & Sales: live customer + subscription list from Stripe with
- * MRR and status, joined to the user's profile email. Read-only.
+ * GET /api/admin/billing[?fresh=1]
+ * Admin Billing & Sales: every live subscription on the Stripe account, from
+ * the ONE shared money calculation (same numbers as the Dashboard and
+ * Revenue). Docs2Video subscriptions first; other products on the shared
+ * Stripe account are marked `kind: 'other'` and never counted in MRR. Read-only.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   try {
-    const stripe = getStripe()
-    // Pull all non-terminal subscriptions (active, trialing, past_due, paused).
-    // Paginated (review P3): one limit:100 page under-counted MRR past 100 subs.
-    const subs = { data: await listAllStripe((p) => stripe.subscriptions.list({ status: 'all', expand: ['data.customer'], ...p } as any)) as any[] }
-
-    const db = createAdminClient()
-    // Map stripe_customer_id -> profile for email/name + app subscription_status.
-    const { data: profiles } = await db
-      .from('profiles')
-      .select('id, email, full_name, subscription_status, stripe_customer_id')
-      .not('stripe_customer_id', 'is', null)
-    const byCustomer = new Map((profiles ?? []).map(p => [p.stripe_customer_id as string, p]))
-
-    let mrr = 0
-    const rows = subs.data
-      .filter(s => s.status !== 'canceled' && s.status !== 'incomplete_expired')
-      .map((s) => {
-        const item = s.items.data[0]
-        const amount = (item?.price?.unit_amount ?? 0) // cents/month (monthly plans)
-        const interval = item?.price?.recurring?.interval
-        const monthly = interval === 'year' ? Math.round(amount / 12) : amount
-        if (s.status === 'active' || s.status === 'trialing') mrr += monthly
-        const cust = typeof s.customer === 'string' ? null : (s.customer as Stripe.Customer)
-        const profile = byCustomer.get(typeof s.customer === 'string' ? s.customer : s.customer.id)
-        return {
-          subscriptionId: s.id,
-          customerId: typeof s.customer === 'string' ? s.customer : s.customer.id,
-          email: profile?.email || cust?.email || '—',
-          name: profile?.full_name || cust?.name || '',
-          tier: item?.price?.id ? (tierFromPriceId(item.price.id) ?? 'unknown') : 'unknown',
-          status: s.status,
-          pauseCollection: !!s.pause_collection,
-          cancelAtPeriodEnd: s.cancel_at_period_end,
-          monthlyAmount: monthly,
-          // current_period_end lives on the item in newer Stripe API versions;
-          // fall back to the subscription-level field for older versions.
-          currentPeriodEnd: (item as any)?.current_period_end ?? (s as any).current_period_end ?? 0,
-        }
-      })
-      .sort((a, b) => b.monthlyAmount - a.monthlyAmount)
-
+    const fresh = new URL(request.url).searchParams.get('fresh') === '1'
+    const snap = await loadMoneySnapshot({ fresh })
+    const d = snap.summary.docs2video
     return NextResponse.json({
-      mrr,
-      activeCount: rows.filter(r => r.status === 'active' || r.status === 'trialing').length,
-      pastDueCount: rows.filter(r => r.status === 'past_due' || r.status === 'unpaid').length,
-      pausedCount: rows.filter(r => r.pauseCollection).length,
-      subscriptions: rows,
+      summary: snap.summary,
+      conversion: snap.conversion,
+      // Kept for older readers of this route.
+      mrr: d.mrrCents,
+      activeCount: d.paying,
+      pastDueCount: d.pastDue,
+      pausedCount: d.paused,
+      subscriptions: snap.rows.map((r) => ({
+        subscriptionId: r.id,
+        customerId: r.customerId,
+        userId: r.userId,
+        email: r.email,
+        name: r.name,
+        tier: r.planName,
+        kind: r.kind,
+        status: r.status,
+        pauseCollection: r.paused,
+        cancelAtPeriodEnd: r.cancelAtPeriodEnd,
+        monthlyAmount: r.monthlyCents,
+        currentPeriodEnd: r.currentPeriodEnd,
+      })).sort((a, b) => Number(a.kind === 'other') - Number(b.kind === 'other')),
+      at: snap.at,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to load billing'
@@ -75,6 +57,7 @@ export async function GET() {
 /**
  * POST /api/admin/billing  { subscriptionId, action }
  * action: 'cancel' (at period end) | 'cancel_now' | 'pause' | 'resume'
+ * Every action is written to the admin audit log.
  */
 export async function POST(request: Request) {
   const admin = await requireAdmin()
@@ -109,6 +92,11 @@ export async function POST(request: Request) {
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
+    const customerId = typeof result.customer === 'string' ? result.customer : result.customer?.id
+    const { data: owner } = customerId
+      ? await createAdminClient().from('profiles').select('id').eq('stripe_customer_id', customerId).maybeSingle()
+      : { data: null }
+    await logAdminAction(admin.id, `billing_${action}`, owner?.id ?? undefined, { subscriptionId, customerId, status: result.status })
     console.log(`[admin/billing] ${admin.email} ${action} ${subscriptionId} -> ${result.status}`)
     return NextResponse.json({ success: true, status: result.status })
   } catch (err) {

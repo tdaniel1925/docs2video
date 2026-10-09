@@ -169,7 +169,7 @@ test.describe('Step 3 — choices', () => {
     await open(page)
     const fold = await more(page)
     await expect(make(page, 'Video')).toHaveAttribute('aria-checked', 'true')
-    await expect(look(page, 'Slide Deck')).toBeVisible()
+    await expect(look(page, 'Animated slides')).toBeVisible()
     await expect(fold.getByText('Voice', { exact: true })).toBeVisible()
     await expect(fold.getByText('Music', { exact: true })).toBeVisible()
     await expect(fold.getByText('Length', { exact: true })).toBeVisible()
@@ -177,7 +177,7 @@ test.describe('Step 3 — choices', () => {
     await make(page, 'Presentation').click()
     await expect(make(page, 'Presentation')).toHaveAttribute('aria-checked', 'true')
     await expect(look(page, 'Heritage')).toHaveAttribute('aria-checked', 'true')
-    await expect(look(page, 'Slide Deck')).toHaveCount(0)
+    await expect(look(page, 'Animated slides')).toHaveCount(0)
     await expect(fold.getByText('Voice', { exact: true })).toBeVisible()
     await expect(fold.getByText('Music', { exact: true })).toHaveCount(0)
     await expect(fold.getByText('Length', { exact: true })).toHaveCount(0)
@@ -201,15 +201,15 @@ test.describe('Step 3 — choices', () => {
     await expect(looks).toHaveCount(7)
     // Every thumbnail is a real picture (none broken).
     await page.waitForFunction(() => [...document.querySelectorAll('[role=radiogroup][aria-label="The look"] img')].every((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0), null, { timeout: 15000 })
-    await expect(look(page, 'Slide Deck')).toHaveAttribute('aria-checked', 'true')
-    await expect(look(page, 'Slide Deck')).toContainText('BEST')
+    await expect(look(page, 'Animated slides')).toHaveAttribute('aria-checked', 'true')
+    await expect(look(page, 'Animated slides')).toContainText('BEST')
     await expect(page.getByRole('radiogroup', { name: 'The look' }).getByText('BEST')).toHaveCount(1)
     const fold = await more(page)
     await expect(fold.getByText('Add photo backgrounds')).toBeVisible()
 
     await look(page, 'Aurora').click()
     await expect(look(page, 'Aurora')).toHaveAttribute('aria-checked', 'true')
-    await expect(look(page, 'Slide Deck')).toHaveAttribute('aria-checked', 'false')
+    await expect(look(page, 'Animated slides')).toHaveAttribute('aria-checked', 'false')
     await expect(page.getByText(/Aurora\. Modern motion graphics/)).toBeVisible()
     await expect(fold.getByText('Add photo backgrounds')).toHaveCount(0)
     await expect(page.getByText('Usually about 3–5 minutes.', { exact: false })).toBeVisible()
@@ -338,7 +338,7 @@ test.describe('Step 3 — Make it', () => {
     expect(typeof gen[0].musicPrompt).toBe('string')
   })
 
-  test('the defaults go out as the defaults (Slide Deck, Sarah, no music, no note)', async ({ page }) => {
+  test('the defaults go out as the defaults (Animated slides, Sarah, no music, no note)', async ({ page }) => {
     const { draft } = await open(page)
     const gen: any[] = []
     await page.route('**/api/generate-video', async (route) => { gen.push(jsonBody(route.request())); await route.fulfill({ json: { success: true } }) })

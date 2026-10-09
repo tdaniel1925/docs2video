@@ -10,7 +10,7 @@
  *    "James" hears James. ElevenLabs only steps in if OpenAI fails, because
  *    some voice beats a silent video.
  *
- * This is the same rule the Slide Deck look has used since audit H2
+ * This is the same rule the Animated slides look has used since audit H2
  * (render-service/slides.js wantsChosenVoice). The render service can't import
  * from app/, so server.js uses the slides.js copy — keep the two in step.
  * No imports, so the browser-side preview code can use it too.

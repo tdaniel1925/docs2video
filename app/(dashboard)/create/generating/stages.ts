@@ -19,7 +19,7 @@ const PRESENTATION: (Stage & { statuses: string[] })[] = [
 ]
 
 export function waitingStages(opts: { status: string; outputType: string; detail: string; slidesLook: boolean }): { stages: Stage[]; current: number } {
-  // The Slide Deck look does everything in one long job on the render
+  // The Animated slides look does everything in one long job on the render
   // service, and may first wait for a free spot — name what is really happening.
   if (opts.slidesLook && (opts.outputType === 'video' || !opts.outputType)) {
     const stages = [

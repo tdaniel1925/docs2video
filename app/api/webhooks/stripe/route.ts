@@ -3,6 +3,8 @@ import { getStripe, tierFromPriceId } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import type Stripe from 'stripe'
 import { logError } from '../../../_lib/error-logger'
+import { alertOps, stripeEventCustomer } from '../../../_lib/ops-alert'
+import { recordPaymentFailure } from '../../../_lib/admin/payment-alerts'
 import {
   grantMonthlyCredits, addTopupCredits, applyTierChange,
   revokeCredits, proportionalCredits, TIER_CREDITS,
@@ -720,6 +722,8 @@ export async function POST(request: Request) {
         const invoice = event.data.object as Stripe.Invoice
         const customerId = invoice.customer as string
         console.error(`[webhook] Payment failed for customer ${customerId}, invoice ${invoice.id}`)
+        // Admin "What needs you" card (admin helper; never throws). Only addition here.
+        await recordPaymentFailure({ customerId, invoiceId: invoice.id, amountDueCents: invoice.amount_due, attempt: invoice.attempt_count, email: invoice.customer_email })
 
         // A failed $50 ADD-ON invoice must not block the whole account (review
         // B3): only deactivate the add-on; the main plan keeps its own dunning.
@@ -883,6 +887,14 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Unknown webhook handler error'
     console.error(`[webhook] Handler error for ${event.type}:`, message)
     logError('stripe-webhook-handler', err, { eventType: event.type, eventId: event.id })
+    // Email Trent, naming the customer (audit 2026-10-09) — a payment that
+    // could not be applied must be findable without digging through logs.
+    const who = stripeEventCustomer(event)
+    await alertOps({
+      source: 'stripe-webhook', stage: event.type,
+      message: `A Stripe payment event could not be applied for ${who}: ${message}. Stripe will retry; if it keeps failing, apply it by hand.`,
+      detail: `event ${event.id} (${event.type})`,
+    })
     // Release the idempotency claim so Stripe's retry actually re-runs the
     // handler (otherwise the claimed-but-unprocessed event would be skipped and
     // a paid customer would silently get nothing). Best-effort.

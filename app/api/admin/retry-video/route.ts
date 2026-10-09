@@ -1,83 +1,36 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
+import { retryQuote, rerunVideo } from '../../../_lib/admin/retry'
 export const maxDuration = 30
 
+/**
+ * GET /api/admin/retry-video?videoId=… — READ ONLY. What a retry would charge,
+ * in plain words, so the confirm box can say it BEFORE anything runs.
+ */
+export async function GET(request: Request) {
+  const user = await requireAdmin()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  const videoId = new URL(request.url).searchParams.get('videoId')
+  if (!videoId) return NextResponse.json({ error: 'videoId is required' }, { status: 400 })
+  const q = await retryQuote(videoId)
+  if (!q) return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+  return NextResponse.json(q)
+}
+
+/** POST { videoId } — re-run a failed (or review-held) video as its owner. */
 export async function POST(request: Request) {
   const user = await requireAdmin()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const { videoId } = await request.json() as { videoId: string }
-  if (!videoId) {
-    return NextResponse.json({ error: 'videoId is required' }, { status: 400 })
-  }
-
-  const admin = createAdminClient()
+  if (!videoId) return NextResponse.json({ error: 'videoId is required' }, { status: 400 })
 
   try {
-    // Load the video's owner + original inputs so we can actually RE-RUN
-    // generation, not just flip the status (the old behaviour left it 'pending'
-    // forever with nothing picking it up).
-    const { data: video, error: loadErr } = await admin
-      .from('videos')
-      .select('id, user_id, draft_data, status, deducted_cost')
-      .eq('id', videoId)
-      .single()
-    if (loadErr || !video) throw loadErr || new Error('Video not found')
-
-    // Recharge on approval (review B14): a review_required video was refunded
-    // when it was held ("refund now, recharge on approval"). Approving/retrying
-    // it is the recharge moment — pass chargeOwner so generate-video runs the
-    // normal deduction for the OWNER. Plain failed-video retries stay free ONLY
-    // if the charge is still outstanding (deducted_cost > 0 = not yet refunded);
-    // once refunded, a retry must charge again or the video is free.
-    const chargeOwner = video.status === 'review_required' || !(video.deducted_cost && video.deducted_cost > 0)
-
-    // Reset to a claimable state.
-    const { error: resetErr } = await admin
-      .from('videos')
-      .update({ status: 'pending', error_message: null, progress_pct: 0, progress_detail: null })
-      .eq('id', videoId)
-    if (resetErr) throw resetErr
-
-    // Re-trigger generation server-to-server as the video's OWNER, replaying the
-    // original inputs from draft_data. generate-video claims status in
-    // ('draft','failed','pending'), so the reset above lets it proceed.
-    const draft = (video.draft_data as any) || {}
-    const internalSecret = (process.env.INTERNAL_API_SECRET || '').trim()
-    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').trim().replace(/\/+$/, '')
-    if (!internalSecret) {
-      // Without the internal secret we can't re-trigger; surface clearly.
-      return NextResponse.json({ error: 'INTERNAL_API_SECRET not configured — cannot re-trigger generation' }, { status: 500 })
-    }
-
-    const genBody = {
-      videoId: video.id,
-      policyData: draft.policyData ?? draft.extractedData ?? null,
-      brandId: draft.brandId ?? null,
-      voiceId: draft.voiceId,
-      detailLevel: draft.detailLevel,
-      narrationStyle: draft.narrationStyle,
-      purpose: draft.purpose,
-      uploadMode: draft.uploadMode,
-      industry: draft.industry,
-      preGeneratedScenes: draft.scenes ?? undefined,
-      chargeOwner,
-    }
-
-    // Fire-and-forget — generate-video runs the pipeline in waitUntil.
-    fetch(`${baseUrl}/api/generate-video`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-internal-service': internalSecret,
-        'x-internal-user-id': video.user_id,
-      },
-      body: JSON.stringify(genBody),
-    }).catch((e) => console.error('[admin/retry-video] re-trigger failed:', e))
-
-    await logAdminAction(user.id, 'retry_video', video.user_id, { videoId, chargeOwner })
+    const quote = await retryQuote(videoId)
+    const r = await rerunVideo(videoId)
+    if (r.error) return NextResponse.json({ error: r.error }, { status: r.error === 'Video not found' ? 404 : 500 })
+    await logAdminAction(user.id, 'retry_video', r.ownerId ?? undefined, { videoId, chargeOwner: r.chargeOwner, credits: quote?.credits ?? null })
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[admin/retry-video] Error:', err)

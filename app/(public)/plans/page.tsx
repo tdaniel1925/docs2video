@@ -24,7 +24,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
 
   const cards = [
     ...(free ? [{
-      key: 'free', name: 'Pay As You Go', price: '$0', perMonth: false, popular: false,
+      key: 'free', name: free.label, price: '$0', perMonth: false, popular: false,
       creditLine: `${free.monthlyCredits.toLocaleString()} free credits`,
       subLine: `~${free.approxStandardVideos} videos to try · then top up`,
       features: ['Full quality, no watermark', 'Branded client share pages', 'Download MP4, PDF, PPTX', 'No subscription required'],

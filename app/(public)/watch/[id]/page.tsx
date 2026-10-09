@@ -473,6 +473,40 @@ const pageStyles = `
     border: none;
   }
 
+  /* Next step — one clear thing to do */
+  .wp-next {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .wp-next-btn {
+    flex: 1 1 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 52px;
+    padding: 0 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-card);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: var(--fs-body);
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .wp-next-btn:hover { border-color: var(--accent-ink); }
+  .wp-next-btn--main {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .wp-next-btn--main:hover { opacity: 0.9; }
+  .wp-next-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
   /* Contact card */
   .wp-contact-card {
     background: var(--bg-card);
@@ -553,7 +587,8 @@ const pageStyles = `
   }
   .wp-not-found {
     text-align: center;
-    padding: 40px;
+    padding: 40px 16px;
+    max-width: 480px;
   }
   .wp-not-found h1 {
     font-size: var(--fs-h2);
@@ -894,7 +929,10 @@ export default function PublicWatchPage() {
       // returns the agent profile + quote that the anon key can't read.
       let data: { video?: VideoWithRelations; agent?: AgentProfile | null; quote?: Quote | null } | null = null
       try {
-        const res = await fetch(`/api/public/watch/${params.id as string}`)
+        // Give up after 10 s so a dead link never spins forever.
+        const ctl = new AbortController()
+        const t = setTimeout(() => ctl.abort(), 10000)
+        const res = await fetch(`/api/public/watch/${params.id as string}`, { signal: ctl.signal }).finally(() => clearTimeout(t))
         if (!res.ok) { setNotFound(true); return }
         data = await res.json()
       } catch {
@@ -998,11 +1036,9 @@ export default function PublicWatchPage() {
         <style>{pageStyles}</style>
         <div className="wp-center-screen">
           <div className="wp-not-found">
-            <h1>This presentation is no longer available</h1>
-            <p>It may have been removed by the creator.</p>
-            <a href="/" style={{ display: 'inline-block', marginTop: 20, padding: '10px 20px', background: 'var(--ink)', color: 'var(--on-ink)', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 'var(--fs-ui)' }}>
-              Go to Homepage
-            </a>
+            <h1>We can&apos;t find this video</h1>
+            <p>The link may be old, or the person who sent it took it down.</p>
+            <p>Ask them to send you a fresh link.</p>
           </div>
         </div>
       </div>
@@ -1045,7 +1081,11 @@ export default function PublicWatchPage() {
   // Google Calendar, a website page. It used to show only for calendly.com,
   // so everyone else's clients got just the small button.
   const calendlyUrl = safeLink(agent?.calendly_url)
-  const hasCalendly = calendlyUrl.length > 0
+  // The ONE booking link: a per-project link first, then the agent's own.
+  const nextBooking = safeLink((video.script as any)?._pipeline_input?.bookingUrl) || calendlyUrl
+  // What the next-step buttons call the agent: their name, else company,
+  // else plain words (never the video's title).
+  const agentShort = (agent?.full_name || agent?.company_name || '').trim() || 'the sender'
   // Can the recipient pay? True when the agent has a payment link (Stripe
   // Payment Link / Square / PayPal) or a per-quote link. No Stripe Connect.
   // Only a real https link counts — otherwise a Pay button appeared that
@@ -1110,9 +1150,7 @@ export default function PublicWatchPage() {
             )}
           </div>
         </div>
-        {!isWhiteLabel && (
-          <div className="wp-powered-header">Powered by Docs2Video</div>
-        )}
+        {/* "Powered by Docs2Video" is said ONCE, in the footer (audit 2026-10-09). */}
       </header>
 
       {/* ============================================================ */}
@@ -1373,26 +1411,12 @@ export default function PublicWatchPage() {
               const pi = (video.script as any)?._pipeline_input
               // Prefer a quote/pipeline-specific link; fall back to the agent's
               // saved Calendly + Stripe Payment Link from Settings → Integrations.
-              const bookingUrl = safeLink(pi?.bookingUrl) || calendlyUrl
+              // Booking lives in ONE place — the "next step" block under the
+              // player — so it is never shown twice (audit 2026-10-09).
               const paymentLnk = safeLink(pi?.paymentLink) || safeLink(agent?.payment_link_url)
-              if (!bookingUrl && !paymentLnk) return null
+              if (!paymentLnk) return null
               return (
                 <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 12 }}>
-                  {bookingUrl && (
-                    <a
-                      href={bookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => trackEvent(video.id, 'booking_click')}
-                      style={{
-                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
-                        height: 48, borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)',
-                        fontSize: 'var(--fs-body)', fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
-                      }}
-                    >
-                      <IconCalendar /> Book a Call
-                    </a>
-                  )}
                   {paymentLnk && (
                     <a
                       href={paymentLnk}
@@ -1527,25 +1551,43 @@ export default function PublicWatchPage() {
       )}
 
       {/* ============================================================ */}
-      {/*  BELOW MAIN — Book a meeting link                               */}
+      {/*  NEXT STEP — always one clear thing to do (audit 2026-10-09):   */}
+      {/*  book a call when a booking link is set; otherwise reply (the   */}
+      {/*  real "ask a question" email form) and call when a phone is set. */}
       {/* ============================================================ */}
-      {hasCalendly && (
-        <div className="wp-center wp-section" id="calendly-section">
-          <a
-            href={calendlyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => video && trackEvent(video.id, 'booking_click')}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)',
-              width: '100%', height: 52, borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)',
-              fontSize: 'var(--fs-body)', fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
-            }}
-          >
-            <IconCalendar /> Book a Meeting with {agentName}
-          </a>
+      <div className="wp-center wp-section" id="next-step" data-testid="watch-next-step">
+        <div className="wp-next">
+          {nextBooking ? (
+            <a
+              href={nextBooking}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => video && trackEvent(video.id, 'booking_click')}
+              className="wp-next-btn wp-next-btn--main"
+            >
+              <IconCalendar /> Book a call with {agentShort}
+            </a>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="wp-next-btn wp-next-btn--main"
+                onClick={() => { setAskSent(false); setAskError(''); setAskOpen(true) }}
+              >
+                <IconMail /> Reply to {agentShort}
+              </button>
+              {agentPhone && (
+                <a
+                  href={`tel:${agentPhone}`}
+                  className="wp-next-btn"
+                >
+                  <IconPhone /> Call {agentShort}
+                </a>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* ============================================================ */}
       {/*  BELOW MAIN — Contact card                                    */}
@@ -1721,29 +1763,9 @@ export default function PublicWatchPage() {
         </div>
       )}
 
-      {/* Fixed bottom bar — free tier only */}
-      {isFreeTier && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
-          padding: '10px 20px',
-          background: 'color-mix(in srgb, var(--ink) 95%, transparent)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)',
-        }}>
-          <span style={{ fontSize: 'var(--fs-small)', color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-            Made with Docs2Video
-          </span>
-          <a
-            href="https://docs2video.com/signup"
-            style={{
-              padding: '6px 16px', borderRadius: 6,
-              background: 'var(--accent)', color: 'var(--ink)', fontSize: 'var(--fs-caption)', fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            Create yours free &rarr;
-          </a>
-        </div>
-      )}
+      {/* The old free-plan bar pinned to the bottom ("Made with Docs2Video")
+          was a second "powered by" over the agent's page — the footer says
+          it once now (audit 2026-10-09). */}
 
       {/* ============================================================ */}
       {/*  LEAD CAPTURE — paid plans only, after 60% playback           */}
@@ -1905,13 +1927,13 @@ export default function PublicWatchPage() {
       {/* ============================================================ */}
       {/*  FOOTER                                                       */}
       {/* ============================================================ */}
-      <footer className="wp-footer" style={isFreeTier ? { paddingBottom: 48 } : undefined}>
+      <footer className="wp-footer">
         {isWhiteLabel ? (
           <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600, letterSpacing: '0.04em' }}>
             {agent?.company_name ?? agentName}
           </span>
         ) : (
-          <a href="/">Powered by Docs2Video</a>
+          <a href="/" data-testid="watch-powered-by">Powered by Docs2Video</a>
         )}
       </footer>
     </div>

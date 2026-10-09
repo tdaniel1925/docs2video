@@ -54,8 +54,8 @@ export default function LibraryHelpPage() {
       </Section>
 
       <Section title="Find something">
-        <p><strong>Tabs</strong> show one kind: {tabs}, or All. The tab stays chosen when you refresh.</p>
-        <p><strong>Older items</strong> holds the slide decks and custom graphics you made before Docs2Video became videos-only. New ones can&rsquo;t be made, but these still open, download, share and delete. The tab only shows when you have some.</p>
+        <p><strong>Tabs</strong> show one kind: {tabs}, or All. <strong>All</strong> is your videos and presentations — the same things Home counts in &ldquo;See all&rdquo;. The tab stays chosen when you refresh.</p>
+        <p><strong>Older items</strong> holds — on its own, never under All — the slide decks and custom graphics you made before Docs2Video became videos-only. New ones can&rsquo;t be made, but these still open, download, share and delete. The tab only shows when you have some.</p>
         <p>Type in <strong>Search by name or client</strong> to find one by its name, the client it’s for, or its kind.</p>
         <p>The order box sorts by <strong>Newest first</strong>, <strong>Oldest first</strong> or <strong>Name A–Z</strong>.</p>
         <p>The two small buttons on the right switch between <strong>Cards</strong> and <strong>List</strong>. The list is a table with the type, the client, the status, the credits used and the date. Your choice is remembered on this computer.</p>

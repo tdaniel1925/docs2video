@@ -1,5 +1,7 @@
 import { AbsoluteFill, Series, Audio, useCurrentFrame, interpolate } from 'remotion'
 import { staticFile, setAssetBase } from '../lib/asset'
+import { DuckedMusic } from '../lib/musicbed'
+import { sceneVoiceWindows } from '../lib/audio'
 import { z } from 'zod'
 import { editorialFromBrand, explainerPageTheme, type EditorialTheme, type EditorialVariant } from './theme'
 import { pickArchetype, type EditorialScene } from './archetype'
@@ -37,6 +39,8 @@ export const editorialSchema = z.object({
   /** Which magazine look: 'time' (bold red) or 'editorial' (clean/warm). */
   variant: z.enum(['editorial', 'time', 'explainer']).optional(),
   music: z.string().optional(),
+  /** The music file's length in frames — lets the bed loop to cover the video. */
+  musicFrames: z.number().optional(),
   /** Contact line for the closing decision page. */
   contactLine: z.string().optional(),
   /** Presenter (Person profile): portrait + name/role placed per style. */
@@ -62,13 +66,12 @@ const PageTurn: React.FC<{ d: number; isLast?: boolean; children: React.ReactNod
   return <AbsoluteFill style={{ opacity: inP * (1 - outP) }}>{children}</AbsoluteFill>
 }
 
-export const EditorialVideo: React.FC<EditorialProps> = ({ assetBase, masthead, runningTitle, brandColor, variant, music, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing, recipient }) => {
+export const EditorialVideo: React.FC<EditorialProps> = ({ assetBase, masthead, runningTitle, brandColor, variant, music, musicFrames, scenes, contactLine, presenter, presenterOnCover, presenterOnClosing, recipient }) => {
   setAssetBase(assetBase)
   const theme: EditorialTheme = editorialFromBrand(brandColor, (variant as EditorialVariant) || 'time')
   // Not cut to a character count any more (that printed "QOL VALUE+ PROTECTOR
   // III INDEX U" in the folio): the folio's <Fit> shrinks a long title instead.
   const running = (runningTitle || scenes[0]?.title || '').toUpperCase()
-  const total = scenes.reduce((a, s) => a + s.durationInFrames, 0)
 
   const render = (s: EditorialScene, i: number) => {
     const a = pickArchetype(s, i, scenes.length)
@@ -105,7 +108,8 @@ export const EditorialVideo: React.FC<EditorialProps> = ({ assetBase, masthead, 
         ))}
       </Series>
       {music ? (
-        <Audio src={staticFile(music)} volume={(f) => interpolate(f, [0, 30, total - 45, total], [0, 0.036, 0.036, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })} />
+        // Looped to the whole video and ducked under the voice (0.20 / 0.08).
+        <DuckedMusic src={music} musicFrames={musicFrames} windows={sceneVoiceWindows(scenes)} />
       ) : null}
     </AbsoluteFill>
   )

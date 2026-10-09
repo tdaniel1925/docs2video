@@ -74,3 +74,34 @@ export function gridToFrames(beatsSec: number[], fps: number): number[] {
 export function durationsFromStarts(starts: number[], totalMinusTail: number): number[] {
   return starts.map((s, i) => (i < starts.length - 1 ? starts[i + 1] : totalMinusTail) - s)
 }
+
+/**
+ * The explainer videos' music envelope (Slide Deck / DirectedVideo, Cinematic /
+ * Aurora / V3Video, Editorial, Infographic) — the SAME levels as the commercial
+ * template: 0.20 between lines, 0.08 under the voice, short smooth ramps, a fade
+ * in at the start and out at the end. The ffmpeg mixes in the render service
+ * (render-service/audio-mix.js) use the same numbers.
+ */
+export const EXPLAINER_MUSIC = { loud: 0.2, duck: 0.08, ramp: 12 } as const
+export function explainerMusicDuck(voWindows: VoWindow[], total: number) {
+  const fadeInEnd = Math.max(1, Math.min(30, Math.round(total * 0.1)))
+  const fadeOutStart = Math.max(fadeInEnd + 1, total - Math.min(45, Math.round(total * 0.15)))
+  const fadeOutEnd = Math.max(fadeOutStart + 1, total - 6)
+  return makeMusicDuck(voWindows, total, { ...EXPLAINER_MUSIC, fadeInEnd, fadeOutStart, fadeOutEnd })
+}
+
+/**
+ * Voice windows for a run of back-to-back scenes that each play their own voice
+ * file from their first frame (V3, Editorial, Infographic). A scene is its voice
+ * plus a short pad, so the window ends a little before the scene does.
+ */
+export function sceneVoiceWindows(scenes: { durationInFrames: number; audio?: string | null }[], startAt = 0): VoWindow[] {
+  const out: VoWindow[] = []
+  let t = startAt
+  for (const sc of scenes) {
+    const d = Math.max(0, sc.durationInFrames || 0)
+    if (sc.audio && d > 0) out.push({ start: t, end: t + Math.max(1, d - Math.min(24, Math.round(d * 0.15))) })
+    t += d
+  }
+  return out
+}

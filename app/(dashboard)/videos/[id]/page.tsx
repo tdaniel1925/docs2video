@@ -26,6 +26,7 @@ import { visibleScenes } from '../../../_lib/presentation'
 import { CREDIT_COSTS } from '../../../_lib/credits'
 import { VIDEO_WORKING } from '../../../_lib/video-status'
 import { useVideoRow } from './useVideoRow'
+import { Button, EmptyState } from '../../../_components/kit'
 import MakingProgress from './making/MakingProgress'
 import FailedCard from './making/FailedCard'
 import ResultHeader from './result/ResultHeader'
@@ -54,7 +55,7 @@ export default function VideoDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
-  const { video, setVideo, userPlan, watch, retry } = useVideoRow(id)
+  const { video, setVideo, userPlan, watch, retry, missing } = useVideoRow(id)
 
   const [notice, setNotice] = useState<Notice | null>(null)
   useEffect(() => {
@@ -179,6 +180,23 @@ export default function VideoDetailPage() {
   }
 
   if (!video) {
+    // Wrong / old / deleted link: say so and give the way back, never a
+    // spinner that turns forever (audit 2026-10-09, f3-missing-15s).
+    if (missing) {
+      return (
+        <div className="res-page" data-testid="video-missing">
+          <EmptyState
+            title="We can't find this video"
+            actions={<>
+              <Button href="/videos">Back to Library</Button>
+              <Button variant="secondary" onClick={() => window.location.reload()}>Try again</Button>
+            </>}
+          >
+            The link may be old, or the video was deleted. Everything you&apos;ve made is in your Library.
+          </EmptyState>
+        </div>
+      )
+    }
     return (
       <div style={{ color: 'var(--ink-light)', padding: '64px', textAlign: 'center' }}>
         <span className="spinner lg" />

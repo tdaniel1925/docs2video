@@ -7,6 +7,8 @@ import { createBrand } from '../../../_actions/brands'
 import { downscaleImage } from '../../../_lib/image-resize'
 import { useBrand } from '../../../_components/BrandProvider'
 import { usePasteImage, pasteKeyLabel } from '../../../_components/usePasteImage'
+import { createClient } from '../../../_lib/supabase/client'
+import { sameNameBrand } from '../../../_lib/brand-dupes'
 
 const COLOR_LABELS: Record<string, string> = {
   primary_color: 'Primary',
@@ -139,6 +141,19 @@ export default function NewBrandPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [brandName, setBrandName] = useState('')
+  // The brands already saved, to warn before a second one with the same name
+  // (audit 2026-10-09: "Darrell Wolfe" was saved four times). Only a warning:
+  // making another copy on purpose still works.
+  const [existing, setExisting] = useState<{ id: string; name: string; created_at: string }[]>([])
+  useEffect(() => {
+    let off = false
+    createClient().from('brands').select('id, name, created_at')
+      .then(({ data }) => { if (!off && data) setExisting(data as { id: string; name: string; created_at: string }[]) })
+    return () => { off = true }
+  }, [])
+  const dup = sameNameBrand(brandName, existing)
+  const [dupAsked, setDupAsked] = useState(false)
+  useEffect(() => { setDupAsked(false) }, [brandName])
   const [logoUrl, setLogoUrl] = useState('')
 
   // Profile type (Person | Company)
@@ -236,6 +251,13 @@ export default function NewBrandPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    // Same name as a saved brand: stop once and say so (the button then
+    // reads "Create another one anyway").
+    if (dup && !dupAsked) {
+      setDupAsked(true)
+      document.getElementById('brand-dup-warning')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     setLoading(true)
     setError(null)
     const formData = new FormData(e.currentTarget)
@@ -595,7 +617,13 @@ export default function NewBrandPage() {
               placeholder={profileType === 'person' ? 'e.g., Sarah Talls' : 'e.g., My Agency'}
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
+              aria-describedby={dup ? 'brand-dup-hint' : undefined}
             />
+            {dup && (
+              <p id="brand-dup-hint" className="ssub" style={{ marginTop: 6, color: 'var(--warning-text)' }}>
+                You already have a brand called “{dup.name}”. <Link href={`/brands/${dup.id}`}>Open it</Link> instead?
+              </p>
+            )}
           </div>
 
           {/* ───────── Person fields ───────── */}
@@ -976,10 +1004,18 @@ export default function NewBrandPage() {
             </div>
           )}
 
+          {dup && dupAsked && (
+            <div id="brand-dup-warning" role="alert" className="kit-note kit-note--warn" style={{ marginBottom: 16 }} data-testid="brand-dup-warning">
+              <div className="kit-note-body">
+                <p><strong>You already have a brand called “{dup.name}”.</strong> Making another one gives you two with the same name. <Link href={`/brands/${dup.id}`}>Open the one you have</Link>, or press the button again to make a second copy.</p>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
             <Link href="/brands" className="btn btn-soft">Cancel</Link>
             <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
-              {loading ? 'Creating...' : 'Create brand \u2192'}
+              {loading ? 'Creating...' : dup && dupAsked ? 'Create another one anyway \u2192' : 'Create brand \u2192'}
             </button>
           </div>
         </form>

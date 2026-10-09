@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import InlineConfirm from '../../../_components/InlineConfirm'
 import { useToast } from '../../../_components/Toast'
+import { Chip } from '../../../_components/kit'
+import type { MoneySummary } from '../../../_lib/admin/money'
+import { useConfirm } from '../_components/useConfirm'
 
 interface Sub {
   subscriptionId: string
   customerId: string
+  userId: string | null
+  kind: 'docs2video' | 'addon' | 'other'
   email: string
   name: string
   tier: string
@@ -23,6 +27,8 @@ interface BillingData {
   activeCount: number
   pastDueCount: number
   pausedCount: number
+  summary: MoneySummary
+  conversion: { eligible: number; paying: number; ratePct: number }
   subscriptions: Sub[]
 }
 
@@ -35,15 +41,16 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminBillingPage() {
   const notify = useToast()
+  const [ask, confirmDialog] = useConfirm()
   const [data, setData] = useState<BillingData | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
-  const load = useCallback(() => {
+  const load = useCallback((fresh = false) => {
     setLoading(true)
-    fetch('/api/admin/billing')
+    fetch(`/api/admin/billing${fresh ? '?fresh=1' : ''}`)
       .then(r => r.json())
       .then(d => { if (d.error) setErr(d.error); else setData(d) })
       .catch(() => setErr('Failed to load billing data'))
@@ -52,7 +59,18 @@ export default function AdminBillingPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function act(subscriptionId: string, action: string) {
+  const ACT_WORDS: Record<string, { title: string; body: string; label: string; danger?: boolean }> = {
+    pause: { title: 'Pause billing for {who}?', body: 'Stripe stops charging them until you resume. Their plan stays on in the app — they keep using it for free meanwhile.', label: 'Pause billing', danger: true },
+    resume: { title: 'Resume billing for {who}?', body: 'Stripe starts charging them again from the next bill.', label: 'Resume billing' },
+    cancel: { title: 'Cancel {who} at the end of the period?', body: 'They keep their plan until the paid period ends, then drop to Free. Nothing is refunded.', label: 'Cancel at period end', danger: true },
+  }
+
+  async function act(subscriptionId: string, action: string, who = 'this customer') {
+    const w = ACT_WORDS[action]
+    if (w) {
+      const r = await ask({ title: w.title.replace('{who}', who), body: w.body, danger: w.danger, confirmLabel: w.label })
+      if (!r.ok) return
+    }
     setBusy(subscriptionId + action)
     try {
       const res = await fetch('/api/admin/billing', {
@@ -62,8 +80,8 @@ export default function AdminBillingPage() {
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || 'Action failed')
-      notify(`Subscription ${action.replace('_', ' ')}d.`, 'success')
-      load()
+      notify('Done. It is saved in the audit log.', 'success')
+      load(true)
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Action failed', 'error')
     } finally {
@@ -83,23 +101,29 @@ export default function AdminBillingPage() {
       <div className="page-head">
         <div>
           <h1>Billing &amp; Sales</h1>
-          <p>All customer subscriptions, live from Stripe. Cancel, pause, or resume.</p>
+          <p>Every subscription on the Stripe account, live. Same numbers as the Dashboard and Revenue. Each action asks first and is saved in the audit log.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href="/admin/revenue" className="btn btn-sm btn-soft">Revenue charts →</Link>
-          <button onClick={load} className="btn btn-sm btn-soft">Refresh</button>
+          <button onClick={() => load(true)} className="btn btn-sm btn-soft">Refresh</button>
         </div>
       </div>
 
       {err && <div style={{ background: 'var(--error-bg)', border: '1.5px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontWeight: 600 }}>{err}</div>}
 
-      {/* Stat cards */}
+      {/* Stat cards — from the ONE shared money calculation */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data ? money(data.mrr) : '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>MRR</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data?.activeCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Active subscribers</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--error-text)' }}>{data?.pastDueCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Past due</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--warning-text)' }}>{data?.pausedCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paused</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data ? money(data.summary.docs2video.mrrCents) : '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>MRR (paying only)</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data?.summary.docs2video.paying ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paying</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data?.summary.docs2video.trialing ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>On free trial</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--error-text)' }}>{data?.summary.docs2video.pastDue ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Payment late</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--warning-text)' }}>{data?.summary.docs2video.paused ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paused</div></div>
       </div>
+      {data && data.summary.other.count > 0 && (
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+          The Stripe account also bills {data.summary.other.count} subscription{data.summary.other.count === 1 ? '' : 's'} for other products ({data.summary.other.byName.map((o) => o.name).join(', ')}). They are listed last, marked “Other product”, and never counted in MRR.
+        </p>
+      )}
 
       <input
         value={search}
@@ -135,7 +159,7 @@ export default function AdminBillingPage() {
                       <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.email}</div>
                       {s.name && <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>{s.name}</div>}
                     </td>
-                    <td style={{ ...td, textTransform: 'capitalize' }}>{s.tier}</td>
+                    <td style={td}>{s.tier}{s.kind === 'other' && <> <Chip>Other product</Chip></>}</td>
                     <td style={td}>
                       <span className={`tag ${STATUS_COLORS[s.status] ?? 'peach'}`} style={{ fontSize: 11 }}>
                         {paused ? 'Paused' : ending ? 'Ending' : s.status}
@@ -145,15 +169,13 @@ export default function AdminBillingPage() {
                     <td style={{ ...td, color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>{fmtDate(s.currentPeriodEnd)}</td>
                     <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {paused ? (
-                        <button className="btn btn-soft btn-sm" disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'resume')}>Resume</button>
+                        <button className="btn btn-soft btn-sm" disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'resume', s.email)}>Resume</button>
                       ) : ending ? (
-                        <button className="btn btn-soft btn-sm" disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'resume')}>Reactivate</button>
+                        <button className="btn btn-soft btn-sm" disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'resume', s.email)}>Reactivate</button>
                       ) : (
                         <>
-                          <button className="btn btn-soft btn-sm" style={{ marginRight: 6 }} disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'pause')}>Pause</button>
-                          <InlineConfirm message="Cancel at period end?" confirmLabel="Cancel" onConfirm={() => act(s.subscriptionId, 'cancel')}>
-                            <button className="btn btn-danger btn-sm" disabled={busy?.startsWith(s.subscriptionId)}>Cancel</button>
-                          </InlineConfirm>
+                          <button className="btn btn-soft btn-sm" style={{ marginRight: 6 }} disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'pause', s.email)}>Pause</button>
+                          <button className="btn btn-danger btn-sm" disabled={busy?.startsWith(s.subscriptionId)} onClick={() => act(s.subscriptionId, 'cancel', s.email)}>Cancel</button>
                         </>
                       )}
                     </td>
@@ -164,6 +186,7 @@ export default function AdminBillingPage() {
           </table>
         </div>
       )}
+      {confirmDialog}
     </div>
   )
 }

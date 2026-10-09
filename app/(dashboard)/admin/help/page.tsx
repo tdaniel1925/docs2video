@@ -69,17 +69,16 @@ const SECTIONS: AdminHelpSection[] = [
       {
         heading: 'Adding or Resetting Credits',
         body: [
-          'In the user detail panel, find the **Credits** section. You can:',
-          '**Add credits** — Enter a number and click Add. Credits are added immediately to the user account. Useful for promotions, refunds-as-credits, or partner arrangements.',
-          '**Reset credits** — Set credits to a specific number. This overwrites the current balance.',
-          'Credit changes are logged in the audit trail with your admin username and a timestamp.',
+          "On the **Users** tab, or on a person's own page, press **Give credits**.",
+          'A box opens: pick **100**, **500**, **1,000** or **Other** (type any amount up to 100,000), then write **why** (required — e.g. "Make-good for the failed video"). The button stays grey until there is a reason.',
+          "Press **Give … credits**. They are added to the person's extra credits straight away and the amount + your reason go in the **Audit Log**.",
         ],
       },
       {
         heading: 'Restricting Access',
         body: [
           'To remove a misbehaving user\'s access today, toggle **Admin/Beta** off and downgrade their plan, or disable the account in Supabase Auth.',
-          'A one-click Ban/Unban control is on the roadmap and not yet surfaced in the UI.',
+          'Or open the person\'s page (click their email) and press **Ban**. A box asks why (required); once banned they can\'t make anything. Ban does NOT stop Stripe billing — cancel their subscription in **Billing & Sales** too. **Unban** sets them back to Free.',
         ],
       },
       {

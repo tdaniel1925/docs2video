@@ -4,6 +4,22 @@ import { X } from 'lucide-react'
 import type { VideoBrief } from '../../../../_lib/types'
 import { Note } from '../../../../_components/kit'
 
+/**
+ * How big a number tile's figure is drawn. Short figures ("$176,204") stay
+ * big; longer ones ("$10,000 for 20 years", "Preferred Non-Tobacco") step
+ * down a size AND wrap, so a fact is never cut off (audit 2026-10-09: the
+ * tiles were one-line boxes that chopped "Preferred Non-Toba…").
+ */
+export function numTileSize(value: string): 'big' | 'mid' | 'small' {
+  const n = (value ?? '').trim().length
+  if (n <= 12) return 'big'
+  if (n <= 22) return 'mid'
+  return 'small'
+}
+
+/** Keep a tile one paragraph: Enter / pasted line breaks become spaces. */
+const oneLine = (v: string) => v.replace(/\s*[\r\n]+\s*/g, ' ')
+
 interface Props {
   brief: VideoBrief | null
   building: boolean
@@ -70,8 +86,23 @@ export default function OnePoint({
         <ul className="cf-nums" aria-label="The numbers we’ll use">
           {figures.map((f, i) => (
             <li key={i} className="cf-card cf-num">
-              <input className="cf-num-value" aria-label={`Number ${i + 1}`} value={f.value ?? ''} onChange={(e) => setFig(i, { value: e.target.value })} />
-              <input className="cf-num-label" aria-label={`What number ${i + 1} is`} value={f.label ?? ''} onChange={(e) => setFig(i, { label: e.target.value })} />
+              {/* Text boxes that WRAP (not one-line inputs) so a long figure
+                  or label shows in full on a phone and a wide screen. */}
+              <textarea
+                className="cf-num-value"
+                data-size={numTileSize(f.value ?? '')}
+                aria-label={`Number ${i + 1}`}
+                rows={Math.max(1, Math.ceil((f.value ?? '').length / 14))}
+                value={f.value ?? ''}
+                onChange={(e) => setFig(i, { value: oneLine(e.target.value) })}
+              />
+              <textarea
+                className="cf-num-label"
+                aria-label={`What number ${i + 1} is`}
+                rows={Math.max(1, Math.ceil((f.label ?? '').length / 30))}
+                value={f.label ?? ''}
+                onChange={(e) => setFig(i, { label: oneLine(e.target.value) })}
+              />
               <button type="button" className="cf-num-x" aria-label={`Remove ${f.value || 'this number'}`} onClick={() => onEdit({ figures: figures.filter((_, j) => j !== i) })}>
                 <X size={16} />
               </button>

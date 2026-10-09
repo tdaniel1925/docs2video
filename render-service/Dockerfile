@@ -56,6 +56,9 @@ COPY commercial.js ./
 COPY present-export.js ./
 COPY fal-image.js ./
 COPY slide-spellcheck.js ./
+COPY audio-mix.js ./
+COPY drawn-assembly.js ./
+COPY job-guards.js ./
 
 EXPOSE 4000
 

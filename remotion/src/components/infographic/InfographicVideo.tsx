@@ -7,6 +7,8 @@ import { InfographicScene } from './InfographicScene'
 import type { SceneContent } from './layoutPicker'
 import { LogoWatermark, LogoLockup, LogoFeature, LOCKUP_MAX_H, FEATURE_TEXT_MAX_H, type LogoSource } from './BrandLogo'
 import type { Reserve } from './Stage'
+import { DuckedMusic } from '../../lib/musicbed'
+import { sceneVoiceWindows } from '../../lib/audio'
 
 /** Per-scene schema for the infographic pipeline output. */
 const metricSchema = z.object({ label: z.string(), value: z.string(), highlight: z.boolean().optional(), icon: z.string().optional() })
@@ -41,6 +43,10 @@ export const infographicSchema = z.object({
   logoChip: z.boolean().optional(),
   /** Optional ambient background image (public/ path) shown darkened behind every scene. */
   bgImage: z.string().optional(),
+  /** Optional music bed (the render service normally mixes music afterwards with
+   *  the same ducking) — looped to the whole video, ducked under the voice. */
+  music: z.string().optional(),
+  musicFrames: z.number().optional(),
   scenes: z.array(infoSceneSchema).min(1),
 })
 export type InfographicProps = z.infer<typeof infographicSchema>
@@ -49,7 +55,7 @@ export function infoTotal(props: InfographicProps): number {
   return props.scenes.reduce((a, s) => a + s.durationInFrames, 0)
 }
 
-export const InfographicVideo: React.FC<InfographicProps> = ({ assetBase, theme, scenes, logo, logoChip, brandName, bgImage }) => {
+export const InfographicVideo: React.FC<InfographicProps> = ({ assetBase, theme, scenes, logo, logoChip, brandName, bgImage, music, musicFrames }) => {
   setAssetBase(assetBase)
   const t = theme as Theme
   const lastIndex = scenes.length - 1
@@ -92,6 +98,7 @@ export const InfographicVideo: React.FC<InfographicProps> = ({ assetBase, theme,
           )
         })}
       </Series>
+      {music ? <DuckedMusic src={music} musicFrames={musicFrames} windows={sceneVoiceWindows(scenes)} /> : null}
     </AbsoluteFill>
   )
 }

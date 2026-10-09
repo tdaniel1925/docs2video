@@ -152,11 +152,11 @@ export function lookNote(output: string, look: string): string | null {
 // ── Which voice ─────────────────────────────────────────────────────────────
 //
 // The sample must sound like the finished video. Every narrated look —
-// Slide Deck, Aurora, Cinematic, Infographic, Editorial, Explainer — and
+// Animated slides, Aurora, Cinematic, Infographic, Editorial, Explainer — and
 // interactive presentations now follow ONE rule (voice-choice.ts):
 //  • Sarah (the default) is spoken by ElevenLabs;
 //  • any other voice picked is spoken by that OpenAI voice.
-// (Before, only the Slide Deck look used the pick and the sample said so.)
+// (Before, only the Animated slides look used the pick and the sample said so.)
 //  • Slide decks (output 'deck') have no voice.
 // `note` stays in the shape for callers; there is nothing to warn about now.
 

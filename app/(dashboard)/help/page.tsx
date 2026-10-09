@@ -13,6 +13,8 @@ import { NAMES, KIND_NAMES } from '../../_lib/names'
 // Starter plan was retired. tests/screen-prices.test.ts keeps it that way.
 const n = (x: number) => x.toLocaleString('en-US')
 const planPrice = (tier: PlanTier) => `$${Math.round((PLANS.find(p => p.tier === tier)?.monthlyPrice ?? 0) / 100)}`
+// The free plan's ONE name, from pricing.ts (audit 2026-10-09).
+const FREE_PLAN_NAME = PLANS.find(p => p.tier === 'free')?.label ?? ''
 const PACK_LIST = CREDIT_PACKS.map(p => `${p.name} ${n(p.credits)} (${packPrice(p)})`).join(', ')
 // Docs2Video makes videos and presentations (videos-only.ts). Slide decks and
 // graphics made before sit under "Older items", shown only when there are any.
@@ -43,13 +45,13 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/getting-started',
     title: 'Getting started',
-    description: 'Sign up without a card, make a first project with a free preview, add your brand on the way, and add a card when you make the real thing.',
+    description: 'Sign up without a card, make your first video in three steps (your content, the story, the look) with a free preview, and add a card only when you make the real thing.',
     icon: '🚀',
   },
   {
     href: '/help/creating-videos',
     title: 'Creating explainer videos',
-    description: 'Pick a format, say who it\'s for, add your content, approve the brief, choose a presenter and voice, check the script, pick a style, then generate.',
+    description: 'Three steps: add your content (a document, website, text or idea), check the story and its numbers, pick a look — then Make it.',
     icon: '🎬',
   },
   {
@@ -97,7 +99,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/pricing',
     title: 'Pricing & plans',
-    description: 'Credit-based plans: Free (2,000 to start), Pro $79, Business $199, Enterprise $499. Top-up packs from $10, anytime.',
+    description: `Credit-based plans: ${FREE_PLAN_NAME} (${n(TIER_CREDITS.free)} free credits to start), Pro ${planPrice('pro')}, Business ${planPrice('business')}, Enterprise ${planPrice('enterprise')}. Top-up packs from ${packPrice(SMALLEST_PACK)}, anytime.`,
     icon: '💰',
   },
   {
@@ -121,7 +123,7 @@ const GUIDES: HelpGuide[] = [
   {
     href: '/help/downloads',
     title: 'Downloads & formats',
-    description: 'The Download menu: MP4 video, PDF slides, PowerPoint and the script — and why a video only lists the ones its look can make.',
+    description: 'The Download menu on a finished video: the MP4, its slides as PDF or PowerPoint, and the script — and why a video only lists the ones its look can make.',
     icon: '📥',
   },
   {
@@ -237,8 +239,8 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎨',
     content: [
-      'On step 3, **The look**, you choose how your explainer looks. Every look — Slide Deck included — uses the voice and background music you picked and your story exactly as you edited it. Only the visuals differ:',
-      '• **Slide Deck** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Speaks your edited script. Takes about 10 minutes.',
+      'On step 3, **The look**, you choose how your explainer looks. Every look — Animated slides included — uses the voice and background music you picked and your story exactly as you edited it. Only the visuals differ:',
+      '• **Animated slides** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Speaks your edited script. Takes about 10 minutes.',
       '• **Aurora** — modern motion graphics: one flowing branded backdrop, kinetic type, no stock imagery.',
       '• **Cinematic** — film-style imagery with kinetic text and motion. Best for story-led, emotive videos.',
       '• **Editorial** — a clean, warm magazine layout with refined serif typography on your brand color.',
@@ -309,11 +311,11 @@ const ARTICLES: HelpArticle[] = [
     icon: '💰',
     content: [
       `Plans give you a monthly credit allowance (credits are spent per creation — a standard video is ${n(CREDIT_COSTS.videoStandard)} credits):`,
-      `**Free** — ${n(TIER_CREDITS.free)} credits to try (one time). Card required to start.`,
+      `**${FREE_PLAN_NAME}** — ${n(TIER_CREDITS.free)} credits to try (one time). Card required to start.`,
       `**Pro (${planPrice('pro')}/mo)** — ${n(TIER_CREDITS.pro)} credits/mo, unlimited brands.`,
       `**Business (${planPrice('business')}/mo)** — ${n(TIER_CREDITS.business)} credits/mo, white-label share pages.`,
       `**Enterprise (${planPrice('enterprise')}/mo)** — ${n(TIER_CREDITS.enterprise)} credits/mo, white-label share pages, dedicated support.`,
-      `Need more mid-cycle? Buy top-up packs (never expire): ${PACK_LIST}. Anyone can buy them, including Free accounts.`,
+      `Need more mid-cycle? Buy top-up packs (never expire): ${PACK_LIST}. Anyone can buy them, including Pay As You Go accounts.`,
       'Manage your plan from **Settings > Billing & credits**.',
     ],
   },
@@ -365,8 +367,8 @@ const ARTICLES: HelpArticle[] = [
     icon: '🛠️',
     content: [
       'Open it from your Library and use **Ask for a change** (under Ready to send). Pick **This scene** or the whole thing, type what you want or press a suggestion, then press the button.',
-      'It opens the editor that project uses: the slide editor for presentations (and older slide decks), **Fix a scene** for Slide Deck look videos, the **Scene editor** for other looks with slide pictures. A few looks can\'t be changed in place — the bar offers **Make a changed copy**.',
-      `The first line of the bar says what a change costs. Changing spoken words costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per scene or slide on presentations and Slide Deck videos; fixing a voice glitch or a mispronounced word is free.`,
+      'It opens the editor that project uses: the slide editor for presentations (and older slide decks), **Fix a scene** for Animated slides look videos, the **Scene editor** for other looks with slide pictures. A few looks can\'t be changed in place — the bar offers **Make a changed copy**.',
+      `The first line of the bar says what a change costs. Changing spoken words costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per scene or slide on presentations and Animated slides videos; fixing a voice glitch or a mispronounced word is free.`,
       'Your changes are listed under the bar with **Undo**. See **Changing a finished project** for more.',
     ],
   },
@@ -461,7 +463,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '⏱️',
     content: [
-      'Most videos take **3–5 minutes**. The **Slide Deck** style takes about **10 minutes**.',
+      'Most videos take **3–5 minutes**. The **Animated slides** style takes about **10 minutes**.',
       `You do not need to stay on the page. Video generation continues in the background. When it finishes, your video appears in your ${NAMES.library}.`,
     ],
   },
@@ -572,7 +574,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Go to **Settings > Billing & credits**. Three boxes at the top show your plan, your credits and what you used this period, with the plans and credit packs below.',
       'Click **Subscribe to [Plan]** (or **Switch to [Plan]** if you already have one). To see invoices, update your card, or cancel, click **Manage billing & invoices**.',
-      `Available plans (credits/month): **Free** (${n(TIER_CREDITS.free)} to start), **Pro** (${planPrice('pro')} — ${n(TIER_CREDITS.pro)}), **Business** (${planPrice('business')} — ${n(TIER_CREDITS.business)}), **Enterprise** (${planPrice('enterprise')} — ${n(TIER_CREDITS.enterprise)}). Buy top-up packs anytime (from ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits); they never expire.`,
+      `Available plans (credits/month): **${FREE_PLAN_NAME}** (${n(TIER_CREDITS.free)} to start), **Pro** (${planPrice('pro')} — ${n(TIER_CREDITS.pro)}), **Business** (${planPrice('business')} — ${n(TIER_CREDITS.business)}), **Enterprise** (${planPrice('enterprise')} — ${n(TIER_CREDITS.enterprise)}). Buy top-up packs anytime (from ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits); they never expire.`,
     ],
   },
   {

@@ -93,9 +93,9 @@ test.describe('Share page (signed out)', () => {
     await expect(page.locator('.wp-lead-card')).toHaveCount(0)
   })
 
-  test('a missing project says it is no longer available', async ({ page }) => {
+  test('a missing project says we can’t find it', async ({ page }) => {
     await page.goto('/watch/00000000-0000-4000-8000-000000000000')
-    await expect(page.locator('.wp-not-found h1')).toHaveText('This presentation is no longer available')
+    await expect(page.locator('.wp-not-found h1')).toHaveText("We can't find this video")
     // The browser logs the data lookup's 404 — that one is expected here.
     const expected = consoleErrors.filter((e) => /status of 404 .*\/api\/public\/watch\/00000000/.test(e))
     expect(expected).toHaveLength(1)

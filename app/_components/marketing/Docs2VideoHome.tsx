@@ -71,7 +71,8 @@ function pricingCards() {
   const paid = PLANS.filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
   return [
     {
-      key: 'free', name: 'Free', price: '$0', per: '', popular: false,
+      // One name for the free plan everywhere: pricing.ts's label (audit 2026-10-09).
+      key: 'free', name: free.label, price: '$0', per: '', popular: false,
       credits: `${free.monthlyCredits.toLocaleString('en-US')} credits to start`,
       videos: `About ${free.approxStandardVideos} videos to try`,
       cta: 'Start free',

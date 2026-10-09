@@ -27,7 +27,10 @@ export function isOlderKind(kind: LibraryKind | null): boolean {
   return kind !== 'video' && kind !== 'presentation'
 }
 
-const ALL: LibraryTab = { key: '', label: 'All', shows: () => true }
+// "All" = everything Docs2Video makes today (videos + presentations). Older
+// slide decks and graphics live ONLY under "Older items" — before, they
+// flooded All with hundreds of retired graphics (audit 2026-10-09).
+const ALL: LibraryTab = { key: '', label: 'All', shows: (k) => !isOlderKind(k) }
 const VIDEOS: LibraryTab = { key: 'video', label: KIND_NAMES.video.many, shows: (k) => k === 'video' }
 const PRESENTATIONS: LibraryTab = { key: 'presentation', label: KIND_NAMES.presentation.many, shows: (k) => k === 'presentation' }
 const OLDER: LibraryTab = { key: 'older', label: OLDER_LABEL, shows: isOlderKind }
@@ -46,4 +49,36 @@ export function libraryTabs(hasOlder: boolean): LibraryTab[] {
 export function tabFor(type: string | null | undefined): LibraryTab | null {
   if (!type) return null
   return [VIDEOS, PRESENTATIONS, OLDER, ...HIDDEN].find((t) => t.key === type) ?? null
+}
+
+// ── ONE definition of "your work", shared by the Library and Home ──────────
+// Home's "See all N" and the Library's All count read the SAME rule, so the
+// two numbers always agree (audit 2026-10-09: Home and Library disagreed).
+
+/** videos.output_type values that are old slide exports (Older items). */
+export const OLDER_OUTPUT_TYPES = ['deck', 'pptx', 'pdf'] as const
+
+export type PagedTabKey = '' | 'video' | 'presentation'
+
+/**
+ * PostgREST filter for a videos query, per tab ('' = All). Rows with no
+ * output_type are videos (kindOfOutput's default). Kept in step with
+ * kindOfOutput in names.ts — tests/ux-fixes-2026-10-09.test.ts checks it.
+ */
+export function videosFilterFor(tabKey: PagedTabKey): { or?: string; eq?: [string, string] } {
+  const older = OLDER_OUTPUT_TYPES.join(',')
+  if (tabKey === 'presentation') return { eq: ['output_type', 'interactive'] }
+  if (tabKey === 'video') return { or: `output_type.is.null,output_type.not.in.(${older},interactive)` }
+  return { or: `output_type.is.null,output_type.not.in.(${older})` }
+}
+
+/** Tabs whose rows all come from the videos table, so they page on the server. */
+export function isServerPagedTab(key: string | null | undefined): key is PagedTabKey {
+  return key === '' || key === 'video' || key === 'presentation'
+}
+
+/** Words typed into the search box, made safe for a PostgREST ilike filter. */
+export function searchPattern(q: string | null | undefined): string | null {
+  const clean = String(q ?? '').replace(/[%_*,()\\"]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
+  return clean ? `*${clean}*` : null
 }

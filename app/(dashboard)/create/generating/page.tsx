@@ -58,7 +58,7 @@ export default function GeneratingPage() {
   const [elapsed, setElapsed] = useState(0)
   const [tipIdx, setTipIdx] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  // The Slide Deck look takes longer (it reads the whole document and renders
+  // The Animated slides look takes longer (it reads the whole document and renders
   // an animated deck), so the time we quote differs. Set by step 3 (?style=).
   const isSlides = (searchParams.get('style') || '') === 'slides'
 

@@ -38,7 +38,7 @@ test.describe('Full video playthrough (gated, real AI spend)', () => {
     await expect(scene).toBeVisible({ timeout: 240000 })
     await page.getByRole('button', { name: 'Pick a look →' }).click()
 
-    // Step 3 — The look: defaults (Slide Deck, Sarah), then Make it (REAL spend).
+    // Step 3 — The look: defaults (Animated slides, Sarah), then Make it (REAL spend).
     await page.waitForURL(/\/create\/theme\?id=/)
     await page.getByRole('button', { name: 'Make it', exact: true }).click()
     await page.waitForURL(/\/create\/generating\?id=/, { timeout: 60000 })

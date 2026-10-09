@@ -19,11 +19,18 @@ import type { Video } from '../../../_lib/types'
  * A row still at 'pending'/'starting' gets its pipeline started from here,
  * once (that is how the create flow hands over).
  */
+/** How long the page waits for the project before saying it can't find it. */
+export const MISSING_AFTER_MS = 6000
+
 const TERMINAL = ['completed', 'complete', 'failed', 'review_required', 'ready', 'cancelled', 'canceled', 'error']
 
 export function useVideoRow(id: string) {
   const [video, setVideo] = useState<Video | null>(null)
   const [userPlan, setUserPlan] = useState<string>('trial')
+  // True when the first look-up came back empty (wrong link, deleted, someone
+  // else's) or nothing arrived within MISSING_AFTER_MS. The page then says
+  // "We can't find this video" instead of spinning forever (audit 2026-10-09).
+  const [missing, setMissing] = useState(false)
   const pipelineStarted = useRef(false)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -47,6 +54,7 @@ export function useVideoRow(id: string) {
       if (Date.now() - startedAt > 3 * 60 * 60 * 1000) { stop(); return }
       const row = await fetchRow()
       if (!row) return
+      setMissing(false)
       setVideo(row)
       if (TERMINAL.includes(String(row.status ?? '').toLowerCase())) stop()
     }, 3000)
@@ -54,9 +62,14 @@ export function useVideoRow(id: string) {
 
   useEffect(() => {
     let cancelled = false
+    let gotRow = false
+    const slow = setTimeout(() => { if (!cancelled && !gotRow) setMissing(true) }, MISSING_AFTER_MS)
     ;(async () => {
       const supabase = createClient()
       const row = await fetchRow()
+      gotRow = !!row
+      // Nothing came back: no such project for this account. Stop asking.
+      if (!cancelled && !row) { setMissing(true); stop(); return }
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single()
@@ -70,7 +83,7 @@ export function useVideoRow(id: string) {
       }
     })()
     watch()
-    return () => { cancelled = true; stop() }
+    return () => { cancelled = true; clearTimeout(slow); stop() }
   }, [fetchRow, watch, stop])
 
   /** Retry a failed row: back to pending; the reload hands it to the
@@ -92,7 +105,7 @@ export function useVideoRow(id: string) {
     window.location.reload()
   }, [video])
 
-  return { video, setVideo, userPlan, watch, retry }
+  return { video, setVideo, userPlan, watch, retry, missing }
 }
 
 /** Hands a 'pending' row to the generator — the create flow's last step. */

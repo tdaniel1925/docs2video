@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { statusTone, statusWords } from '../client-status'
 
 interface Client {
   id: string
@@ -57,16 +58,6 @@ interface Quote {
   total: number
   status: string
   created_at: string
-}
-
-// Same chips as the client list. "Active" is a tint of the link blue so it
-// never reads the same as "engaged" (mint).
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  lead: { bg: 'var(--surface)', color: 'var(--ink-soft)' },
-  active: { bg: 'color-mix(in srgb, var(--link) 12%, var(--bg-card))', color: 'var(--link)' },
-  engaged: { bg: 'var(--accent)', color: 'var(--accent-ink)' },
-  converted: { bg: 'var(--warning-bg)', color: 'var(--warning-text)' },
-  inactive: { bg: 'var(--error-bg)', color: 'var(--error-text)' },
 }
 
 const ACTIVITY_ICONS: Record<string, string> = {
@@ -285,7 +276,6 @@ export default function ClientDetailPage() {
     )
   }
 
-  const sc = STATUS_COLORS[client.status] ?? STATUS_COLORS.lead
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -321,9 +311,8 @@ export default function ClientDetailPage() {
                 {client.industry && <span>{client.industry}</span>}
               </div>
               <div style={{ marginTop: 8 }}>
-                <span className="tag" style={{ background: sc.bg, color: sc.color, borderColor: sc.bg, textTransform: 'capitalize' }}>
-                  {client.status}
-                </span>
+                {/* Same plain words + soft colours as the Clients list. */}
+                <span className="cl-status" data-tone={statusTone(client.status)}>{statusWords(client.status)}</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -393,7 +382,7 @@ export default function ClientDetailPage() {
             <div className="form-group">
               <label className="input-label">Status</label>
               <select className="input" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{statusWords(s)}</option>)}
               </select>
             </div>
             <div className="form-group" style={{ gridColumn: '1 / -1' }}>

@@ -76,9 +76,11 @@ export function presentationCreditCost(outputType: 'interactive' | 'deck'): numb
   return CREDIT_COSTS[outputType === 'deck' ? 'deck' : 'interactive']
 }
 
-/** Video renders are free for admins and beta accounts (same rule generate-video uses). */
-export function videoIsFree(opts: { emailIsAdmin: boolean; isAdmin?: boolean | null; isBeta?: boolean | null }): boolean {
-  return opts.emailIsAdmin || opts.isAdmin === true || opts.isBeta === true
+/** Video renders are free for flagged admin and beta accounts (same rule generate-video uses).
+ *  The admin email list alone no longer counts (audit 2026-10-09: admin means a
+ *  confirmed email AND the is_admin flag) — an address on the list without the flag pays. */
+export function videoIsFree(opts: { isAdmin?: boolean | null; isBeta?: boolean | null }): boolean {
+  return opts.isAdmin === true || opts.isBeta === true
 }
 /** Presentation builds are free only for flagged admin / beta accounts (deductCredits' bypass). */
 export function presentationIsFree(opts: { isAdmin?: boolean | null; isBeta?: boolean | null }): boolean {

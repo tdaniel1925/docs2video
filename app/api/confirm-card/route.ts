@@ -4,6 +4,8 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { stripe, SUBSCRIPTION_PRICES } from '../../_lib/stripe'
 import { isSellablePlan } from '../../_lib/pricing'
 import { cardConfirmAction, listLiveMainSubscriptions } from '../../_lib/billing'
+import { claimTrialCard, CARD_ALREADY_USED_MESSAGE, CARD_CHECK_FAILED_MESSAGE } from '../../_lib/trial-card'
+import { alertOps } from '../../_lib/ops-alert'
 
 export const maxDuration = 30
 
@@ -90,6 +92,27 @@ export async function POST(request: Request) {
     const { error } = await admin.from('profiles').update({ card_on_file: true }).eq('id', user.id)
     if (error) console.error('[confirm-card] card_on_file update failed:', error.message)
     return NextResponse.json({ success: true, kept_plan: true })
+  }
+
+  // ── One card, one free trial (audit 2026-10-09). The same card saved on a
+  // second account must not start a second free trial. Stripe's card
+  // fingerprint is the same for the same card on any customer. Fails closed.
+  let fingerprint: string | null = null
+  try {
+    const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
+    fingerprint = pm.card?.fingerprint ?? null
+  } catch (err) {
+    console.error('[confirm-card] could not read the card fingerprint:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: CARD_CHECK_FAILED_MESSAGE }, { status: 502 })
+  }
+  const claim = await claimTrialCard(admin, fingerprint, user.id)
+  if (claim === 'used_elsewhere') {
+    console.warn(`[confirm-card] user ${user.id}: card already used for a trial on another account — refused`)
+    return NextResponse.json({ error: CARD_ALREADY_USED_MESSAGE, code: 'card_already_used' }, { status: 409 })
+  }
+  if (claim === 'error') {
+    await alertOps({ source: 'confirm-card', stage: 'card-fingerprint', message: `Could not check a card for trial re-use, so the trial was not started (is the trial_card_fingerprints table there?). User ${user.email || user.id}.`, userId: user.id })
+    return NextResponse.json({ error: CARD_CHECK_FAILED_MESSAGE }, { status: 503 })
   }
 
   // ── Free / trial account: the card on file starts the trial.
