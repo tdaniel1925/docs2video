@@ -77,9 +77,15 @@ describe('POST /api/confirm-card — one card, one free trial (real route)', () 
     expect((await confirm()).status).toBe(200)
   })
 
-  it('if the check can’t run (table missing), no trial starts — fails closed', async () => {
+  it('table missing (migration not run yet): the trial still starts and the owner is emailed', async () => {
     h.fingerprint = 'fp_new_card'
     h.db.failOn.trial_card_fingerprints = { error: { message: 'relation "trial_card_fingerprints" does not exist', code: '42P01' } }
+    expect((await confirm()).status).toBe(200)
+  })
+
+  it('any other database error still refuses the trial — never a free pass', async () => {
+    h.fingerprint = 'fp_new_card'
+    h.db.failOn.trial_card_fingerprints = { error: { message: 'connection reset', code: '08006' } }
     expect((await confirm()).status).toBe(503)
     expect(h.db.tables.profiles[0]).toMatchObject({ subscription_status: 'free' })
   })

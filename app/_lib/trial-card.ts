@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { alertOps } from './ops-alert'
 
 // =============================================================================
 // ONE CARD, ONE FREE TRIAL (audit 2026-10-09).
@@ -32,7 +33,14 @@ export async function claimTrialCard(admin: SupabaseClient, fingerprint: string 
   if (!fingerprint) return 'error'
   const { error } = await admin.from('trial_card_fingerprints').insert({ fingerprint, user_id: userId })
   if (!error) return 'ok'
-  if ((error as { code?: string }).code !== '23505') {
+  // The table not existing yet (migration not run in prod) must not stop
+  // every new trial: let the trial through and email the owner to run it.
+  const code = (error as { code?: string }).code
+  if (code === 'PGRST205' || code === '42P01') {
+    await alertOps({ source: 'confirm-card', message: 'Run supabase/migrations/20261009_trial_card_fingerprints.sql in production — one-card-one-trial check is off until then.', userId }).catch(() => false)
+    return 'ok'
+  }
+  if (code !== '23505') {
     console.error('[trial-card] claim failed:', error.message)
     return 'error'
   }
