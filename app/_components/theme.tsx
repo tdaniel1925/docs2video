@@ -103,3 +103,22 @@ export function ThemeChoice() {
     </div>
   )
 }
+
+/** The sun/moon button in the top bar: one tap flips light and dark. */
+export function ThemeIconButton() {
+  const [pref] = useThemePref()
+  const [mode, setMode] = useState<Theme>('dark')
+  useEffect(() => setMode(currentTheme()), [pref])
+  const next: Theme = mode === 'dark' ? 'light' : 'dark'
+  return (
+    <button
+      type="button"
+      className="kit-icon-btn"
+      onClick={() => { setThemePref(next); setMode(next) }}
+      aria-label={`Switch to ${next} mode`}
+      title={next === 'dark' ? 'Dark mode' : 'Light mode'}
+    >
+      {next === 'dark' ? <Moon size={20} aria-hidden="true" /> : <Sun size={20} aria-hidden="true" />}
+    </button>
+  )
+}

@@ -381,7 +381,7 @@
 .kit-topbar { padding: 0 32px; }
 .kit-topbar-inner {
   max-width: 1240px;
-  height: 72px;
+  height: 88px; /* room above and below the 60px logo */
   margin: 0 auto;
   display: flex;
   align-items: center;

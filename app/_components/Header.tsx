@@ -8,7 +8,7 @@ import NotificationBell from './NotificationBell'
 import BuyCreditsModal from './BuyCreditsModal'
 import ClassicHeader from './ClassicHeader'
 import HowToUseDialog from './HowToUse'
-import { ThemeToggle } from './theme'
+import { ThemeIconButton, ThemeToggle } from './theme'
 import { Button, Chip } from './kit'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
@@ -254,6 +254,9 @@ function TopBar({ profile, brand, lowCreditsAt }: { profile: Profile; brand: Bra
           </span>
 
           {credits != null && <CreditChip credits={credits} lowCreditsAt={lowCreditsAt} onTopUp={() => setShowBuyCredits(true)} />}
+
+          {/* Phones keep the switch in the account menu; the bar is full there. */}
+          <span className="kit-topbar-howto"><ThemeIconButton /></span>
 
           <NotificationBell icon={<Bell size={20} color="var(--ink)" />} />
 
