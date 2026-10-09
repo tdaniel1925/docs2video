@@ -3,16 +3,19 @@
 // presentation, and "Heritage" can't style a video. The Make screen shows the
 // set that fits the chosen output.
 
-export type VideoLookId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic'
+export type VideoLookId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic' | 'drawn'
 
 /** Video looks. A sample picture of each lives in /public/style-samples/<id>-{cover,data,closing}.png. */
-export const VIDEO_LOOKS: { id: VideoLookId; name: string; tagline: string }[] = [
+export const VIDEO_LOOKS: { id: VideoLookId; name: string; tagline: string; tag?: string }[] = [
   { id: 'slides', name: 'Slide Deck', tagline: 'Animated slides — headings, bullets, charts and icons that appear as the voice speaks. Reads the whole document.' },
   { id: 'aurora', name: 'Aurora', tagline: 'Modern motion graphics on one flowing branded background. Clean and cohesive.' },
   { id: 'cinematic', name: 'Cinematic', tagline: 'Film-style pictures and moving text. Best for story-led videos.' },
   { id: 'editorial', name: 'Editorial', tagline: 'Clean, warm magazine layout with serif type on your brand color.' },
   { id: 'explainer', name: 'Explainer', tagline: 'Friendly cards and charts. Great for how-it-works.' },
   { id: 'infographic', name: 'Infographic', tagline: 'Big numbers, cards, timelines and charts. Best for number-heavy reports.' },
+  // The original Docs2Video look: AI draws every slide as one finished picture
+  // (app/_lib/drawn-slides.ts — its drawing styles are DRAW_STYLES there).
+  { id: 'drawn', name: 'Drawn slides', tagline: 'AI draws every slide as one finished picture — headline, points and numbers included.', tag: 'NEW' },
 ]
 export const VIDEO_SAMPLE_KINDS = ['cover', 'data', 'closing'] as const
 
@@ -69,6 +72,7 @@ export function lookCards(output: string): LookCard[] {
     tagline: l.tagline,
     thumb: { kind: 'img', src: `/style-samples/${l.id}-cover.png` },
     recommended: l.id === RECOMMENDED_VIDEO_LOOK,
+    ...(l.tag ? { tag: l.tag } : {}),
     samples: VIDEO_SAMPLE_KINDS.map((k) => `/style-samples/${l.id}-${k}.png`),
   }))
 }

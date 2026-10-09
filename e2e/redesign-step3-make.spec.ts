@@ -198,7 +198,7 @@ test.describe('Step 3 — choices', () => {
   test('look cards: pictures load, BEST on the recommended one, pick a look, examples open larger', async ({ page }) => {
     await open(page)
     const looks = page.getByRole('radiogroup', { name: 'The look' }).getByRole('radio')
-    await expect(looks).toHaveCount(6)
+    await expect(looks).toHaveCount(7)
     // Every thumbnail is a real picture (none broken).
     await page.waitForFunction(() => [...document.querySelectorAll('[role=radiogroup][aria-label="The look"] img')].every((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0), null, { timeout: 15000 })
     await expect(look(page, 'Slide Deck')).toHaveAttribute('aria-checked', 'true')
@@ -354,6 +354,31 @@ test.describe('Step 3 — Make it', () => {
     expect(gen[0].brandId).toBeUndefined()
     expect(gen[0].agentNote).toBeUndefined()
     expect(gen[0].musicPrompt).toBeUndefined()
+  })
+
+  test('Drawn slides: NEW card, drawing-style chips only when picked, the style is saved and sent', async ({ page }) => {
+    const { draft } = await open(page)
+    const card = look(page, 'Drawn slides')
+    await expect(card).toContainText('NEW')
+    const styles = page.getByRole('radiogroup', { name: 'Drawing style' })
+    await expect(styles).toHaveCount(0)
+    await card.click()
+    await expect(styles).toBeVisible()
+    await expect(styles.getByRole('radio', { name: /3D infographic/ })).toHaveAttribute('aria-checked', 'true')
+    await expect(styles.getByRole('radio')).toHaveCount(3)
+    await styles.getByRole('radio', { name: /Classic/ }).click()
+    await expect(styles.getByRole('radio', { name: /Classic/ })).toHaveAttribute('aria-checked', 'true')
+    // Another look hides the chips again.
+    await look(page, 'Aurora').click()
+    await expect(styles).toHaveCount(0)
+    await card.click()
+
+    const gen: any[] = []
+    await page.route('**/api/generate-video', async (route) => { gen.push(jsonBody(route.request())); await route.fulfill({ json: { success: true } }) })
+    await makeBtn(page).click()
+    await expect(page).toHaveURL(/style=drawn$/)
+    expect(draft.patches[0].updates).toMatchObject({ videoStyle: 'drawn', drawStyle: 'classic' })
+    expect(gen[0]).toMatchObject({ videoStyle: 'drawn', drawStyle: 'classic' })
   })
 
   test('a double-click starts only one job', async ({ page }) => {

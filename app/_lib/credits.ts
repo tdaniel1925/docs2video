@@ -32,7 +32,22 @@ export const CREDIT_COSTS = {
   // Produced commercial (URL/text → brand-matched commercial). Single source of
   // truth — the /generate-commercial UI route + the v1 API both read this.
   commercial: 600,
-  // New granular video actions
+  // New granular video actions.
+  //
+  // "DRAWN SLIDES" LOOK (videoStyle 'drawn', app/_lib/drawn-slides.ts) is
+  // priced like every other video look — no extra charge — ON PURPOSE.
+  // Measured 2026-10-09 (scripts/look-samples/make-drawn-samples.ts, 6 real
+  // fal calls, gpt-image-2.5 flare, 1920x1088): quality 'low' spelled every
+  // word and every $ figure right on all 6 slides across the 3 drawing
+  // styles, in 11-24 s each. fal bills per megapixel: low = ~0.29c a slide
+  // (text-to-image); the later slides of a video also send the first slide
+  // as a style reference (fal "edit"), estimated at up to ~2c each.
+  // A standard video is ~12 slides (cover + ~10 + closing):
+  //   ~3.5c (no reference) to ~25c (reference on every slide, worst case).
+  // 3x margin = at most ~75c ≈ 190 credits (1 credit ≈ $0.004) — well under
+  // videoStandard's 1,000 credits, and cheaper than the old Gemini-drawn
+  // slides on this same route (~13c a slide). If fal fails, Gemini draws the
+  // slide instead (~13c) — still covered. So the normal video price stands.
   videoQuick: 500,
   videoStandard: 1000,
   videoDetailed: 1500,

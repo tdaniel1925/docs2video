@@ -123,9 +123,9 @@ export function narrationSample(text: string, maxWords = 26): string {
 // ── Which engine draws the still ────────────────────────────────────────────
 
 export type PreviewOutput = 'video' | 'interactive' | 'deck'
-export type StillEngine = 'directed' | 'v3' | 'editorial' | 'html'
+export type StillEngine = 'directed' | 'v3' | 'editorial' | 'html' | 'drawn'
 
-export const VIDEO_PREVIEW_LOOKS = ['slides', 'aurora', 'cinematic', 'infographic', 'editorial', 'explainer'] as const
+export const VIDEO_PREVIEW_LOOKS = ['slides', 'aurora', 'cinematic', 'infographic', 'editorial', 'explainer', 'drawn'] as const
 
 /** The real renderer for each look (null = no preview for that output). */
 export function stillEngineFor(output: string, look: string): StillEngine | null {
@@ -134,6 +134,7 @@ export function stillEngineFor(output: string, look: string): StillEngine | null
   if (look === 'slides') return 'directed'                       // DirectedVideo
   if (look === 'aurora' || look === 'cinematic' || look === 'infographic') return 'v3' // V3Video / InfographicVideo
   if (look === 'editorial' || look === 'explainer') return 'editorial'                // EditorialVideo
+  if (look === 'drawn') return 'drawn'   // one real AI picture (gpt-image on fal, ~0.3c) — drawn-slides.ts
   return null
 }
 
@@ -144,6 +145,7 @@ export function lookNote(output: string, look: string): string | null {
   if (look === 'cinematic') return 'The finished video adds a photo behind each scene. This preview shows the layout and your words.'
   if (look === 'infographic') return 'The finished video adds a designed background picture. This preview shows the layout and your numbers.'
   if (look === 'editorial' || look === 'explainer') return 'The finished video can give this page a different layout (numbers, a list or a quote) to suit what it says.'
+  if (look === 'drawn') return 'Every slide is drawn fresh, so the finished slides will look a little different from this one — same style, same words.'
   return null
 }
 

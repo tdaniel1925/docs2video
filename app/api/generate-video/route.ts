@@ -14,7 +14,7 @@ import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { cleanRecipientName } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration } from '../../_lib/personalize'
-import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes } from '../../_lib/compliance'
+import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor } from '../../_lib/compliance'
 import { speakable } from '../../_lib/tts'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
@@ -34,6 +34,7 @@ import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
 import { getBrand } from '../../_lib/brand-server'
 import { isRetiredOutput, RETIRED_MESSAGE } from '../../_lib/videos-only'
+import { buildDrawnSlides, drawStyleOf, DRAWN_LOOK_ID } from '../../_lib/drawn-slides'
 
 export const runtime = 'nodejs'
 
@@ -266,10 +267,9 @@ export async function POST(request: Request) {
   // 'slides' = the animated explainer DECK (DirectedVideo, the new DEFAULT).
   // ('editorial' = clean magazine, 'time' = bold red newsmagazine, 'explainer' =
   // friendly sans/navy educational — those three render through the editorial engine.)
-  const videoStyle = (body as any).videoStyle || (await getSetting('video_style')) || 'slides'
-  const isMagazine = videoStyle === 'editorial' || videoStyle === 'time' || videoStyle === 'explainer'
-  const editorialVariant: 'editorial' | 'time' | 'explainer' =
-    videoStyle === 'editorial' ? 'editorial' : videoStyle === 'explainer' ? 'explainer' : 'time'
+  // (Resolved below, once the draft is loaded: body → the draft's own choice →
+  // the admin default. Retry/restart/admin callers that don't send the look
+  // still get the look the person picked on step 3.)
 
   // --- Load the row FIRST (owner-scoped) ---
   // Everything below — price, brief, source file — is read from the DRAFT the
@@ -287,6 +287,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'We couldn’t find that video. Please start again from Create.' }, { status: 404 })
   }
   const draft = ((videoRow.draft_data as Record<string, unknown> | null) || {}) as Record<string, unknown>
+  const videoStyle: string = (body as any).videoStyle || (typeof draft.videoStyle === 'string' ? draft.videoStyle : '') || (await getSetting('video_style')) || 'slides'
+  const isMagazine = videoStyle === 'editorial' || videoStyle === 'time' || videoStyle === 'explainer'
+  const editorialVariant: 'editorial' | 'time' | 'explainer' =
+    videoStyle === 'editorial' ? 'editorial' : videoStyle === 'explainer' ? 'explainer' : 'time'
+  // "Drawn slides" (app/_lib/drawn-slides.ts): the classic /generate route
+  // with every slide drawn whole by gpt-image on fal, in the chosen style.
+  const isDrawn = videoStyle === DRAWN_LOOK_ID
+  const drawStyle = drawStyleOf((body as any).drawStyle ?? draft.drawStyle)
   const CLAIMABLE_STATUSES = ['draft', 'failed', 'pending']
   const priorStatus = String(videoRow.status || '')
   if (!CLAIMABLE_STATUSES.includes(priorStatus)) {
@@ -1090,9 +1098,28 @@ export async function POST(request: Request) {
     // Prepend/append to slidePrompts
     const allSlidePrompts = [coverPrompt, ...slidePrompts, closingPrompt]
 
+    // DRAWN SLIDES: the same cover + content + closing order, but each prompt
+    // names the EXACT words to draw (short headline, ≤4 bullets, $ and commas)
+    // in the chosen drawing style. Every word goes through the compliance
+    // scrubber when the document is regulated; no brand name, logo or contact
+    // detail is drawn (the closing contact line is added as plain text by the
+    // render service).
+    const drawn = isDrawn
+      ? buildDrawnSlides({
+          style: drawStyle,
+          cover: { title: coverTitleForSlide, slideData: { headline: coverTitleForSlide } },
+          scenes,
+          closing: { title: closingScene.title, slideData: editedClosing?.slideData || { headline: 'Thank you' } },
+          colors: brandColors,
+          scrub: complianceScrubberFor(policyData, (policyData as any)?.classification?.documentType, industry),
+          videoTitle,
+          recipient,
+        })
+      : null
+
     // STAGE 3 (v2): queue the Inngest + Creatomate pipeline and return.
     // Completion is driven by the Creatomate webhook; failure by Inngest onFailure.
-    if (useV2) {
+    if (useV2 && !drawn) {
       console.log(`[video ${videoId}] Pipeline v2: queueing ${allScenes.length} slides (cover + ${scenes.length} content + closing), voice=${voiceId}`)
       if (aiMusic || musicPrompt) {
         console.warn(`[video ${videoId}] Pipeline v2 does not support AI music yet — continuing without it`)
@@ -1138,7 +1165,8 @@ export async function POST(request: Request) {
     // user who picked Aurora or Editorial silently got the OLD slideshow
     // renderer instead — a different look with no note saying why.
     const explicitV3 = videoStyle === 'infographic' || videoStyle === 'cinematic' || videoStyle === 'aurora' || isMagazine
-    if (useV3 || videoStyle === 'slides' || explicitV3) {
+    // Drawn slides never enter the Remotion engines — they ARE the classic route.
+    if (!drawn && (useV3 || videoStyle === 'slides' || explicitV3)) {
       // SLIDE-DECK style (the new default): the animated explainer deck
       // (DirectedVideo). The render service reads the source, comprehends it, writes the
       // deck, generates VO, and renders — so we hand it the extracted document
@@ -1361,7 +1389,7 @@ export async function POST(request: Request) {
       voiceId,
       scenes: allScenes,
       userId: user.id,
-      slidePrompts: allSlidePrompts,
+      slidePrompts: drawn ? drawn.prompts : allSlidePrompts,
       videoTitle,
       contactForClosing,
       logoUrl,
@@ -1372,9 +1400,21 @@ export async function POST(request: Request) {
       musicPrompt: musicPrompt || (aiMusic ? 'Professional ambient background music, subtle and warm' : ''),
       industry: industry || '',
       narrationStyle: effectiveNarrationStyle,
-      styleId: templateId || 'apex-corporate',
-      customStylePrompt: customStylePrompt || undefined,
-      templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/${templateId}.png`,
+      ...(drawn
+        ? {
+            // fal gpt-image first, Gemini per slide when fal fails (render-service/fal-image.js).
+            imageEngine: 'fal',
+            drawStyle: drawn.style,
+            styleId: `drawn-${drawn.style}`,
+            // Plain text on the closing slide — never drawn by the model.
+            closingContactLine: wantContactClosing && contactLine ? contactLine : undefined,
+            // No template picture: the Gemini fallback must not copy another look's layout.
+          }
+        : {
+            styleId: templateId || 'apex-corporate',
+            customStylePrompt: customStylePrompt || undefined,
+            templateRefUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com'}/style-previews/${templateId}.png`,
+          }),
     })
 
     let vpsRes: Response

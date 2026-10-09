@@ -111,6 +111,7 @@ export const HOW_TO: HowToEntry[] = [
     intro: 'Pick the look. The price and Make it are in the bar at the bottom.',
     steps: [
       'Press a look card to pick it. **BEST** marks the one we recommend; **See examples** shows more of the one you picked.',
+      'Picked **Drawn slides**? A **Drawing style** line appears under the cards: **3D infographic** (picked for you), **Illustrated** or **Classic**. The AI draws every slide as one picture in that style.',
       'The line under the looks shows the voice, the music and the length. Press **Change** (or open **More options**) to pick **Video** or **Presentation**, another voice (press ▶ to hear one), music, and **A note to your client**.',
       'The brand line shows the brand it will use. No brand yet? Press **Add your brand**: type your name, upload your logo and pick your colours right here — **Fill in from it** reads them from your website. **Save my brand** keeps it for every new project.',
       'Press **Free preview** to see the first scene in your look and hear the voice — free, a few a day, no card needed.',
@@ -123,6 +124,9 @@ export const HOW_TO: HowToEntry[] = [
       'app/(dashboard)/create/_components/make/AddBrandPiece.tsx',
       'app/(dashboard)/create/_components/make/FirstScenePreview.tsx',
       'app/(dashboard)/create/_components/make/Pickers.tsx',
+      // The look cards and Drawn slides' drawing-style chips are drawn from data.
+      'app/(dashboard)/create/_components/make/looks.ts',
+      'app/_lib/drawn-slides.ts',
     ],
   },
   {

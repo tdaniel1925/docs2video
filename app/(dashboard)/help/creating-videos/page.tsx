@@ -138,8 +138,18 @@ export default function CreatingVideosPage() {
         <p style={P}>
           The screen says <strong style={INK}>Pick a look.</strong> For a video the looks are <strong style={INK}>Slide Deck</strong> (marked{' '}
           <strong style={INK}>BEST</strong>, and picked for you), <strong style={INK}>Aurora</strong>, <strong style={INK}>Cinematic</strong>,{' '}
-          <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong> and <strong style={INK}>Infographic</strong>. Press a card to pick it;{' '}
+          <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong>, <strong style={INK}>Infographic</strong> and{' '}
+          <strong style={INK}>Drawn slides</strong> (marked <strong style={INK}>NEW</strong>). Press a card to pick it;{' '}
           <strong style={INK}>See examples</strong> shows more of it. Presentations have their own color sets.
+        </p>
+        <p style={P}>
+          <strong style={INK}>Drawn slides</strong> — the AI draws every slide as one finished picture, with the headline, a few short points and your
+          numbers drawn right in. When you pick it, a <strong style={INK}>Drawing style</strong> line appears under the cards with three choices, each with a
+          small sample: <strong style={INK}>3D infographic</strong> (glossy 3D objects and cards — picked for you), <strong style={INK}>Illustrated</strong>{' '}
+          (friendly flat drawings) and <strong style={INK}>Classic</strong> (a clean business slide). The voice and music play over the slides as a video.
+          Each slide keeps its words short so they are drawn correctly, money shows with a $ and commas, and no logos or company or product names are
+          drawn (your contact details go on the last slide as plain text). It costs the same as any other look and takes about 4–6 minutes.
+          <strong style={INK}> Free preview</strong> draws your first scene in the style you picked.
         </p>
         <p style={P}>
           One line under the looks sums up the rest, for example &ldquo;Sarah · music off · standard&rdquo;. Press <strong style={INK}>Change</strong> (or open{' '}

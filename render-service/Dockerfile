@@ -54,6 +54,7 @@ COPY server.js ./
 COPY slides.js ./
 COPY commercial.js ./
 COPY present-export.js ./
+COPY fal-image.js ./
 
 EXPOSE 4000
 

@@ -244,6 +244,7 @@ const ARTICLES: HelpArticle[] = [
       '• **Editorial** — a clean, warm magazine layout with refined serif typography on your brand color.',
       '• **Explainer** — a friendly modern deck with big rounded cards and charts. Great for how-it-works.',
       '• **Infographic** — big numbers, KPI cards, timelines and charts. Best for number-heavy reports.',
+      '• **Drawn slides** (NEW) — the AI draws every slide as one finished picture: the headline, a few short points and your numbers drawn right in. Pick a **Drawing style** under the cards: **3D infographic** (glossy 3D, picked for you), **Illustrated** (friendly flat drawings) or **Classic** (a clean business slide). Same price as the other looks, about 4–6 minutes. Words are kept short so they are spelled right; no logos or company or product names are drawn.',
       'If your chosen style is temporarily unavailable at render time, we still produce your video in an alternate style and show a note on the video page so you can regenerate in your original style.',
     ],
   },

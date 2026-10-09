@@ -72,7 +72,8 @@ app.get('/health', (req, res) => {
     checks.ffmpeg = true
   } catch { checks.ffmpeg = false }
   const ok = Object.values(checks).every(Boolean)
-  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', checks })
+  // Optional keys: reported, never fail health (Drawn slides fall back to Gemini without FAL_KEY).
+  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', checks, optional: { falKey: !!process.env.FAL_KEY } })
 })
 
 // Self-test — runs ONE real slide through the EXACT production path plus probes
@@ -2952,7 +2953,36 @@ app.post('/generate', authCheck, async (req, res) => {
     // Track slides that fell back to the plain navy card, with the reason, so we
     // can send ONE summary alert instead of one email per failed slide.
     const slideFallbacks = []
+    // "DRAWN SLIDES" look (imageEngine:'fal'): every slide is drawn whole by
+    // OpenAI gpt-image-2.5 on fal (fal-image.js). One slide is drawn first and
+    // handed to the rest as a style reference, so the set looks like one deck.
+    // A slide fal can't draw drops through to the Gemini loop below — a worse
+    // picture beats a failed video. Old app builds never send imageEngine.
+    const useFal = req.body.imageEngine === 'fal'
+    let falStyleRef = null
+    async function drawOneWithFal(idx) {
+      const { drawWithFal } = require('./fal-image')
+      let lastErr = null
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const raw = await drawWithFal(slidePrompts[idx], { refImage: process.env.DRAWN_SLIDE_REF === 'off' ? null : falStyleRef })
+          const sharp = require('sharp')
+          return await sharp(raw).resize(1920, 1080, { fit: 'cover', position: 'centre' }).png().toBuffer()
+        } catch (e) {
+          lastErr = e
+          console.error(`[${videoId}] FAL SLIDE FAIL slide=${idx + 1} attempt=${attempt}/2:`, e?.message || e)
+          if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
+        }
+      }
+      console.error(`[${videoId}] slide ${idx + 1}: fal failed (${lastErr?.message}) — falling back to Gemini`)
+      return null
+    }
+
     async function generateOneSlide(idx) {
+      if (useFal) {
+        const drawn = await drawOneWithFal(idx)
+        if (drawn) return drawn
+      }
       const prompt = slidePrompts[idx]
       // Cover (first) and closing (last) are title cards — no header band on them
       // (the brand name is already the focal point of those designs).
@@ -3076,19 +3106,41 @@ app.post('/generate', authCheck, async (req, res) => {
       } catch { /* best-effort */ }
     }
 
-    const BATCH_SIZE = 2
-    for (let i = 0; i < slidePrompts.length; i += BATCH_SIZE) {
-      const batch = []
-      for (let j = i; j < Math.min(i + BATCH_SIZE, slidePrompts.length); j++) {
-        batch.push(generateOneSlide(j).then(buf => { slideBuffers[j] = buf }))
-      }
-      await Promise.all(batch)
-      const done = Math.min(i + BATCH_SIZE, slidePrompts.length)
+    // Drawn slides: draw the first CONTENT slide alone, then use it as the
+    // style reference for every other slide (cover and closing included).
+    let order = slidePrompts.map((_, i) => i)
+    if (useFal && slidePrompts.length > 2) {
+      const first = 1
+      const buf = await generateOneSlide(first)
+      slideBuffers[first] = buf
+      if (buf && !slideFallbacks.some(f => f.slide === first + 1)) falStyleRef = buf
+      await pushClassicPreview(first, buf)
+      order = order.filter(i => i !== first)
+    }
+    // fal draws in ~12-25s and isn't rate-bound like Gemini here: 4 at a time.
+    const BATCH_SIZE = useFal ? 4 : 2
+    let done = slidePrompts.length - order.length
+    for (let i = 0; i < order.length; i += BATCH_SIZE) {
+      const idxs = order.slice(i, i + BATCH_SIZE)
+      await Promise.all(idxs.map(j => generateOneSlide(j).then(buf => { slideBuffers[j] = buf })))
+      done += idxs.length
       // Live filmstrip: upload each newly-built slide as a preview.
-      for (let j = i; j < done; j++) if (slideBuffers[j]) await pushClassicPreview(j, slideBuffers[j])
+      for (const j of idxs) if (slideBuffers[j]) await pushClassicPreview(j, slideBuffers[j])
       console.log(`[${videoId}] Slides ${done}/${slidePrompts.length} done`)
       const slidePct = 22 + Math.round((done / slidePrompts.length) * 43)
       await updateStatus('generating_slides', `Designing slide ${done} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
+    }
+
+    // Drawn slides: the contact line on the closing slide is added HERE as
+    // plain text — never drawn by the image model (it would invent or misspell
+    // phone numbers and addresses).
+    const closingLine = useFal && typeof req.body.closingContactLine === 'string' ? req.body.closingContactLine.trim().slice(0, 140) : ''
+    const lastIdx = slideBuffers.length - 1
+    if (closingLine && slideBuffers[lastIdx]) {
+      try {
+        slideBuffers[lastIdx] = await require('./fal-image').addContactStrip(slideBuffers[lastIdx], closingLine)
+        await pushClassicPreview(lastIdx, slideBuffers[lastIdx])
+      } catch (e) { console.error(`[${videoId}] contact strip failed (slide kept as drawn):`, e.message) }
     }
     console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
 

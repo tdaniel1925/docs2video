@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Play, Square } from 'lucide-react'
 import { formatCredits } from './usePriceQuote'
 import type { LookCard } from './looks'
@@ -15,13 +15,15 @@ import type { MakeOutput, OutputQuote } from '../../../../_lib/price-quote'
  * look is one more entry there. The picked look's one-line description and
  * sample pictures sit under the cards.
  */
-export function LookPicker({ cards, value, onChange, onZoom, note }: {
+export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
   cards: LookCard[]
   value: string
   onChange: (id: string) => void
   onZoom: (url: string) => void
   /** Extra words after the picked look's description (how long it takes). */
   note?: string | null
+  /** Choices that belong to the picked look (e.g. Drawn slides' drawing style). */
+  children?: ReactNode
 }) {
   const sel = cards.find((l) => l.id === value) ?? cards[0]
   return (
@@ -51,6 +53,7 @@ export function LookPicker({ cards, value, onChange, onZoom, note }: {
       {sel ? (
         <div className="cf-look-detail">
           <p className="cf-hint"><strong style={{ color: 'var(--ink)' }}>{sel.name}.</strong> {sel.tagline}{note ? ` ${note}` : ''}</p>
+          {children}
           {sel.samples?.length ? (
             <details className="cf-examples">
             <summary>See examples of {sel.name}</summary>

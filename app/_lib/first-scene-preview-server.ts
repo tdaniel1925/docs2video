@@ -4,7 +4,9 @@
 // rules themselves (cap, which scene, which engine, which voice, cache keys)
 // are pure and live in first-scene-preview.ts.
 //
-// Nothing here spends credits, and nothing here makes an AI picture.
+// Nothing here spends credits. Only the Drawn slides look makes an AI picture
+// (one gpt-image draw on fal at low quality, ~0.3c — measured 2026-10-09);
+// every other look is drawn by code.
 // =============================================================================
 
 import OpenAI from 'openai'
@@ -23,6 +25,8 @@ import {
   type PreviewScene, type StillEngine,
 } from './first-scene-preview'
 import { stillCacheKey } from './first-scene-preview-keys'
+import { drawnSlidePrompt, drawnSlideText, drawStyleOf } from './drawn-slides'
+import { drawSlide } from './slide-engine'
 
 type Draft = Record<string, unknown>
 const STORAGE_BUCKET = 'videos'
@@ -87,6 +91,8 @@ export type PreviewPlan = {
  */
 export function buildPreviewPlan(o: {
   output: string; look: string; draft: Draft; brand: Brand | null; rowTitle?: string | null
+  /** Drawn slides only: the drawing style on screen (else the draft's, else 3D). */
+  drawStyle?: unknown
 }): PreviewPlan | null {
   const engine = stillEngineFor(o.output, o.look)
   if (!engine) return null
@@ -115,7 +121,20 @@ export function buildPreviewPlan(o: {
   const sceneTitle = content.slideData?.headline || content.title || ''
 
   let request: Record<string, unknown>
-  if (engine === 'directed') {
+  if (engine === 'drawn') {
+    // Drawn slides: the SAME prompt builder generate-video uses, on the first
+    // content scene (already compliance-scrubbed above; the scrub runs again
+    // inside drawnSlideText so the drawn words can never skip it).
+    const style = drawStyleOf(o.drawStyle ?? o.draft.drawStyle)
+    const text = drawnSlideText(content, 'content', { scrub: regulated ? (v: string) => scrubComplianceText(v, tokens) : null })
+    request = {
+      style,
+      prompt: drawnSlidePrompt({
+        style, text,
+        colors: { primary: brand?.primary_color || '#1B365D', secondary: brand?.secondary_color || '#4A90D9' },
+      }),
+    }
+  } else if (engine === 'directed') {
     // The Slide Deck look: the same scene list generate-video hands to the
     // render service (cover, content, closing in the {role, …} shape).
     const toSupplied = (s: PreviewScene | undefined, role: 'cover' | 'content' | 'closing') =>
@@ -228,6 +247,20 @@ export async function alreadyStored(url: string): Promise<boolean> {
 export async function storeVoice(admin: SupabaseClient, path: string, mp3: Buffer): Promise<void> {
   const { error } = await admin.storage.from(STORAGE_BUCKET).upload(path, mp3, { contentType: 'audio/mpeg', upsert: true })
   if (error) throw new Error(`voice upload: ${error.message}`)
+}
+
+// ── Drawn slides: one real picture, drawn here (no render service needed) ──
+
+/** Draws the preview slide (fal gpt-image at low quality, Gemini if fal fails) and stores it. */
+export async function drawPreviewStill(admin: SupabaseClient, path: string, plan: PreviewPlan): Promise<string> {
+  const prompt = String(plan.request.prompt || '')
+  if (!prompt) throw new Error('drawn preview: no prompt')
+  const raw = await drawSlide(prompt, null, { quality: 'low' })
+  const sharp = (await import('sharp')).default
+  const png = await sharp(raw).resize(1920, 1080, { fit: 'cover', position: 'centre' }).png().toBuffer()
+  const { error } = await admin.storage.from(STORAGE_BUCKET).upload(path, png, { contentType: 'image/png', upsert: true })
+  if (error) throw new Error(`still upload: ${error.message}`)
+  return publicUrlFor(admin, path)
 }
 
 // ── The render service ──────────────────────────────────────────────────────

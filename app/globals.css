@@ -3645,6 +3645,9 @@ textarea.cf-input { resize: vertical; }
 .cf-chip:disabled { cursor: not-allowed; opacity: 0.6; }
 .cf-chip small { font-size: var(--fs-small); font-weight: 600; color: var(--ink-light); }
 .cf-chip.is-on small, .cf-chip[aria-checked='true'] small { color: inherit; }
+/* A tiny sample picture inside a chip (Drawn slides' drawing styles). */
+.cf-chip-thumb { width: 48px; height: 27px; border-radius: 4px; object-fit: cover; flex: none; background: var(--bg-soft); }
+.cf-draw-styles { margin-top: var(--space-3); }
 .cf-chip:focus-visible, .cf-look:focus-visible, .cf-drop:focus-visible, .cf-scene-edit:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
 
 /* The bottom bar. */

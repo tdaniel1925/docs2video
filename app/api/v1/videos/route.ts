@@ -34,9 +34,11 @@ interface V1Body {
   brandId?: string | null
   voiceId?: string
   styleId?: string
-  /** Visual style (slides|aurora|cinematic|editorial|explainer). Distinct from
+  /** Visual style (slides|aurora|cinematic|editorial|explainer|drawn). Distinct from
    *  styleId (a custom slide-template id). */
   videoStyle?: string
+  /** For videoStyle "drawn": 3d (default) | illustrated | classic. */
+  drawStyle?: string
   detailLevel?: DetailLevel
   outputType?: OutputType
   recipientName?: string
@@ -255,7 +257,8 @@ export async function POST(request: Request) {
       brandId: body.brandId ?? null,
       voiceId: body.voiceId || undefined,
       styleId: body.styleId || undefined,
-      videoStyle: body.videoStyle || undefined,   // slides|aurora|cinematic|editorial|explainer
+      videoStyle: body.videoStyle || undefined,   // slides|aurora|cinematic|editorial|explainer|drawn
+      drawStyle: body.drawStyle || undefined,     // drawn only: 3d|illustrated|classic (anything else = 3d)
       purpose: body.purpose,
       detailLevel,
       detailed: detailLevel === 'detailed',

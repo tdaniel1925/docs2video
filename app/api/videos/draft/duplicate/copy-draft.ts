@@ -28,7 +28,7 @@ export const COPIED_FIELDS = [
   // the story
   'title', 'brief', 'briefSkipped', 'scenes', 'detailLevel', 'narrationStyle',
   // the look
-  'videoStyle', 'presentationTemplate', 'slidePhotos', 'styleId', 'customStylePrompt', 'styleReferenceUrl',
+  'videoStyle', 'drawStyle', 'presentationTemplate', 'slidePhotos', 'styleId', 'customStylePrompt', 'styleReferenceUrl',
   // the voice and music
   'voiceId', 'aiMusic', 'musicPrompt',
   // the brand and how the person is introduced

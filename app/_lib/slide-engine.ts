@@ -55,14 +55,14 @@ function noteMissingKey(): void {
   console.warn('[slide-engine] FAL_KEY is not set — slides will be drawn by Gemini instead. Set it in the environment (and in the ECS task definition for the renderer).')
 }
 
-async function drawOnFal(prompt: string): Promise<Buffer> {
+async function drawOnFal(prompt: string, quality: 'low' | 'medium' | 'high' = 'high'): Promise<Buffer> {
   const res = await fetch('https://fal.run/openai/gpt-image-2.5/flare/text-to-image', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Key ${falKey()}` },
     body: JSON.stringify({
       prompt,
       image_size: { width: SLIDE_W, height: SLIDE_H },
-      quality: 'high',
+      quality,
       num_images: 1,
     }),
   })
@@ -110,7 +110,7 @@ async function drawOnGemini(prompt: string): Promise<Buffer> {
  * A worse picture beats no picture on work already paid for, so a failure on
  * the chosen engine falls through to the other one.
  */
-export async function drawSlide(prompt: string, logo?: Buffer | null): Promise<Buffer> {
+export async function drawSlide(prompt: string, logo?: Buffer | null, opts: { quality?: 'low' | 'medium' | 'high' } = {}): Promise<Buffer> {
   const full = logo?.length ? `${prompt}\n\n${logoSpacePrompt()}` : prompt
   const wanted = slideEngine()
   if (wanted === 'fal' && !falKey()) noteMissingKey()
@@ -120,7 +120,7 @@ export async function drawSlide(prompt: string, logo?: Buffer | null): Promise<B
   for (const engine of order) {
     if (engine === 'fal' && !falKey()) continue
     try {
-      const png = engine === 'fal' ? await drawOnFal(full) : await drawOnGemini(full)
+      const png = engine === 'fal' ? await drawOnFal(full, opts.quality) : await drawOnGemini(full)
       return await pinLogo(png, logo)
     } catch (e) {
       lastErr = e

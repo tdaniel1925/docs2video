@@ -10,7 +10,7 @@ import {
 } from '../../_lib/first-scene-preview'
 import { audioCacheKey } from '../../_lib/first-scene-preview-keys'
 import {
-  alreadyStored, buildPreviewPlan, loadPreviewBrand, previewStoragePath, publicUrlFor,
+  alreadyStored, buildPreviewPlan, drawPreviewStill, loadPreviewBrand, previewStoragePath, publicUrlFor,
   renderPreviewStill, storeVoice, synthesizePreviewVoice,
 } from '../../_lib/first-scene-preview-server'
 
@@ -21,7 +21,7 @@ import {
 //        → { imageUrl, audioUrl, remainingToday, voiceNote, lookNote }
 //
 // A still picture of the first content scene in the chosen look, drawn by that
-// look's real renderer, plus ~10 s of the voice reading it. 3 per account per
+// look's real renderer (Drawn slides: one real AI picture, ~0.3c), plus ~10 s of the voice reading it. 3 per account per
 // UTC day (admins unlimited), counted in the existing rate_limits table. It
 // NEVER charges credits — nothing here imports the credit code, and a test
 // keeps it that way. A preview whose picture and voice are both already
@@ -79,7 +79,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await signedInUser()
   if (!user) return NextResponse.json({ error: 'Please sign in again.' }, { status: 401 })
-  const body = await request.json().catch(() => ({})) as { videoId?: string; output?: string; look?: string; voiceId?: string }
+  const body = await request.json().catch(() => ({})) as { videoId?: string; output?: string; look?: string; voiceId?: string; drawStyle?: string }
   const videoId = typeof body.videoId === 'string' ? body.videoId : ''
   if (!videoId) return NextResponse.json({ error: 'Missing project.' }, { status: 400 })
 
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
   }
 
   const brand = await loadPreviewBrand(admin, user.id, draft)
-  const plan = buildPreviewPlan({ output, look, draft, brand, rowTitle: row.title as string | null })
+  const plan = buildPreviewPlan({ output, look, draft, brand, rowTitle: row.title as string | null, drawStyle: body.drawStyle })
   if (!plan) return NextResponse.json({ error: 'Write your story first — the preview shows its first scene.' }, { status: 400 })
 
   const voicePick = voiceForPreview(output, look, voiceId)
@@ -149,7 +149,10 @@ export async function POST(request: Request) {
 
   try {
     const [imageUrl, audioUrl] = await Promise.all([
-      haveStill ? Promise.resolve(stillUrl) : renderPreviewStill({ userId: user.id, videoId, plan }),
+      haveStill ? Promise.resolve(stillUrl)
+        // Drawn slides: one AI picture, drawn here (~0.3c); every other look by the render service.
+        : plan.engine === 'drawn' ? drawPreviewStill(admin, stillPath, plan)
+        : renderPreviewStill({ userId: user.id, videoId, plan }),
       (async () => {
         if (!voicePick || !voicePath || !voiceUrl) return null
         if (haveVoice) return voiceUrl
@@ -164,7 +167,7 @@ export async function POST(request: Request) {
       lookNote: lookNote(output, look),
       sceneTitle: plan.sceneTitle,
       sampleText: sample || null,
-      choice: { output, look, voiceId },
+      choice: { output, look, voiceId, ...(plan.engine === 'drawn' ? { drawStyle: plan.request.style } : {}) },
     })
   } catch (e) {
     if (counted) await giveBack(admin, capKey)

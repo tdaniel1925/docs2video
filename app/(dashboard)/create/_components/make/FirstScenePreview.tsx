@@ -18,7 +18,7 @@ import { Note } from '../../../../_components/kit'
 import { CAP_REACHED_MESSAGE, previewsLeftLabel } from '../../../../_lib/first-scene-preview'
 import s from './FirstScenePreview.module.css'
 
-type Choice = { output?: string; look?: string; voiceId?: string }
+type Choice = { output?: string; look?: string; voiceId?: string; /** Drawn slides only: 3d / illustrated / classic. */ drawStyle?: string }
 type Result = {
   imageUrl: string
   audioUrl: string | null
@@ -30,7 +30,7 @@ type Result = {
 
 export type FirstScenePreviewState = ReturnType<typeof useFirstScenePreview>
 
-export function useFirstScenePreview({ videoId, output, look, voiceId }: { videoId: string } & Choice) {
+export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle }: { videoId: string } & Choice) {
   const [left, setLeft] = useState<number | null | undefined>(undefined) // undefined = still loading; null = no limit
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
@@ -51,7 +51,8 @@ export function useFirstScenePreview({ videoId, output, look, voiceId }: { video
   const changed = !!result && (
     (look !== undefined && look !== result.choice.look) ||
     (voiceId !== undefined && voiceId !== result.choice.voiceId) ||
-    (output !== undefined && output !== result.choice.output)
+    (output !== undefined && output !== result.choice.output) ||
+    (drawStyle ?? null) !== (result.choice.drawStyle ?? null)
   )
 
   async function make() {
@@ -63,7 +64,7 @@ export function useFirstScenePreview({ videoId, output, look, voiceId }: { video
       const res = await fetch('/api/preview-first-scene', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, output, look, voiceId }),
+        body: JSON.stringify({ videoId, output, look, voiceId, drawStyle }),
       })
       const d = await res.json().catch(() => ({}))
       if ('remainingToday' in d) setLeft(d.remainingToday)
@@ -71,7 +72,7 @@ export function useFirstScenePreview({ videoId, output, look, voiceId }: { video
         setError({ message: d.error || 'We couldn’t make the preview just now. Please try again.', cap: d.code === 'preview_cap' })
         return
       }
-      setResult({ imageUrl: d.imageUrl, audioUrl: d.audioUrl, voiceNote: d.voiceNote, lookNote: d.lookNote, sceneTitle: d.sceneTitle, choice: d.choice ?? { output, look, voiceId } })
+      setResult({ imageUrl: d.imageUrl, audioUrl: d.audioUrl, voiceNote: d.voiceNote, lookNote: d.lookNote, sceneTitle: d.sceneTitle, choice: d.choice ?? { output, look, voiceId, drawStyle } })
     } catch {
       setError({ message: 'Connection lost. Please check your internet and try again.' })
     } finally {

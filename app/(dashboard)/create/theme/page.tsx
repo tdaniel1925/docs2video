@@ -29,6 +29,8 @@ import { settingsLine } from '../_components/workspace/facts'
 import FirstScenePreview, { useFirstScenePreview } from '../_components/make/FirstScenePreview'
 import AddBrandPiece from '../_components/make/AddBrandPiece'
 import { D2V_OUTPUTS, d2vOutputs } from '../../../_lib/videos-only'
+// Drawn slides' drawing styles (pure data — safe in the browser).
+import { DEFAULT_DRAW_STYLE, DRAW_STYLES, isDrawStyle, type DrawStyleId } from '../../../_lib/drawn-slides'
 
 type Draft = Record<string, any>
 type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
@@ -70,6 +72,7 @@ function MakeItYours() {
   const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
   const [aiMusic, setAiMusic] = useState(false)
   const [slidePhotos, setSlidePhotos] = useState(false) // Slide Deck look: photo backgrounds (opt-in, slower)
+  const [drawStyle, setDrawStyle] = useState<DrawStyleId>(DEFAULT_DRAW_STYLE) // Drawn slides look: 3D / Illustrated / Classic
   const [allowSourceDownload, setAllowSourceDownload] = useState(false)
   const [agentNote, setAgentNote] = useState('')
 
@@ -103,6 +106,7 @@ function MakeItYours() {
         if (typeof d.voiceId === 'string' && VOICE_OPTIONS.some((o) => o.id === d.voiceId)) setVoiceId(d.voiceId)
         if (typeof d.aiMusic === 'boolean') setAiMusic(d.aiMusic)
         if (typeof d.slidePhotos === 'boolean') setSlidePhotos(d.slidePhotos)
+        if (isDrawStyle(d.drawStyle)) setDrawStyle(d.drawStyle)
         setAllowSourceDownload(!!d.allowSourceDownload)
         setAgentNote(typeof d.agentNote === 'string' ? d.agentNote : '')
 
@@ -147,7 +151,9 @@ function MakeItYours() {
   const timeNote = isVideo
     ? (videoLook === 'slides'
         ? `Usually about 10 minutes${slidePhotos ? ', plus 2–3 for photo backgrounds' : ''}. You can leave while it works.`
-        : 'Usually about 3–5 minutes. You can leave while it works.')
+        : videoLook === 'drawn'
+          ? 'Usually about 4–6 minutes. You can leave while it works.'
+          : 'Usually about 3–5 minutes. You can leave while it works.')
     : null
 
   async function handleMake() {
@@ -179,6 +185,8 @@ function MakeItYours() {
             voiceId,
             aiMusic,
             videoStyle: videoLook,
+            // Drawn slides only: its drawing style (3D infographic / Illustrated / Classic).
+            ...(videoLook === 'drawn' ? { drawStyle } : {}),
             presentationTemplate: presLook,
             slidePhotos,
             // Make the brand shown on this screen the draft's explicit choice.
@@ -234,6 +242,7 @@ function MakeItYours() {
           videoId,
           outputType: output,
           videoStyle: videoLook,
+          ...(videoLook === 'drawn' ? { drawStyle } : {}),
           policyData: draft.extractedData || {},
           purpose: draft.purpose || 'Create a professional video',
           recipientName: draft.recipientName || undefined,
@@ -285,7 +294,7 @@ function MakeItYours() {
   // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
   // account): the button sits in the bottom bar beside Make it, the picture
   // on the page. It previews the choices on screen right now.
-  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : videoLook, voiceId })
+  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : videoLook, drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId })
   // Bring the preview into view when it starts, so the wait is seen.
   useEffect(() => {
     if (preview.busy) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -373,7 +382,22 @@ function MakeItYours() {
         }}
         onZoom={setLightbox}
         note={timeNote}
-      />
+      >
+        {isVideo && videoLook === 'drawn' ? (
+          <div className="cf-row cf-draw-styles">
+            <span className="cf-row-name">Drawing style</span>
+            <div className="cf-chips" role="radiogroup" aria-label="Drawing style">
+              {DRAW_STYLES.map((st) => (
+                <button key={st.id} type="button" role="radio" aria-checked={drawStyle === st.id} className="cf-chip" onClick={() => setDrawStyle(st.id)} title={st.hint}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a small sample of this style */}
+                  <img className="cf-chip-thumb" src={`/style-samples/drawn-${st.id}.png`} alt="" loading="lazy" />
+                  {st.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </LookPicker>
 
       <FirstScenePreview ref={previewRef} preview={preview} />
 
