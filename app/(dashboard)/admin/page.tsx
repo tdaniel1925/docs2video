@@ -275,7 +275,7 @@ function AdminPageInner() {
 
           <div className="settings-card" style={{ marginTop: 24 }}>
             <h3>Recent Signups</h3>
-            <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
               {profiles.slice(0, 10).map((p, i) => (
                 <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < 9 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                   <div style={{ flex: 1, fontWeight: 600 }}>
@@ -292,7 +292,7 @@ function AdminPageInner() {
 
           <div className="settings-card" style={{ marginTop: 16 }}>
             <h3>Recent Videos</h3>
-            <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
               {videos.slice(videoPage * 10, videoPage * 10 + 10).map((v, i, arr) => (
                 <div key={v.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                   <div style={{ flex: 1, minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title ?? 'Untitled'}</div>
@@ -322,7 +322,7 @@ function AdminPageInner() {
           {dailyActivity.length > 0 && (
             <div className="settings-card" style={{ marginTop: 16 }}>
               <h3>Usage Trends (Last 30 Days)</h3>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12, maxHeight: 400, overflowY: 'auto' }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12, maxHeight: 400, overflowY: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', position: 'sticky', top: 0 }}>
                   <div style={{ flex: 1 }}>Date</div>
                   <div style={{ width: 100, textAlign: 'center' }}>New Users</div>
@@ -344,7 +344,7 @@ function AdminPageInner() {
       {tab === 'users' && (
         <div>
           <input className="input" placeholder="Search users by email or name..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 16, maxWidth: 400 }} />
-          <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               <div style={{ flex: 1 }}>Email</div>
               <div style={{ width: 120 }}>Name</div>
@@ -368,7 +368,7 @@ function AdminPageInner() {
                 <div style={{ width: 260, flexShrink: 0, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   <select disabled={busy === p.id} defaultValue=""
                     onChange={e => { if (e.target.value) userAction(p.id, 'change_plan', e.target.value); e.target.value = '' }}
-                    style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'white' }}>
+                    style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                     <option value="" disabled>Plan</option>
                     <option value="free">Free</option>
                     <option value="pro">Pro</option>
@@ -400,7 +400,7 @@ function AdminPageInner() {
             ))}
           </div>
           <input className="input" placeholder="Search by title..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 16, maxWidth: 400 }} />
-          <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               <div style={{ flex: 1 }}>Title</div>
               <div style={{ width: 160 }}>User</div>
@@ -566,7 +566,7 @@ function AdminPageInner() {
               style={{ marginTop: 12, maxWidth: 400 }}
             />
             {accessSearchResults.length > 0 && (
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 {accessSearchResults.map((p, i) => (
                   <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < accessSearchResults.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
@@ -600,7 +600,7 @@ function AdminPageInner() {
             {adminUsers.length === 0 ? (
               <p style={{ color: 'var(--ink-light)', marginTop: 8 }}>No admin users</p>
             ) : (
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 {adminUsers.map((p, i) => (
                   <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < adminUsers.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
@@ -624,7 +624,7 @@ function AdminPageInner() {
             {betaUsers.length === 0 ? (
               <p style={{ color: 'var(--ink-light)', marginTop: 8 }}>No beta users</p>
             ) : (
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 {betaUsers.map((p, i) => (
                   <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < betaUsers.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div style={{ flex: 1, fontWeight: 600 }}>{p.email}</div>
@@ -700,7 +700,7 @@ function AdminPageInner() {
               {filteredAudit.length === 0 ? (
                 <p style={{ color: 'var(--ink-light)', marginTop: 12 }}>No audit log entries match your filters</p>
               ) : (
-                <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <div style={{ width: 160 }}>Admin</div>
                     <div style={{ width: 120 }}>Action</div>
@@ -805,7 +805,7 @@ function AdminPageInner() {
           {prospects.filter(p => p.status === 'ready_for_review').length > 0 && (
             <div className="settings-card" style={{ marginBottom: 16 }}>
               <h3>Review Queue</h3>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 {prospects.filter(p => p.status === 'ready_for_review').map((p, i, arr) => (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
                     {p.thumbnail_url && (
@@ -924,7 +924,7 @@ function AdminPageInner() {
           {prospects.filter(p => ['sent', 'watched', 'converted'].includes(p.status)).length > 0 && (
             <div className="settings-card" style={{ marginBottom: 16 }}>
               <h3>Sent</h3>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <div style={{ flex: 1 }}>Company</div>
                   <div style={{ width: 160 }}>Contact</div>
@@ -951,7 +951,7 @@ function AdminPageInner() {
           {prospects.filter(p => ['failed', 'rejected'].includes(p.status)).length > 0 && (
             <div className="settings-card" style={{ marginBottom: 16 }}>
               <h3>Failed / Rejected</h3>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 {prospects.filter(p => ['failed', 'rejected'].includes(p.status)).map((p, i, arr) => (
                   <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -982,7 +982,7 @@ function AdminPageInner() {
           {prospects.filter(p => ['queued', 'scraping', 'scripting', 'generating', 'assembling'].includes(p.status)).length > 0 && (
             <div className="settings-card" style={{ marginBottom: 16 }}>
               <h3>In Progress</h3>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 {prospects.filter(p => ['queued', 'scraping', 'scripting', 'generating', 'assembling'].includes(p.status)).map((p, i, arr) => (
                   <div key={p.id} className="activity-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none', fontSize: 13 }}>
                     <div className="spinner" style={{ width: 14, height: 14 }} />
@@ -1185,12 +1185,12 @@ function AdminPageInner() {
                   </div>
                 </div>
 
-                {/* Preview. The near-black text and button inside stay typed on
-                    purpose: they copy the real campaign email's own colours. */}
+                {/* Preview. The white page, near-black text and button inside stay typed on
+                    purpose (also in dark mode): they copy the real campaign email's own colours. */}
                 <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Preview (first contact)</div>
                   <div style={{ background: 'white', borderRadius: 8, padding: 20, border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
                       <strong>To:</strong> {campaignContacts[0]?.email} &nbsp; <strong>Subject:</strong> {campaignSubject.replace(/\{\{name\}\}/g, campaignContacts[0]?.name || 'there').replace(/\{\{company\}\}/g, campaignContacts[0]?.company || 'your company')}
                     </div>
                     <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-line', color: '#333', marginTop: 12 }}>
@@ -1261,7 +1261,7 @@ function AdminPageInner() {
             )}
 
             {campaignStep === 'done' && (
-              <div style={{ padding: 20, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, textAlign: 'center' }}>
+              <div style={{ padding: 20, background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, textAlign: 'center' }}>
                 <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mint-darker)" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
                 </div>
@@ -1285,7 +1285,7 @@ function AdminPageInner() {
           {campaigns.length > 0 && (
             <div className="settings-card" style={{ marginTop: 16 }}>
               <h3>Campaign History</h3>
-              <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginTop: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-soft)', fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <div style={{ flex: 1 }}>Campaign</div>
                   <div style={{ width: 100 }}>Industry</div>

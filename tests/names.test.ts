@@ -61,10 +61,11 @@ describe('library tabs', () => {
     expect(kindOfOutput(null)).toBe('video')
   })
 
-  it('has Videos, Presentations, Slide decks and Custom Graphics tabs, kept in the address', () => {
+  it('has Videos and Presentations tabs (plus Older items when there are any), kept in the address', () => {
     const page = code('app/(dashboard)/videos/page.tsx')
-    for (const kind of ['video', 'presentation', 'deck', 'graphic'] as const) {
-      expect(page).toMatch(new RegExp(`kind: '${kind}', label: KIND_NAMES\\.${kind}\\.many`))
+    const tabs = code('app/(dashboard)/videos/library-tabs.ts')
+    for (const kind of ['video', 'presentation'] as const) {
+      expect(tabs).toContain(`label: KIND_NAMES.${kind}.many, shows: (k) => k === '${kind}'`)
     }
     expect(page).toMatch(/href=\{tab\.key \? `\/videos\?type=\$\{tab\.key\}`/)
     expect(KIND_NAMES.presentation.many).toBe('Presentations')

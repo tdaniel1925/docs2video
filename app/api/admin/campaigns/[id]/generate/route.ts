@@ -25,7 +25,7 @@ PROSPECT INFO:
 - Company: ${contact.company || 'their company'}
 - Industry: ${contact.industry || 'their industry'}
 
-PRODUCT: Docs2Video — turns any document into narrated explainer videos, slide decks, and infographics using AI.
+PRODUCT: Docs2Video — turns any document into narrated explainer videos, interactive presentations and commercials using AI.
 
 DISCOUNT OFFER: ${campaign.discount_pct}% off for ${campaign.discount_months} months, code: ${campaign.discount_code}
 

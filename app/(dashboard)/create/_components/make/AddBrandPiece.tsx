@@ -1,4 +1,5 @@
 'use client'
+import { normalizeUrl, tidyUrlInput } from '../../../../_lib/normalize-url'
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
@@ -133,7 +134,7 @@ export default function AddBrandPiece({
     setMessage(null)
     try {
       const res = await fetch('/api/brand-from-url', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: website.trim() }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: normalizeUrl(website) ?? website.trim() }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setMessage({ tone: 'stop', text: data.error || 'We couldn’t read that website.' }); return }
@@ -213,7 +214,7 @@ export default function AddBrandPiece({
       <div className={s.field}>
         <label className={s.label} htmlFor="add-brand-site">Your website</label>
         <div className={s.row}>
-          <input id="add-brand-site" className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" inputMode="url" />
+          <input id="add-brand-site" className="input" value={website} onChange={(e) => setWebsite(e.target.value)} onBlur={() => setWebsite((v) => tidyUrlInput(v))} autoComplete="url" placeholder="yourcompany.com" inputMode="url" />
           <Button variant="secondary" size="sm" onClick={fillFromWebsite} disabled={!!busy}>
             {busy === 'website' ? 'Reading…' : 'Fill in from it'}
           </Button>

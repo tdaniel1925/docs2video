@@ -83,13 +83,13 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'How do I add a booking link to my share pages?',
     answer: [
       'Open the account menu (top-right), click **Settings**, then **Email & sending** in the menu on the left. Choose Calendly, Cal.com or Google Calendar, paste your booking link, and press **Save**. A **Book a Call** button then appears on your share pages.',
-      'For **Google Calendar**, there is no direct connection — paste a link instead. In Google Calendar, create a booking page (an "Appointment schedule"), copy its link (it starts with https://calendar.app.google/) and paste that. The link must start with https://, or the button will not show.',
+      'For **Google Calendar**, there is no direct connection — paste a link instead. In Google Calendar, create a booking page (an "Appointment schedule"), copy its link (it starts with https://calendar.app.google/) and paste that. You don’t have to type https:// — it is added for you — but the link must be a secure (https) one, or the button will not show.',
     ],
   },
   {
     question: 'Can I download my video as a PowerPoint file?',
     answer: [
-      'Yes, when the video’s look keeps slide pictures (presentations and slide decks always can). On its page, press **Download** and choose **PowerPoint** — or **MP4** or **PDF**. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
+      'Yes, when the video’s look keeps slide pictures (presentations always can). On its page, press **Download** and choose **PowerPoint** — or **MP4** or **PDF**. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
     ],
   },
   {
@@ -116,7 +116,7 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'Do I need a card to try it?',
     answer: [
       'No. Sign up with your name, email and a password and you land on **Home**. Make your first project, add your brand on step 3, and press **See a free preview** to see the first scene and hear the voice — free, a few a day.',
-      'You add a card only when you press **Make it** on a real video, presentation or slide deck. The card page opens and brings you back afterwards. Saving the card starts your free credits; nothing is charged until they run out.',
+      'You add a card only when you press **Make it** on a real video or presentation. The card page opens and brings you back afterwards. Saving the card starts your free credits; nothing is charged until they run out.',
     ],
   },
   {

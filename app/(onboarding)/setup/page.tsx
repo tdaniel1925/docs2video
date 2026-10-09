@@ -801,7 +801,7 @@ export default function SetupPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Choose a plan</h2>
-                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>A fresh pool of credits every month for videos, slide decks and PDFs. Cancel anytime.</p>
+                <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '4px 0 0' }}>A fresh pool of credits every month for videos, presentations and commercials. Cancel anytime.</p>
               </div>
               <button onClick={() => setShowPlansModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--ink-light)' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

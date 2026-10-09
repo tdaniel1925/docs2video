@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { lookup } from 'node:dns/promises'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
@@ -40,7 +41,11 @@ export async function POST(request: Request) {
 
   let body: any
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const { url, text, brandName, music, style, musicUrl, logoUrl, goal } = body || {}
+  const { url: rawUrl, text, brandName, music, style, musicUrl, logoUrl, goal } = body || {}
+  // No one has to type https:// — "botmakers.ai" is fine. Cleaned BEFORE the
+  // name check below, so the check and the render get the same address.
+  const url = rawUrl ? normalizeUrl(rawUrl) : undefined
+  if (rawUrl && !url && !text) return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com', code: 'bad_url' }, { status: 400 })
   if (!url && !text) return NextResponse.json({ error: 'Provide a url or text' }, { status: 400 })
 
   // A mistyped address ("botmakersa.ai") used to start the job, fail on the
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
   // Check the name exists first and say so in plain words — nothing charged.
   if (url) {
     let host = ''
-    try { host = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname } catch { /* bad address */ }
+    try { host = new URL(url).hostname } catch { /* bad address */ }
     const found = host ? await lookup(host).then(() => true, (e: NodeJS.ErrnoException) => e?.code !== 'ENOTFOUND') : false
     if (!found) {
       return NextResponse.json({ error: `We couldn't find ${host || 'that website'}. Check the address for a typo and try again — nothing was charged.`, code: 'site_not_found' }, { status: 400 })

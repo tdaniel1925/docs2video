@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { createClient } from '../../_lib/supabase/server'
 import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl, extractFonts, logoAsDataUrl } from '../../_lib/brand-scraper'
 
@@ -18,21 +19,13 @@ import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl, extractFonts
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-function normUrl(raw: string): string | null {
-  let u = String(raw || '').trim()
-  if (!u) return null
-  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
-  try { const p = new URL(u); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.toString() : null }
-  catch { return null }
-}
-
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
 
   const body = await req.json().catch(() => null) as { url?: string } | null
-  const url = normUrl(body?.url ?? '')
+  const url = normalizeUrl(body?.url) // no one has to type https:// (normalize-url.ts)
   if (!url) return NextResponse.json({ error: 'That doesn’t look like a web address.' }, { status: 400 })
 
   if (!(await isSafePublicUrl(url))) {

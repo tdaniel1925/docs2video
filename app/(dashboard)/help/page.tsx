@@ -14,8 +14,13 @@ import { NAMES, KIND_NAMES } from '../../_lib/names'
 const n = (x: number) => x.toLocaleString('en-US')
 const planPrice = (tier: PlanTier) => `$${Math.round((PLANS.find(p => p.tier === tier)?.monthlyPrice ?? 0) / 100)}`
 const PACK_LIST = CREDIT_PACKS.map(p => `${p.name} ${n(p.credits)} (${packPrice(p)})`).join(', ')
-const LIBRARY_TABS = ['All', ...(['video', 'presentation', 'deck', 'graphic'] as const).map(k => KIND_NAMES[k].many)]
+// Docs2Video makes videos and presentations (videos-only.ts). Slide decks and
+// graphics made before sit under "Older items", shown only when there are any.
+const LIBRARY_TABS = ['All', ...(['video', 'presentation'] as const).map(k => KIND_NAMES[k].many)]
   .map(t => `**${t}**`).join(', ')
+// Guides for Text2Art's own makers — not shown on Docs2Video (the pages
+// redirect there; videos-only.ts).
+const TEXT2ART_ONLY_GUIDES = ['/help/flyers', '/help/restyle-deck']
 
 interface HelpArticle {
   id: string
@@ -145,7 +150,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Signing up asks for your name, email and a password — **no card**. You land on **Home** with a note: **Try it before you add a card.**',
       'Make your first project straight away. On step 3 (**Make it yours**) press **See a free preview** to see the first scene and hear the voice (free, a few a day), and fill in **Add your brand** — your name, logo and colours, or **Fill in from it** to read them from your website.',
-      'You add a card only when you press **Make it** on a real video, presentation or slide deck: **Add your payment method** opens, then brings you back. Saving the card starts your free credits; nothing is charged until they run out.',
+      'You add a card only when you press **Make it** on a real video or presentation: **Add your payment method** opens, then brings you back. Saving the card starts your free credits; nothing is charged until they run out.',
       'The optional Setup Wizard has 5 quick steps (you can press **Skip for now** on any of them):',
       '**1 — Profile:** Your name, company, phone, and role. This is your identity on the share page ("prepared by").',
       '**2 — Photo:** Upload a headshot (used on the cover). Mid-level and standing photos are optional.',
@@ -165,7 +170,7 @@ const ARTICLES: HelpArticle[] = [
       `**While you make something** — the top bar steps aside for a quieter one: **Home** on the left (your draft is saved as you go and waits on Home), the four step numbers in the middle, and **${NAMES.howToUse}** and your credits on the right. On a phone, the **?** button holds ${NAMES.howToUse} and the help assistant.`,
       `**Credits** — Your balance is the gold box in the top bar. It turns amber when fewer than ${n(CREDIT_COSTS.videoStandard)} are left (one standard video). Every creation spends credits (see Pricing). Click it (**+ Top Up**) to buy more.`,
       '**Create** — Home opens with six small tiles: **From a document**, **From a website**, **From an idea**, **Paste your text**, **A commercial** and **Your brand**. Each one opens the first step with that choice already made.',
-      `**${NAMES.newButton}** — Starts any new project too: a narrated video, an interactive presentation or a slide deck. Commercials and custom graphics also start from the links under the first step.`,
+      `**${NAMES.newButton}** — Starts any new project too: a narrated video or an interactive presentation. Commercials start from **A commercial** or the link under the first step.`,
       '**Today’s clients** — Who clicked to book a call, who watched, and who hasn’t opened what you sent, each with the next thing to do.',
       `**Recent** — Your latest work and where each one stands. Click **Continue** on a draft or **Open** on the rest, or go to **${NAMES.library}** for everything.`,
     ],
@@ -257,14 +262,26 @@ const ARTICLES: HelpArticle[] = [
     ],
   },
   {
+    id: 'videos-only',
+    title: 'Slide decks and custom graphics',
+    category: 'management',
+    icon: '🗂️',
+    content: [
+      'Docs2Video makes **narrated videos**, **interactive presentations** and **commercials**. It no longer makes new slide decks (the silent PDF / PowerPoint deck) or custom graphics (flyers, posters, social posts, banners, business cards).',
+      `Anything you made before is still yours: open the **${NAMES.library}** and press **Older items**. Older slide decks open their page as before — **Download**, share links and **Delete…** all still work. Older graphics open the picture in a new tab.`,
+      'Need slides for a meeting? Every presentation (and every video in a look that keeps slide pictures) has **PDF** and **PowerPoint** in its **Download** menu.',
+      'Old links to the deck and graphics makers now open Home.',
+    ],
+  },
+  {
     id: 'library',
     title: NAMES.library,
     category: 'management',
     icon: '📁',
     content: [
       `The **${NAMES.library}** (top bar) shows everything you\'ve made as picture cards: a picture, the name, a coloured status line (**Ready to send**, **Making…**, **Didn’t finish** or **Draft**), the date and who it’s for.`,
-      `Use the tabs to show ${LIBRARY_TABS}. The tab you pick stays chosen when you refresh.`,
-      '• **Press a card** to open it. Videos and presentations open their page, with the player, sending and downloads. **Graphics** open the image in a new tab.',
+      `Use the tabs to show ${LIBRARY_TABS}. The tab you pick stays chosen when you refresh. Slide decks and graphics you made before are under **Older items** — that tab only shows when you have some.`,
+      '• **Press a card** to open it. Videos and presentations open their page, with the player, sending and downloads. Older slide decks open their page too; older **Graphics** open the image in a new tab.',
       '• A ready video has a **Send** button that goes straight to sending it.',
       '• **Search by name or client**, change the order, or switch between **Cards** and **List** (the list is a table; your choice is remembered on this computer).',
       '• To delete, press **…** on the card, then **Delete…** — it asks first.',
@@ -280,8 +297,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'Everything is paid for with credits:',
       `• **Narrated video** — Short ${n(CREDIT_COSTS.videoQuick)} · Standard ${n(CREDIT_COSTS.videoStandard)} · Detailed ${n(CREDIT_COSTS.videoDetailed)} credits`,
-      `• **Interactive presentation** — ${n(CREDIT_COSTS.interactive)} credits (MP4 export ${n(CREDIT_COSTS.videoExport)}) · **Slide deck** — ${n(CREDIT_COSTS.deck)} · **Commercial** — ${n(CREDIT_COSTS.commercial)}`,
-      `• **Custom Graphics** — ${n(CREDIT_COSTS.flyer)} credits per design`,
+      `• **Interactive presentation** — ${n(CREDIT_COSTS.interactive)} credits (MP4 export ${n(CREDIT_COSTS.videoExport)}) · **Commercial** — ${n(CREDIT_COSTS.commercial)}`,
       'Plans include a monthly credit allowance (see Plans). You can buy more credits anytime with **+ Top Up** next to your balance.',
     ],
   },
@@ -348,7 +364,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '🛠️',
     content: [
       'Open it from your Library and use **Ask for a change** (under Ready to send). Pick **This scene** or the whole thing, type what you want or press a suggestion, then press the button.',
-      'It opens the editor that project uses: the slide editor for presentations and slide decks, **Fix a scene** for Slide Deck look videos, the **Scene editor** for other looks with slide pictures. A few looks can\'t be changed in place — the bar offers **Make a changed copy**.',
+      'It opens the editor that project uses: the slide editor for presentations (and older slide decks), **Fix a scene** for Slide Deck look videos, the **Scene editor** for other looks with slide pictures. A few looks can\'t be changed in place — the bar offers **Make a changed copy**.',
       `The first line of the bar says what a change costs. Changing spoken words costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per scene or slide on presentations and Slide Deck videos; fixing a voice glitch or a mispronounced word is free.`,
       'Your changes are listed under the bar with **Undo**. See **Changing a finished project** for more.',
     ],
@@ -606,8 +622,8 @@ export default function HelpPage() {
   // On a storefront that does not sell video, the help centre must not be a
   // list of video guides. Only what that customer can actually use.
   const guides = brand.showVideoFeatures
-    ? GUIDES
-    : GUIDES.filter((g) => ['/help/flyers', '/help/restyle-deck', '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
+    ? GUIDES.filter((g) => !TEXT2ART_ONLY_GUIDES.includes(g.href))
+    : GUIDES.filter((g) => [...TEXT2ART_ONLY_GUIDES, '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
 
   const filteredArticles = ARTICLES.filter(a => {
     if (search.trim()) {

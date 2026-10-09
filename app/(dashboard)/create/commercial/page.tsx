@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { normalizeUrl, tidyUrlInput } from '../../../_lib/normalize-url'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
@@ -71,7 +72,8 @@ export default function CreateCommercialPage() {
       .catch(() => {})
   }, [])
 
-  const validUrl = /^https?:\/\/.+\..+/i.test(url.trim())
+  // No one has to type https:// — "yourcompany.com" is fine (normalize-url.ts).
+  const validUrl = !!normalizeUrl(url)
   const sourceReady =
     source === 'url' ? validUrl :
     source === 'text' ? pasted.trim().length >= 40 :
@@ -84,7 +86,7 @@ export default function CreateCommercialPage() {
   // The render director accepts EITHER a url (it scrapes) or text (it uses directly).
   // pdf → extract to text; ai → a short brief the director expands from.
   async function resolveSource(): Promise<{ url?: string; text?: string } | null> {
-    if (source === 'url') return { url: url.trim() }
+    if (source === 'url') return { url: normalizeUrl(url) ?? url.trim() }
     if (source === 'text') return { text: pasted.trim() }
     if (source === 'ai') {
       // "AI writes it": the user gives a topic/brief; the director's comprehend+
@@ -192,7 +194,7 @@ export default function CreateCommercialPage() {
       {source === 'url' && (
         <label style={styles.label}>
           Website URL <span style={styles.req}>*</span>
-          <input style={styles.input} type="url" placeholder="https://yourcompany.com" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus />
+          <input style={styles.input} type="text" inputMode="url" autoComplete="url" placeholder="yourcompany.com" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={() => setUrl((v) => tidyUrlInput(v))} autoFocus />
           <span style={styles.hint}>We read your site and build the commercial from it.</span>
         </label>
       )}

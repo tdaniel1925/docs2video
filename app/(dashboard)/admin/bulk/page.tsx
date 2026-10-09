@@ -170,7 +170,7 @@ export default function BulkGeneratePage() {
 
       {mode === 'csv' && (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 24,
@@ -211,7 +211,7 @@ export default function BulkGeneratePage() {
 
       {mode === 'urls' && (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 24,
@@ -267,7 +267,7 @@ export default function BulkGeneratePage() {
       {/* Parsed items preview */}
       {items.length > 0 && (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 24,

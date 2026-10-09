@@ -43,7 +43,7 @@ export const KIND_NAMES: Record<LibraryKind, { one: string; many: string }> = {
   video: { one: 'Video', many: 'Videos' },
   presentation: { one: 'Presentation', many: 'Presentations' },
   deck: { one: 'Slide deck', many: 'Slide decks' },
-  graphic: { one: 'Graphic', many: 'Custom Graphics' },
+  graphic: { one: 'Graphic', many: 'Graphics' },
 }
 
 /**

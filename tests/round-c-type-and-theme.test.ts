@@ -158,7 +158,10 @@ describe('round C — light / dark', () => {
     expect(layout).toContain('<ThemeSync />')
     // The share page is not inside the dashboard layout, and wears no themed wrapper.
     expect(read('app/(public)/watch/[id]/page.tsx')).not.toContain('app-themed')
-    for (const p of ['admin/layout.tsx', 'design/layout.tsx', 'library/layout.tsx', 'pricing/layout.tsx', 'social-media/layout.tsx', 'flyers/layout.tsx', 'deck-builder/layout.tsx', 'fix/layout.tsx'])
+    // Still light: Text2Art's screens and the retired makers. Admin, pricing,
+    // AI Social and the photo fixer were checked in dark on 2026-10-09
+    // (tests/videos-only-dark.test.ts keeps their markers off).
+    for (const p of ['design/layout.tsx', 'library/layout.tsx', 'flyers/layout.tsx', 'deck-builder/layout.tsx'])
       expect(read(`app/(dashboard)/${p}`), p).toContain('<LightOnly />')
   })
 
@@ -174,9 +177,10 @@ describe('round C — light / dark', () => {
     for (const saved of [null, 'light', 'dark', 'system', 'nonsense']) for (const sys of [true, false]) {
       expect(run(saved, sys), `${saved}/${sys}`).toBe(resolveTheme(parsePref(saved), sys))
     }
-    expect(run('throw', true)).toBe('dark') // blocked storage = System
+    expect(run('throw', false)).toBe('dark') // blocked storage = the default, Dark
     expect(run('dark', 'throw')).toBe('dark')
-    expect(run(null, 'throw')).toBe('light')
+    expect(run(null, 'throw')).toBe('dark') // nothing picked = Dark (2026-10-09)
+    expect(run('light', 'throw')).toBe('light')
     expect(read('app/layout.tsx')).toMatch(/__html: THEME_BOOT_SCRIPT/)
   })
 

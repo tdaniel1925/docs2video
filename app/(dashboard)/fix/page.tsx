@@ -183,7 +183,7 @@ export default function PhotoFixerPage() {
               <button key={opt.id} onClick={() => setSelectedFix(opt.id)}
                 style={{
                   padding: '16px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'center',
-                  background: 'white', border: selectedFix === opt.id ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
+                  background: 'var(--bg-card)', border: selectedFix === opt.id ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
                   transition: 'all 0.15s',
                 }}>
                 <div style={{ fontSize: 24, marginBottom: 6 }}>{opt.icon}</div>
@@ -227,7 +227,7 @@ export default function PhotoFixerPage() {
       {/* Step 4: Result — Before/After */}
       {step === 'result' && !isHeadshotResult && originalImage && resultImage && (
         <div>
-          <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: 24, marginBottom: 16 }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 0, alignItems: 'stretch' }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Before</div>
@@ -259,7 +259,7 @@ export default function PhotoFixerPage() {
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16 }} className="headshot-grid">
             {headshotImages.map((img, i) => (
-              <div key={i} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: 10, textAlign: 'center', position: 'relative' }}>
+              <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 10, textAlign: 'center', position: 'relative' }}>
                 <label style={{ position: 'absolute', top: 8, left: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={selectedHeadshots[i] || false} onChange={() => toggleHeadshot(i)} style={{ width: 16, height: 16 }} />
                 </label>

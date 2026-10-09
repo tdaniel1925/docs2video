@@ -88,7 +88,7 @@ export default function GettingStartedPage() {
         <h2 style={H2}>Adding Your Payment Card</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 12 }}>
-            You add a card when you press <strong style={INK}>Make it</strong> on your first real video, presentation or slide deck. The page <strong style={INK}>Add your payment method</strong> opens, and after you save the card it takes you straight back to your project. The card unlocks your free credits. <strong style={INK}>Nothing is charged today.</strong> You can add it earlier with <strong style={INK}>Add a card</strong> on Home, or leave the card page with <strong style={INK}>Not now</strong>.
+            You add a card when you press <strong style={INK}>Make it</strong> on your first real video or presentation. The page <strong style={INK}>Add your payment method</strong> opens, and after you save the card it takes you straight back to your project. The card unlocks your free credits. <strong style={INK}>Nothing is charged today.</strong> You can add it earlier with <strong style={INK}>Add a card</strong> on Home, or leave the card page with <strong style={INK}>Not now</strong>.
           </p>
           <Row n={1}>
             <strong style={INK}>Choose a plan.</strong> Pick the plan you&rsquo;d like to move to once your free credits run out. You are only billed for it after they are used up.

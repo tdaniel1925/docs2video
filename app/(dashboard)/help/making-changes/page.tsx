@@ -69,7 +69,7 @@ export default function MakingChangesPage() {
         <h2 style={H2}>Where Each Change Goes</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 12 }}>
-            <strong style={INK}>Presentations and slide decks</strong> — the slide editor opens and tries your request straight away. Trying is free: you see the new slides before anything is rebuilt. Each AI change is listed with its own <strong style={INK}>Undo</strong>. When you&rsquo;re happy, the rebuild button shows the price first: free when only what the slides show changes, {n(CREDIT_COSTS['slide-scene-fix'])} credits for each slide whose spoken words change.
+            <strong style={INK}>Presentations (and older slide decks)</strong> — the slide editor opens and tries your request straight away. Trying is free: you see the new slides before anything is rebuilt. Each AI change is listed with its own <strong style={INK}>Undo</strong>. When you&rsquo;re happy, the rebuild button shows the price first: free when only what the slides show changes, {n(CREDIT_COSTS['slide-scene-fix'])} credits for each slide whose spoken words change.
           </p>
           <p style={{ marginBottom: 12 }}>
             <strong style={INK}>Videos in the Slide Deck look</strong> — <strong style={INK}>Fix a scene</strong> opens on the scene you chose. The suggestions pick the fix: <strong style={INK}>The voice glitched</strong> (free re-record), <strong style={INK}>A word is said wrong</strong> (free), or <strong style={INK}>Change what it says</strong> ({n(CREDIT_COSTS['slide-scene-fix'])} credits). You can hear the new voice for free before you apply it. With the whole video picked, describe the problem and it finds the scene.

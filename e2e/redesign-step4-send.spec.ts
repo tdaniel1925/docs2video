@@ -45,7 +45,9 @@ async function open(page: Page, opts: { quote?: unknown; mailbox?: boolean; row?
     if (route.request().method() !== 'GET') return route.fallback()
     const real = await route.fetch()
     const body = await real.json()
-    const patch = (v: Record<string, unknown>) => ({ ...v, source_pdf_path: 'e2e/plan.pdf', source_pdf_name: 'plan.pdf', client_id: null, recipient_name: 'Jordan Lee', ...saved, ...(opts.row ?? {}) })
+    // The draft's own client (step 1) is cleared too: a real video made for a
+    // saved client otherwise shows that client instead of the pretend one.
+    const patch = (v: Record<string, unknown>) => ({ ...v, draft_data: { ...((v.draft_data as Record<string, unknown> | null) ?? {}), clientId: null }, source_pdf_path: 'e2e/plan.pdf', source_pdf_name: 'plan.pdf', client_id: null, recipient_name: 'Jordan Lee', ...saved, ...(opts.row ?? {}) })
     await route.fulfill({ response: real, json: Array.isArray(body) ? body.map(patch) : patch(body) })
   })
   await page.route('**/rest/v1/quotes?**', (route) => route.request().method() === 'GET'

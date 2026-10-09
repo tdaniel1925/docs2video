@@ -63,9 +63,9 @@ describe('price-quote helper = the charge', () => {
     expect(quoteOutput(row, 'video', 'u1', { video: true, presentation: true }).total).toBe(0)
   })
 
-  it('offers the three products, plus pptx/pdf only for a project that already is one', () => {
-    expect(outputsOffered('video')).toEqual(['video', 'interactive', 'deck'])
-    expect(outputsOffered('pptx')).toEqual(['video', 'interactive', 'deck', 'pptx'])
+  it('offers a video or a presentation only — never a slide deck, PowerPoint or PDF (videos only, 2026-10-09)', () => {
+    expect(outputsOffered('video')).toEqual(['video', 'interactive'])
+    for (const old of ['deck', 'pptx', 'pdf']) expect(outputsOffered(old), old).toEqual(['video', 'interactive'])
   })
 })
 

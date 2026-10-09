@@ -74,7 +74,7 @@ export default function AdminBillingPage() {
   const subs = (data?.subscriptions ?? []).filter(s =>
     !search || s.email.toLowerCase().includes(search.toLowerCase()) || s.name.toLowerCase().includes(search.toLowerCase()))
 
-  const card: React.CSSProperties = { flex: 1, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: '16px 20px' }
+  const card: React.CSSProperties = { flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '16px 20px' }
   const th: React.CSSProperties = { textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-light)', padding: '10px 14px', whiteSpace: 'nowrap' }
   const td: React.CSSProperties = { padding: '10px 14px', fontSize: 13, borderTop: '1px solid var(--border-light)', verticalAlign: 'middle' }
 
@@ -111,9 +111,9 @@ export default function AdminBillingPage() {
       {loading ? (
         <p style={{ color: 'var(--ink-light)' }}>Loading…</p>
       ) : subs.length === 0 ? (
-        <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '48px', textAlign: 'center', color: 'var(--ink-soft)' }}>No subscriptions found.</div>
+        <div style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: 10, padding: '48px', textAlign: 'center', color: 'var(--ink-soft)' }}>No subscriptions found.</div>
       ) : (
-        <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
             <thead style={{ background: 'var(--bg-soft)' }}>
               <tr>

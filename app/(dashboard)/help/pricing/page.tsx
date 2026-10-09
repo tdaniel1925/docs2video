@@ -22,10 +22,6 @@ const COSTS: [string, string][] = [
   ['Interactive presentation', n(CREDIT_COSTS.interactive)],
   ['MP4 export of a presentation', n(CREDIT_COSTS.videoExport)],
   ['Commercial', n(CREDIT_COSTS.commercial)],
-  ['Custom Graphics (per design)', n(CREDIT_COSTS.flyer)],
-  ['Slide deck', n(CREDIT_COSTS.deck)],
-  ['PowerPoint (PPTX)', n(CREDIT_COSTS.pptx)],
-  ['PDF document', n(CREDIT_COSTS.pdf)],
   ['Each extra uploaded file', '+' + n(MULTI_FILE_SURCHARGE)],
   ['Custom style preview', n(CREDIT_COSTS.stylePreview)],
   // AI Social posting is priced by the social posting route, not credits.ts.
@@ -61,7 +57,7 @@ export default function PricingHelpPage() {
         </h2>
         <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
-            Every plan includes <strong style={{ color: 'var(--ink)' }}>monthly credits</strong>. Credits are used when you create videos, slide decks, or PDFs. Different actions cost different amounts of credits.
+            Every plan includes <strong style={{ color: 'var(--ink)' }}>monthly credits</strong>. Credits are used when you create videos, presentations and commercials. Different actions cost different amounts of credits.
           </p>
           <p style={{ marginBottom: 10 }}>
             Your credit balance is shown in the top menu bar. Before any action that uses credits, you&apos;ll see the cost and can confirm before proceeding.

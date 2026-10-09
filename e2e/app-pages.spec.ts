@@ -109,7 +109,7 @@ test.describe('Brands', () => {
     await page.getByPlaceholder('www.youragency.com').fill('northwind.example')
     await page.getByRole('button', { name: 'Analyze brand' }).click()
     await expect(page.locator('input[name="name"]')).toHaveValue('Northwind Insurance')
-    expect(asked).toEqual([{ url: 'northwind.example' }])
+    expect(asked).toEqual([{ url: 'https://northwind.example' }]) // https:// added for you (normalize-url.ts)
     await page.getByRole('link', { name: 'Cancel' }).click()
     await expect(page).toHaveURL(/\/brands$/)
   })
@@ -234,17 +234,25 @@ test.describe('Library (/videos)', () => {
     await page.getByRole('link', { name: 'Videos', exact: true }).click()
     await expect(page).toHaveURL(/\/videos\?type=video$/)
     await expect(page.getByRole('heading', { name: 'Videos', level: 1 })).toBeVisible()
-    // Presentations and slide decks have their own tabs, and the tab is kept
-    // in the address, so a refresh stays on it.
+    // Presentations have their own tab, and the tab is kept in the address,
+    // so a refresh stays on it. Slide decks and graphics are no longer made
+    // (videos-only, 2026-10-09): no tab of their own — the ones made before
+    // sit under "Older items" (only when the account has some), and the old
+    // addresses still land on just those.
     await page.getByRole('link', { name: 'Presentations', exact: true }).click()
     await expect(page).toHaveURL(/\/videos\?type=presentation$/)
-    await expect(page.getByRole('heading', { name: 'Presentations', level: 1 })).toBeVisible()
-    await page.getByRole('link', { name: 'Slide decks', exact: true }).click()
-    await expect(page).toHaveURL(/\/videos\?type=deck$/)
     await page.reload()
+    await expect(page.getByRole('heading', { name: 'Presentations', level: 1 })).toBeVisible()
+    const tabs = page.getByRole('navigation', { name: 'Show one kind' })
+    await expect(tabs.getByRole('link', { name: 'Slide decks', exact: true })).toHaveCount(0)
+    await expect(tabs.getByRole('link', { name: /Graphics/ })).toHaveCount(0)
+    if (await tabs.getByRole('link', { name: 'Older items', exact: true }).count()) {
+      await tabs.getByRole('link', { name: 'Older items', exact: true }).click()
+      await expect(page).toHaveURL(/\/videos\?type=older$/)
+      await expect(page.getByRole('heading', { name: 'Older items', level: 1 })).toBeVisible()
+    }
+    await page.goto('/videos?type=deck')
     await expect(page.getByRole('heading', { name: 'Slide decks', level: 1 })).toBeVisible()
-    await page.getByRole('link', { name: 'Custom Graphics', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Custom Graphics', level: 1 })).toBeVisible()
     await page.getByRole('link', { name: 'All', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible()
 

@@ -43,7 +43,7 @@ async function open(page: Page, draftOver: Record<string, unknown> = {}, q = quo
   return { draft, quotes }
 }
 
-const makeBtn = (page: Page) => page.getByRole('button', { name: /^(Make it|Make the deck|Starting…)/ })
+const makeBtn = (page: Page) => page.getByRole('button', { name: /^(Make it|Starting…)/ })
 const look = (page: Page, name: string) => page.getByRole('radiogroup', { name: 'The look' }).getByRole('radio', { name: new RegExp(name) })
 const panel = (page: Page) => page.getByRole('complementary', { name: 'The price' })
 
@@ -82,7 +82,10 @@ test.describe('Step 3 — the price is always the server’s', () => {
     await expect(makeBtn(page)).toHaveText('Make it — 240 credits')
     await expect(page.getByRole('radio', { name: /Narrated video/ })).toContainText('240 credits')
     await expect(page.getByRole('radio', { name: /Interactive presentation/ })).toContainText('150 credits')
-    await expect(page.getByRole('radio', { name: /Slide deck/ })).toContainText('90 credits')
+    // Slide decks are no longer made (videos-only, 2026-10-09) — even when the
+    // price answer still lists one, the screen doesn't offer it.
+    await expect(page.getByRole('radio', { name: /Slide deck/ })).toHaveCount(0)
+    await expect(page.getByRole('radiogroup', { name: 'What do you want to send?' }).getByRole('radio')).toHaveCount(2)
   })
 
   test('a price that cannot be worked out is said plainly and Make stays off', async ({ page }) => {
@@ -153,11 +156,15 @@ test.describe('Step 3 — choices', () => {
     await expect(page.getByRole('heading', { name: 'Length' })).toHaveCount(0)
     await expect(panel(page)).toContainText('Total150 credits')
     await expect(makeBtn(page)).toHaveText('Make it — 150 credits')
+    // A presentation has a share page too, so the client note is offered.
+    await expect(page.getByText('For your client')).toBeVisible()
+  })
 
-    await page.getByRole('radio', { name: /Slide deck/ }).click()
-    await expect(page.getByRole('heading', { name: 'The voice' })).toHaveCount(0)
-    await expect(page.getByText('For your client')).toHaveCount(0)
-    await expect(makeBtn(page)).toHaveText('Make the deck — 90 credits')
+  test('an old draft saved as a slide deck opens as a video (decks are no longer made)', async ({ page }) => {
+    await open(page, { outputType: 'deck' })
+    await expect(page.getByRole('radio', { name: /Narrated video/ })).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('radio', { name: /Slide deck/ })).toHaveCount(0)
+    await expect(makeBtn(page)).toHaveText('Make it — 240 credits')
   })
 
   test('look thumbnails load, pick a look, and the samples open larger', async ({ page }) => {
@@ -367,10 +374,10 @@ test.describe('Step 3 — Make it', () => {
     expect(draft.patches[0].updates).toMatchObject({ outputType: 'interactive', presentationTemplate: 'midnight', voiceId: 'fable' })
   })
 
-  test('a slide deck with a card needed goes to the card page without starting anything', async ({ page }) => {
+  test('a presentation with a card needed goes to the card page without starting anything', async ({ page }) => {
     await open(page, {}, quote({ blockedReason: 'card_required' }))
     await page.route('**/api/create-setup-intent', (route) => route.fulfill({ json: { clientSecret: 'seti_e2e_secret_x' } }))
-    await page.getByRole('radio', { name: /Slide deck/ }).click()
+    await page.getByRole('radio', { name: /Interactive presentation/ }).click()
     await makeBtn(page).click()
     await expect(page).toHaveURL(/\/setup-payment\?next=/)
     // guardRealWorld would have caught a call to generate-presentation.
@@ -378,12 +385,12 @@ test.describe('Step 3 — Make it', () => {
 
   test('presentation: not enough credits shows the top-up', async ({ page }) => {
     await open(page)
-    await page.getByRole('radio', { name: /Slide deck/ }).click()
-    await page.route('**/api/generate-presentation', (route) => route.fulfill({ status: 402, json: { code: 'insufficient_credits', error: 'Not enough credits for a slide deck.', needed: 90, balance: 10 } }))
+    await page.getByRole('radio', { name: /Interactive presentation/ }).click()
+    await page.route('**/api/generate-presentation', (route) => route.fulfill({ status: 402, json: { code: 'insufficient_credits', error: 'Not enough credits for a presentation.', needed: 150, balance: 10 } }))
     await makeBtn(page).click()
     await expect(page.getByRole('heading', { name: 'You need more credits' })).toBeVisible()
     await page.getByRole('button', { name: 'Not now' }).click()
-    await expect(panel(page).getByRole('alert')).toContainText('Not enough credits for a slide deck.')
+    await expect(panel(page).getByRole('alert')).toContainText('Not enough credits for a presentation.')
   })
 })
 

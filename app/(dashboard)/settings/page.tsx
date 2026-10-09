@@ -12,6 +12,7 @@ import { NAMES } from '../../_lib/names'
 import { updatePassword, updateEmail } from '../../_actions/auth'
 import { useToast } from '../../_components/Toast'
 import { cleanWebLink } from '../../_lib/url-validate'
+import { tidyUrlInput } from '../../_lib/normalize-url'
 import { Button, EmptyState, Note } from '../../_components/kit'
 import ViewAlertsSetting from '../activity/ViewAlertsSetting'
 import ApiKeysSection from './ApiKeysSection'
@@ -359,7 +360,7 @@ export default function SettingsPage() {
     if (!profile) return
     // Shown as a button on public share pages — plain web links only.
     const clean = cleanWebLink(calendlyUrl)
-    if (clean === null) { notify('Enter a booking link that starts with https://', 'error'); return }
+    if (clean === null) { notify('That doesn’t look like a booking link. Try something like calendly.com/your-name (it must be a secure https link).', 'error'); return }
     setCalendarySaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('profiles').update({ calendly_url: clean || null }).eq('id', profile.id)
@@ -374,7 +375,7 @@ export default function SettingsPage() {
     if (!profile) return
     // Shown as a "Pay" button on public share pages — plain web links only.
     const clean = cleanWebLink(paymentLink)
-    if (clean === null) { notify('Enter a payment link that starts with https://', 'error'); return }
+    if (clean === null) { notify('That doesn’t look like a payment link. Try something like buy.stripe.com/… (it must be a secure https link).', 'error'); return }
     setPaymentLinkSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('profiles').update({ payment_link_url: clean || null }).eq('id', profile.id)
@@ -466,7 +467,7 @@ export default function SettingsPage() {
           {storefront.showVideoFeatures && (
           <div className="settings-card">
             <h3>Appearance</h3>
-            <p className="ssub">Light, dark, or follow your computer. Saved on this browser. Share pages you send always stay light.</p>
+            <p className="ssub">Dark unless you pick otherwise: light, dark, or follow your computer (System). Saved on this browser. Share pages you send always stay light.</p>
             <ThemeChoice />
           </div>
           )}
@@ -736,11 +737,15 @@ export default function SettingsPage() {
                 booking page link, like the others. */}
             <div className={s.inputRow}>
               <input
+                type="text"
+                inputMode="url"
+                autoComplete="url"
                 value={calendlyUrl}
                 onChange={e => setCalendlyUrl(e.target.value)}
+                onBlur={() => setCalendlyUrl((v) => tidyUrlInput(v))}
                 className="input"
                 aria-label="Booking link"
-                placeholder={calendarProvider === 'calendly' ? 'https://calendly.com/your-name/30min' : calendarProvider === 'google' ? 'https://calendar.app.google/…' : 'https://cal.com/your-name'}
+                placeholder={calendarProvider === 'calendly' ? 'calendly.com/your-name/30min' : calendarProvider === 'google' ? 'calendar.app.google/…' : 'cal.com/your-name'}
               />
               <Button size="sm" onClick={saveCalendly} disabled={calendarySaving}>
                 {calendarySaving ? 'Saving…' : 'Save'}
@@ -770,10 +775,13 @@ export default function SettingsPage() {
                 <input
                   id="set-pay"
                   className="input"
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="url"
                   value={paymentLink}
                   onChange={e => setPaymentLink(e.target.value)}
-                  placeholder="https://buy.stripe.com/..."
+                  onBlur={() => setPaymentLink((v) => tidyUrlInput(v))}
+                  placeholder="buy.stripe.com/..."
                 />
                 <Button size="sm" onClick={savePaymentLink} disabled={paymentLinkSaving}>
                   {paymentLinkSaving ? 'Saving…' : 'Save'}

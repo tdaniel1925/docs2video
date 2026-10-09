@@ -17,7 +17,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-const tabs = [KIND_NAMES.video.many, KIND_NAMES.presentation.many, KIND_NAMES.deck.many, KIND_NAMES.graphic.many].join(', ')
+const tabs = [KIND_NAMES.video.many, KIND_NAMES.presentation.many].join(', ')
 
 export default function LibraryHelpPage() {
   return (
@@ -36,7 +36,7 @@ export default function LibraryHelpPage() {
       </div>
 
       <Section title="What a card shows">
-        <p>Each card has a picture of the project (its first slide or cover). If there is no picture yet you see a plain panel with an icon and what it is — a video, a presentation, a slide deck or a graphic.</p>
+        <p>Each card has a picture of the project (its first slide or cover). If there is no picture yet you see a plain panel with an icon and what it is — a video or a presentation (or, for older work, a slide deck or a graphic).</p>
         <p>Under the picture: the name, then a coloured line that says where it is:</p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li><strong>Ready to send</strong> (green) — finished. Videos show their length, like “Ready to send · 1:30”.</li>
@@ -48,13 +48,14 @@ export default function LibraryHelpPage() {
       </Section>
 
       <Section title="Open, send, delete">
-        <p><strong>Press a card</strong> to open it. Videos and presentations open their page with the player, sending and downloads. Graphics open the picture in a new tab.</p>
+        <p><strong>Press a card</strong> to open it. Videos and presentations open their page with the player, sending and downloads. Older slide decks open their page too; older graphics open the picture in a new tab.</p>
         <p>A ready video has a <strong>Send</strong> button on its picture. It takes you straight to the <strong>Ready to send</strong> panel on that video’s page, where you pick who gets it and press Send.</p>
         <p>To delete one, press the <strong>…</strong> button beside its name and choose <strong>Delete…</strong>. A box asks “Delete this for good?” — nothing is removed until you press <strong>Delete</strong> there. Deleting can’t be undone, and any link you sent stops working.</p>
       </Section>
 
       <Section title="Find something">
         <p><strong>Tabs</strong> show one kind: {tabs}, or All. The tab stays chosen when you refresh.</p>
+        <p><strong>Older items</strong> holds the slide decks and custom graphics you made before Docs2Video became videos-only. New ones can&rsquo;t be made, but these still open, download, share and delete. The tab only shows when you have some.</p>
         <p>Type in <strong>Search by name or client</strong> to find one by its name, the client it’s for, or its kind.</p>
         <p>The order box sorts by <strong>Newest first</strong>, <strong>Oldest first</strong> or <strong>Name A–Z</strong>.</p>
         <p>The two small buttons on the right switch between <strong>Cards</strong> and <strong>List</strong>. The list is a table with the type, the client, the status, the credits used and the date. Your choice is remembered on this computer.</p>

@@ -160,7 +160,7 @@ const s: Record<string, React.CSSProperties> = {
   loading: { textAlign: 'center', padding: 48, color: 'var(--ink-light)' },
   error: { textAlign: 'center', padding: 48, color: 'var(--error)' },
   grid4: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light)' },
+  card: { padding: 20, borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)' },
   cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 },
   cardValue: { fontSize: 28, fontWeight: 800, color: 'var(--ink)' },
   cardSub: { fontSize: 12, color: 'var(--ink-light)', marginTop: 2 },

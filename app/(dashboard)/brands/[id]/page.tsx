@@ -1,4 +1,5 @@
 'use client'
+import { tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
@@ -540,11 +541,14 @@ export default function EditBrandPage() {
                     onChange={(e) => setContactEmail(e.target.value)}
                   />
                   <input
-                    type="url"
+                    type="text"
+                    inputMode="url"
+                    autoComplete="url"
                     className="input"
-                    placeholder="Website URL"
+                    placeholder="Website (yourcompany.com)"
                     value={contactWebsite}
                     onChange={(e) => setContactWebsite(e.target.value)}
+                    onBlur={() => setContactWebsite((v) => tidyUrlInput(v))}
                   />
                 </div>
               </div>
@@ -565,8 +569,12 @@ export default function EditBrandPage() {
             <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
             <input
               name="logo_url"
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
               defaultValue={brand.logo_url ?? ''}
+              onBlur={(e) => { e.currentTarget.value = tidyUrlInput(e.currentTarget.value) }}
+              placeholder="yourcompany.com/logo.png"
               className="input"
             />
           </div>
@@ -834,9 +842,16 @@ export default function EditBrandPage() {
                 setWebsiteUrl(e.target.value)
                 setSocialLinks((prev) => ({ ...prev, website: e.target.value }))
               }}
+              onBlur={() => {
+                const v = tidyUrlInput(websiteUrl)
+                setWebsiteUrl(v)
+                setSocialLinks((prev) => ({ ...prev, website: v }))
+              }}
               className="input"
-              type="url"
-              placeholder="https://example.com"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              placeholder="yourcompany.com"
             />
           </div>
 
@@ -847,7 +862,9 @@ export default function EditBrandPage() {
                 value={socialLinks.linkedin ?? ''}
                 onChange={(e) => setSocialLinks((prev) => ({ ...prev, linkedin: e.target.value }))}
                 className="input"
-                placeholder="https://linkedin.com/company/..."
+                placeholder="linkedin.com/company/..."
+                inputMode="url"
+                onBlur={() => setSocialLinks((prev) => ({ ...prev, linkedin: tidyUrlInput(prev.linkedin ?? '') }))}
               />
             </div>
             <div className="form-group">
@@ -856,7 +873,9 @@ export default function EditBrandPage() {
                 value={socialLinks.twitter ?? ''}
                 onChange={(e) => setSocialLinks((prev) => ({ ...prev, twitter: e.target.value }))}
                 className="input"
-                placeholder="https://x.com/..."
+                placeholder="x.com/..."
+                inputMode="url"
+                onBlur={() => setSocialLinks((prev) => ({ ...prev, twitter: tidyUrlInput(prev.twitter ?? '') }))}
               />
             </div>
           </div>
@@ -868,7 +887,9 @@ export default function EditBrandPage() {
                 value={socialLinks.instagram ?? ''}
                 onChange={(e) => setSocialLinks((prev) => ({ ...prev, instagram: e.target.value }))}
                 className="input"
-                placeholder="https://instagram.com/..."
+                placeholder="instagram.com/..."
+                inputMode="url"
+                onBlur={() => setSocialLinks((prev) => ({ ...prev, instagram: tidyUrlInput(prev.instagram ?? '') }))}
               />
             </div>
             <div className="form-group">
@@ -877,7 +898,9 @@ export default function EditBrandPage() {
                 value={socialLinks.facebook ?? ''}
                 onChange={(e) => setSocialLinks((prev) => ({ ...prev, facebook: e.target.value }))}
                 className="input"
-                placeholder="https://facebook.com/..."
+                placeholder="facebook.com/..."
+                inputMode="url"
+                onBlur={() => setSocialLinks((prev) => ({ ...prev, facebook: tidyUrlInput(prev.facebook ?? '') }))}
               />
             </div>
           </div>

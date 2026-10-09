@@ -102,7 +102,7 @@ export default function Library({ items, emptyLabel = null }: { items: LibraryIt
         title={emptyLabel ? `No ${emptyLabel} yet` : 'Nothing here yet'}
         actions={<Button href="/create/start">{NAMES.newButton}</Button>}
       >
-        Everything you make shows up here — videos, presentations, slide decks and more.
+        Everything you make shows up here — videos, presentations and commercials.
       </EmptyState>
     )
   }

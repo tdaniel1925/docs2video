@@ -324,7 +324,7 @@ export default function SocialMediaPage() {
       </div>
 
       {statusMsg && (
-        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? 'var(--error-bg)' : 'rgba(199,232,168,0.2)', color: statusMsg.type === 'error' ? 'var(--error-text)' : 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? 'var(--error-bg)' : 'var(--success-bg)', color: statusMsg.type === 'error' ? 'var(--error-text)' : 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {statusMsg.text}
           <button onClick={() => setStatusMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'inherit', lineHeight: 1 }}>&times;</button>
         </div>
@@ -396,7 +396,7 @@ export default function SocialMediaPage() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '4px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                    background: 'rgba(199,232,168,0.2)', color: 'var(--ink)',
+                    background: 'var(--accent-soft)', color: 'var(--ink)',
                   }}
                 >
                   {topic}
@@ -475,13 +475,13 @@ export default function SocialMediaPage() {
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '8px 14px', borderRadius: 10,
                       border: isSelected ? `2px solid ${meta.color}` : '1px solid var(--border-light)',
-                      background: isSelected ? `${meta.color}10` : 'white',
+                      background: isSelected ? `${meta.color}10` : 'var(--bg-card)',
                       cursor: isConnected ? 'pointer' : 'not-allowed',
                       opacity: isConnected ? 1 : 0.4,
                       fontSize: 13, fontWeight: 600, color: 'var(--ink)',
                     }}
                   >
-                    <span style={{ width: 24, height: 24, borderRadius: 6, background: `${meta.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: meta.color }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>
                       {meta.icon}
                     </span>
                     {meta.label}
@@ -498,7 +498,7 @@ export default function SocialMediaPage() {
             <div className="settings-card" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={fromDesign.url} alt={fromDesign.title}
-                style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)' }} />
+                style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: 700, marginBottom: 2 }}>Posting your design</div>
                 <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: 0 }}>
@@ -544,7 +544,7 @@ export default function SocialMediaPage() {
                 return (
                   <div key={platform} className="settings-card">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 7, background: `${meta?.color || '#666'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: meta?.color || '#666' }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 7, background: meta?.color || '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>
                         {meta?.icon || platform[0].toUpperCase()}
                       </span>
                       <span style={{ fontWeight: 700, fontSize: 14 }}>{meta?.label || platform}</span>
@@ -572,7 +572,7 @@ export default function SocialMediaPage() {
           {postResult && (
             <div style={{
               marginTop: 16, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              background: postResult.includes('success') ? 'rgba(199,232,168,0.2)' : 'var(--error-bg)',
+              background: postResult.includes('success') ? 'var(--success-bg)' : 'var(--error-bg)',
               color: postResult.includes('success') ? 'var(--mint-darker)' : 'var(--error)',
             }}>
               {postResult}

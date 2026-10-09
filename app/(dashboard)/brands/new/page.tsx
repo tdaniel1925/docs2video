@@ -1,4 +1,5 @@
 'use client'
+import { normalizeUrl, tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
@@ -206,7 +207,7 @@ export default function NewBrandPage() {
       const res = await fetch('/api/scrape-brand', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: websiteUrl }),
+        body: JSON.stringify({ url: normalizeUrl(websiteUrl) ?? websiteUrl.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Scraping failed')
@@ -316,6 +317,9 @@ export default function NewBrandPage() {
           <input
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
+            onBlur={() => setWebsiteUrl((v) => tidyUrlInput(v))}
+            inputMode="url"
+            autoComplete="url"
             className="input"
             placeholder="www.youragency.com"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleScrape() } }}
@@ -727,11 +731,14 @@ export default function NewBrandPage() {
                     onChange={(e) => setContactEmail(e.target.value)}
                   />
                   <input
-                    type="url"
+                    type="text"
+                    inputMode="url"
+                    autoComplete="url"
                     className="input"
-                    placeholder="Website URL"
+                    placeholder="Website (yourcompany.com)"
                     value={contactWebsite}
                     onChange={(e) => setContactWebsite(e.target.value)}
+                    onBlur={() => setContactWebsite((v) => tidyUrlInput(v))}
                   />
                 </div>
               </div>
@@ -744,22 +751,26 @@ export default function NewBrandPage() {
           <input type="hidden" name="show_logo" value={showLogo ? 'true' : 'false'} />
           <div className="form-group">
             <label className="input-label">Logo URL <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
-            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '-2px 0 8px' }}>{storefront.showVideoFeatures ? 'Used on slide decks and client emails. Videos use text branding only.' : 'Placed on your designs. Upload the real thing — a logo is never drawn from your name.'}</p>
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '-2px 0 8px' }}>{storefront.showVideoFeatures ? 'Used on presentations and client emails. Videos use text branding only.' : 'Placed on your designs. Upload the real thing — a logo is never drawn from your name.'}</p>
             <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
               <input
                 name="logo_url"
-                type="url"
+                type="text"
+                inputMode="url"
                 className="input"
-                placeholder="https://..."
+                placeholder="yourcompany.com/logo.png"
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
                 onBlur={async () => {
-                  if (!logoUrl || !logoUrl.startsWith('http') || userEditedAdvancedColors) return
+                  // No one has to type https:// (normalize-url.ts).
+                  const logoAddr = tidyUrlInput(logoUrl)
+                  if (logoAddr !== logoUrl) setLogoUrl(logoAddr)
+                  if (!logoAddr || !logoAddr.startsWith('http') || userEditedAdvancedColors) return
                   try {
                     const res = await fetch('/api/extract-logo-colors', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ imageUrl: logoUrl }),
+                      body: JSON.stringify({ imageUrl: logoAddr }),
                     })
                     if (res.ok) {
                       const extracted = await res.json()

@@ -26,14 +26,17 @@ import Workspace from '../_components/workspace/Workspace'
 import { clientLabel, factsFromDraft, lookName, voiceName } from '../_components/workspace/facts'
 import FirstScenePreview from '../_components/make/FirstScenePreview'
 import AddBrandPiece from '../_components/make/AddBrandPiece'
+import { D2V_OUTPUTS, d2vOutputs } from '../../../_lib/videos-only'
 
 type Draft = Record<string, any>
 type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
 
 const DEFAULT_VOICE = VOICE_OPTIONS[0].id // Sarah (nova) — CLAUDE.md rule 5
 
+// Docs2Video makes a narrated video or an interactive presentation (videos-only.ts).
+// An old draft saved as a slide deck / PowerPoint / PDF opens as a video.
 function normalizeOutput(v: unknown): MakeOutput | null {
-  return v === 'video' || v === 'pptx' || v === 'pdf' || v === 'interactive' || v === 'deck' ? v : null
+  return v === 'video' || v === 'interactive' ? v : null
 }
 
 export default function ThemePage() {
@@ -129,7 +132,7 @@ function MakeItYours() {
     return () => { alive = false }
   }, [videoId])
 
-  const isPres = output === 'interactive' || output === 'deck'
+  const isPres = output === 'interactive'
   const isVideo = output === 'video'
   const narrated = output === 'video' || output === 'interactive'
   const shown = quote?.options?.[output] ?? null
@@ -292,7 +295,7 @@ function MakeItYours() {
 
   const started = quote && !quote.startable
   const length = LENGTHS.find((l) => l.id === (quote?.detailLevel ?? draft?.detailLevel)) ?? null
-  const makeLabel = isPres ? (output === 'deck' ? 'Make the deck' : 'Make it') : 'Make it'
+  const makeLabel = 'Make it'
 
   // "Your video so far": the saved draft, with this screen's choices on top
   // (they're only saved when Make it is pressed, but the summary should
@@ -301,7 +304,7 @@ function MakeItYours() {
     client: clientLabel(draft) ?? (draft?.clientId ? 'Your client' : 'No client — general'),
     output,
     look: lookName(output, isPres ? presLook : videoLook),
-    voice: narrated ? voiceName(voiceId) : 'None — silent slides',
+    voice: voiceName(voiceId),
     price: { kind: 'quote', credits: shown?.total ?? null, free: shown?.free, loading: quoteLoading },
   })
 
@@ -382,7 +385,7 @@ function MakeItYours() {
               <span className={s.sectionHint}>pick one — each project makes one of these</span>
             </div>
             <OutputPicker
-              offered={quote?.offered ?? ['video', 'interactive', 'deck']}
+              offered={d2vOutputs(quote?.offered ?? D2V_OUTPUTS)}
               value={output}
               onChange={(o) => { setOutput(o); setError(null) }}
               options={quote?.options ?? null}
@@ -448,34 +451,32 @@ function MakeItYours() {
             </section>
           ) : null}
 
-          {/* Share-page extras. The slide deck is private (no share page). */}
-          {output !== 'deck' ? (
-            <section className={s.section}>
-              <details className={s.details} open={!!agentNote || allowSourceDownload}>
-                <summary>For your client <span className={s.sectionHint}>(optional)</span></summary>
-                {draft?.sourcePdfPath ? (
-                  <label className={s.toggleRow}>
-                    <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} />
-                    <span>
-                      <span className={s.toggleTitle}>Let them download the original PDF</span>
-                      <span className={s.toggleDesc}>Adds a “Download original document” button to the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.</span>
-                    </span>
-                  </label>
-                ) : null}
-                <label style={{ display: 'block', marginTop: 12 }}>
-                  <span className={s.toggleTitle}>A note to your client</span>
-                  <textarea
-                    className={s.textarea}
-                    value={agentNote}
-                    onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
-                    placeholder="A short personal message shown above it on the share page…"
-                    rows={3}
-                  />
-                  <span className={s.sectionHint}>{agentNote.length}/400</span>
+          {/* Share-page extras (videos and presentations both have a share page). */}
+          <section className={s.section}>
+            <details className={s.details} open={!!agentNote || allowSourceDownload}>
+              <summary>For your client <span className={s.sectionHint}>(optional)</span></summary>
+              {draft?.sourcePdfPath ? (
+                <label className={s.toggleRow}>
+                  <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} />
+                  <span>
+                    <span className={s.toggleTitle}>Let them download the original PDF</span>
+                    <span className={s.toggleDesc}>Adds a “Download original document” button to the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.</span>
+                  </span>
                 </label>
-              </details>
-            </section>
-          ) : null}
+              ) : null}
+              <label style={{ display: 'block', marginTop: 12 }}>
+                <span className={s.toggleTitle}>A note to your client</span>
+                <textarea
+                  className={s.textarea}
+                  value={agentNote}
+                  onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
+                  placeholder="A short personal message shown above it on the share page…"
+                  rows={3}
+                />
+                <span className={s.sectionHint}>{agentNote.length}/400</span>
+              </label>
+            </details>
+          </section>
         </div>
 
       </div>

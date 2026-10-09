@@ -61,7 +61,7 @@ export default function DownloadsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>When to use:</strong> Print handouts for in-person meetings. Attach to follow-up emails as a leave-behind. Use as a reference document when the video itself is not needed.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Press <strong style={{ color: 'var(--ink)' }}>Download</strong> and choose <strong style={{ color: 'var(--ink)' }}>PDF</strong>. For a video it is made from the slide pictures, so it only appears for looks that keep slide pictures; presentations and slide decks always have it.
+            <strong style={{ color: 'var(--ink)' }}>How to download:</strong> Press <strong style={{ color: 'var(--ink)' }}>Download</strong> and choose <strong style={{ color: 'var(--ink)' }}>PDF</strong>. For a video it is made from the slide pictures, so it only appears for looks that keep slide pictures; presentations (and slide decks made before) always have it.
           </p>
         </div>
       </div>

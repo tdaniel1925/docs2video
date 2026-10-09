@@ -40,7 +40,7 @@ function features(p: IndustryPageCopy): { title: string; description: string }[]
     { title: 'Your brand, your real logo', description: `Your uploaded logo (never an AI-drawn one), your colors, and your ${p.reader}’s name on the cover.` },
     { title: 'A share page, not just a file', description: 'One link that plays on any phone or laptop, with an optional booking button and a quote with your own payment link.' },
     { title: 'Know when they watch', description: 'Get an alert when your video is opened, so you can follow up while it’s fresh.' },
-    { title: 'Slides from the same work', description: 'Download the same story as a slide deck, as a PDF or PowerPoint.' },
+    { title: 'Slides from the same work', description: 'Download its slides as a PDF or PowerPoint for the meeting.' },
   )
   return list.slice(0, 4)
 }

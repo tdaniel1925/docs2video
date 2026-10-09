@@ -88,8 +88,8 @@ export const DOCS2VIDEO: Brand = {
   // "Dashboard" is gone — the logo goes Home. Brands moved here from the
   // account menu: every help article sends people there, and a menu item
   // behind your initial is hard to find.
-  // Custom Graphics is NOT in this nav. It is reachable from step 1 and from
-  // the Library, and a video product should not lead with a design tool.
+  // Docs2Video makes videos, presentations and commercials only (2026-10-09,
+  // videos-only.ts): no slide-deck or graphics maker is linked anywhere here.
   nav: [
     { href: '/videos', label: NAMES.library },
     { href: '/clients', label: NAMES.clients },

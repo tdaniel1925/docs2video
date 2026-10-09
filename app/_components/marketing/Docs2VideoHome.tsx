@@ -215,7 +215,7 @@ export default function Docs2VideoHome() {
               <div
                 className="mk-output-pic mk-deck"
                 role="img"
-                aria-label={`A slide deck page in the ${heritage.name} color set`}
+                aria-label={`A presentation slide in the ${heritage.name} color set`}
                 style={{ '--d-bg': heritage.swatch[0], '--d-ink': heritage.swatch[1], '--d-acc': heritage.swatch[2] } as React.CSSProperties}
               >
                 <span className="mk-deck-eyebrow">Summary</span>
@@ -223,8 +223,8 @@ export default function Docs2VideoHome() {
                 <span className="mk-deck-rule" />
                 <span className="mk-deck-cols"><i /><i /><i /></span>
               </div>
-              <h3>A slide deck</h3>
-              <p>The same story as slides for the meeting. Download it as a PDF or PowerPoint.</p>
+              <h3>Its slides, for the meeting</h3>
+              <p>Download a presentation&rsquo;s slides as a PDF or PowerPoint to take into the room.</p>
             </div>
           </div>
         </section>

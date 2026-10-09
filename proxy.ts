@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { isPublicPath, legacyRedirect } from './app/_lib/public-paths'
 import { safeNextPath } from './app/_lib/safe-redirect'
+import { brandFromHost } from './app/_lib/brand'
+import { isRetiredMakerCall, retiredPageRedirect, RETIRED_MESSAGE } from './app/_lib/videos-only'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -18,6 +20,19 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = legacy
     return NextResponse.redirect(url, 308)
+  }
+
+  // VIDEOS ONLY (2026-10-09, app/_lib/videos-only.ts): on Docs2Video the old
+  // addresses of the slide-deck and graphics makers go Home (or to the
+  // Library's older items). Text2Art's host is untouched.
+  const brand = brandFromHost(request.headers.get('x-forwarded-host') ?? request.headers.get('host'))
+  const retiredTo = retiredPageRedirect(pathname, brand.id)
+  if (retiredTo) {
+    const q = retiredTo.indexOf('?')
+    const url = request.nextUrl.clone()
+    url.pathname = q >= 0 ? retiredTo.slice(0, q) : retiredTo
+    url.search = q >= 0 ? retiredTo.slice(q) : ''
+    return NextResponse.redirect(url)
   }
   let response = NextResponse.next({ request })
 
@@ -69,6 +84,12 @@ export async function proxy(request: NextRequest) {
     let diff = 0
     for (let i = 0; i < internalSecret.length; i++) diff |= internalSecret.charCodeAt(i) ^ reqInternal.charCodeAt(i)
     if (diff === 0) return response
+  }
+
+  // VIDEOS ONLY: a browser call that would start a new deck or graphic on
+  // Docs2Video is refused in plain words (the server's own calls passed above).
+  if (isRetiredMakerCall(pathname, request.method, brand.id)) {
+    return NextResponse.json({ error: RETIRED_MESSAGE, code: 'retired' }, { status: 410 })
   }
 
   // Redirect unauthenticated users away from protected pages. The allow-list

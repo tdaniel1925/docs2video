@@ -78,7 +78,7 @@ export default function CreatingVideosPage() {
           <strong style={INK}>Where should the content come from?</strong> — Pick one:
         </p>
         <p style={P}>
-          <strong style={INK}>Website URL</strong> — type a web address and the AI reads the page.{' '}
+          <strong style={INK}>Website URL</strong> — type a web address (just <em>yourcompany.com</em> is fine — no need for https://) and the AI reads the page.{' '}
           <strong style={INK}>Upload file</strong> — up to 5 files: PDF, Word (DOCX), PowerPoint (PPTX), text (TXT), CSV or Excel (XLSX).{' '}
           <strong style={INK}>Paste text</strong> — notes, an email or an article (at least 50 characters).{' '}
           <strong style={INK}>AI writes it</strong> — the AI writes the content from your goal.
@@ -154,9 +154,9 @@ export default function CreatingVideosPage() {
           <strong style={INK}>Not now</strong> closes it; <strong style={INK}>More brand options</strong> adds a photo and contact details.
         </p>
         <p style={P}>
-          <strong style={INK}>What do you want to send?</strong> — a <strong style={INK}>Narrated video</strong>, an{' '}
-          <strong style={INK}>Interactive presentation</strong> (they click through at their own pace, with narration) or a{' '}
-          <strong style={INK}>Slide deck</strong> (silent slides, download as PDF or PowerPoint). Each shows its price.
+          <strong style={INK}>What do you want to send?</strong> — a <strong style={INK}>Narrated video</strong> or an{' '}
+          <strong style={INK}>Interactive presentation</strong> (they click through at their own pace, with narration). Each shows its price.
+          Docs2Video no longer makes silent slide decks; a presentation&rsquo;s slides still download as PDF or PowerPoint.
         </p>
         <p style={P}>
           <strong style={INK}>The look</strong> — for a video: <strong style={INK}>Slide Deck</strong> (recommended), <strong style={INK}>Aurora</strong>,{' '}

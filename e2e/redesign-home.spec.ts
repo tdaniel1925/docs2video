@@ -53,7 +53,7 @@ test('the Create tiles come first, and each opens step 1 with its source already
   // What each source shows on step 1 once it is picked.
   const cases: [RegExp, string, (p: Page) => ReturnType<Page['getByText']>][] = [
     [/^From a document/, 'upload', (p) => p.getByText('Click to upload')],
-    [/^From a website/, 'url', (p) => p.getByPlaceholder('https://example.com')],
+    [/^From a website/, 'url', (p) => p.getByPlaceholder('yourcompany.com')],
     [/^From an idea/, 'ai', (p) => p.getByText('AI will generate content based on your description above.')],
   ]
   for (const [name, source, shown] of cases) {
@@ -82,7 +82,7 @@ test('step 1 without ?source starts with nothing picked', async ({ page }) => {
   await page.goto('/create')
   await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
   await expect(page.getByText('Click to upload')).toHaveCount(0)
-  await expect(page.getByPlaceholder('https://example.com')).toHaveCount(0)
+  await expect(page.getByPlaceholder('yourcompany.com')).toHaveCount(0)
 })
 
 test('This month shows the real credit balance and links to plans', async ({ page }) => {

@@ -349,13 +349,13 @@ export default function AdminUserDetailPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  statCard: { padding: '14px 16px', borderRadius: 10, background: 'white', border: '1px solid var(--border-light)', textAlign: 'center' },
+  statCard: { padding: '14px 16px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', textAlign: 'center' },
   statLabel: { fontSize: 11, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 },
   statValue: { fontSize: 22, fontWeight: 800, color: 'var(--ink)' },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light)' },
+  card: { padding: 20, borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)' },
   cardTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--ink)' },
   label: { fontWeight: 600, color: 'var(--ink-light)' },
-  videoCard: { borderRadius: 10, background: 'white', border: '1px solid var(--border-light)', overflow: 'hidden' },
+  videoCard: { borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflow: 'hidden' },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, color: 'var(--ink-light)', fontSize: 11, textTransform: 'uppercase' },
   td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light)', color: 'var(--ink)' },
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { createClient } from '../../_lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
 import FirecrawlApp from '@mendable/firecrawl-js'
@@ -87,10 +88,11 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
-  const { url } = body as { url: string }
+  // No one has to type https:// — "botmakers.ai" is fine (normalize-url.ts).
+  const url = normalizeUrl((body as { url?: unknown })?.url)
 
   if (!url || typeof url !== 'string') {
-    return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+    return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com' }, { status: 400 })
   }
 
   // Basic URL validation

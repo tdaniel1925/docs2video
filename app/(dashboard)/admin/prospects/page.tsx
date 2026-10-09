@@ -167,7 +167,7 @@ export default function ProspectsPage() {
           ['Sent', counts.sent, 'var(--link)'],
           ['Failed', counts.failed, 'var(--error-text)'],
         ].map(([label, n, color]) => (
-          <div key={label as string} style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: '10px 16px', minWidth: 92 }}>
+          <div key={label as string} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '10px 16px', minWidth: 92 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: color as string, lineHeight: 1 }}>{n as number}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{label as string}</div>
           </div>
@@ -175,7 +175,7 @@ export default function ProspectsPage() {
       </div>
 
       {/* Generate new (batch) */}
-      <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 18, marginBottom: 24 }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 18, marginBottom: 24 }}>
         <label className="input-label" style={{ display: 'block', marginBottom: 6 }}>Generate demos — paste one or more website URLs (one per line)</label>
         <textarea
           className="input" rows={3} value={urlsInput} onChange={e => setUrlsInput(e.target.value)}
@@ -201,7 +201,7 @@ export default function ProspectsPage() {
             const pct = Math.max(0, Math.min(100, p.progress_pct ?? 0))
             const busy = busyId === p.id
             return (
-              <div key={p.id} style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 16, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+              <div key={p.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 16, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 {/* Thumb */}
                 <div style={{ width: 120, height: 68, borderRadius: 8, background: 'var(--surface)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {p.thumbnail_url
@@ -263,7 +263,7 @@ export default function ProspectsPage() {
       {/* Send modal */}
       {sendModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(6px)' }}>
-          <div style={{ width: '100%', maxWidth: 440, background: 'white', borderRadius: 10, padding: 28 }}>
+          <div style={{ width: '100%', maxWidth: 440, background: 'var(--bg-card)', borderRadius: 10, padding: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Send demo to {sendModal.company_name || 'prospect'}</h2>
               <button onClick={() => setSendModal(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-light)' }}>&times;</button>

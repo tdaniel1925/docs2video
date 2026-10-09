@@ -43,7 +43,9 @@ export type HowToEntry = HowToGuide & {
   routes: string[]
 }
 
-const LIBRARY_TABS = ['All', ...(['video', 'presentation', 'deck', 'graphic'] as const).map((k) => KIND_NAMES[k].many)]
+// Docs2Video makes videos and presentations (videos-only.ts); slide decks and
+// graphics made before sit under "Older items", shown only when there are any.
+const LIBRARY_TABS = ['All', ...(['video', 'presentation'] as const).map((k) => KIND_NAMES[k].many)]
   .map((t) => `**${t}**`).join(', ')
 
 export const HOW_TO: HowToEntry[] = [
@@ -72,7 +74,7 @@ export const HOW_TO: HowToEntry[] = [
       'Under **Where should the content come from?**, pick **Website URL**, **Upload file** (up to 5 files), **Paste text** or **AI writes it** — then add the link, the file or the text.',
       'Press **Read it and plan the story →**. If something is missing, the button says what — press **Show me** to jump to it. While it reads, each stage gets a tick as it really finishes.',
       '**Here’s what we read** shows **What it says**, **The one point** and **The numbers we’ll use** — exactly as they’ll go into the story. Fix anything that’s off (or **Remove** a number), then press **Looks right — write the story →**. **← Change what I gave you** goes back. **Your video so far**, beside the page, keeps every choice and the price.',
-      'Making custom graphics or a commercial instead? Use the links under **Making something else?**',
+      'Making a commercial instead? Press **Start a commercial** at the bottom.',
     ],
     helpHref: '/help/creating-videos',
     asks: ['Which files can I upload?', 'Can it read my website instead?', 'Is anything charged on this step?', 'What if it read a number wrong?'],
@@ -112,7 +114,7 @@ export const HOW_TO: HowToEntry[] = [
     intro: 'Pick what to send, the look and the voice. The price is on the button.',
     steps: [
       'The line at the top shows the brand it will use. Press **Change** to pick another. No brand yet? Press **Add your brand**: type your name, upload your logo and pick your colours right here — **Fill in from it** reads them from your website. **Save my brand** keeps it for every new project.',
-      'Under **What do you want to send?**, pick **Narrated video**, **Interactive presentation** or **Slide deck**. Each shows what it costs.',
+      'Under **What do you want to send?**, pick **Narrated video** or **Interactive presentation**. Each shows what it costs.',
       'Pick **The look**. For a video or presentation, pick **The voice** too — press ▶ to hear one. A video can also have **Background music**.',
       'Optional: open **For your client (optional)** to write **A note to your client**.',
       'Press **See a free preview** to see the first scene in your look and hear the voice — free, a few a day, no card needed. Then check **The price** and press **Make it**. The price is on the button, and **This is the only button that spends credits.** No card yet? Make it takes you to add one, then brings you back.',
@@ -171,7 +173,7 @@ export const HOW_TO: HowToEntry[] = [
     title: NAMES.library,
     intro: 'Everything you’ve made, as picture cards.',
     steps: [
-      `Use the tabs — ${LIBRARY_TABS} — to show one kind.`,
+      `Use the tabs — ${LIBRARY_TABS} — to show one kind. Slide decks and graphics made before are under **Older items** (only there when you have some); they still open, download and share.`,
       'Each card shows a picture, the name and a coloured line that says where it is: **Ready to send**, **Making…** or **Didn’t finish**, plus the date and who it’s for.',
       'Press a card to open it. On a ready video, press **Send** to go straight to sending it.',
       'Type in **Search by name or client** to find one, change the order with **Newest first**, or switch between **Cards** and **List** (it remembers your choice on this computer).',
@@ -180,7 +182,7 @@ export const HOW_TO: HowToEntry[] = [
     ],
     helpHref: '/help/library',
     asks: ['How do I find an older project?', 'How do I send a finished video from here?', 'How do I delete one?', 'Can I get my credits back if one failed?'],
-    sources: ['app/(dashboard)/videos/page.tsx', 'app/(dashboard)/videos/Library.tsx', 'app/(dashboard)/videos/CardMenu.tsx', 'app/(dashboard)/videos/LibraryTable.tsx', 'app/(dashboard)/videos/library-items.ts'],
+    sources: ['app/(dashboard)/videos/page.tsx', 'app/(dashboard)/videos/library-tabs.ts', 'app/(dashboard)/videos/Library.tsx', 'app/(dashboard)/videos/CardMenu.tsx', 'app/(dashboard)/videos/LibraryTable.tsx', 'app/(dashboard)/videos/library-items.ts'],
   },
   {
     routes: ['/brands', '/brands/new', '/brands/[id]'],
@@ -215,7 +217,7 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Settings',
     intro: 'Your account: pick a part from the menu on the left (a row at the top on a phone).',
     steps: [
-      '**Profile** — your name, company, phone and role (press **Save changes**), your sign-in email and password, your photos, your API keys and **Appearance** (System, Light or Dark — this browser only; share pages stay light). **Run the setup again** walks you through setup; **Delete account** is at the very bottom.',
+      '**Profile** — your name, company, phone and role (press **Save changes**), your sign-in email and password, your photos, your API keys and **Appearance** (System, Light or Dark — Dark unless you pick otherwise; this browser only; share pages stay light). **Run the setup again** walks you through setup; **Delete account** is at the very bottom.',
       '**Billing & credits** — three boxes show your plan, your credits and what you used this period. Below them are the plans, the **Credit packs** and your invoices (**Manage billing & invoices**).',
       '**Brand kit** — your default brand: change its logo or colors, or see all your brands.',
       '**Email & sending** — connect your email so sends come from you, and add your booking link, your Stripe payment link and your view alerts. Links must start with https://.',
@@ -232,7 +234,7 @@ export const GETTING_AROUND: HowToGuide = {
   title: 'Getting around',
   intro: 'What the top bar does, on every screen.',
   steps: [
-    `**${NAMES.newButton}** starts something new: a video, a presentation or a slide deck.`,
+    `**${NAMES.newButton}** starts something new: a video or a presentation.`,
     `**${NAMES.library}** has everything you’ve made. **${NAMES.clients}** are the people you send to. **${NAMES.brands}** are your logos and colors.`,
     'Your credits are the gold box. Press it to top up.',
     'Press your initial at the top right for your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center, a Dark mode / Light mode switch and Sign out.',

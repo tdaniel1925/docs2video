@@ -109,7 +109,7 @@ export default function AdminBillingHealthPage() {
     }
   }
 
-  const card: React.CSSProperties = { flex: 1, minWidth: 150, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: '16px 20px' }
+  const card: React.CSSProperties = { flex: 1, minWidth: 150, background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '16px 20px' }
   const th: React.CSSProperties = { textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-light)', padding: '10px 14px', whiteSpace: 'nowrap' }
   const td: React.CSSProperties = { padding: '10px 14px', fontSize: 13, borderTop: '1px solid var(--border-light)', verticalAlign: 'middle' }
 
@@ -148,12 +148,12 @@ export default function AdminBillingHealthPage() {
         const rows = (data?.drift ?? []).filter(r => showDismissed || !r.dismissed)
         if (loading) return <p style={{ color: 'var(--ink-light)' }}>Cross-referencing every profile against live Stripe…</p>
         if (!data || rows.length === 0) return (
-          <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: 48, textAlign: 'center', color: 'var(--ink-soft)' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: 10, padding: 48, textAlign: 'center', color: 'var(--ink-soft)' }}>
             ✓ No active drift — every plan flag matches Stripe{data && data.dismissedCount > 0 ? ' (dismissed comps excluded)' : ''}.
           </div>
         )
         return (
-        <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
             <thead style={{ background: 'var(--bg-soft)' }}>
               <tr>

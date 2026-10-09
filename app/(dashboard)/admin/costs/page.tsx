@@ -83,17 +83,17 @@ export default function CostsPage() {
           <h2 style={s.sectionTitle}>Cost by Provider (30 days)</h2>
           <div style={s.grid3}>
             <div style={s.providerCard}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#7C3AED' }}>Anthropic (Claude)</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #7C3AED', paddingLeft: 8 }}>Anthropic (Claude)</div>
               <div style={{ fontSize: 24, fontWeight: 800 }}>{fmt(breakdown.anthropic)}</div>
               <div style={s.cardSub}>Script generation + analysis</div>
             </div>
             <div style={s.providerCard}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563EB' }}>Google (Gemini + Lyria)</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #2563EB', paddingLeft: 8 }}>Google (Gemini + Lyria)</div>
               <div style={{ fontSize: 24, fontWeight: 800 }}>{fmt(breakdown.google)}</div>
               <div style={s.cardSub}>Slides + music</div>
             </div>
             <div style={s.providerCard}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>OpenAI (TTS + Extract)</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #059669', paddingLeft: 8 }}>OpenAI (TTS + Extract)</div>
               <div style={{ fontSize: 24, fontWeight: 800 }}>{fmt(breakdown.openai)}</div>
               <div style={s.cardSub}>Voice + document extraction</div>
             </div>
@@ -173,7 +173,7 @@ const s: Record<string, React.CSSProperties> = {
   error: { textAlign: 'center', padding: 48, color: 'var(--error)' },
   grid4: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
   grid3: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light)' },
+  card: { padding: 20, borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)' },
   cardLabel: { fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 },
   cardValue: { fontSize: 28, fontWeight: 800, color: 'var(--ink)' },
   cardSub: { fontSize: 12, color: 'var(--ink-light)', marginTop: 2 },

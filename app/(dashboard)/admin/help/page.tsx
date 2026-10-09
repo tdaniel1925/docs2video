@@ -305,7 +305,7 @@ export default function AdminHelpPage() {
             <div
               key={section.id}
               style={{
-                background: 'white',
+                background: 'var(--bg-card)',
                 border: '1px solid var(--border-light)',
                 borderRadius: 10,
                 overflow: 'hidden',

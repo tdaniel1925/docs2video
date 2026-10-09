@@ -143,9 +143,9 @@ export const INDUSTRY_PAGES: Record<string, IndustryPageCopy> = {
     audience: 'consultants',
     industryId: 'consulting',
     metaTitle: 'Docs2Video for Consulting | Deliverables Clients Actually Review',
-    metaDescription: 'Consultants: turn long reports and deliverables into short, branded, narrated walkthroughs — plus a slide deck from the same work.',
+    metaDescription: 'Consultants: turn long reports and deliverables into short, branded, narrated walkthroughs — plus an interactive presentation from the same work.',
     heroTitle: ['You spent weeks on that report. Make sure they ', 'get past page one'],
-    heroSub: 'Docs2Video turns a long deliverable into a short narrated walkthrough and a slide deck, both in your firm’s branding.',
+    heroSub: 'Docs2Video turns a long deliverable into a short narrated walkthrough or an interactive presentation, in your firm’s branding.',
     doc: 'report',
     reader: 'client',
     problems: [
@@ -160,9 +160,9 @@ export const INDUSTRY_PAGES: Record<string, IndustryPageCopy> = {
     audience: 'educators',
     industryId: 'education',
     metaTitle: 'Docs2Video for Education | Course Material as Narrated Video',
-    metaDescription: 'Educators and researchers: turn papers, reports and course material into short, narrated explainer videos and slide decks.',
+    metaDescription: 'Educators and researchers: turn papers, reports and course material into short, narrated explainer videos and interactive presentations.',
     heroTitle: ['Your material is valuable. Make it ', 'easy to take in'],
-    heroSub: 'Docs2Video turns a paper, report or course document into a short narrated explainer video and a slide deck you can download.',
+    heroSub: 'Docs2Video turns a paper, report or course document into a short narrated explainer video or an interactive presentation your students click through.',
     doc: 'course document',
     reader: 'student',
     problems: [

@@ -1,4 +1,5 @@
 'use client'
+import { tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -755,10 +756,10 @@ export default function BrandPage() {
                   style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none' }}
                 />
                 <input
-                  type="url"
+                  type="text" inputMode="url" autoComplete="url" onBlur={() => setWebsite((v) => tidyUrlInput(v))}
                   value={website}
                   onChange={e => { setWebsite(e.target.value); setSelectedBrandId(null) }}
-                  placeholder="Website URL"
+                  placeholder="Website (yourcompany.com)"
                   style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none' }}
                 />
               </div>
@@ -847,17 +848,17 @@ export default function BrandPage() {
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
             />
             <input
-              type="url"
+              type="text" inputMode="url" autoComplete="url"
               value={website}
               onChange={e => { setWebsite(e.target.value); setSelectedBrandId(null) }}
-              placeholder="Website URL"
+              placeholder="Website (yourcompany.com)"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
                 border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)',
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
               onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
-              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; setWebsite((v) => tidyUrlInput(v)) }}
             />
           </div>
         </div>

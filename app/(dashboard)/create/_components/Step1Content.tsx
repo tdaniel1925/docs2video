@@ -7,6 +7,7 @@ import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
 import ClientPicker, { type PickedClient } from './ClientPicker'
 import ReadReview, { type Figure } from './ReadReview'
 import { methodFromSource } from '../../../_lib/create-sources'
+import { normalizeUrl, tidyUrlInput } from '../../../_lib/normalize-url'
 import type { VideoBrief } from '../../../_lib/types'
 import { Button, Choices, Note } from '../../../_components/kit'
 import Workspace from './workspace/Workspace'
@@ -15,7 +16,7 @@ import Stages, { type Stage as ReadStage } from './workspace/Stages'
 import { sourceLabel } from './workspace/facts'
 import { usePriceQuote } from './make/usePriceQuote'
 
-type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
+type OutputType = 'video' | 'interactive'
 type InputMethod = 'url' | 'upload' | 'text' | 'idea' | null
 /* form → reading (real stages) → review ("Here's what we read") → step 2 */
 type Phase = 'form' | 'reading' | 'review'
@@ -84,14 +85,11 @@ export default function Step1Content() {
   const duplicateOf = searchParams.get('duplicate') || undefined
   const [copying, setCopying] = useState(!!duplicateOf)
   const copyStarted = useRef(false)
-  // Output type is chosen in Step 1 (/create/start) and passed via ?type.
-  // "slides" maps to the existing pptx pipeline; the result page offers both
-  // PDF and PowerPoint downloads. Default to video.
+  // ?type=interactive starts a presentation; anything else is a video.
+  // Old links with ?type=deck or ?type=slides (slide decks, PowerPoint/PDF)
+  // start a video now — Docs2Video no longer makes those (videos-only.ts).
   const wizType = searchParams.get('type')
-  const isSlides = wizType === 'slides'
-  const [outputType, setOutputType] = useState<OutputType>(
-    wizType === 'interactive' ? 'interactive' : wizType === 'deck' ? 'deck' : isSlides ? 'pptx' : 'video'
-  )
+  const [outputType, setOutputType] = useState<OutputType>(wizType === 'interactive' ? 'interactive' : 'video')
   const [recipientName, setRecipientName] = useState('')
   const [clientName, setClientName] = useState<string | null>(null) // bound client (read-only display)
   const [draftRestored, setDraftRestored] = useState(false) // gate client-name fetch behind draft restore
@@ -151,7 +149,7 @@ export default function Step1Content() {
         const d = video?.draft_data
         if (cancelled) return
         if (d) {
-          if (d.outputType) setOutputType(d.outputType)
+          if (d.outputType) setOutputType(d.outputType === 'interactive' ? 'interactive' : 'video')
           if (d.purpose) setPurpose(prev => prev || d.purpose)
           if (d.recipientName) setRecipientName(prev => prev || d.recipientName)
           if (d.contentMethod) setMethod(prev => prev || d.contentMethod)
@@ -224,7 +222,8 @@ export default function Step1Content() {
   function missingAnswer(): Missing | null {
     if (!purpose.trim()) return { reason: 'Describe what you want first', target: 's1-goal' }
     if (!method) return { reason: 'Pick where your content comes from (or choose "AI writes it")', target: 's1-source' }
-    if (method === 'url' && !urlInput.trim()) return { reason: 'Paste a URL to continue', target: 's1-url' }
+    if (method === 'url' && !urlInput.trim()) return { reason: 'Type or paste a website to continue', target: 's1-url' }
+    if (method === 'url' && !normalizeUrl(urlInput)) return { reason: 'That doesn’t look like a website — try something like yourcompany.com', target: 's1-url' }
     if (method === 'text' && textInput.trim().length < 50) return { reason: 'Paste at least 50 characters', target: 's1-text' }
     if (method === 'upload' && fileNames.length === 0) return { reason: 'Select a file to continue', target: 's1-file' }
     return null
@@ -355,8 +354,9 @@ export default function Step1Content() {
       let autoBrandInfo: Record<string, unknown> | null = null
 
       if (method === 'url') {
-        let cleanUrl = urlInput.trim()
-        if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = `https://${cleanUrl}`
+        // No one has to type https:// (normalize-url.ts).
+        const cleanUrl = normalizeUrl(urlInput)
+        if (!cleanUrl) throw new Error('That doesn’t look like a website — try something like yourcompany.com')
         next('read', cleanUrl.replace(/^https?:\/\//i, ''))
         const res = await fetch('/api/extract-url', {
           method: 'POST',
@@ -538,7 +538,7 @@ export default function Step1Content() {
             className="ws-input"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            placeholder={outputType === 'video' ? 'e.g. "Explain our services to potential clients" or "Train new agents on this product"' : outputType === 'pptx' ? 'e.g. "Summarize this report for executives" or "Create a sales pitch deck"' : 'e.g. "Turn this document into a client-ready PDF" or "Create a printable summary"'}
+            placeholder='e.g. "Explain our services to potential clients" or "Train new agents on this product"'
             rows={3}
             disabled={reading}
           />
@@ -555,7 +555,7 @@ export default function Step1Content() {
           />
 
           {method === 'url' && (
-            <input id="s1-url" type="url" className="ws-input s1-gap" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://example.com" aria-label="Website address" disabled={reading} />
+            <input id="s1-url" type="text" inputMode="url" autoComplete="url" className="ws-input s1-gap" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} onBlur={() => setUrlInput((v) => tidyUrlInput(v))} placeholder="yourcompany.com" aria-label="Website address" disabled={reading} />
           )}
 
           {method === 'upload' && (
@@ -611,7 +611,7 @@ export default function Step1Content() {
           {/* Other things this account can make — they used to be cards on a
               separate chooser page before this one. */}
           <span className="s1-hint">
-            Making something else? <a href="/design">Custom graphics</a>{' · '}<a href="/create/commercial">A commercial</a>
+            Making a commercial instead? <a href="/create/commercial">Start a commercial</a>
           </span>
         </div>
       </div>

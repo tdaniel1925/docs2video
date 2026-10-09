@@ -174,7 +174,7 @@ export default function HelpChatWidget() {
                     ? 'Ask me anything about making flyers, ads, social posts, banners or business cards — or about credits and billing.'
                     : guide.own
                       ? `Questions people ask on ${guide.title}:`
-                      : 'Ask me anything about videos, presentations, slide decks, custom graphics, billing, or any feature.'}
+                      : 'Ask me anything about videos, presentations, commercials, billing, or any feature.'}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {(brand.showVideoFeatures

@@ -123,13 +123,14 @@
 }
 
 /* DARK MODE (UI round C, 2026-10) — the same names, re-pointed once.
-   Who gets it: Docs2Video's signed-in screens only. The dashboard layout
-   wears .app-themed; pages that aren't ready for dark (admin, Text2Art's
-   design screens, the flyer and logo makers…) drop a [data-light-only]
-   marker and stay light. The share page /watch and the marketing site are
-   outside the dashboard, so they are always light. The choice (System /
-   Light / Dark) is set on <html data-theme> before the page paints — see
-   app/_components/theme.tsx.
+   Who gets it: Docs2Video's signed-in screens only — admin, pricing, AI
+   Social and the photo fixer included since 2026-10-09. The dashboard layout
+   wears .app-themed; the few pages never checked in dark (Text2Art's design
+   screens and library, the retired deck/flyer makers) drop a
+   [data-light-only] marker and stay light. The share page /watch and the
+   marketing site are outside the dashboard, so they are always light. The
+   choice (System / Light / Dark; nothing picked = Dark) is set on
+   <html data-theme> before the page paints — see app/_lib/theme-pref.ts.
    Navy and cream swap jobs: words are cream, the main button is a cream
    fill with navy words (--on-ink). Mint fills turn a deep green so cream
    words still read on them; --accent-ink (green words) turns light.
@@ -3215,7 +3216,7 @@ h1.hero-title em {
 .admin-shell { display: flex; gap: 28px; align-items: flex-start; }
 .admin-sidebar {
   width: 210px; flex-shrink: 0; position: sticky; top: 24px;
-  background: white; border: 1px solid var(--border-light); border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px;
   padding: 14px 10px; max-height: calc(100vh - 48px); overflow-y: auto;
 }
 .admin-content { flex: 1; min-width: 0; }
@@ -3235,6 +3236,9 @@ h1.hero-title em {
   .admin-shell { flex-direction: column; }
   .admin-sidebar { width: 100%; position: static; max-height: none; display: flex; flex-wrap: wrap; gap: 10px; }
   .admin-nav-group { margin: 0; }
+  /* Phones: wide admin tables and stat rows scroll inside the content box
+     instead of pushing the whole page sideways (checked at 375px, 2026-10-09). */
+  .admin-content { width: 100%; overflow-x: auto; }
 }
 
 /* ===== Custom Graphics picker feedback =====

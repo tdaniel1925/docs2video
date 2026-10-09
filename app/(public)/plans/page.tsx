@@ -9,7 +9,7 @@ import { PLANS } from '../../_lib/pricing'
 
 export const metadata: Metadata = {
   title: 'Pricing | Docs2Video',
-  description: 'Simple, credit-based pricing for turning documents into narrated client videos, slide decks and PDFs.',
+  description: 'Simple, credit-based pricing for turning documents into narrated client videos, interactive presentations and commercials.',
 }
 
 export default async function PublicPricingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -33,7 +33,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
     ...paidPlans.map(plan => ({
       key: plan.tier, name: plan.label, price: `$${plan.monthlyPrice / 100}`, perMonth: true, popular: plan.tier === 'pro',
       creditLine: `${plan.monthlyCredits.toLocaleString()} credits / mo`,
-      subLine: `~${plan.approxStandardVideos} standard videos · ~${Math.floor(plan.monthlyCredits / 600)} slide decks`,
+      subLine: `~${plan.approxStandardVideos} standard videos`,
       features: plan.features,
       cta: 'Get started',
     })),
@@ -51,7 +51,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
             Simple, credit-based pricing
           </h1>
           <p style={{ fontSize: 17, color: 'var(--ink-soft)', lineHeight: 1.6, maxWidth: 620, margin: '0 auto' }}>
-            One pool of credits for videos, slide decks, and PDFs. A standard video is 1,000 credits.
+            One pool of credits for videos, presentations and commercials. A standard video is 1,000 credits.
             Cancel anytime; credits reset each cycle. Top up whenever you need more.
           </p>
         </div>

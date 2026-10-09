@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { createClient } from '../../_lib/supabase/server'
 import { isSafePublicUrl, fetchPage, extractColors, extractLogoUrl } from '../../_lib/brand-scraper'
 
@@ -96,10 +97,10 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
 
   const body = await req.json().catch(() => null) as { url?: string } | null
-  let url = String(body?.url ?? '').trim()
-  if (!url) return NextResponse.json({ error: 'No address given' }, { status: 400 })
-  // People paste "northsideheating.com", not "https://northsideheating.com".
-  if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+  if (!String(body?.url ?? '').trim()) return NextResponse.json({ error: 'No address given' }, { status: 400 })
+  // People paste "northsideheating.com", not "https://northsideheating.com" (normalize-url.ts).
+  const url = normalizeUrl(body?.url)
+  if (!url) return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com' }, { status: 400 })
 
   if (!(await isSafePublicUrl(url))) {
     return NextResponse.json({ error: 'That address cannot be reached from here.' }, { status: 400 })

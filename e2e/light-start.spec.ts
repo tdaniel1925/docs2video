@@ -68,7 +68,7 @@ test.describe('step 3 without a card', () => {
 
     await piece.getByRole('button', { name: 'Fill in from it' }).click()
     await expect(piece).toContainText('Filled in from your website.')
-    expect(read).toEqual({ url: 'rivera.example' })
+    expect(read).toEqual({ url: 'https://rivera.example' }) // https:// added for you (normalize-url.ts)
     expect(logoPosts).toBe(1)
     await expect(piece.getByRole('img', { name: 'Your logo' })).toBeVisible()
     await expect(piece.getByLabel('Main colour')).toHaveValue('#123456')

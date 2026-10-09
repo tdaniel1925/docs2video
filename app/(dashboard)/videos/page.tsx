@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
 import { NAMES, KIND_NAMES, kindOfOutput, type LibraryKind } from '../../_lib/names'
+import { isOlderKind, libraryTabs, tabFor } from './library-tabs'
 import { madeLabel } from '../dashboard/_home/derive'
 import Library from './Library'
 import { isPicture, type LibraryItem } from './library-items'
@@ -49,20 +50,14 @@ function kindOfCreation(type: string): LibraryKind | null {
   return null
 }
 
-// The tabs, in order. `key` is the ?type= value in the address, so a refresh
-// (or a shared link) keeps the tab. Custom Graphics keeps its old ?type=flyer
-// so links already out there still land on it.
-const FILTER_TABS: { key: string; kind: LibraryKind | null; label: string }[] = [
-  { key: '', kind: null, label: 'All' },
-  { key: 'video', kind: 'video', label: KIND_NAMES.video.many },
-  { key: 'presentation', kind: 'presentation', label: KIND_NAMES.presentation.many },
-  { key: 'deck', kind: 'deck', label: KIND_NAMES.deck.many },
-  { key: 'flyer', kind: 'graphic', label: KIND_NAMES.graphic.many },
-]
+// The tabs live in library-tabs.ts: All · Videos · Presentations, plus
+// "Older items" (slide decks and graphics made before Docs2Video became
+// videos-only) when the account has any. Old ?type=deck / ?type=flyer
+// addresses still land on just those.
 
 export default async function VideosPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const { type: typeFilter } = await searchParams
-  const activeTab = FILTER_TABS.find(t => t.key && t.key === typeFilter) ?? null
+  const activeTab = tabFor(typeFilter)
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -133,7 +128,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   // Apply the tab. Older addresses still work: ?type=other lists types the
   // library doesn't know, and any other ?type= (e.g. logo) filters by that type.
   const filteredItems = activeTab
-    ? allItems.filter(item => item._kind === activeTab.kind)
+    ? allItems.filter(item => activeTab.shows(item._kind))
     : typeFilter === 'other'
       ? allItems.filter(item => !KNOWN_TYPES.has(item.type))
       : typeFilter
@@ -168,6 +163,8 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   })
 
   const isAll = !activeTab && !typeFilter
+  const hasOlder = allItems.some(item => isOlderKind(item._kind))
+  const tabs = libraryTabs(hasOlder || activeTab?.key === 'older')
 
   return (
     <div>
@@ -175,19 +172,21 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         <div>
           <h1>{activeTab ? activeTab.label : NAMES.library}</h1>
           <p>{activeTab
-            ? `Showing ${activeTab.label.toLowerCase()} only.`
+            ? activeTab.key === 'older' || !tabs.includes(activeTab)
+              ? 'Slide decks and graphics made before Docs2Video became videos-only. They still open, download and share; new ones can’t be made.'
+              : `Showing ${activeTab.label.toLowerCase()} only.`
             : typeFilter ? 'Showing some of what you’ve made.' : 'Everything you’ve made.'}</p>
         </div>
         <Link href="/create/start" className="btn btn-primary btn-lg">{NAMES.newButton}</Link>
       </div>
 
       <nav className="kit-tabs" aria-label="Show one kind" style={{ marginBottom: 16 }}>
-        {FILTER_TABS.map(tab => (
+        {tabs.map(tab => (
           <Link
             key={tab.key}
             href={tab.key ? `/videos?type=${tab.key}` : '/videos'}
             className="kit-tab"
-            aria-current={(tab.key ? activeTab?.key === tab.key : isAll) ? 'page' : undefined}
+            aria-current={(tab.key ? activeTab?.key === tab.key || (tab.key === 'older' && !!activeTab && !tabs.includes(activeTab)) : isAll) ? 'page' : undefined}
           >
             {tab.label}
           </Link>

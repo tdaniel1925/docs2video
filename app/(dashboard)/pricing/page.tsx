@@ -79,7 +79,7 @@ export default function PricingPage() {
         Simple, credit-based pricing
       </h1>
       <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 36, lineHeight: 1.6, maxWidth: 620, marginInline: 'auto' }}>
-        One pool of credits for videos, slide decks, and PDFs. A standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits.
+        One pool of credits for videos, presentations and commercials. A standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits.
         Cancel anytime; plan credits reset each month. Need more? Top-up packs start at {packPrice(SMALLEST_PACK)}.
       </p>
 
@@ -119,7 +119,7 @@ export default function PricingPage() {
               perMonth
               highlight={isCurrent ? 'current' : isPopular ? 'popular' : 'none'}
               creditLine={`${plan.monthlyCredits.toLocaleString()} credits / mo`}
-              subLine={`~${plan.approxStandardVideos} standard videos · ~${Math.floor(plan.monthlyCredits / CREDIT_COSTS.deck)} slide decks`}
+              subLine={`~${plan.approxStandardVideos} standard videos`}
               features={plan.features}
               cta={isCurrent
                 ? { label: loading === 'manage' ? 'Loading…' : 'Manage plan', onClick: handleManage, disabled: loading === 'manage', variant: 'soft' }
@@ -130,11 +130,11 @@ export default function PricingPage() {
       </div>
 
       {/* AI Social add-on band */}
-      <div style={{ marginTop: 40, padding: '28px 32px', borderRadius: 10, background: 'var(--ink)', color: 'white', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+      <div style={{ marginTop: 40, padding: '28px 32px', borderRadius: 10, background: 'var(--ink)', color: 'var(--on-ink)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <div style={{ maxWidth: 620 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>Add-on</div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>AI Social — auto-post to your channels</div>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)', margin: 0, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 14, color: 'var(--on-ink)', opacity: 0.8, margin: 0, lineHeight: 1.55 }}>
             Connect X, Instagram, Facebook, LinkedIn, YouTube + more. AI writes captions and creates
             branded images, then posts your content (incl. videos) on a schedule. Writing captions and
             making images uses your normal credits, and each post costs 25 credits per platform
@@ -170,15 +170,15 @@ function PlanCard(props: {
 }) {
   const { highlight } = props
   const border = highlight === 'current' ? '2px solid var(--accent-ink)' : highlight === 'popular' ? '2px solid var(--ink)' : '1px solid var(--border-light)'
-  const bg = highlight === 'current' ? 'var(--accent-soft)' : 'white'
-  const btnBg = props.cta?.variant === 'dark' ? 'var(--ink)' : props.cta?.variant === 'soft' ? 'white' : 'var(--accent)'
+  const bg = highlight === 'current' ? 'var(--accent-soft)' : 'var(--bg-card)'
+  const btnBg = props.cta?.variant === 'dark' ? 'var(--ink)' : props.cta?.variant === 'soft' ? 'var(--bg-card)' : 'var(--accent)'
   // Words on the mint button are navy — white on pale mint can't be read.
   const btnColor = props.cta?.variant === 'soft' ? 'var(--ink-soft)' : props.cta?.variant === 'dark' ? 'var(--on-ink)' : 'var(--ink)'
   const btnBorder = props.cta?.variant === 'soft' ? '1px solid var(--border)' : 'none'
   return (
     <div style={{ position: 'relative', padding: '26px 22px', borderRadius: 10, background: bg, border, display: 'flex', flexDirection: 'column' }}>
       {highlight === 'popular' && (
-        <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', padding: '3px 14px', borderRadius: 6, background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+        <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', padding: '3px 14px', borderRadius: 6, background: 'var(--ink)', color: 'var(--on-ink)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
           Recommended
         </div>
       )}

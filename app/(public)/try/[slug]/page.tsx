@@ -1,4 +1,5 @@
 'use client'
+import { tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useRef, use } from 'react'
 import Image from 'next/image'
@@ -114,7 +115,10 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 500, margin: '0 auto' }}>
             <input
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              onBlur={() => setUrl((v) => tidyUrlInput(v))}
               className="input"
               placeholder="Paste your website or document URL"
               value={url}

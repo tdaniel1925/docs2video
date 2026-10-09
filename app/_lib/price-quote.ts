@@ -1,5 +1,6 @@
 import { calculateVideoCost, CREDIT_COSTS, MULTI_FILE_SURCHARGE } from './credits'
 import { normalizeDetailLevel, type DetailLevel } from './wizard-draft'
+import { D2V_OUTPUTS } from './videos-only'
 
 // =============================================================================
 // THE PRICE OF ONE PROJECT — ONE PLACE.
@@ -140,12 +141,12 @@ export function quoteOutput(
   return { output, total, lines, free: false }
 }
 
-/** What the Make screen offers: the three products, plus the file type the
- *  project already is when it came from the PowerPoint/PDF builder. */
-export function outputsOffered(current: string): MakeOutput[] {
-  const base: MakeOutput[] = ['video', 'interactive', 'deck']
-  const cur = normalizeOutput(current)
-  return cur && !base.includes(cur) ? [...base, cur] : base
+/** What the Make screen offers: a narrated video or an interactive
+ *  presentation. Slide decks and the PowerPoint/PDF builder were removed
+ *  (owner decision 2026-10-09, videos-only.ts) — an old draft saved as one is
+ *  offered these two, never its old output. */
+export function outputsOffered(_current: string): MakeOutput[] {
+  return [...D2V_OUTPUTS]
 }
 
 /** What GET /api/price-quote returns. */

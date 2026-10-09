@@ -32,6 +32,8 @@ import { usableBrief, isEditedBookend, buildShareColumns, type DetailLevel } fro
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
 import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
+import { getBrand } from '../../_lib/brand-server'
+import { isRetiredOutput, RETIRED_MESSAGE } from '../../_lib/videos-only'
 
 export const runtime = 'nodejs'
 
@@ -340,6 +342,13 @@ export async function POST(request: Request) {
     isInternalCall ? { detailLevel: (body as any).detailLevel, detailed } : undefined,
   )
   const detailLevel: DetailLevel = priceInputs.detailLevel
+
+  // Docs2Video no longer makes PowerPoint / PDF projects (videos-only.ts): an
+  // old draft saved as one is refused in plain words. The public API's own
+  // calls (isInternalCall) are left as they were.
+  if (!isInternalCall && isRetiredOutput(priceInputs.draftOutputType) && (await getBrand()).id === 'docs2video') {
+    return refuse(410, { error: RETIRED_MESSAGE, code: 'retired' })
+  }
   const isDetailed = detailLevel === 'detailed'
 
   // --- ALL paywall checks run BEFORE the row is claimed (audit C4) ---

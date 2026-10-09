@@ -9,12 +9,12 @@
  */
 import { useEffect, useState } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { THEME_CHOICES, THEME_KEY, parsePref, resolveTheme, type Theme, type ThemePref } from '../_lib/theme-pref'
+import { DEFAULT_PREF, THEME_CHOICES, THEME_KEY, parsePref, resolveTheme, type Theme, type ThemePref } from '../_lib/theme-pref'
 
 const darkQuery = () => window.matchMedia('(prefers-color-scheme: dark)')
 
 export function readThemePref(): ThemePref {
-  try { return parsePref(window.localStorage.getItem(THEME_KEY)) } catch { return 'system' }
+  try { return parsePref(window.localStorage.getItem(THEME_KEY)) } catch { return DEFAULT_PREF }
 }
 
 function apply(pref: ThemePref) {
@@ -26,16 +26,16 @@ function apply(pref: ThemePref) {
 // One shared choice; every switch on screen stays in step.
 const listeners = new Set<(pref: ThemePref) => void>()
 export function setThemePref(pref: ThemePref) {
+  // Every choice is saved, System too: nothing saved means Dark (the default).
   try {
-    if (pref === 'system') window.localStorage.removeItem(THEME_KEY)
-    else window.localStorage.setItem(THEME_KEY, pref)
+    window.localStorage.setItem(THEME_KEY, pref)
   } catch { /* this browser only; a blocked store just forgets */ }
   apply(pref)
   listeners.forEach((listener) => listener(pref))
 }
 
 export function useThemePref() {
-  const [pref, setPref] = useState<ThemePref>('system')
+  const [pref, setPref] = useState<ThemePref>(DEFAULT_PREF)
   useEffect(() => {
     setPref(readThemePref())
     listeners.add(setPref)

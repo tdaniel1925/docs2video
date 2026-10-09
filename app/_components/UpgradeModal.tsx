@@ -60,7 +60,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
         <p style={{
           fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24,
         }}>
-          A paid plan gives you a fresh pool of credits every month for videos, slide decks and PDFs.
+          A paid plan gives you a fresh pool of credits every month for videos, presentations and commercials.
         </p>
 
         {/* Pro plan */}

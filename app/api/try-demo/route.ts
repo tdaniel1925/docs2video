@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { VIDEO_WORKING } from '@/app/_lib/video-status'
 import { createAdminClient } from '@/app/_lib/supabase/admin'
 import { scrapeBrand } from '@/app/_lib/brand-scraper'
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       email = (formData.get('email') as string | null) || null
     } else {
       const body = await req.json()
-      url = body.url
+      url = typeof body.url === 'string' ? (normalizeUrl(body.url) ?? body.url) : body.url // no https:// needed
       email = body.email || null
     }
 

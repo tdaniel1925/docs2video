@@ -11,6 +11,8 @@ import { synthesizeSpeech } from '../../_lib/tts'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from '../../_lib/presentation'
 import { isRegulated, productTokens, scrubComplianceText, smoothScrubbed } from '../../_lib/compliance'
 import { safeEqual } from '../../_lib/api-auth'
+import { getBrand } from '../../_lib/brand-server'
+import { RETIRED_MESSAGE } from '../../_lib/videos-only'
 
 export const runtime = 'nodejs'
 // Interactive: per-scene TTS + assembly. Well under video times, but give room.
@@ -43,6 +45,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const videoId: string | undefined = body.videoId
   const outputType: 'interactive' | 'deck' = body.outputType === 'deck' ? 'deck' : 'interactive'
+  // Docs2Video no longer makes new slide decks (videos-only.ts). The public
+  // API's own calls (isInternalCall) are left as they were.
+  if (outputType === 'deck' && !isInternalCall && (await getBrand()).id === 'docs2video') {
+    return NextResponse.json({ error: RETIRED_MESSAGE, code: 'retired' }, { status: 410 })
+  }
   const templateId: string = PRESENTATION_TEMPLATES.some((t) => t.id === body.templateId)
     ? body.templateId
     : PRESENTATION_TEMPLATES[0].id

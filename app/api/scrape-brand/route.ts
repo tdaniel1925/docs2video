@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { createClient } from '../../_lib/supabase/server'
 import { scrapeBrand } from '../../_lib/brand-scraper'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
@@ -17,9 +18,9 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { url } = body as { url: string }
+  const url = normalizeUrl((body as { url?: unknown })?.url) // no https:// needed (normalize-url.ts)
 
-  if (!url) return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+  if (!url) return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com' }, { status: 400 })
 
   try {
     const brandData = await scrapeBrand(url)
