@@ -2106,6 +2106,118 @@ app.post('/generate-slides', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// THE SCENE KIT — /generate-kit (videoStyle 'kit'). The app has already
+// planned the video (app/_lib/kit-planner.ts: one kit scene per beat, checked,
+// compliance-clean) and sends the plan. Here: voice per scene with word
+// timings + real logo/photo + music (render-service/kit.js) → render KitVideo
+// → upload, poster, one picture per scene, the plan kept for later.
+// No Claude call here, so no ANTHROPIC_API_KEY needed.
+// ============================================================
+app.post('/generate-kit', authCheck, async (req, res) => {
+  const { videoId, userId, plan, assets, voiceId, musicUrl, aiMusic, musicPrompt } = req.body || {}
+  if (!videoId || !userId) return res.status(400).json({ error: 'Missing videoId/userId' })
+  if (!plan || !Array.isArray(plan.scenes) || !plan.scenes.length) return res.status(400).json({ error: 'Missing kit plan' })
+  if (plan.scenes.some((s) => !s || typeof s.narration !== 'string' || !s.narration.trim())) return res.status(400).json({ error: 'Every kit scene needs narration' })
+  res.json({ success: true })
+
+  const kit = require('./kit')
+  const slides = require('./slides')
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const pub = join(REMOTION_DIR, 'public')
+  const outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const PROPS = join(pub, `kit-${videoId}-props.json`)
+  let kitDir = null
+
+  await withRenderSlotFor(videoId)(async () => {
+    try {
+      await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      // Safety net: the app checked compliance; check the words once more here.
+      const removed = kit.scrubKitPlan(plan, slides.CARRIER_BLOCKLIST)
+      if (removed.length) console.warn(`[generate-kit ${videoId}] ⚠ compliance net removed: ${[...new Set(removed)].join(', ')}`)
+      await setProgress(20, 'Recording the voice')
+      const fetchTo = async (url, outPath) => {
+        const r = await guardedFetch(url, { signal: AbortSignal.timeout(45000) })
+        if (!r.ok) throw new Error(`download ${r.status}`)
+        await writeFile(outPath, Buffer.from(await r.arrayBuffer()))
+      }
+      const prepared = await kit.prepareKitPlan({
+        pub, videoId, plan, assets: assets || {}, voiceId,
+        music: { url: musicUrl, ai: !!aiMusic, prompt: musicPrompt },
+        deps: { ttsTimed: slides.ttsTimed, tts: (fn) => ttsLimit(fn), fetchTo, aiMusic: lyriaMusicToMp3, audioDurationSec: slides.audioDurationSec, normalize: kit.normalizeVoice },
+        log: (m) => console.log(`[generate-kit ${videoId}] ${m}`),
+      })
+      kitDir = prepared.dir
+      // `assetDir` makes the Lambda uploader take the whole per-video folder;
+      // every file is ALSO named in the plan, so nothing depends on one or the other.
+      await writeFile(PROPS, JSON.stringify({ plan: prepared.plan, assetDir: prepared.dirName }))
+
+      await setProgress(50, `Drawing scene 1 of ${prepared.plan.scenes.length}`)
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn(...renderCmd('KitVideo', outFile, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 50, to: 89, starts: prepared.timeline.starts, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
+      })
+
+      await setProgress(90, 'Saving your video')
+      const videoBuffer = await readFile(outFile)
+      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+
+      // POSTER — the cover once its words have landed.
+      const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+      await grabPoster(outFile, thumbPath, 2.6)
+      let thumbUrl = null
+      try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+      await rm(thumbPath, { force: true }).catch(() => {})
+
+      // One picture per scene for the scenes panel (from the finished video).
+      await setProgress(93, 'Making the scene previews')
+      const slideUrls = []
+      for (const m of prepared.sceneMeta) {
+        try {
+          const fp = join(REMOTION_DIR, 'out', `${videoId}-slide-${m.index}.jpg`)
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-ss', String(m.midSec), '-i', outFile, '-frames:v', '1', '-q:v', '4', fp], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+          const path = `${userId}/${videoId}_slide_${m.index}.jpg`
+          await sb.storage.from('videos').upload(path, await readFile(fp), { contentType: 'image/jpeg', upsert: true })
+          slideUrls[m.index] = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+          await rm(fp, { force: true }).catch(() => {})
+        } catch (e) { console.error(`[generate-kit ${videoId}] scene picture ${m.index} failed: ${e.message}`) }
+      }
+      // Keep the finished plan (engine 'kit') next to the video. NOT written to
+      // slide_plan_url: Fix-a-Scene re-renders DirectedVideo plans only.
+      try {
+        await sb.storage.from('videos').upload(`${userId}/${videoId}_kit_plan.json`, Buffer.from(JSON.stringify({ engine: 'kit', plan: prepared.plan, sceneMeta: prepared.sceneMeta })), { contentType: 'application/json', upsert: true })
+      } catch (e) { console.error(`[generate-kit ${videoId}] plan persist failed: ${e.message}`) }
+
+      await completeIfRunning(sb, videoId, {
+        status: 'completed', video_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(slideUrls.filter(Boolean).length ? { slide_urls: slideUrls.filter(Boolean) } : {}),
+        slide_durations: prepared.sceneMeta.map((m) => Math.round((m.endSec - m.startSec) * 10) / 10),
+        script: prepared.sceneMeta.map((m) => ({ title: m.label, headline: m.label })),
+        progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+      }, { tag: 'generate-kit', userId, report: reportError })
+      sb.from('videos').update({ total_scenes: prepared.sceneMeta.length }).eq('id', videoId).then(() => {}, () => {})
+      console.log(`[generate-kit ${videoId}] DONE -> ${urlData.publicUrl} (${prepared.sceneMeta.length} scenes, look ${prepared.plan.look && prepared.plan.look.id})`)
+    } catch (err) {
+      console.error(`[generate-kit ${videoId}] error:`, err.message)
+      reportError({ source: 'generate-kit', videoId, userId, stage: 'kit', message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'failed', error_message: 'Video generation failed. Your credits were refunded.', progress_detail: `[fail] generate-kit: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      await rm(PROPS, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+      await require('./kit').cleanupKit(kitDir)
+    }
+  })
+})
+
+// ============================================================
 // FIX-A-SCENE — re-record/edit ONE scene of a slide-deck video and re-render,
 // WITHOUT redoing comprehension/writing/backdrops/other-scenes' VO. We reuse the
 // persisted plan + all the other scenes' VO clips; only the edited scene gets a
@@ -3782,7 +3894,7 @@ app.post('/preview-still', authCheck, async (req, res) => {
   const { userId, videoId, key, engine } = body
   if (!userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) return res.status(400).json({ error: 'Missing userId' })
   if (!key || !/^[a-f0-9]{16,64}$/.test(String(key))) return res.status(400).json({ error: 'Missing key' })
-  if (!['directed', 'v3', 'editorial', 'html'].includes(engine)) return res.status(400).json({ error: 'Unknown engine' })
+  if (!['directed', 'v3', 'editorial', 'html', 'kit'].includes(engine)) return res.status(400).json({ error: 'Unknown engine' })
   const t0 = Date.now()
   try {
     let png
@@ -3791,7 +3903,9 @@ app.post('/preview-still', authCheck, async (req, res) => {
       png = await renderHtmlStill(body.html)
     } else {
       const { planFromSuppliedScenes, buildBrandPalette } = require('./slides')
-      const job = engine === 'directed' ? previewDirectedJob(body, { planFromSuppliedScenes, buildBrandPalette })
+      // Scene kit: the app sends the finished (no-AI) plan; the still is its first content scene.
+      const job = engine === 'kit' ? require('./kit').previewKitJob(body)
+        : engine === 'directed' ? previewDirectedJob(body, { planFromSuppliedScenes, buildBrandPalette })
         : engine === 'v3' ? previewV3Job(body, { v3Theme })
         : previewEditorialJob(body)
       png = await renderPreviewStill(job)

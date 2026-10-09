@@ -34,6 +34,8 @@ import { inngest } from '../../_lib/inngest/client'
 import { getBrand } from '../../_lib/brand-server'
 import { isRetiredOutput, RETIRED_MESSAGE } from '../../_lib/videos-only'
 import { buildDrawnSlides, drawStyleOf, DRAWN_LOOK_ID } from '../../_lib/drawn-slides'
+import { assembleKitPlan, kitEngineOn, kitLogoAssets, planKitVideoCached, plannerBeats, resolveKitLook } from '../../_lib/kit-engine'
+import type { PlannerInput } from '../../_lib/kit-planner'
 import { storyTooBigMessage } from '../../_lib/length-limits'
 import { alertOps } from '../../_lib/ops-alert'
 
@@ -1185,13 +1187,85 @@ export async function POST(request: Request) {
     // renderer instead — a different look with no note saying why.
     const explicitV3 = videoStyle === 'infographic' || videoStyle === 'cinematic' || videoStyle === 'aurora' || isMagazine
     // Drawn slides never enter the Remotion engines — they ARE the classic route.
-    if (!drawn && (useV3 || videoStyle === 'slides' || explicitV3)) {
+    if (!drawn && (useV3 || videoStyle === 'slides' || videoStyle === 'kit' || explicitV3)) {
+      // THE SCENE KIT (videoStyle 'kit', KIT_ENGINE=on). Claude plans one kit
+      // scene per beat of the user's approved story (app/_lib/kit-planner.ts —
+      // checked in code, ≤ $0.25, deterministic fallback), then the render
+      // service voices and renders it (/generate-kit → KitVideo). If it can't
+      // start, the video falls back to the Animated slides engine below. A
+      // 'kit' draft with the engine switched off also goes there.
+      let kitFellBack = false
+      if (videoStyle === 'kit' && kitEngineOn()) {
+        try {
+          await admin.from('videos').update({ progress_detail: 'Planning your scenes...', progress_pct: 14 }).eq('id', videoId)
+          const look = resolveKitLook({ kitLook: (body as any).kitLook ?? draft.kitLook, kitLookCustom: draft.kitLookCustom, brand })
+          const guide = (brand?.brand_guide_data ?? {}) as Record<string, unknown>
+          const kitContact = wantContactClosing ? Object.fromEntries(Object.entries({
+            phone: contactDisplayPhone, email: contactForClosing.email, website: contactForClosing.website,
+            booking: typeof guide.calendly === 'string' && guide.calendly.trim() ? guide.calendly.trim() : undefined,
+          }).filter(([, v]) => typeof v === 'string' && v)) : undefined
+          const kitTokens = regulatedContent ? productTokens(
+            (policyData as any)?.title, (policyData as any)?.carrier, (policyData as any)?.policyType,
+            ...(Array.isArray((policyData as any)?.bulletPoints) ? (policyData as any).bulletPoints : []),
+          ) : []
+          const plannerInput: PlannerInput = {
+            beats: plannerBeats(coverScene, ttsScenes, closingScene),
+            keyMetrics: Array.isArray((policyData as any)?.keyMetrics) ? (policyData as any).keyMetrics : [],
+            regulated: regulatedContent, productTokens: kitTokens,
+            recipient: recipient || undefined, brandName: effectiveBrandName || undefined,
+            hasPresenter: !!presenter?.photo, contact: kitContact, videoId,
+          }
+          const planned = await planKitVideoCached(plannerInput, draft.kitPlanCache)
+          // Keep the plan on the draft: a retry of the same story reuses it for $0.
+          if (!planned.reused) {
+            await admin.from('videos').update({ draft_data: { ...draft, kitPlanCache: planned.cache } }).eq('id', videoId).then(() => {}, () => {})
+          }
+          const kitPlan = assembleKitPlan({
+            title: videoTitle, scenes: planned.result.scenes, look,
+            brandName: effectiveBrandName, presenter, photo: photoPlacementResolved,
+            recipient, regulated: regulatedContent,
+          })
+          const kitPayload = {
+            videoId, userId: user.id, plan: kitPlan, voiceId,
+            assets: { ...kitLogoAssets(brand), ...(presenter?.photo ? { presenter_photo: presenter.photo } : {}) },
+            musicUrl: musicUrl || undefined, aiMusic: !!aiMusic || undefined, musicPrompt: musicPrompt || undefined,
+          }
+          console.log(`[video ${videoId}] scene kit — ${kitPlan.scenes.length} scenes (${planned.result.source}, $${planned.result.costUsd.toFixed(4)}${planned.reused ? ', reused' : ''}), look ${look.id}`)
+          await admin.from('videos').update({ progress_detail: 'Recording the voice...', progress_pct: 18 }).eq('id', videoId)
+          // Same start rules as the slides engine: an ACK timeout means it is
+          // working; a real refusal is retried once before falling back.
+          const startKit = async (): Promise<boolean> => {
+            try {
+              const r = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-kit`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+                body: JSON.stringify(kitPayload), signal: AbortSignal.timeout(25000),
+              })
+              const j = await r.json().catch(() => null) as { success?: boolean } | null
+              return r.ok && !!j?.success
+            } catch (e) {
+              return e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')
+            }
+          }
+          if ((await startKit()) || (await new Promise((r) => setTimeout(r, 1500)), await startKit())) {
+            inFlightVideos.delete(videoId)
+            return NextResponse.json({ success: true, pipeline: 'kit' })
+          }
+          throw new Error('render service did not accept the kit job')
+        } catch (kitErr) {
+          console.error(`[video ${videoId}] scene kit failed to start (${(kitErr as Error).message}) — falling back to Animated slides`)
+          kitFellBack = true
+          await admin.from('videos').update({
+            progress_detail: 'Rendering (alternate style)...', progress_pct: 16,
+            render_note: 'Rendered with the previous slide engine — the new scene engine was temporarily unavailable. Regenerate to try it again.',
+          }).eq('id', videoId)
+        }
+      }
       // SLIDE-DECK style (the new default): the animated explainer deck
       // (DirectedVideo). The render service reads the source, comprehends it, writes the
       // deck, generates VO, and renders — so we hand it the extracted document
       // data as text plus brand/presenter/contact/recipient. On any failure to
       // start, we FALL THROUGH to the existing pipeline (no video is ever lost).
-      const isSlides = videoStyle === 'slides'
+      const isSlides = videoStyle === 'slides' || videoStyle === 'kit' || kitFellBack
       if (isSlides) {
         // BRIEF PARITY: the render service slides engine re-comprehends the doc, so without
         // this it never sees the brief the user APPROVED on the Review step —

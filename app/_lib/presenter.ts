@@ -7,7 +7,7 @@
 
 import type { Brand } from './types'
 
-export type VideoStyle = 'slides' | 'cinematic' | 'editorial' | 'classic' | 'infographic'
+export type VideoStyle = 'slides' | 'cinematic' | 'editorial' | 'classic' | 'infographic' | 'kit'
 export type PhotoPlacementPref = 'auto' | 'cover' | 'closing' | 'both' | 'none'
 
 /** The runtime presenter handed to payload builders + renderers. */
@@ -51,6 +51,7 @@ export function resolvePhotoPlacement(
     case 'cinematic':
     case 'editorial':
     case 'slides':
+    case 'kit':      // the scene kit: photo on the cover and the closing card
       return { cover: true, closing: true }
     case 'classic':
     case 'infographic':

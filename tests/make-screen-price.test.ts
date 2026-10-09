@@ -139,7 +139,8 @@ describe('choices made on step 3 are sent and read', () => {
   })
 
   it('video: look, voice, music and photo backgrounds are in the body the route reads', () => {
-    for (const k of ['videoStyle: videoLook', 'voiceId,', 'aiMusic,', 'musicPrompt:', 'slidePhotos,', 'brandId:']) expect(page).toContain(k)
+    // videoStyle is the card's own id, or 'kit' + kitLook when the scene engine is on (kit-looks.ts styleForCard).
+    for (const k of ['videoStyle: chosenStyle.videoStyle', 'voiceId,', 'aiMusic,', 'musicPrompt:', 'slidePhotos,', 'brandId:']) expect(page).toContain(k)
     expect(gv).toMatch(/\(body as any\)\.videoStyle/)
     expect(gv).toMatch(/\(body as any\)\.slidePhotos/)
     expect(gv).toMatch(/const \{ videoId, policyData, brandId, voiceId,[^}]*aiMusic, musicPrompt/)

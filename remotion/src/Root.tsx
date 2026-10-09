@@ -58,6 +58,8 @@ import { AppCommercialV4, appV4Metadata } from './AppCommercialV4'
 import { ValorCommercial, valorMetadata, type ValorProps } from './ValorCommercial'
 import { ApexCommercial, apexMetadata, type ApexProps } from './ApexCommercial'
 import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedVideo'
+import { KitVideo, kitMetadata, type KitVideoProps } from './kit/KitVideo'
+import { KIT_LOOKS } from './kit/spec'
 import { VisualDirectorVideo, visualDirectorMetadata, type VisualDirectorProps } from './VisualDirectorVideo'
 import { HeroReveal, KineticHype, CinematicOpen, SplitCompare, StatGrid, CTAClose } from './CommercialProto'
 import { CommercialFull, commercialDuration } from './CommercialFull'
@@ -492,6 +494,17 @@ export const RemotionRoot: React.FC = () => {
       width={1920}
       height={1080}
       durationInFrames={300}
+    />
+    {/* THE SCENE KIT (videoStyle 'kit'): eight scene types, one look, one motion system. */}
+    <Composition
+      id="KitVideo"
+      component={KitVideo}
+      defaultProps={{ plan: { version: 1, title: '', look: KIT_LOOKS['animated-slides'], brand: {}, scenes: [] } } as KitVideoProps}
+      calculateMetadata={kitMetadata}
+      fps={30}
+      width={1920}
+      height={1080}
+      durationInFrames={30}
     />
     <Composition
       id="VisualDirectorVideo"

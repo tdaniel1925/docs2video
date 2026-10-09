@@ -95,7 +95,9 @@ export async function POST(request: Request) {
   const outputRaw = body.output ?? draft.outputType ?? row.output_type ?? 'video'
   const output = outputRaw === 'interactive' || outputRaw === 'deck' || outputRaw === 'video' ? outputRaw : String(outputRaw)
   const isPres = output === 'interactive' || output === 'deck'
-  const lookRaw = body.look ?? (isPres ? draft.presentationTemplate : draft.videoStyle)
+  // A draft saved for the scene kit stores videoStyle 'kit' + kitLook; its preview look is "kit:<look>".
+  const savedVideoLook = draft.videoStyle === 'kit' ? `kit:${typeof draft.kitLook === 'string' ? draft.kitLook : 'animated-slides'}` : draft.videoStyle
+  const lookRaw = body.look ?? (isPres ? draft.presentationTemplate : savedVideoLook)
   const look = isPres
     ? (PRESENTATION_TEMPLATES.some((t) => t.id === lookRaw) ? String(lookRaw) : PRESENTATION_TEMPLATES[0].id)
     : ((VIDEO_PREVIEW_LOOKS as readonly string[]).includes(String(lookRaw)) ? String(lookRaw) : 'slides')

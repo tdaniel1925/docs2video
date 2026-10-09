@@ -31,6 +31,8 @@ import AddBrandPiece from '../_components/make/AddBrandPiece'
 import { D2V_OUTPUTS, d2vOutputs } from '../../../_lib/videos-only'
 // Drawn slides' drawing styles (pure data — safe in the browser).
 import { DEFAULT_DRAW_STYLE, DRAW_STYLES, isDrawStyle, type DrawStyleId } from '../../../_lib/drawn-slides'
+// The new scene engine (KIT_ENGINE=on): which card saves which kit look (pure data).
+import { cardForDraft, previewLookFor, RETIRED_WITH_KIT, styleForCard } from '../../../_lib/kit-looks'
 
 type Draft = Record<string, any>
 type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
@@ -68,6 +70,18 @@ function MakeItYours() {
 
   const [output, setOutput] = useState<MakeOutput>('video')
   const [videoLook, setVideoLook] = useState<VideoLookId>(RECOMMENDED_VIDEO_LOOK)
+  // Is the new scene engine on? (env KIT_ENGINE=on, asked once.) Off = the old looks, unchanged.
+  const [kitOn, setKitOn] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setKitOn(!!j?.on) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  // With the kit on, Aurora / Cinematic / Infographic are no longer offered.
+  useEffect(() => {
+    if (kitOn && (RETIRED_WITH_KIT as readonly string[]).includes(videoLook)) setVideoLook(RECOMMENDED_VIDEO_LOOK)
+  }, [kitOn, videoLook])
+  const chosenStyle = styleForCard(videoLook, kitOn)
   const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
   const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
   const [aiMusic, setAiMusic] = useState(false)
@@ -101,7 +115,7 @@ function MakeItYours() {
         const d: Draft = v?.draft_data || {}
         setDraft(d)
         setOutput(normalizeOutput(v?.output_type) ?? normalizeOutput(d.outputType) ?? 'video')
-        if (isVideoLook(d.videoStyle)) setVideoLook(d.videoStyle)
+        { const card = cardForDraft(d.videoStyle, d.kitLook); if (isVideoLook(card)) setVideoLook(card) }
         if (isPresLook(d.presentationTemplate)) setPresLook(d.presentationTemplate)
         if (typeof d.voiceId === 'string' && VOICE_OPTIONS.some((o) => o.id === d.voiceId)) setVoiceId(d.voiceId)
         if (typeof d.aiMusic === 'boolean') setAiMusic(d.aiMusic)
@@ -149,7 +163,9 @@ function MakeItYours() {
 
   // Only estimates the app already gives on the progress screen.
   const timeNote = isVideo
-    ? (videoLook === 'slides'
+    ? (chosenStyle.videoStyle === 'kit'
+        ? 'Usually 5–10 minutes. You can leave while it works.'
+        : videoLook === 'slides'
         ? `Usually about 10 minutes${slidePhotos ? ', plus 2–3 for photo backgrounds' : ''}. You can leave while it works.`
         : videoLook === 'drawn'
           ? 'Usually about 4–6 minutes. You can leave while it works.'
@@ -184,7 +200,9 @@ function MakeItYours() {
             outputType: output,
             voiceId,
             aiMusic,
-            videoStyle: videoLook,
+            videoStyle: chosenStyle.videoStyle,
+            // The scene kit's look ('animated-slides' | 'editorial' | 'bright'), when the kit engine is on.
+            ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
             // Drawn slides only: its drawing style (3D infographic / Illustrated / Classic).
             ...(videoLook === 'drawn' ? { drawStyle } : {}),
             presentationTemplate: presLook,
@@ -241,7 +259,8 @@ function MakeItYours() {
         body: JSON.stringify({
           videoId,
           outputType: output,
-          videoStyle: videoLook,
+          videoStyle: chosenStyle.videoStyle,
+          ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
           ...(videoLook === 'drawn' ? { drawStyle } : {}),
           policyData: draft.extractedData || {},
           purpose: draft.purpose || 'Create a professional video',
@@ -294,7 +313,7 @@ function MakeItYours() {
   // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
   // account): the button sits in the bottom bar beside Make it, the picture
   // on the page. It previews the choices on screen right now.
-  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : videoLook, drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId })
+  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : previewLookFor(videoLook, kitOn), drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId })
   // Bring the preview into view when it starts, so the wait is seen.
   useEffect(() => {
     if (preview.busy) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -367,7 +386,7 @@ function MakeItYours() {
     </Note>
   ) : null
 
-  const cards = lookCards(output)
+  const cards = lookCards(output, { kit: kitOn })
 
   return (
     <div className="cf-page">
@@ -488,7 +507,7 @@ function MakeItYours() {
             </div>
           ) : null}
 
-          {isVideo && videoLook === 'slides' ? (
+          {isVideo && videoLook === 'slides' && !kitOn ? (
             <div className="cf-row">
               <span className="cf-row-name">Photos</span>
               <label className="cf-toggle">

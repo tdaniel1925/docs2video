@@ -143,6 +143,18 @@ export default function CreatingVideosPage() {
           Each card has one short line saying what it looks like; <strong style={INK}>See examples</strong> shows more of it. Presentations have their own color sets.
         </p>
         <p style={P}>
+          <strong style={INK}>The new scene engine</strong> (being switched on gradually): when it is on for your account, the cards are{' '}
+          <strong style={INK}>Animated slides</strong> (deep navy and gold), <strong style={INK}>Editorial</strong> (cream paper with a serif
+          headline), <strong style={INK}>Bright</strong> (cream with coral and teal — it replaces Explainer) and <strong style={INK}>Drawn slides</strong>.
+          Aurora, Cinematic and Infographic are no longer offered for new videos (videos you already made with them stay exactly as they are).
+          Each part of your story gets the one scene that shows it best: a big number that counts up and lands as the voice says it, a
+          side-by-side comparison, a timeline, a chart, a short checklist, a big quote, and a closing card with your contact details and a
+          button-style invitation. Your words are never changed — only how they are shown. Money always shows with a $ and commas, nothing runs
+          off the screen, your real logo is used (a light or dark version to suit the page, or on a white card), and your photo sits on the cover
+          and the closing card if you have one. Insurance videos never name the insurance company or product and use quieter sound effects.
+          The free preview shows one scene in the look you picked; the finished video picks the best scene for every part.
+        </p>
+        <p style={P}>
           <strong style={INK}>Drawn slides</strong> — the AI draws every slide as one finished picture, with the headline, a few short points and your
           numbers drawn right in. When you pick it, a <strong style={INK}>Drawing style</strong> line appears under the cards with three choices, each with a
           small sample: <strong style={INK}>3D infographic</strong> (glossy 3D objects and cards — picked for you), <strong style={INK}>Illustrated</strong>{' '}

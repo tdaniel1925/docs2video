@@ -67,9 +67,34 @@ export type LookCard = {
 /** Which video look carries the BEST tag (and is picked by default). */
 export const RECOMMENDED_VIDEO_LOOK: VideoLookId = 'slides'
 
-export function lookCards(output: string): LookCard[] {
+/**
+ * With the new scene engine on (KIT_ENGINE=on): Aurora, Cinematic and
+ * Infographic leave the list (old videos still render), Explainer becomes the
+ * Bright colour theme, and the pictures come from the scene kit itself
+ * (/style-samples/kit-<look>-{cover,data,closing}.png).
+ */
+const KIT_CARD: Partial<Record<VideoLookId, { kitLook: string; name?: string; short: string; tagline: string }>> = {
+  slides: { kitLook: 'animated-slides', short: 'Big numbers and charts as the voice speaks', tagline: 'Deep navy and gold. One big idea per scene — numbers that count up as they are said, charts, timelines and checklists.' },
+  editorial: { kitLook: 'editorial', short: 'Calm cream pages, serif headlines', tagline: 'Cream paper, a serif headline and calm green ink — a magazine page that moves.' },
+  explainer: { kitLook: 'bright', name: 'Bright', short: 'Bright, friendly colours', tagline: 'Warm cream with coral, teal and gold — friendly and energetic, great for how-it-works.' },
+}
+
+export function lookCards(output: string, opts: { kit?: boolean } = {}): LookCard[] {
   if (output === 'interactive' || output === 'deck') {
     return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0 }))
+  }
+  if (opts.kit) {
+    return VIDEO_LOOKS.filter((l) => l.id === 'drawn' || KIT_CARD[l.id]).map((l) => {
+      const k = KIT_CARD[l.id]
+      const pic = k ? `kit-${k.kitLook}` : l.id
+      return {
+        id: l.id, name: k?.name ?? l.name, short: k?.short ?? l.short, tagline: k?.tagline ?? l.tagline,
+        thumb: { kind: 'img' as const, src: `/style-samples/${pic}-cover.png` },
+        recommended: l.id === RECOMMENDED_VIDEO_LOOK,
+        ...(l.tag ? { tag: l.tag } : {}),
+        samples: VIDEO_SAMPLE_KINDS.map((s) => `/style-samples/${pic}-${s}.png`),
+      }
+    })
   }
   return VIDEO_LOOKS.map((l) => ({
     id: l.id,

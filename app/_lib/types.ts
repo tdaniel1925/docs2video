@@ -299,7 +299,13 @@ export interface WizardDraft {
   showContactClosing?: boolean
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
   // Theme chosen on the Theme step (per-video; overrides global default).
-  videoStyle?: 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer' | 'aurora'
+  videoStyle?: 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer' | 'aurora' | 'kit'
+  // THE SCENE KIT (videoStyle 'kit', app/_lib/kit-engine.ts): which look —
+  // 'animated-slides' | 'editorial' | 'bright' | 'brand' — or a saved custom look
+  // (the coming look wizard), and the cached Claude plan for this story.
+  kitLook?: string
+  kitLookCustom?: Record<string, unknown>
+  kitPlanCache?: Record<string, unknown>
   // The "Review brief" step: what the AI understood + plans to cover. The user
   // approves or redirects it; the approved brief steers the script generator.
   brief?: VideoBrief

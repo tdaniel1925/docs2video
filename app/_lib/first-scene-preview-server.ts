@@ -29,6 +29,9 @@ import { stillCacheKey } from './first-scene-preview-keys'
 import { drawnSlidePrompt, drawnSlideText, drawStyleOf } from './drawn-slides'
 import { drawSlide } from './slide-engine'
 import { drawChecked, expectedFromPrompt } from './slide-spellcheck'
+import { assembleKitPlan, kitLogoAssets, plannerBeats, resolveKitLook } from './kit-engine'
+import { fallbackPlan } from './kit-planner'
+import { buildPresenter } from './presenter'
 
 type Draft = Record<string, unknown>
 const STORAGE_BUCKET = 'videos'
@@ -148,6 +151,26 @@ export function buildPreviewPlan(o: {
       footer: contactLine,
       logoUrl: brand?.logo_light_url || brand?.logo_url || undefined,
     }
+  } else if (engine === 'kit') {
+    // THE SCENE KIT: the same plan builder the real video uses, but the plain
+    // code mapping instead of the Claude planner (a free preview spends
+    // nothing). Cover, the first content scene, closing.
+    const look = resolveKitLook({ kitLook: o.look.slice(4), kitLookCustom: o.draft.kitLookCustom, brand })
+    const g = (brand?.brand_guide_data ?? {}) as Record<string, unknown>
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+    const contact = o.draft.showContactClosing === false ? undefined : Object.fromEntries(Object.entries({ phone: str(g.phone), email: str(g.email), website: str(g.website), booking: str(g.calendly) }).filter(([, v]) => v))
+    const asBeat = (s: PreviewScene | undefined, fallbackTitle: string) => ({ title: s?.title || fallbackTitle, narration: s?.narration || s?.title || fallbackTitle, slideData: s?.slideData })
+    const beats = plannerBeats(asBeat(cover, docTitle), [asBeat(content, sceneTitle || docTitle)], asBeat(closing, 'Questions? Let’s talk'))
+    const scenes = fallbackPlan({
+      beats, regulated, productTokens: tokens, recipient, brandName: brandName || undefined, contact,
+      keyMetrics: Array.isArray(ex.keyMetrics) ? (ex.keyMetrics as { label?: string; value?: string }[]) : [],
+    })
+    const presenter = buildPresenter(brand)
+    const plan = assembleKitPlan({ title: docTitle, scenes, look, brandName, presenter, recipient, regulated })
+    const logos = kitLogoAssets(brand)
+    if (logos.logo_light || logos.logo_dark || logos.logo_any) plan.brand.logo = { light: logos.logo_light, dark: logos.logo_dark, any: logos.logo_any }
+    if (presenter?.photo && plan.brand.presenter) plan.brand.presenter.photo = presenter.photo
+    request = { plan }
   } else if (engine === 'v3') {
     // Aurora / Cinematic / Infographic: the whole list the finished video gets
     // (a scene's layout depends on where it sits), through buildV3Payload.

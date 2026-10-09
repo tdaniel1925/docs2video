@@ -42,7 +42,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT/remotion"
 
 # --- the service itself -------------------------------------------------
-for f in server.js slides.js commercial.js present-export.js fal-image.js slide-spellcheck.js audio-mix.js drawn-assembly.js job-guards.js Dockerfile package.json buildspec.yml; do
+for f in server.js slides.js commercial.js present-export.js fal-image.js slide-spellcheck.js audio-mix.js drawn-assembly.js job-guards.js kit.js Dockerfile package.json buildspec.yml; do
   cp "$REPO/render-service/$f" "$OUT/$f"
 done
 cp "$REPO/render-service/package-lock.json" "$OUT/" 2>/dev/null || true
@@ -86,6 +86,8 @@ need_file slide-spellcheck.js
 need_file audio-mix.js
 need_file drawn-assembly.js
 need_file job-guards.js
+need_file kit.js
+need_file remotion/src/kit/KitVideo.tsx
 need_file remotion/package.json
 need_file remotion/src/v3/V3Video.tsx
 need_file remotion/src/templates/TemplateCommercial.tsx

@@ -1,3 +1,4 @@
+import { isKitLookId } from '../../../../remotion/src/kit/spec'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import {
@@ -34,11 +35,13 @@ interface V1Body {
   brandId?: string | null
   voiceId?: string
   styleId?: string
-  /** Visual style (slides|aurora|cinematic|editorial|explainer|drawn). Distinct from
+  /** Visual style (slides|aurora|cinematic|editorial|explainer|drawn|kit). Distinct from
    *  styleId (a custom slide-template id). */
   videoStyle?: string
   /** For videoStyle "drawn": 3d (default) | illustrated | classic. */
   drawStyle?: string
+  /** For videoStyle "kit" (the scene kit, when the server has it on): animated-slides (default) | editorial | bright | brand. */
+  look?: string
   detailLevel?: DetailLevel
   outputType?: OutputType
   recipientName?: string
@@ -233,6 +236,8 @@ export async function POST(request: Request) {
         // An approved brief is read by generate-video from draft_data.brief — the
         // SAME field the wizard uses — so API/MCP videos honor it identically.
         ...(body.brief ? { brief: body.brief } : {}),
+        // The scene kit's look, kept on the job so a retry renders it the same way.
+        ...(body.videoStyle === 'kit' ? { videoStyle: 'kit', kitLook: isKitLookId(body.look) ? body.look : 'animated-slides' } : {}),
         apiWebhookUrl: body.webhook_url || null,
         apiKeyId: caller.keyId,
         apiCost: cost,
@@ -259,6 +264,7 @@ export async function POST(request: Request) {
       styleId: body.styleId || undefined,
       videoStyle: body.videoStyle || undefined,   // slides|aurora|cinematic|editorial|explainer|drawn
       drawStyle: body.drawStyle || undefined,     // drawn only: 3d|illustrated|classic (anything else = 3d)
+      ...(body.videoStyle === 'kit' ? { kitLook: isKitLookId(body.look) ? body.look : 'animated-slides' } : {}),
       purpose: body.purpose,
       detailLevel,
       detailed: detailLevel === 'detailed',

@@ -123,14 +123,17 @@ export function narrationSample(text: string, maxWords = 26): string {
 // ── Which engine draws the still ────────────────────────────────────────────
 
 export type PreviewOutput = 'video' | 'interactive' | 'deck'
-export type StillEngine = 'directed' | 'v3' | 'editorial' | 'html' | 'drawn'
+export type StillEngine = 'directed' | 'v3' | 'editorial' | 'html' | 'drawn' | 'kit'
 
-export const VIDEO_PREVIEW_LOOKS = ['slides', 'aurora', 'cinematic', 'infographic', 'editorial', 'explainer', 'drawn'] as const
+export const VIDEO_PREVIEW_LOOKS = ['slides', 'aurora', 'cinematic', 'infographic', 'editorial', 'explainer', 'drawn',
+  // the scene kit (KIT_ENGINE=on): "kit:<look>" — kit-looks.ts previewLookFor
+  'kit:animated-slides', 'kit:editorial', 'kit:bright', 'kit:brand'] as const
 
 /** The real renderer for each look (null = no preview for that output). */
 export function stillEngineFor(output: string, look: string): StillEngine | null {
   if (output === 'interactive' || output === 'deck') return 'html'
   if (output !== 'video') return null
+  if (look.startsWith('kit:')) return 'kit'                      // KitVideo (the scene kit)
   if (look === 'slides') return 'directed'                       // DirectedVideo
   if (look === 'aurora' || look === 'cinematic' || look === 'infographic') return 'v3' // V3Video / InfographicVideo
   if (look === 'editorial' || look === 'explainer') return 'editorial'                // EditorialVideo
@@ -142,6 +145,7 @@ export function stillEngineFor(output: string, look: string): StillEngine | null
  *  the free preview leaves out (an AI picture costs money to make). */
 export function lookNote(output: string, look: string): string | null {
   if (output !== 'video') return null
+  if (look.startsWith('kit:')) return 'The finished video picks the scene design that suits each part of your story. This shows one of them.'
   if (look === 'cinematic') return 'The finished video adds a photo behind each scene. This preview shows the layout and your words.'
   if (look === 'infographic') return 'The finished video adds a designed background picture. This preview shows the layout and your numbers.'
   if (look === 'editorial' || look === 'explainer') return 'The finished video can give this page a different layout (numbers, a list or a quote) to suit what it says.'

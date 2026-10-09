@@ -29,6 +29,7 @@ export const COPIED_FIELDS = [
   'title', 'brief', 'briefSkipped', 'scenes', 'detailLevel', 'narrationStyle',
   // the look
   'videoStyle', 'drawStyle', 'presentationTemplate', 'slidePhotos', 'styleId', 'customStylePrompt', 'styleReferenceUrl',
+  'kitLook', 'kitLookCustom',
   // the voice and music
   'voiceId', 'aiMusic', 'musicPrompt',
   // the brand and how the person is introduced
@@ -40,7 +41,7 @@ export const COPIED_FIELDS = [
  *  prove none of them sneak onto the list above. */
 export const NEVER_COPIED = [
   'allowSourceDownload', 'agentNote',
-  'briefChat', 'scriptStatus', 'scriptError', 'scriptStartedAt', 'resolvedAccent',
+  'briefChat', 'scriptStatus', 'scriptError', 'scriptStartedAt', 'resolvedAccent', 'kitPlanCache',
 ] as const
 
 function asRecord(v: unknown): AnyRecord {

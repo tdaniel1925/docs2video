@@ -91,7 +91,7 @@ describe('the style reaches the renderer', () => {
     expect(gv).toMatch(/slidePrompts: drawn \? drawn\.prompts : allSlidePrompts/)
     expect(gv).toMatch(/imageEngine: 'fal',\s*drawStyle: drawn\.style/)
     // …and never into the Remotion engines or the parked v2 pipeline.
-    expect(gv).toMatch(/if \(!drawn && \(useV3 \|\| videoStyle === 'slides' \|\| explicitV3\)\)/)
+    expect(gv).toMatch(/if \(!drawn && \(useV3 \|\| videoStyle === 'slides' \|\| videoStyle === 'kit' \|\| explicitV3\)\)/)
     expect(gv).toMatch(/if \(useV2 && !drawn\)/)
   })
   it('duplicate, the public API and the preview carry it too', () => {
