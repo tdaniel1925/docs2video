@@ -38,7 +38,8 @@ export default function SharePreview({
   const musicRef = useRef<HTMLAudioElement>(null)
   const hasSide = !!(model.bookingUrl || model.paymentLink || model.quote || model.sourcePdf)
   return (
-    <div className="rts-browser">
+    // light-island: the client's real page is always light, so the preview is too, even in dark mode.
+    <div className="rts-browser light-island">
       <div className="rts-browser-bar">
         <span className="rts-dot" /><span className="rts-dot" /><span className="rts-dot" />
         <span className="rts-url" title={shareUrl}>{shareUrl.replace(/^https?:\/\//, '')}</span>
@@ -49,7 +50,7 @@ export default function SharePreview({
         {title && <div className="rts-page-title">{title}</div>}
 
         {(model.greetingName || model.note) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 14 }}>
             {model.greetingName && (
               <div className="rts-greeting">
                 Hi {model.greetingName} — {model.agentName ? <>prepared for you by <strong>{model.agentName}</strong></> : 'prepared just for you'}.

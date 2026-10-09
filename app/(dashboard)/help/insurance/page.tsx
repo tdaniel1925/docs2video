@@ -6,7 +6,7 @@ export default function InsuranceHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -23,13 +23,13 @@ export default function InsuranceHelpPage() {
 
       {/* Detection */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           How the System Detects Insurance Documents
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             When you upload a PDF or paste content, the AI automatically analyzes the text to determine if it is an insurance-related document. It looks for signals such as:
           </p>
@@ -53,13 +53,13 @@ export default function InsuranceHelpPage() {
 
       {/* Automatic Disclaimers */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Automatic Disclaimer Handling
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             Once an insurance document is detected, disclaimers are inserted automatically in several locations:
           </p>
@@ -80,13 +80,13 @@ export default function InsuranceHelpPage() {
 
       {/* Carrier Redaction */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Carrier Name Redaction
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             <strong style={{ color: 'var(--ink)' }}>Why carrier names are redacted:</strong> Most insurance carriers have strict advertising and marketing compliance rules. Showing their name, logo, or product names in a video could violate their guidelines and put your license at risk. To protect you, Docs2Video automatically removes carrier-specific identifiers.
           </p>
@@ -101,13 +101,13 @@ export default function InsuranceHelpPage() {
 
       {/* Layers */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           How the Compliance Safeguards Work Together
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 16 }}>
             Docs2Video uses several safeguards together to help keep insurance content within common compliance rules. You are still responsible for reviewing the video before you send it:
           </p>
@@ -121,10 +121,10 @@ export default function InsuranceHelpPage() {
             { num: 6, title: 'Share Page Disclosures', desc: 'The public share page has a View Legal Disclosures section with the full disclosure text.' },
             { num: 7, title: 'No Financial Advice Language', desc: 'The AI is instructed to never provide financial advice, make guarantees, or use language that could be construed as a recommendation to buy or sell a product.' },
           ].map(layer => (
-            <div key={layer.num} style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
+            <div key={layer.num} style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 14 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
               }}>{layer.num}</div>
               <div>
                 <strong style={{ color: 'var(--ink)' }}>{layer.title}</strong> — {layer.desc}
@@ -136,13 +136,13 @@ export default function InsuranceHelpPage() {
 
       {/* What Disclaimers Say */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           What Disclaimers Are Shown and Where
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             Disclaimer content varies slightly depending on the type of insurance document, but generally includes:
           </p>

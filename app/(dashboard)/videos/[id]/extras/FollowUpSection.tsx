@@ -188,13 +188,13 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
     <div className="res-followup">
   {!followUpPlan && !showFollowUpForm && (
     <div style={{
-      background: 'white',
+      background: 'var(--bg-card)',
       border: '1px dashed var(--border)',
       borderRadius: 10,
       padding: '32px',
       textAlign: 'center',
     }}>
-      <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 14 }}>
+      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', marginBottom: 14 }}>
         Get AI-drafted follow-up emails for this presentation. You review each one and send it yourself.
       </p>
       <button onClick={() => setShowFollowUpForm(true)} className="btn btn-primary">
@@ -204,9 +204,9 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
   )}
 
   {!followUpPlan && showFollowUpForm && (
-    <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client name</label>
+        <label style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 4 }}>Client name</label>
         <input
           type="text"
           className="input"
@@ -217,7 +217,7 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
         />
       </div>
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client email</label>
+        <label style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 4 }}>Client email</label>
         <input
           type="email"
           className="input"
@@ -227,7 +227,7 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
           style={{ width: '100%' }}
         />
       </div>
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
         <button
           onClick={handleCreateFollowUp}
           disabled={generatingPlan || !followUpClientName || !followUpClientEmail}
@@ -245,17 +245,17 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
 
   {followUpPlan && (
     <div>
-      <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 6 }}>
+      <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', marginBottom: 6 }}>
         Follow-up plan for <strong>{followUpPlan.client_name}</strong> ({followUpPlan.client_email})
       </p>
       {/* These are DRAFTS. Nothing sends them on a schedule — the "Day N"
           labels used to read like a promise that they would go out by
           themselves. Say plainly that the agent sends each one. */}
-      <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 14 }}>
+      <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 14 }}>
         These are drafts — nothing here is sent automatically. Press <strong>Send now</strong> on each one when the day comes.
       </p>
       <div style={{
-        background: 'white',
+        background: 'var(--bg-card)',
         border: '1px solid var(--border-light)',
         borderRadius: 10,
         overflow: 'hidden',
@@ -270,20 +270,20 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
               borderBottom: i < arr.length - 1 ? '1px solid var(--border-light)' : 'none',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-soft)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 6 }}>
+              <span style={{ fontSize: 'var(--fs-small)', fontWeight: 700, color: 'var(--ink-soft)' }}>
                 Suggested for day {email.day_offset}
                 {email.scheduled_date ? ` (${new Date(email.scheduled_date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})` : ''}
                 {' '}&mdash; {toneLabel(email.day_offset)}
               </span>
-              <span className={`tag ${statusClass(email.status)}`} style={{ fontSize: 11 }}>
+              <span className={`tag ${statusClass(email.status)}`} style={{ fontSize: 'var(--fs-caption)' }}>
                 {statusLabel(email.status)}
               </span>
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+            <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600, marginBottom: 8 }}>
               {email.subject}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setExpandedEmail(expandedEmail === email.id ? null : email.id)}
                 className="btn btn-soft btn-sm"
@@ -316,7 +316,7 @@ export default function FollowUpSection({ videoId, plan: followUpPlan, setPlan: 
                 padding: '14px 16px',
                 background: 'var(--bg)',
                 borderRadius: 8,
-                fontSize: 13,
+                fontSize: 'var(--fs-small)',
                 lineHeight: 1.7,
                 color: 'var(--ink-soft)',
                 whiteSpace: 'pre-wrap',

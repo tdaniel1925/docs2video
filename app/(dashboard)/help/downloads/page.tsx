@@ -6,7 +6,7 @@ export default function DownloadsHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -23,13 +23,13 @@ export default function DownloadsHelpPage() {
 
       {/* MP4 Video */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           MP4 Video Download
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             The MP4 is the full video file with narration, background music, slide transitions, and all visual elements combined into a single playable file.
           </p>
@@ -47,13 +47,13 @@ export default function DownloadsHelpPage() {
 
       {/* PDF Slides */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           PDF Slides Download
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             The PDF contains all slides from your video as a printable slide deck. Each page is one slide with full visual quality.
           </p>
@@ -68,13 +68,13 @@ export default function DownloadsHelpPage() {
 
       {/* PPTX Presentation */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           PowerPoint (PPTX) Download
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             The PPTX is an editable PowerPoint file. Each slide from your video becomes a PowerPoint slide with the visual design preserved.
           </p>
@@ -89,13 +89,13 @@ export default function DownloadsHelpPage() {
 
       {/* Script Download */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Script Text Download
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             The script download gives you the full narration text organized by scene. This is the exact text spoken in the voiceover.
           </p>
@@ -110,13 +110,13 @@ export default function DownloadsHelpPage() {
 
       {/* Choosing the Right Format */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Choosing the Right Format
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Sending to a client remotely?</strong> Use the send panel at the top of the page — <strong style={{ color: 'var(--ink)' }}>Send to</strong> your client, or <strong style={{ color: 'var(--ink)' }}>or copy the link</strong> (no download needed), or send the MP4 for offline viewing. Your client can only download these files if you send them yourself — the share page does not offer them.
           </p>

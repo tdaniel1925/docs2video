@@ -61,7 +61,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn btn-soft" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button onClick={() => setOpen(true)} className="btn btn-soft" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Share
       </button>
@@ -76,16 +76,16 @@ export default function SocialShareButton({ creationId, creationType, title, ima
             width: 420, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Share to Social Media</h3>
-              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--ink-light)' }}>&times;</button>
+              <h3 style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, margin: 0 }}>Share to Social Media</h3>
+              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-lead)', color: 'var(--ink-light)' }}>&times;</button>
             </div>
 
-            <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', margin: '0 0 16px', lineHeight: 1.5 }}>
               Pick a platform — we&rsquo;ll open it in a new tab with your post ready to publish
               (you&rsquo;ll post from whatever account you&rsquo;re signed in to there).
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-3)', marginBottom: 16 }}>
               {PLATFORMS.map(p => (
                 <button
                   key={p.id}
@@ -96,7 +96,7 @@ export default function SocialShareButton({ creationId, creationType, title, ima
                     border: '1px solid var(--border-light)',
                     background: posting === p.id ? 'var(--bg-soft)' : 'white',
                     cursor: posting ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
                     opacity: posting && posting !== p.id ? 0.5 : 1,
                     transition: 'all 0.15s',
                   }}
@@ -105,13 +105,13 @@ export default function SocialShareButton({ creationId, creationType, title, ima
                     width: 32, height: 32, borderRadius: 8,
                     background: 'var(--bg-soft)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 800,
+                    fontSize: 'var(--fs-caption)', fontWeight: 800,
                   }}>
                     {p.icon}
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{p.label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>
+                    <div style={{ fontSize: 'var(--fs-small)', fontWeight: 600 }}>{p.label}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
                       {posting === p.id ? 'Opening…' : 'Open & post'}
                     </div>
                   </div>
@@ -124,14 +124,14 @@ export default function SocialShareButton({ creationId, creationType, title, ima
                 padding: '12px 16px', borderRadius: 10,
                 background: result.credits > 0 ? 'var(--success-bg)' : 'var(--bg-soft)',
                 border: result.credits > 0 ? '1px solid var(--accent)' : '1px solid var(--border-light)',
-                fontSize: 13, fontWeight: 600,
+                fontSize: 'var(--fs-small)', fontWeight: 600,
                 color: result.credits > 0 ? 'var(--mint-darker)' : 'var(--ink-soft)',
               }}>
                 {result.message}
               </div>
             )}
 
-            <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 12, textAlign: 'center' }}>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 12, textAlign: 'center' }}>
               Opens in a new tab — nothing posts until you press publish there.
             </div>
           </div>

@@ -7,14 +7,14 @@ import Link from 'next/link'
 // only the original PDF, and only when the agent turns it on.
 
 const CARD: React.CSSProperties = {
-  background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+  background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
   padding: '28px 32px', marginBottom: 20,
 }
-const H2: React.CSSProperties = { fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
-const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
+const H2: React.CSSProperties = { fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
+const BODY: React.CSSProperties = { fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }
 const STEP_NUM: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
 }
 const INK: React.CSSProperties = { color: 'var(--ink)' }
 
@@ -22,7 +22,7 @@ export default function SharingVideosPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -41,25 +41,25 @@ export default function SharingVideosPage() {
       <div style={CARD}>
         <h2 style={H2}>How to Share Your Video</h2>
         <div style={BODY}>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={STEP_NUM}>1</div>
             <div>
               <strong style={INK}>Open the video.</strong> Click <strong style={INK}>Library</strong> in the top bar, then click the video you want to share. The top of its page is <strong style={INK}>Ready to send</strong>: on the left, a picture of exactly what your client will see; on the right, the send panel.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={STEP_NUM}>2</div>
             <div>
               <strong style={INK}>Check &ldquo;What&rsquo;s left.&rdquo;</strong> At the top of the send panel, small chips list anything missing from their page — your client&rsquo;s email, a note, a booking link, your photo or name, a payment link for a quote. Press one to go straight to the fix. When nothing is missing it says <strong style={INK}>All set</strong>.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={STEP_NUM}>3</div>
             <div>
               <strong style={INK}>Write a note and send.</strong> Write <strong style={INK}>A short note</strong> (it shows on their page and in the email), turn the pieces on or off, then press <strong style={INK}>Send to [your client]</strong>. They get an email with your note and a <strong style={INK}>Watch Video</strong> button. If the app doesn&rsquo;t have their email yet, type it in (and their name, if you like). To send it to someone else this once, press <strong style={INK}>Send to someone else</strong>. The line under the button says whether it goes from your own connected email or from our address (replies still come to you). You see &ldquo;✓ Sent to …&rdquo; when it has really gone.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <div style={STEP_NUM}>4</div>
             <div>
               <strong style={INK}>Or send it yourself.</strong> Press <strong style={INK}>or copy the link</strong> to copy the share page address, or <strong style={INK}>Copy the email</strong> to copy the whole email (your note, a View button and the link) and paste it into Gmail or Outlook. Copying sends nothing — you press Send there. On insurance videos, a copied link comes with the policy disclosure.
@@ -104,13 +104,13 @@ export default function SharingVideosPage() {
 
       {/* Quotes, payment status and follow-ups */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Quotes, Payments and Follow-Ups
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Add a quote.</strong> On the video page, press <strong>Add a quote</strong> in the send panel, or scroll to <strong>More for this video</strong> and open the <strong>Quote / invoice</strong> tab, then click <strong>Add a quote</strong>. Enter the client&apos;s name and email and your line items, then click <strong>Save quote</strong>. You&apos;ll see &ldquo;Quote saved&rdquo; — if saving fails, the page says so and keeps your form open.
           </p>

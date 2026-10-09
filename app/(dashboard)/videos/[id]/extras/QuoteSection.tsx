@@ -140,13 +140,13 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
     <div id="quote-section" className="res-quote">
   {!existingQuote && !showQuoteBuilder && (
     <div style={{
-      background: 'white',
+      background: 'var(--bg-card)',
       border: '1px dashed var(--border)',
       borderRadius: 10,
       padding: '32px',
       textAlign: 'center',
     }}>
-      <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 14 }}>
+      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', marginBottom: 14 }}>
         Attach pricing. Your client sees it on their page with a payment button.
       </p>
       <button onClick={() => setShowQuoteBuilder(true)} className="btn btn-primary">
@@ -157,19 +157,19 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
 
   {existingQuote && !showQuoteBuilder && (
     <div style={{
-      background: 'white',
+      background: 'var(--bg-card)',
       border: '1px solid var(--border-light)',
       borderRadius: 10,
       padding: '24px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Quote</span>
-        <span className={`tag ${quoteStatusBadge(existingQuote.status)}`} style={{ fontSize: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 16 }}>
+        <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Quote</span>
+        <span className={`tag ${quoteStatusBadge(existingQuote.status)}`} style={{ fontSize: 'var(--fs-caption)' }}>
           {existingQuote.status.charAt(0).toUpperCase() + existingQuote.status.slice(1)}
         </span>
       </div>
       {existingQuote.client_name && (
-        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 4 }}>
+        <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', marginBottom: 4 }}>
           {existingQuote.client_name} {existingQuote.client_email ? `(${existingQuote.client_email})` : ''}
         </p>
       )}
@@ -179,7 +179,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
             display: 'flex',
             justifyContent: 'space-between',
             padding: '6px 0',
-            fontSize: 14,
+            fontSize: 'var(--fs-ui)',
             borderBottom: i < (existingQuote.line_items ?? []).length - 1 ? '1px solid var(--border-light)' : 'none',
           }}>
             <span>{item.description}</span>
@@ -193,19 +193,19 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
         marginTop: 12,
         paddingTop: 12,
         borderTop: '2px solid var(--ink)',
-        fontSize: 16,
+        fontSize: 'var(--fs-body)',
         fontWeight: 700,
       }}>
         <span>Total</span>
         <span>${(Number(existingQuote.total ?? 0) / 100).toFixed(2)}</span>
       </div>
       {existingQuote.notes && (
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12 }}>{existingQuote.notes}</p>
+        <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginTop: 12 }}>{existingQuote.notes}</p>
       )}
       {/* Deal status — the agent marks it; nothing else can know. */}
       <div style={{ borderTop: '1px solid var(--border-light)', marginTop: 16, paddingTop: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Where does this deal stand?</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 8 }}>Where does this deal stand?</div>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           {existingQuote.status !== 'paid' && (
             <button className="btn btn-mint btn-sm" disabled={quoteUpdating}
               onClick={() => updateQuote({ status: 'paid' }, 'Marked as paid. No more automatic reminders will go to this client.')}>
@@ -231,7 +231,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
             </button>
           )}
         </div>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 14, fontSize: 13, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', marginTop: 14, fontSize: 'var(--fs-small)', cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={existingQuote.auto_follow_up === true}
@@ -243,7 +243,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
           />
           <span>
             <strong>Automatic follow-ups</strong>
-            <span style={{ display: 'block', color: 'var(--ink-soft)', fontSize: 12 }}>
+            <span style={{ display: 'block', color: 'var(--ink-soft)', fontSize: 'var(--fs-caption)' }}>
               {!existingQuote.client_email
                 ? 'Add the client’s email to the quote to use this.'
                 : existingQuote.status === 'draft'
@@ -255,11 +255,11 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
           </span>
         </label>
       </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <button onClick={editQuote} className="btn btn-soft">Edit</button>
         {confirmRemove ? (
           <>
-            <span style={{ fontSize: 13, color: 'var(--warning-text)', fontWeight: 600 }}>Remove this quote?</span>
+            <span style={{ fontSize: 'var(--fs-small)', color: 'var(--warning-text)', fontWeight: 600 }}>Remove this quote?</span>
             <button onClick={() => setConfirmRemove(false)} className="btn btn-soft btn-sm">Cancel</button>
             <button onClick={removeQuote} className="btn btn-danger btn-sm">Yes, remove</button>
           </>
@@ -271,9 +271,9 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
   )}
 
   {showQuoteBuilder && (
-    <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client name</label>
+        <label style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 4 }}>Client name</label>
         <input
           type="text"
           className="input"
@@ -284,7 +284,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
         />
       </div>
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Client email</label>
+        <label style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 4 }}>Client email</label>
         <input
           type="email"
           className="input"
@@ -296,11 +296,11 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Line items</label>
+        <label style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 8 }}>Line items</label>
         {quoteLineItems.map((item, i) => (
           <div key={i} style={{
             display: 'flex',
-            gap: 8,
+            gap: 'var(--space-2)',
             alignItems: 'center',
             marginBottom: 8,
             paddingBottom: 8,
@@ -320,7 +320,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
                 left: 10,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                fontSize: 14,
+                fontSize: 'var(--fs-ui)',
                 color: 'var(--ink-soft)',
                 pointerEvents: 'none',
               }}>$</span>
@@ -339,7 +339,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
               <button
                 onClick={() => removeLineItem(i)}
                 className="btn btn-danger btn-sm"
-                style={{ padding: '4px 8px', fontSize: 12 }}
+                style={{ padding: '4px 8px', fontSize: 'var(--fs-caption)' }}
               >
                 &times;
               </button>
@@ -356,7 +356,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
         justifyContent: 'space-between',
         padding: '12px 0',
         borderTop: '2px solid var(--ink)',
-        fontSize: 16,
+        fontSize: 'var(--fs-body)',
         fontWeight: 700,
         marginBottom: 20,
       }}>
@@ -365,7 +365,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Notes (optional)</label>
+        <label style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 600, marginBottom: 4 }}>Notes (optional)</label>
         <textarea
           className="input"
           placeholder="Payment terms, additional details..."
@@ -375,7 +375,7 @@ export default function QuoteSection({ videoId, quote: existingQuote, setQuote: 
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
         <button
           onClick={saveQuote}
           disabled={quoteSaving}

@@ -30,12 +30,12 @@ interface VideoDetail {
 function FunnelRow({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
-      <span style={{ fontSize: 13, width: 110, flexShrink: 0, color: 'var(--ink-soft)' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: '6px 0' }}>
+      <span style={{ fontSize: 'var(--fs-small)', width: 110, flexShrink: 0, color: 'var(--ink-soft)' }}>{label}</span>
       <div style={{ flex: 1, height: 22, background: 'var(--border-light)', borderRadius: 6, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 6, minWidth: count > 0 ? 6 : 0, transition: 'width .3s' }} />
       </div>
-      <span style={{ fontSize: 13, fontWeight: 700, width: 64, textAlign: 'right' }}>{count.toLocaleString()} <span style={{ color: 'var(--ink-light)', fontWeight: 500 }}>({pct}%)</span></span>
+      <span style={{ fontSize: 'var(--fs-small)', fontWeight: 700, width: 64, textAlign: 'right' }}>{count.toLocaleString()} <span style={{ color: 'var(--ink-light)', fontWeight: 500 }}>({pct}%)</span></span>
     </div>
   )
 }
@@ -61,12 +61,12 @@ function BenchmarkRow({ label, userVal, platformVal, unit, invert }: {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-light)' }}>
-      <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontWeight: 700, fontSize: 15 }}>{userVal}{unit}</span>
-        <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>(avg: {platformVal}{unit})</span>
+      <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 500 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <span style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>{userVal}{unit}</span>
+        <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>(avg: {platformVal}{unit})</span>
         <span style={{
-          fontSize: 12,
+          fontSize: 'var(--fs-caption)',
           fontWeight: 700,
           color: isAbove ? 'var(--success)' : 'var(--error)',
         }}>
@@ -123,21 +123,21 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Stats row */}
-      <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+      <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 32 }}>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.totalViews}</div>
+          <div style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, color: 'var(--accent-ink)' }}>{data.totalViews}</div>
           <div className="ssub">Total views</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.total}</div>
+          <div style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.total}</div>
           <div className="ssub">Quotes sent</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.accepted}</div>
+          <div style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, color: 'var(--accent-ink)' }}>{data.quoteStats.accepted}</div>
           <div className="ssub">Conversions</div>
         </div>
         <div className="settings-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-ink)' }}>{data.emailStats.openRate}%</div>
+          <div style={{ fontSize: 'var(--fs-h1)', fontWeight: 700, color: 'var(--accent-ink)' }}>{data.emailStats.openRate}%</div>
           <div className="ssub">Email open rate</div>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
         {dailyViews.length === 0 ? (
           <p className="ssub">No views in the last 30 days.</p>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 120 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-1)', height: 120 }}>
             {dailyViews.map(d => (
               <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div
@@ -171,7 +171,7 @@ export default function AnalyticsPage() {
 
       {/* Watch-through + engagement funnels (data we already collect) */}
       {engagement && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-4)', marginBottom: 32 }}>
           <div className="settings-card">
             <h3 style={{ marginBottom: 6 }}>Watch-through</h3>
             <p className="ssub" style={{ marginBottom: 14 }}>How far viewers get into your videos.</p>
@@ -200,16 +200,16 @@ export default function AnalyticsPage() {
           <p className="ssub" style={{ marginBottom: 14 }}>Named clients who opened a video you sent them.</p>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {engagement.clients.map((c) => (
-              <div key={c.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+              <div key={c.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name || c.email}</div>
-                  {c.name && <div style={{ fontSize: 12, color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>}
+                  <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name || c.email}</div>
+                  {c.name && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-                  <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{c.totalViews} view{c.totalViews === 1 ? '' : 's'}</span>
-                  {c.avgWatchPct != null && <span style={{ fontSize: 13, fontWeight: 700 }}>{Math.round(c.avgWatchPct)}% watched</span>}
-                  {c.converted && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', padding: '2px 8px', borderRadius: 6 }}>Converted</span>}
-                  {c.lastViewedAt && <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{new Date(c.lastViewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>{c.totalViews} view{c.totalViews === 1 ? '' : 's'}</span>
+                  {c.avgWatchPct != null && <span style={{ fontSize: 'var(--fs-small)', fontWeight: 700 }}>{Math.round(c.avgWatchPct)}% watched</span>}
+                  {c.converted && <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', padding: '2px 8px', borderRadius: 6 }}>Converted</span>}
+                  {c.lastViewedAt && <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>{new Date(c.lastViewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                 </div>
               </div>
             ))}
@@ -229,13 +229,13 @@ export default function AnalyticsPage() {
                 key={v.id}
                 onClick={() => openVideoDetail(v.id)}
                 className="activity-row"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border-light)', background: 'none', border: 'none', borderBottomWidth: 1, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '12px 0', borderBottom: '1px solid var(--border-light)', background: 'none', border: 'none', borderBottomWidth: 1, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
                 title="View details"
               >
                 <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title || 'Untitled'}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, color: 'var(--ink-light)', fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0, color: 'var(--ink-light)', fontWeight: 600 }}>
                   {v.view_count ?? 0} views
-                  <span aria-hidden style={{ fontSize: 16 }}>&rsaquo;</span>
+                  <span aria-hidden style={{ fontSize: 'var(--fs-body)' }}>&rsaquo;</span>
                 </span>
               </button>
             ))}
@@ -250,33 +250,33 @@ export default function AnalyticsPage() {
           <div onClick={(e) => e.stopPropagation()} className="settings-card" style={{ maxWidth: 640, width: '100%', maxHeight: '86vh', overflowY: 'auto' }}>
             {detailLoading ? <p className="ssub">Loading…</p> : detail ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', marginBottom: 16 }}>
                   <h3 style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail.video.title || 'Untitled'}</h3>
-                  <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
+                  <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-h3)', cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
                 </div>
-                <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Watch-through</h4>
+                <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-ui)' }}>Watch-through</h4>
                 <FunnelRow label="Opened" count={detail.watchFunnel.view} max={detail.watchFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Watched 25%" count={detail.watchFunnel.p25} max={detail.watchFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Watched 50%" count={detail.watchFunnel.p50} max={detail.watchFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Watched 75%" count={detail.watchFunnel.p75} max={detail.watchFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Finished" count={detail.watchFunnel.p100} max={detail.watchFunnel.view} color="var(--ink)" />
-                <h4 style={{ margin: '18px 0 8px', fontSize: 14 }}>Engagement</h4>
+                <h4 style={{ margin: '18px 0 8px', fontSize: 'var(--fs-ui)' }}>Engagement</h4>
                 <FunnelRow label="Viewed" count={detail.engagementFunnel.view} max={detail.engagementFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Played" count={detail.engagementFunnel.play} max={detail.engagementFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Downloaded" count={detail.engagementFunnel.download} max={detail.engagementFunnel.view} color="var(--accent-ink)" />
                 <FunnelRow label="Booked" count={detail.engagementFunnel.booking} max={detail.engagementFunnel.view} color="var(--ink)" />
                 <FunnelRow label="Paid" count={detail.engagementFunnel.payment} max={detail.engagementFunnel.view} color="var(--ink)" />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 18 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginTop: 18 }}>
                   <div>
-                    <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Devices</h4>
+                    <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-ui)' }}>Devices</h4>
                     {detail.device.length ? detail.device.map(d => (
-                      <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}><span style={{ color: 'var(--ink-soft)' }}>{d.label}</span><span style={{ fontWeight: 600 }}>{d.count}</span></div>
+                      <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-small)', padding: '3px 0' }}><span style={{ color: 'var(--ink-soft)' }}>{d.label}</span><span style={{ fontWeight: 600 }}>{d.count}</span></div>
                     )) : <p className="ssub">No data yet.</p>}
                   </div>
                   <div>
-                    <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Traffic source</h4>
+                    <h4 style={{ margin: '0 0 8px', fontSize: 'var(--fs-ui)' }}>Traffic source</h4>
                     {detail.referrer.length ? detail.referrer.map(r => (
-                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, padding: '3px 0' }}><span style={{ color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span><span style={{ fontWeight: 600 }}>{r.count}</span></div>
+                      <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)', fontSize: 'var(--fs-small)', padding: '3px 0' }}><span style={{ color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span><span style={{ fontWeight: 600 }}>{r.count}</span></div>
                     )) : <p className="ssub">No data yet.</p>}
                   </div>
                 </div>
@@ -289,17 +289,17 @@ export default function AnalyticsPage() {
       {/* Email stats */}
       <div className="settings-card" style={{ marginBottom: 32 }}>
         <h3 style={{ marginBottom: 16 }}>Email results</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{data.emailStats.total}</div>
+            <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700 }}>{data.emailStats.total}</div>
             <div className="ssub">Sent</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{data.emailStats.opened}</div>
+            <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700 }}>{data.emailStats.opened}</div>
             <div className="ssub">Opened</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{data.emailStats.openRate}%</div>
+            <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700 }}>{data.emailStats.openRate}%</div>
             <div className="ssub">Open rate</div>
           </div>
         </div>
@@ -335,17 +335,17 @@ export default function AnalyticsPage() {
             platformVal={String(benchmarks.conversionRate.platform)}
             unit="%"
           />
-          <div style={{ marginTop: 16, display: 'flex', gap: 24 }}>
+          <div style={{ marginTop: 16, display: 'flex', gap: 'var(--space-5)' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{benchmarks.viewsThisMonth}</div>
+              <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700 }}>{benchmarks.viewsThisMonth}</div>
               <div className="ssub">Views this month</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{benchmarks.viewsLastMonth}</div>
+              <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700 }}>{benchmarks.viewsLastMonth}</div>
               <div className="ssub">Views last month</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? 'var(--success)' : 'var(--error)' }}>
+              <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, color: benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? 'var(--success)' : 'var(--error)' }}>
                 {benchmarks.viewsLastMonth > 0
                   ? `${benchmarks.viewsThisMonth >= benchmarks.viewsLastMonth ? '+' : ''}${Math.round(((benchmarks.viewsThisMonth - benchmarks.viewsLastMonth) / benchmarks.viewsLastMonth) * 100)}%`
                   : '--'}

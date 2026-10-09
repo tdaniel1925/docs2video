@@ -50,9 +50,9 @@ export default function ApiKeysSection() {
       {/* The freshly-created key — shown ONCE. */}
       {freshKey && (
         <div style={{ padding: '14px 16px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)', marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Your new key — copy it now, it won&apos;t be shown again:</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <code style={{ flex: 1, fontSize: 13, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'nowrap' }}>{freshKey}</code>
+          <div style={{ fontSize: 'var(--fs-small)', fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Your new key — copy it now, it won&apos;t be shown again:</div>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <code style={{ flex: 1, fontSize: 'var(--fs-small)', padding: '8px 10px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'nowrap' }}>{freshKey}</code>
             <button className="btn btn-sm btn-primary" onClick={() => { navigator.clipboard?.writeText(freshKey); setCopied(true); setTimeout(() => setCopied(false), 2000) }}>{copied ? 'Copied' : 'Copy'}</button>
             <button className="btn btn-sm btn-soft" onClick={() => setFreshKey(null)}>Done</button>
           </div>
@@ -60,7 +60,7 @@ export default function ApiKeysSection() {
       )}
 
       {/* Create */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 16 }}>
         <input className="input" placeholder="Key name (optional, e.g. 'MCP')" value={newName} onChange={e => setNewName(e.target.value)} style={{ flex: 1, maxWidth: 280 }} />
         <button className="btn btn-primary" onClick={createKey} disabled={creating}>{creating ? 'Creating…' : 'Generate key'}</button>
       </div>
@@ -69,12 +69,12 @@ export default function ApiKeysSection() {
       {loading ? <p className="ssub">Loading…</p> : activeKeys.length === 0 ? (
         <p className="ssub">No keys yet.</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 16 }}>
           {activeKeys.map(k => (
-            <div key={k.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-card)' }}>
+            <div key={k.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-card)' }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{k.name || 'Untitled key'}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)' }}><code>{k.key_prefix}…</code> · created {new Date(k.created_at).toLocaleDateString()} {k.last_used_at ? `· last used ${new Date(k.last_used_at).toLocaleDateString()}` : '· never used'}</div>
+                <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600 }}>{k.name || 'Untitled key'}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}><code>{k.key_prefix}…</code> · created {new Date(k.created_at).toLocaleDateString()} {k.last_used_at ? `· last used ${new Date(k.last_used_at).toLocaleDateString()}` : '· never used'}</div>
               </div>
               <button className="btn btn-sm btn-soft" onClick={() => revoke(k.id)}>Revoke</button>
             </div>
@@ -83,11 +83,11 @@ export default function ApiKeysSection() {
       )}
 
       {/* MCP usage hint */}
-      <details style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
+      <details style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)' }}>Use it with an AI assistant (MCP)</summary>
         <div style={{ marginTop: 8, lineHeight: 1.6 }}>
           <p style={{ margin: '0 0 8px' }}>Point the MCP server at your key to make {storefront.showVideoFeatures ? 'videos and commercials' : 'designs'} from chat. For Claude Code:</p>
-          <code style={{ display: 'block', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'pre', fontSize: 12 }}>{`claude mcp add docs2video \\
+          <code style={{ display: 'block', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflowX: 'auto', whiteSpace: 'pre', fontSize: 'var(--fs-caption)' }}>{`claude mcp add docs2video \\
   -e DOCS2VIDEO_API_KEY=YOUR_KEY \\
   -- node /path/to/mcp/server.mjs`}</code>
           <p style={{ margin: '8px 0 0' }}>Base URL: <code>{typeof window !== 'undefined' ? window.location.origin : `https://${storefront.domain}`}</code>. See the mcp/README for the full tool list.

@@ -15,14 +15,14 @@ const n = (x: number) => x.toLocaleString('en-US')
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
-  fontWeight: 700, fontSize: 15, flexShrink: 0,
+  fontWeight: 700, fontSize: 'var(--fs-body)', flexShrink: 0,
 }
 
 const CARD: React.CSSProperties = {
-  background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+  background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
   padding: '28px 32px', marginBottom: 20,
 }
-const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
+const BODY: React.CSSProperties = { fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }
 const INK: React.CSSProperties = { color: 'var(--ink)' }
 const LINK: React.CSSProperties = { color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }
 const P: React.CSSProperties = { marginBottom: 10 }
@@ -30,9 +30,9 @@ const P: React.CSSProperties = { marginBottom: 10 }
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <div style={CARD}>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'center', marginBottom: 16 }}>
         <div style={STEP_CIRCLE}>{n}</div>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{title}</h2>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>{title}</h2>
       </div>
       <div style={BODY}>{children}</div>
     </div>
@@ -43,7 +43,7 @@ export default function CreatingVideosPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={LINK}>
           Help Center
         </Link>

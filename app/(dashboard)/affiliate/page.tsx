@@ -113,7 +113,7 @@ Happy to answer any questions.
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--space-3)', marginBottom: 24 }}>
         {[
           { label: 'Clicks', value: stats.clicks },
           { label: 'Signups', value: stats.signups },
@@ -123,8 +123,8 @@ Happy to answer any questions.
           { label: 'Lifetime earned', value: money(stats.lifetimeCents) },
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: 16 }}>
-            <div style={{ fontSize: 12, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{s.value}</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
+            <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginTop: 4 }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -132,13 +132,13 @@ Happy to answer any questions.
       {/* Link + code */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Your referral link & code</h3>
-        <label style={{ fontSize: 13, color: 'var(--ink-light)' }}>Share this link</label>
-        <div style={{ display: 'flex', gap: 8, marginTop: 4, marginBottom: 16 }}>
+        <label style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>Share this link</label>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 4, marginBottom: 16 }}>
           <input className="input" readOnly value={link} style={{ flex: 1 }} onFocus={e => e.currentTarget.select()} />
           <button className="btn btn-soft" onClick={() => copy(link, 'link')}>{copied === 'link' ? 'Copied!' : 'Copy'}</button>
         </div>
-        <label style={{ fontSize: 13, color: 'var(--ink-light)' }}>Or share your promo code (customers enter it at checkout for {15}% off)</label>
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <label style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>Or share your promo code (customers enter it at checkout for {15}% off)</label>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 4 }}>
           <input className="input" readOnly value={code} style={{ flex: 1, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1 }} />
           <button className="btn btn-soft" onClick={() => copy(code, 'code')}>{copied === 'code' ? 'Copied!' : 'Copy'}</button>
         </div>
@@ -147,13 +147,13 @@ Happy to answer any questions.
       {/* Payout details */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Payout details</h3>
-        <p style={{ color: 'var(--ink-light)', fontSize: 14, marginTop: 0 }}>
+        <p style={{ color: 'var(--ink-light)', fontSize: 'var(--fs-ui)', marginTop: 0 }}>
           Commissions are approved after a 30-day refund hold, then paid manually each cycle. Tell us where to send the money.
         </p>
-        <label style={{ fontSize: 13, color: 'var(--ink-light)' }}>Payout email *</label>
+        <label style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>Payout email *</label>
         <input className="input" type="email" placeholder="you@example.com" value={payoutEmail}
           onChange={e => setPayoutEmail(e.target.value)} style={{ width: '100%', marginTop: 4, marginBottom: 12 }} />
-        <label style={{ fontSize: 13, color: 'var(--ink-light)' }}>Payout method (optional)</label>
+        <label style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>Payout method (optional)</label>
         <input className="input" placeholder="e.g. PayPal, Wise, or bank transfer" value={payoutMethod}
           onChange={e => setPayoutMethod(e.target.value)} style={{ width: '100%', marginTop: 4, marginBottom: 12 }} />
         <button className="btn btn-primary btn-sm" onClick={savePayout} disabled={busy || !payoutEmail}>
@@ -164,18 +164,18 @@ Happy to answer any questions.
       {/* Banners */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Banners</h3>
-        <p style={{ color: 'var(--ink-light)', fontSize: 14 }}>Download a banner and link it to your referral link above.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+        <p style={{ color: 'var(--ink-light)', fontSize: 'var(--fs-ui)' }}>Download a banner and link it to your referral link above.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
           {[
             { file: 'banner-social-16x9', label: 'Social / link preview' },
             { file: 'banner-square-4x3', label: 'Feed post' },
             { file: 'banner-story-9x16', label: 'Story (vertical)' },
           ].map(b => (
-            <div key={b.file} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div key={b.file} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               <img src={`/affiliate/${b.file}.png`} alt={b.label}
                 style={{ width: '100%', borderRadius: 10, border: '1px solid var(--border-light)', objectFit: 'cover', maxHeight: 200 }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: 'var(--ink-light)' }}>{b.label}</span>
+                <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>{b.label}</span>
                 <a href={`/affiliate/${b.file}.png`} download className="btn btn-soft btn-sm" style={{ textDecoration: 'none' }}>⬇ Download</a>
               </div>
             </div>
@@ -186,11 +186,11 @@ Happy to answer any questions.
       {/* Swipe copy */}
       <div className="card" style={{ padding: 20 }}>
         <h3 style={{ marginTop: 0 }}>Email & social copy</h3>
-        <label style={{ fontSize: 13, color: 'var(--ink-light)' }}>Email template</label>
+        <label style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>Email template</label>
         <textarea className="input" readOnly value={emailSwipe} rows={12} style={{ width: '100%', marginTop: 4, marginBottom: 8, fontFamily: 'inherit' }} />
         <button className="btn btn-soft btn-sm" onClick={() => copy(emailSwipe, 'email')}>{copied === 'email' ? 'Copied!' : 'Copy email'}</button>
 
-        <label style={{ fontSize: 13, color: 'var(--ink-light)', display: 'block', marginTop: 16 }}>Social post</label>
+        <label style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', display: 'block', marginTop: 16 }}>Social post</label>
         <textarea className="input" readOnly value={socialSwipe} rows={3} style={{ width: '100%', marginTop: 4, marginBottom: 8, fontFamily: 'inherit' }} />
         <button className="btn btn-soft btn-sm" onClick={() => copy(socialSwipe, 'social')}>{copied === 'social' ? 'Copied!' : 'Copy post'}</button>
       </div>

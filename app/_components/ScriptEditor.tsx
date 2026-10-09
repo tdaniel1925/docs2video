@@ -86,9 +86,9 @@ export default function ScriptEditor({
   }
 
   return (
-    <div style={{ display: 'flex', gap: 24, minHeight: 500 }}>
+    <div style={{ display: 'flex', gap: 'var(--space-5)', minHeight: 500 }}>
       {/* Left column - Slide thumbnails (60%) */}
-      <div style={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+      <div style={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
         {scenes.map((scene, i) => (
           <div
             key={i}
@@ -96,7 +96,7 @@ export default function ScriptEditor({
             style={{ padding: 16, borderRadius: 10 }}
           >
             {/* Thumbnail */}
-            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
               <div style={{ flexShrink: 0, width: 160 }}>
                 {slides[i] ? (
                   <img
@@ -109,7 +109,7 @@ export default function ScriptEditor({
                     width: 160, height: 90, borderRadius: 8,
                     background: 'var(--bg-soft)', border: '1px solid var(--border-light)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, color: 'var(--ink-light)',
+                    fontSize: 'var(--fs-caption)', color: 'var(--ink-light)',
                   }}>
                     No slide
                   </div>
@@ -117,19 +117,19 @@ export default function ScriptEditor({
               </div>
 
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
+                <div style={{ fontSize: 'var(--fs-small)', fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
                   Scene {i + 1}: {scene.title}
                 </div>
 
                 {/* Action buttons */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                   <button
                     className="btn btn-soft btn-sm"
                     onClick={() => {
                       setEditingSlide(editingSlide === i ? null : i)
                       setEditInstruction('')
                     }}
-                    style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6 }}
+                    style={{ fontSize: 'var(--fs-caption)', padding: '4px 10px', borderRadius: 6 }}
                   >
                     Edit
                   </button>
@@ -138,7 +138,7 @@ export default function ScriptEditor({
                       className="btn btn-soft btn-sm"
                       onClick={() => handleRedoSlide(i)}
                       disabled={redoingSlide === i}
-                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, opacity: redoingSlide === i ? 0.5 : 1 }}
+                      style={{ fontSize: 'var(--fs-caption)', padding: '4px 10px', borderRadius: 6, opacity: redoingSlide === i ? 0.5 : 1 }}
                     >
                       {redoingSlide === i ? 'Redoing...' : 'Redo'}
                     </button>
@@ -155,7 +155,7 @@ export default function ScriptEditor({
                         onScenesChange(updated)
                         onSlidesChange(updatedSlides)
                       }}
-                      style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
+                      style={{ fontSize: 'var(--fs-caption)', padding: '4px 8px', borderRadius: 6 }}
                       title="Move up"
                     >
                       &#9650;
@@ -172,7 +172,7 @@ export default function ScriptEditor({
                         onScenesChange(updated)
                         onSlidesChange(updatedSlides)
                       }}
-                      style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6 }}
+                      style={{ fontSize: 'var(--fs-caption)', padding: '4px 8px', borderRadius: 6 }}
                       title="Move down"
                     >
                       &#9660;
@@ -182,7 +182,7 @@ export default function ScriptEditor({
                     <button
                       className="btn btn-danger btn-sm"
                       onClick={() => onDeleteScene(i)}
-                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6 }}
+                      style={{ fontSize: 'var(--fs-caption)', padding: '4px 10px', borderRadius: 6 }}
                     >
                       Delete
                     </button>
@@ -193,7 +193,7 @@ export default function ScriptEditor({
 
             {/* Edit instruction input */}
             {editingSlide === i && (
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <div style={{ marginTop: 12, display: 'flex', gap: 'var(--space-2)' }}>
                 <input
                   type="text"
                   className="input"
@@ -201,13 +201,13 @@ export default function ScriptEditor({
                   value={editInstruction}
                   onChange={e => setEditInstruction(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleEditSlide(i) }}
-                  style={{ flex: 1, fontSize: 13, padding: '8px 12px', borderRadius: 8 }}
+                  style={{ flex: 1, fontSize: 'var(--fs-small)', padding: '8px 12px', borderRadius: 8 }}
                 />
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => handleEditSlide(i)}
                   disabled={editingLoading || !editInstruction.trim()}
-                  style={{ fontSize: 12, padding: '8px 14px', borderRadius: 8, opacity: editingLoading ? 0.5 : 1 }}
+                  style={{ fontSize: 'var(--fs-caption)', padding: '8px 14px', borderRadius: 8, opacity: editingLoading ? 0.5 : 1 }}
                 >
                   {editingLoading
                     ? 'Applying...'
@@ -222,7 +222,7 @@ export default function ScriptEditor({
       {/* Right column - Script text editor (40%) */}
       <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
         <div className="wizard-card" style={{ padding: 20, borderRadius: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+          <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
             Script Editor
           </div>
 
@@ -230,20 +230,20 @@ export default function ScriptEditor({
             <div key={i} style={{ marginBottom: 20 }}>
               {/* Scene divider */}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+                display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 8,
                 paddingBottom: 6, borderBottom: '1px solid var(--border-light)',
               }}>
                 <span style={{
                   width: 22, height: 22, borderRadius: '50%',
                   background: 'var(--accent)', color: 'var(--ink)', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontWeight: 800, fontSize: 10, flexShrink: 0,
+                  justifyContent: 'center', fontWeight: 800, fontSize: 'var(--fs-caption)', flexShrink: 0,
                 }}>{i + 1}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--ink)' }}>
                   {scene.title}
                 </span>
                 {modifiedScenes.has(i) && (
                   <span style={{
-                    fontSize: 10, fontWeight: 600, color: 'var(--mint-darker)',
+                    fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--mint-darker)',
                     background: 'rgba(168,240,212,0.2)', padding: '2px 8px', borderRadius: 4,
                     marginLeft: 'auto',
                   }}>
@@ -258,9 +258,9 @@ export default function ScriptEditor({
                 onChange={e => handleNarrationChange(i, e.target.value)}
                 style={{
                   width: '100%', minHeight: 80, border: '1px solid var(--border-light)',
-                  borderRadius: 8, padding: '10px 12px', fontSize: 13,
+                  borderRadius: 8, padding: '10px 12px', fontSize: 'var(--fs-small)',
                   lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit',
-                  background: 'white', color: 'var(--ink)',
+                  background: 'var(--bg-card)', color: 'var(--ink)',
                 }}
               />
 
@@ -270,7 +270,7 @@ export default function ScriptEditor({
                   className="btn btn-soft btn-sm"
                   onClick={() => handleSaveAudio(i)}
                   disabled={savingAudio === i}
-                  style={{ marginTop: 6, fontSize: 11, padding: '4px 12px', borderRadius: 6, opacity: savingAudio === i ? 0.5 : 1 }}
+                  style={{ marginTop: 6, fontSize: 'var(--fs-caption)', padding: '4px 12px', borderRadius: 6, opacity: savingAudio === i ? 0.5 : 1 }}
                 >
                   {savingAudio === i ? 'Regenerating audio...' : 'Save & Regenerate Audio'}
                 </button>

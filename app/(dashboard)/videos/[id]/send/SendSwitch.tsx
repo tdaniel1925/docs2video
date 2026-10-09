@@ -24,7 +24,7 @@ export default function SendSwitch({
   const off = disabled || saving
   return (
     <div className="rts-row">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="rts-row-label">{label}</div>
           {hint && <div className="rts-row-hint">{hint}</div>}

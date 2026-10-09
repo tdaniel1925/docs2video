@@ -8,21 +8,21 @@ import { CREDIT_COSTS } from '../../../_lib/credits'
 // file decides which editor a change goes to; prices come from credits.ts.
 
 const CARD: React.CSSProperties = {
-  background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+  background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
   padding: '28px 32px', marginBottom: 20,
 }
-const H2: React.CSSProperties = { fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
-const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
+const H2: React.CSSProperties = { fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
+const BODY: React.CSSProperties = { fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }
 const STEP_NUM: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
 }
 const INK: React.CSSProperties = { color: 'var(--ink)' }
 const n = (x: number) => x.toLocaleString('en-US')
 
 function Step({ num, children, last }: { num: number; children: React.ReactNode; last?: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 14, marginBottom: last ? 0 : 16 }}>
+    <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: last ? 0 : 16 }}>
       <div style={STEP_NUM}>{num}</div>
       <div>{children}</div>
     </div>
@@ -32,7 +32,7 @@ function Step({ num, children, last }: { num: number; children: React.ReactNode;
 export default function MakingChangesPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>

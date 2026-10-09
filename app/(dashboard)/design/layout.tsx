@@ -7,6 +7,7 @@ import { Sidebar } from './ui'
 import { useWizard } from './useWizard'
 import { Preview } from './system/Preview'
 import './system/tokens.css'
+import LightOnly from '../../_components/LightOnly'
 
 /**
  * THE FIVE-STEP FRAME.
@@ -44,7 +45,7 @@ export default function DesignLayout({ children }: { children: React.ReactNode }
 
   if (bare) {
     return (
-      <div className="t2a" style={{ minHeight: '100vh', background: 'var(--t2a-canvas)' }}>{children}</div>
+      <div className="t2a" style={{ minHeight: '100vh', background: 'var(--t2a-canvas)' }}><LightOnly />{children}</div>
     )
   }
 
@@ -71,6 +72,7 @@ export default function DesignLayout({ children }: { children: React.ReactNode }
     // height:100vh + overflow on the content column so the step body scrolls
     // UNDER a sticky bottom bar that pins to the viewport edge.
     <div className="t2a" style={{ height: '100vh', display: 'flex', background: 'var(--t2a-canvas)', overflow: 'hidden', position: 'relative' }}>
+      <LightOnly />
       <Sidebar steps={STEPS} activeIdx={activeIdx} doneFlags={doneFlags} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         {children}

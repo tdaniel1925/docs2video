@@ -18,10 +18,10 @@ export default function InlineConfirm({ onConfirm, message, confirmLabel = 'Yes'
   if (confirming) {
     return (
       <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8,
+        display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
         padding: '6px 12px', borderRadius: 8,
         background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-        fontSize: 13, ...style,
+        fontSize: 'var(--fs-small)', ...style,
       }}>
         <span style={{ fontWeight: 600, color: 'var(--error-text)' }}>{message}</span>
         <button
@@ -32,7 +32,7 @@ export default function InlineConfirm({ onConfirm, message, confirmLabel = 'Yes'
           disabled={running}
           style={{
             padding: '4px 12px', borderRadius: 6, border: 'none',
-            background: 'var(--error-text)', color: 'var(--on-ink)', fontSize: 12,
+            background: 'var(--error-text)', color: 'var(--on-ink)', fontSize: 'var(--fs-caption)',
             fontWeight: 600, cursor: running ? 'wait' : 'pointer',
             fontFamily: 'inherit',
           }}
@@ -44,7 +44,7 @@ export default function InlineConfirm({ onConfirm, message, confirmLabel = 'Yes'
           style={{
             padding: '4px 12px', borderRadius: 6,
             border: '1px solid var(--border-light)',
-            background: 'var(--bg-card)', fontSize: 12, fontWeight: 600,
+            background: 'var(--bg-card)', fontSize: 'var(--fs-caption)', fontWeight: 600,
             cursor: 'pointer', color: 'var(--ink-soft)',
             fontFamily: 'inherit',
           }}

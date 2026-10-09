@@ -7,20 +7,20 @@ import Link from 'next/link'
 //  2. the paid AI Social add-on at /social-media (connects accounts and posts)
 
 const CARD: React.CSSProperties = {
-  background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+  background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
   padding: '28px 32px', marginBottom: 20,
 }
-const H2: React.CSSProperties = { fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
-const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
+const H2: React.CSSProperties = { fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
+const BODY: React.CSSProperties = { fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }
 const STEP_NUM: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
 }
 const INK: React.CSSProperties = { color: 'var(--ink)' }
 
 function Step({ n, last, children }: { n: number; last?: boolean; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', gap: 14, marginBottom: last ? 0 : 16 }}>
+    <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: last ? 0 : 16 }}>
       <div style={STEP_NUM}>{n}</div>
       <div>{children}</div>
     </div>
@@ -31,7 +31,7 @@ export default function SocialSharingHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>

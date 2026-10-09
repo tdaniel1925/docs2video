@@ -230,7 +230,7 @@ export default function EditPresentationPage() {
       {/* ── AI bar ─────────────────────────────────────────────────────── */}
       <div className="card" style={{ marginBottom: 18 }}>
         <label className="input-label">Tell the AI what to change</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <input
             className="input" style={{ flex: '1 1 320px' }}
             placeholder={'e.g. "Make slide 3 punchier" or "Add a slide about our guarantee"'}
@@ -263,7 +263,7 @@ export default function EditPresentationPage() {
           <div style={{ marginTop: 12, borderTop: '1px solid var(--border-light)', paddingTop: 10 }} aria-label="Your changes">
             <div className="input-label" style={{ marginBottom: 4 }}>Your changes (not rebuilt yet)</div>
             {history.map((h, k) => (
-              <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '6px 0', fontSize: 14, flexWrap: 'wrap' }}>
+              <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', padding: '6px 0', fontSize: 'var(--fs-ui)', flexWrap: 'wrap' }}>
                 <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{k + 1}. {h.label}</span>
                 <button className="btn btn-sm btn-outlined" onClick={() => undoAt(k)} disabled={aiBusy}>
                   {k === history.length - 1 ? 'Undo' : 'Undo this and later'}
@@ -277,7 +277,7 @@ export default function EditPresentationPage() {
       {/* ── Slides ─────────────────────────────────────────────────────── */}
       {scenes.map((s, i) => (
         <div key={i} className="card" style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 10 }}>
             <span className="badge badge-neutral">Slide {i + 1}{s._role ? ` · ${s._role}` : ''}</span>
             <span style={{ flex: 1 }} />
             <button className="btn btn-sm btn-outlined" onClick={() => move(i, -1)} disabled={i === 0} title="Move up">↑</button>

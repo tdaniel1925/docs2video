@@ -62,15 +62,15 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'white', borderRadius: 10, padding: '36px 32px',
+          background: 'var(--bg-card)', borderRadius: 10, padding: '36px 32px',
           maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
         }}
       >
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
           {blocked ? 'You need more credits' : 'Buy credits'}
         </h2>
-        <p style={{ fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24 }}>
           {blocked
             ? `This needs ${needed?.toLocaleString()} credits${typeof balance === 'number' ? `, and you have ${balance.toLocaleString()}` : ''}. Top up below — credits never expire and are used after your monthly allotment.`
             : 'Top up your balance. Credits never expire and are used after your monthly allotment runs out.'}
@@ -80,7 +80,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           <div role="alert" style={{
             padding: '10px 14px', borderRadius: 8, marginBottom: 16,
             background: 'var(--error-bg)', border: '1.5px solid var(--error-border)',
-            color: 'var(--error-text)', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
+            color: 'var(--error-text)', fontSize: 'var(--fs-small)', fontWeight: 600, lineHeight: 1.4,
           }}>
             {error}
             {needsCard && (
@@ -99,12 +99,12 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
             background: p.highlight ? 'rgba(199, 232, 168, 0.06)' : 'var(--bg-soft)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
+              <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--ink)' }}>
                 {p.name} pack{p.highlight ? ' · Best value' : ''}
               </span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>{p.price}</span>
+              <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)' }}>{p.price}</span>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
+            <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
               {p.credits.toLocaleString()} credits
             </p>
             <button
@@ -114,7 +114,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
                 width: '100%', padding: '10px', borderRadius: 8, border: 'none',
                 background: p.highlight ? 'var(--accent)' : 'var(--ink)',
                 color: p.highlight ? 'var(--ink)' : 'var(--on-ink)',
-                fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 'var(--fs-ui)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                 opacity: loading === p.key ? 0.6 : 1,
               }}
             >
@@ -129,7 +129,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
             waiting to happen — saying so beforehand costs nothing, while the
             surprise costs the payment and the trust. */}
         <p style={{
-          fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5,
+          fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', lineHeight: 1.5,
           marginTop: 16, textAlign: 'center',
         }}>
           Payments are handled securely by Stripe. <strong>Docs2Video</strong> is the name
@@ -140,8 +140,8 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           onClick={onClose}
           style={{
             width: '100%', padding: '12px', borderRadius: 8, marginTop: 8,
-            border: '1.5px solid var(--border-light)', background: 'white',
-            fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)',
+            border: '1.5px solid var(--border-light)', background: 'var(--bg-card)',
+            fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink-soft)',
             cursor: 'pointer', fontFamily: 'inherit',
           }}
         >

@@ -11,8 +11,8 @@ import { KIND_NAMES, NAMES } from '../../../_lib/names'
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="kit-card" style={{ padding: '24px 28px', marginBottom: 16 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 12px', color: 'var(--ink)' }}>{title}</h2>
-      <div style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--ink-soft)', display: 'grid', gap: 10 }}>{children}</div>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, margin: '0 0 12px', color: 'var(--ink)' }}>{title}</h2>
+      <div style={{ fontSize: 'var(--fs-body)', lineHeight: 1.7, color: 'var(--ink-soft)', display: 'grid', gap: 'var(--space-3)' }}>{children}</div>
     </section>
   )
 }
@@ -22,7 +22,7 @@ const tabs = [KIND_NAMES.video.many, KIND_NAMES.presentation.many, KIND_NAMES.de
 export default function LibraryHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--link)', textDecoration: 'none', fontWeight: 600 }}>Help Center</Link>
         <span style={{ margin: '0 8px' }}>/</span>
         <span>{NAMES.library}</span>

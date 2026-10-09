@@ -11,8 +11,9 @@
    - Colours are ONLY the names in globals.css (:root). Never a typed colour,
      so Docs2Video's palette (and Text2Art's override block) reaches every part.
    - Corners are 10px at most (house rule).
-   - Body text is 15px. Smaller text is for hints and labels only.
-   - Light by default. Dark mode later re-points the same names.
+   - Text sizes come from the type scale (globals.css --fs-*; body 15px).
+     Smaller text is for hints and labels only.
+   - Light by default. Dark mode (round C) re-points the same names.
    - Gold is MONEY ONLY: prices and the credit chip (One Dollar Decks' rule).
    - Words and their ground are ≥ 4.5:1 (pairs checked in one-colour-set test).
 
@@ -51,13 +52,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
   padding: 10px 18px;
   border-radius: 10px;
   border: 1px solid transparent;
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.2;
   text-decoration: none;
@@ -66,8 +67,8 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 /* Icon + words on one line (Tailwind's base styles make every svg a block). */
-.kit-btn-label { display: inline-flex; align-items: center; gap: 6px; }
-.kit-btn--sm { min-height: 36px; padding: 7px 13px; font-size: 14px; }
+.kit-btn-label { display: inline-flex; align-items: center; gap: var(--space-2); }
+.kit-btn--sm { min-height: 36px; padding: 7px 13px; font-size: var(--fs-ui); }
 .kit-btn--full { width: 100%; }
 
 .kit-btn--primary { background: var(--ink); color: var(--on-ink); }
@@ -97,9 +98,9 @@
 .kit-btn:disabled .kit-btn-price { color: inherit; }
 
 /* A disabled button says WHY, in a line under it. */
-.kit-btn-wrap { display: inline-flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.kit-btn-wrap { display: inline-flex; flex-direction: column; align-items: stretch; gap: var(--space-2); }
 .kit-btn-wrap--full { display: flex; width: 100%; }
-.kit-btn-reason { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.kit-btn-reason { margin: 0; font-size: var(--fs-small); line-height: 1.45; color: var(--ink-soft); }
 
 /* Square button holding only an icon (it carries a hidden label). */
 .kit-icon-btn {
@@ -139,17 +140,17 @@
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
-.kit-card-title { margin: 0 0 4px; font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--ink); }
-.kit-card-text { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
-.kit-card-go { display: inline-block; margin-top: 12px; font-size: 14px; font-weight: 700; color: var(--link); }
+.kit-card-title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 800; line-height: 1.3; color: var(--ink); }
+.kit-card-text { margin: 0; font-size: var(--fs-body); line-height: 1.5; color: var(--ink-soft); }
+.kit-card-go { display: inline-block; margin-top: 12px; font-size: var(--fs-ui); font-weight: 700; color: var(--link); }
 
 /* ── Choices — a list of cards, pick one (real radio buttons inside) ───── */
-.kit-choices { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
-.kit-choices-legend { margin-bottom: 8px; padding: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.kit-choices { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+.kit-choices-legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
 .kit-choice {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 12px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -168,22 +169,22 @@
 .kit-choice input { margin: 3px 0 0; accent-color: var(--accent-ink); flex-shrink: 0; }
 .kit-choice-icon { display: inline-grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; background: var(--surface); color: var(--ink); }
 .kit-choice:has(input:checked) .kit-choice-icon { background: var(--accent); }
-.kit-choice-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kit-choice-label { font-size: 15px; font-weight: 700; color: var(--ink); }
-.kit-choice-hint { font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
-.kit-choice-aside { margin-left: auto; padding-left: 8px; font-size: 14px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+.kit-choice-body { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.kit-choice-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
+.kit-choice-hint { font-size: var(--fs-small); line-height: 1.45; color: var(--ink-soft); }
+.kit-choice-aside { margin-left: auto; padding-left: 8px; font-size: var(--fs-ui); font-weight: 700; color: var(--gold); white-space: nowrap; }
 
 /* ── Note — info / ok / warn / stop ────────────────────────────────────── */
 .kit-note {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px 14px;
+  gap: var(--space-3) var(--space-4);
   padding: 12px 16px;
   border: 1px solid var(--border-light);
   border-left-width: 4px;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--fs-body);
   line-height: 1.5;
   color: var(--ink);
 }
@@ -197,7 +198,7 @@
 .kit-note--stop { background: var(--error-bg); border-left-color: var(--error); }
 
 /* ── Tabs ──────────────────────────────────────────────────────────────── */
-.kit-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.kit-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .kit-tab {
   display: inline-flex;
   align-items: center;
@@ -208,7 +209,7 @@
   background: var(--bg-card);
   color: var(--ink);
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -221,10 +222,10 @@
 .kit-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 3px 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--fs-small);
   font-weight: 700;
   line-height: 1.4;
   white-space: nowrap;
@@ -245,9 +246,9 @@
   border: 1px dashed var(--border);
   border-radius: 10px;
 }
-.kit-empty-title { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: var(--ink); }
-.kit-empty-text { margin: 0 auto; max-width: 460px; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
-.kit-empty-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.kit-empty-title { margin: 0 0 6px; font-size: var(--fs-lead); font-weight: 800; color: var(--ink); }
+.kit-empty-text { margin: 0 auto; max-width: 460px; font-size: var(--fs-body); line-height: 1.5; color: var(--ink-soft); }
+.kit-empty-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-3); margin-top: 16px; }
 
 /* ── Dialog — an in-app pop-up (a real <dialog>, so the browser keeps focus
    inside it and Escape closes it) ───────────────────────────────────────── */
@@ -271,28 +272,28 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 18px 20px 8px;
 }
-.kit-dialog-title { margin: 0; font-size: 19px; font-weight: 800; line-height: 1.3; color: var(--ink); }
-.kit-dialog-sub { margin: 4px 0 0; font-size: 14px; color: var(--ink-soft); }
-.kit-dialog-body { padding: 8px 20px 20px; overflow-y: auto; font-size: 15px; line-height: 1.55; color: var(--ink-soft); }
+.kit-dialog-title { margin: 0; font-size: var(--fs-lead); font-weight: 800; line-height: 1.3; color: var(--ink); }
+.kit-dialog-sub { margin: 4px 0 0; font-size: var(--fs-ui); color: var(--ink-soft); }
+.kit-dialog-body { padding: 8px 20px 20px; overflow-y: auto; font-size: var(--fs-body); line-height: 1.55; color: var(--ink-soft); }
 .kit-dialog-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-3);
   padding: 14px 20px;
   border-top: 1px solid var(--border-light);
-  font-size: 14px;
+  font-size: var(--fs-ui);
 }
 .kit-dialog-foot a { color: var(--link); font-weight: 700; }
 .kit-dialog-video { display: block; width: 100%; margin-bottom: 16px; border-radius: 8px; background: var(--ink); }
 
 /* Numbered steps (navy circles). */
-.kit-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: kit-step; }
-.kit-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.5; color: var(--ink-soft); counter-increment: kit-step; }
+.kit-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); counter-reset: kit-step; }
+.kit-steps li { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--fs-body); line-height: 1.5; color: var(--ink-soft); counter-increment: kit-step; }
 .kit-steps li::before {
   content: counter(kit-step);
   flex-shrink: 0;
@@ -305,7 +306,7 @@
   border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
-  font-size: 13px;
+  font-size: var(--fs-small);
   font-weight: 800;
 }
 .kit-steps strong { color: var(--ink); }
@@ -326,14 +327,14 @@
   z-index: 200;
 }
 .kit-menu-head { padding: 8px 10px 10px; }
-.kit-menu-name { font-size: 14px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kit-menu-plan { font-size: 13px; color: var(--ink-soft); }
+.kit-menu-name { font-size: var(--fs-ui); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kit-menu-plan { font-size: var(--fs-small); color: var(--ink-soft); }
 .kit-menu-sep { height: 1px; margin: 4px 0; border: 0; background: var(--border-light); }
 .kit-menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   padding: 9px 10px;
   border: 0;
@@ -341,7 +342,7 @@
   background: none;
   color: var(--ink);
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--fs-body);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -353,7 +354,7 @@
 .kit-credit {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 36px;
   padding: 6px 12px;
   border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--gold-soft));
@@ -361,7 +362,7 @@
   background: var(--gold-soft);
   color: var(--gold);
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--fs-ui);
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
@@ -372,7 +373,7 @@
   border-color: var(--warning-border);
   color: var(--warning-text);
 }
-.kit-credit-top { padding-left: 8px; border-left: 1px solid currentColor; font-size: 13px; }
+.kit-credit-top { padding-left: 8px; border-left: 1px solid currentColor; font-size: var(--fs-small); }
 .kit-credit-short { display: none; }
 
 /* ── Top bar (Docs2Video). Logo · four words · How to use · credits · bell ·
@@ -384,24 +385,24 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .kit-topbar-logo { display: flex; align-items: center; flex-shrink: 0; border-radius: 8px; }
 .kit-topbar-logo img { height: 60px; width: auto; }
-.kit-topbar-nav { display: flex; align-items: center; gap: 4px; margin-left: 20px; }
+.kit-topbar-nav { display: flex; align-items: center; gap: var(--space-1); margin-left: 20px; }
 .kit-topbar-nav .kit-btn { margin-right: 8px; }
 .kit-topbar-link {
   padding: 8px 14px;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--ink-soft);
   text-decoration: none;
 }
-.kit-topbar-link { display: inline-flex; align-items: center; gap: 7px; }
+.kit-topbar-link { display: inline-flex; align-items: center; gap: var(--space-2); }
 .kit-topbar-link:hover { background: var(--surface); color: var(--ink); }
 .kit-topbar-link[aria-current='page'] { background: var(--accent); color: var(--ink); }
-.kit-topbar-end { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.kit-topbar-end { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
 .kit-topbar-menu-btn { display: none; }
 .kit-avatar-btn { padding: 0; border: 0; background: none; border-radius: 10px; }
 .kit-avatar-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
@@ -410,7 +411,7 @@
 .kit-phone-menu {
   display: none;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   padding: 8px 0 14px;
   border-top: 1px solid var(--border-light);
 }
@@ -418,14 +419,14 @@
 
 @media (max-width: 900px) {
   .kit-topbar { padding: 0 16px; }
-  .kit-topbar-inner { height: 64px; gap: 6px; }
+  .kit-topbar-inner { height: 64px; gap: var(--space-2); }
   .kit-topbar-logo img { height: 40px; }
-  .kit-topbar-end { gap: 4px; }
+  .kit-topbar-end { gap: var(--space-1); }
   .kit-topbar-menu-btn { width: 36px; }
   .kit-topbar-nav, .kit-topbar-howto { display: none; }
   .kit-topbar-menu-btn { display: inline-flex; }
   .kit-phone-menu { display: flex; }
-  .kit-credit { padding: 6px 10px; gap: 5px; }
+  .kit-credit { padding: 6px 10px; gap: var(--space-1); }
   .kit-credit-long { display: none; }
   .kit-credit-short { display: inline; }
 }
@@ -438,15 +439,15 @@
 /* ── Focus header (round A) — while making something, VidWiz's quiet header
    replaces the full bar: ← Home · the step numbers · How to use · credits.
    It reuses the top bar's frame so the page below doesn't jump. ───────── */
-.kit-focusbar .kit-topbar-inner { gap: 16px; }
+.kit-focusbar .kit-topbar-inner { gap: var(--space-4); }
 .kit-focusbar-exit {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 8px 10px;
   border-radius: 8px;
   color: var(--ink-soft);
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 600;
   text-decoration: none;
   flex-shrink: 0;
@@ -456,12 +457,12 @@
 .kit-focusbar-steps {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
   margin: 0 auto;
   padding: 0;
   list-style: none;
 }
-.kit-focusbar-step { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--ink-light); white-space: nowrap; }
+.kit-focusbar-step { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-ui); font-weight: 700; color: var(--ink-light); white-space: nowrap; }
 .kit-focusbar-num {
   display: inline-grid;
   place-items: center;
@@ -469,28 +470,28 @@
   height: 24px;
   border: 1px solid var(--border);
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
 }
 .kit-focusbar-step.is-now { color: var(--ink); }
 .kit-focusbar-step.is-now .kit-focusbar-num { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
 .kit-focusbar-step.is-done { color: var(--ink-soft); }
 .kit-focusbar-step.is-done .kit-focusbar-num { background: var(--accent); border-color: var(--accent); color: var(--ink); }
-.kit-focusbar-title { margin: 0 auto; font-size: 15px; font-weight: 800; color: var(--ink); }
+.kit-focusbar-title { margin: 0 auto; font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
 .kit-focusbar .kit-topbar-end { margin-left: 0; }
 .kit-focusbar-help { display: none; }
 
 @media (max-width: 1100px) {
   /* Mid widths: the numbers and the current step's words only. */
   .kit-focusbar-step:not(.is-now) .kit-focusbar-word { display: none; }
-  .kit-focusbar-steps { gap: 10px; }
+  .kit-focusbar-steps { gap: var(--space-3); }
 }
 @media (max-width: 900px) {
-  .kit-focusbar .kit-topbar-inner { gap: 8px; }
+  .kit-focusbar .kit-topbar-inner { gap: var(--space-2); }
   .kit-focusbar-exit { padding: 8px 6px; }
   .kit-focusbar-exit span { display: none; }
   .kit-focusbar-step .kit-focusbar-word { display: none; }
-  .kit-focusbar-steps { gap: 6px; }
+  .kit-focusbar-steps { gap: var(--space-2); }
   .kit-focusbar-help { display: block; }
   .kit-focusbar .kit-icon-btn { width: 36px; height: 36px; }
 }
@@ -549,7 +550,7 @@ textarea:focus-visible {
    "TODAY'S CLIENTS", "RECENT"). Grey, not green: colour is for actions. ── */
 .kit-label {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -560,7 +561,7 @@ textarea:focus-visible {
 .kit-tile {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 64px;
   padding: 12px 14px;
   background: var(--bg-card);
@@ -580,30 +581,30 @@ textarea:focus-visible {
   color: var(--accent-ink);
 }
 .kit-tile-body { display: flex; flex-direction: column; min-width: 0; }
-.kit-tile-title { font-size: 15px; font-weight: 800; line-height: 1.3; color: var(--ink); }
-.kit-tile-text { font-size: 13.5px; line-height: 1.4; color: var(--ink-soft); }
+.kit-tile-title { font-size: var(--fs-body); font-weight: 800; line-height: 1.3; color: var(--ink); }
+.kit-tile-text { font-size: var(--fs-small); line-height: 1.4; color: var(--ink-soft); }
 
 /* ── The account area: menu left, section right (VidWiz). Phones: the menu
    is one row you swipe sideways, above the section. ────────────────────── */
 .kit-account {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  gap: 40px;
+  gap: var(--space-7);
   align-items: start;
 }
 .kit-account-menu { position: sticky; top: 24px; }
-.kit-account-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.kit-account-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .kit-account-title { padding: 0 12px; }
 .kit-account-link {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   min-height: 42px;
   padding: 9px 12px;
   border-radius: 8px;
   border-left: 3px solid transparent;
   color: var(--ink-soft);
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -620,11 +621,11 @@ textarea:focus-visible {
 .kit-account-body { min-width: 0; }
 /* Cards inside the account area are a little lighter than the old 36px. */
 .kit-account-body .settings-card { padding: 24px; }
-.kit-account-body .settings-card h3 { font-size: 18px; margin-bottom: 4px; letter-spacing: -0.01em; }
+.kit-account-body .settings-card h3 { font-size: var(--fs-lead); margin-bottom: 4px; letter-spacing: -0.01em; }
 .kit-account-body .settings-card .ssub { margin-bottom: 18px; }
 
 @media (max-width: 900px) {
-  .kit-account { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .kit-account { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .kit-account-menu {
     position: static;
     margin: 0 -16px;
@@ -635,14 +636,14 @@ textarea:focus-visible {
   }
   .kit-account-menu::-webkit-scrollbar { display: none; }
   .kit-account-title { display: none; }
-  .kit-account-menu ul { flex-direction: row; gap: 4px; width: max-content; }
+  .kit-account-menu ul { flex-direction: row; gap: var(--space-1); width: max-content; }
   .kit-account-link {
     min-height: 40px;
     padding: 8px 12px;
     border-left: 0;
     border-bottom: 3px solid transparent;
     border-radius: 8px 8px 0 0;
-    font-size: 14px;
+    font-size: var(--fs-ui);
   }
   .kit-account-link[aria-current='page'] { border-bottom-color: var(--accent-ink); box-shadow: none; background: transparent; }
   .kit-account-body .settings-card { padding: 18px; }
@@ -652,3 +653,63 @@ textarea:focus-visible {
 @media (max-width: 520px) {
   .kit-tile-icon { width: 32px; height: 32px; }
 }
+
+/* ── Type + spacing scale (UI round C) ─────────────────────────────────────
+   One class per text size, each with its line height. The sizes live in
+   globals.css (:root, --fs-* and --lh-*); write var(--fs-body) in a style or
+   a sheet, or use these classes. No hand-typed px sizes on the customer
+   screens (tests/round-c-type-and-theme.test.ts). */
+.kit-text-caption { font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.kit-text-small   { font-size: var(--fs-small);   line-height: var(--lh-small); }
+.kit-text-ui      { font-size: var(--fs-ui);      line-height: var(--lh-ui); }
+.kit-text-body    { font-size: var(--fs-body);    line-height: var(--lh-body); }
+.kit-text-lead    { font-size: var(--fs-lead);    line-height: var(--lh-lead); }
+.kit-text-h3      { font-size: var(--fs-h3);      line-height: var(--lh-h3); font-weight: 800; letter-spacing: -0.01em; }
+.kit-text-h2      { font-size: var(--fs-h2);      line-height: var(--lh-h2); font-weight: 800; letter-spacing: -0.02em; }
+.kit-text-h1      { font-size: var(--fs-h1);      line-height: var(--lh-h1); font-weight: 800; letter-spacing: -0.025em; }
+
+/* Gaps between things: a row (wraps) or a stack, with a gap from the scale. */
+.kit-row   { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.kit-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+.kit-gap-1 { gap: var(--space-1); }
+.kit-gap-2 { gap: var(--space-2); }
+.kit-gap-3 { gap: var(--space-3); }
+.kit-gap-4 { gap: var(--space-4); }
+.kit-gap-5 { gap: var(--space-5); }
+.kit-gap-6 { gap: var(--space-6); }
+.kit-gap-7 { gap: var(--space-7); }
+
+/* ── Segmented choice (System / Light / Dark) ──────────────────────────── */
+.kit-segmented {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--surface);
+  max-width: 100%;
+}
+.kit-segmented-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  cursor: pointer;
+}
+.kit-segmented-item:hover { color: var(--ink); }
+.kit-segmented-item[aria-checked='true'] {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+.kit-segmented-item:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }

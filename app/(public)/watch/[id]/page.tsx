@@ -158,7 +158,7 @@ const pageStyles = `
   .wp-header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .wp-agent-photo {
     width: 40px;
@@ -176,23 +176,23 @@ const pageStyles = `
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 14px;
+    font-size: var(--fs-ui);
     color: var(--ink);
     flex-shrink: 0;
   }
   .wp-agent-name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-ui);
     color: var(--ink);
     line-height: 1.3;
   }
   .wp-agent-company {
-    font-size: 12px;
+    font-size: var(--fs-caption);
     color: var(--ink-light);
     line-height: 1.3;
   }
   .wp-powered-header {
-    font-size: 11px;
+    font-size: var(--fs-caption);
     color: var(--ink-light);
     font-weight: 600;
     letter-spacing: 0.03em;
@@ -204,7 +204,7 @@ const pageStyles = `
     padding: 24px 0 0;
   }
   .wp-title {
-    font-size: 24px;
+    font-size: var(--fs-h3);
     font-weight: 800;
     letter-spacing: -0.02em;
     margin: 0 0 4px;
@@ -212,7 +212,7 @@ const pageStyles = `
     line-height: 1.3;
   }
   .wp-date {
-    font-size: 13px;
+    font-size: var(--fs-small);
     color: var(--ink-light);
     margin: 0;
   }
@@ -224,10 +224,10 @@ const pageStyles = `
     padding: 12px 20px;
     margin-top: 16px;
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-ui);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     color: var(--ink);
   }
 
@@ -235,7 +235,7 @@ const pageStyles = `
   .wp-main {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--space-5);
     padding: 24px 0 32px;
     max-width: 800px;
     margin: 0 auto;
@@ -244,7 +244,7 @@ const pageStyles = `
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
     min-width: 0;
   }
 
@@ -263,7 +263,7 @@ const pageStyles = `
 
   /* Slide indicator */
   .wp-slide-indicator {
-    font-size: 13px;
+    font-size: var(--fs-small);
     font-weight: 600;
     color: var(--ink-soft);
     padding: 0 4px;
@@ -272,7 +272,7 @@ const pageStyles = `
   /* Thumbnail strip */
   .wp-thumbstrip {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     overflow-x: auto;
     padding: 4px 0;
     scrollbar-width: thin;
@@ -304,7 +304,7 @@ const pageStyles = `
     left: 2px;
     background: rgba(0,0,0,0.65);
     color: var(--on-ink);
-    font-size: 10px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     padding: 1px 5px;
     border-radius: 4px;
@@ -313,7 +313,7 @@ const pageStyles = `
   /* Action buttons row */
   .wp-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
   .wp-action-btn {
@@ -322,13 +322,13 @@ const pageStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
     height: 42px;
     padding: 0 16px;
     background: var(--bg-card);
     border: 1px solid var(--border-light);
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--fs-small);
     font-weight: 600;
     color: var(--ink);
     cursor: pointer;
@@ -357,7 +357,7 @@ const pageStyles = `
     padding: 24px;
   }
   .wp-section-label {
-    font-size: 11px;
+    font-size: var(--fs-caption);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -371,7 +371,7 @@ const pageStyles = `
     justify-content: space-between;
     padding: 10px 0;
     border-bottom: 1px solid var(--border-light);
-    font-size: 14px;
+    font-size: var(--fs-ui);
   }
   .wp-quote-line:last-of-type {
     border-bottom: none;
@@ -386,16 +386,16 @@ const pageStyles = `
   }
   .wp-quote-total-label {
     font-weight: 700;
-    font-size: 15px;
+    font-size: var(--fs-body);
   }
   .wp-quote-total-value {
-    font-size: 22px;
+    font-size: var(--fs-h3);
     font-weight: 800;
     color: var(--gold);
   }
   .wp-quote-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     margin-top: 16px;
   }
   .wp-pay-btn {
@@ -405,7 +405,7 @@ const pageStyles = `
     border-radius: 8px;
     background: var(--ink);
     color: var(--on-ink);
-    font-size: 14px;
+    font-size: var(--fs-ui);
     font-weight: 700;
     cursor: pointer;
     transition: opacity 0.15s;
@@ -419,7 +419,7 @@ const pageStyles = `
     border: 1px solid var(--border-light);
     border-radius: 8px;
     background: var(--bg-card);
-    font-size: 13px;
+    font-size: var(--fs-small);
     font-weight: 600;
     color: var(--ink);
     cursor: pointer;
@@ -436,7 +436,7 @@ const pageStyles = `
     padding: 8px 12px;
     border-radius: 8px;
     background: var(--error-bg);
-    font-size: 13px;
+    font-size: var(--fs-small);
     color: var(--error);
   }
   .wp-paid-card {
@@ -446,10 +446,10 @@ const pageStyles = `
     padding: 16px 20px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
   }
-  .wp-paid-card-title { font-weight: 700; font-size: 14px; color: var(--ink); }
-  .wp-paid-card-sub { font-size: 12px; color: var(--ink-soft); }
+  .wp-paid-card-title { font-weight: 700; font-size: var(--fs-ui); color: var(--ink); }
+  .wp-paid-card-sub { font-size: var(--fs-caption); color: var(--ink-soft); }
 
   /* Calendly embed (legacy — now uses simple link) */
   .wp-calendly {
@@ -462,10 +462,10 @@ const pageStyles = `
     padding: 16px 24px;
     border-bottom: 1px solid var(--border-light);
     font-weight: 700;
-    font-size: 15px;
+    font-size: var(--fs-body);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .wp-calendly iframe {
     width: 100%;
@@ -482,7 +482,7 @@ const pageStyles = `
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
     text-align: center;
   }
   .wp-contact-photo {
@@ -500,25 +500,25 @@ const pageStyles = `
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 18px;
+    font-size: var(--fs-lead);
     color: var(--ink);
   }
   .wp-contact-name {
     font-weight: 700;
-    font-size: 16px;
+    font-size: var(--fs-body);
     color: var(--ink);
   }
   .wp-contact-details {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: var(--space-3);
     justify-content: center;
   }
   .wp-contact-link {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
+    gap: var(--space-2);
+    font-size: var(--fs-small);
     color: var(--ink-soft);
     text-decoration: none;
     transition: color 0.15s;
@@ -534,7 +534,7 @@ const pageStyles = `
     border-top: 1px solid var(--border-light);
   }
   .wp-footer a {
-    font-size: 11px;
+    font-size: var(--fs-caption);
     color: var(--ink-light);
     text-decoration: none;
     font-weight: 600;
@@ -556,19 +556,19 @@ const pageStyles = `
     padding: 40px;
   }
   .wp-not-found h1 {
-    font-size: 28px;
+    font-size: var(--fs-h2);
     font-weight: 800;
     margin-bottom: 10px;
   }
   .wp-not-found p {
-    font-size: 15px;
+    font-size: var(--fs-body);
     color: var(--ink-soft);
   }
 
   /* Legal Disclosures */
   .wp-disclosures-toggle {
     display: inline-block;
-    font-size: 13px;
+    font-size: var(--fs-small);
     font-weight: 600;
     color: var(--ink-soft);
     cursor: pointer;
@@ -593,7 +593,7 @@ const pageStyles = `
     overflow-y: auto;
   }
   .wp-disclosures-heading {
-    font-size: 13px;
+    font-size: var(--fs-small);
     font-weight: 700;
     color: var(--ink);
     margin: 0 0 8px;
@@ -601,7 +601,7 @@ const pageStyles = `
     letter-spacing: 0.04em;
   }
   .wp-disclosures-text {
-    font-size: 12px;
+    font-size: var(--fs-caption);
     line-height: 1.7;
     color: var(--ink-soft);
     margin: 0 0 6px;
@@ -636,7 +636,7 @@ const pageStyles = `
     margin-bottom: 12px;
   }
   .wp-lead-title {
-    font-size: 15px;
+    font-size: var(--fs-body);
     font-weight: 700;
     color: var(--ink);
   }
@@ -653,7 +653,7 @@ const pageStyles = `
   }
   .wp-lead-form {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
   .wp-lead-input {
@@ -663,7 +663,7 @@ const pageStyles = `
     padding: 0 12px;
     border: 1px solid var(--border-light);
     border-radius: 8px;
-    font-size: 14px;
+    font-size: var(--fs-ui);
     font-family: inherit;
     color: var(--ink);
     outline: none;
@@ -679,7 +679,7 @@ const pageStyles = `
     color: var(--on-ink);
     border: none;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: var(--fs-ui);
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
@@ -694,15 +694,15 @@ const pageStyles = `
     opacity: 0.9;
   }
   .wp-lead-success {
-    font-size: 14px;
+    font-size: var(--fs-ui);
     color: var(--success);
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .wp-lead-error {
-    font-size: 12px;
+    font-size: var(--fs-caption);
     color: var(--error);
     margin-top: 6px;
   }
@@ -721,7 +721,7 @@ const pageStyles = `
     .wp-action-btn {
       min-width: unset;
     }
-    .wp-title { font-size: 20px; }
+    .wp-title { font-size: var(--fs-h3); }
     .wp-quote-actions { flex-direction: column; }
   }
 `
@@ -1000,7 +1000,7 @@ export default function PublicWatchPage() {
           <div className="wp-not-found">
             <h1>This presentation is no longer available</h1>
             <p>It may have been removed by the creator.</p>
-            <a href="/" style={{ display: 'inline-block', marginTop: 20, padding: '10px 20px', background: 'var(--ink)', color: 'var(--on-ink)', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+            <a href="/" style={{ display: 'inline-block', marginTop: 20, padding: '10px 20px', background: 'var(--ink)', color: 'var(--on-ink)', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 'var(--fs-ui)' }}>
               Go to Homepage
             </a>
           </div>
@@ -1135,14 +1135,14 @@ export default function PublicWatchPage() {
         {/*  PERSONALIZED WELCOME BANNER + AGENT NOTE                     */}
         {/* ============================================================ */}
         {(clientFirstName || video.agent_note) && (
-          <div style={{ width: '100%', maxWidth: 760, margin: '0 auto 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ width: '100%', maxWidth: 760, margin: '0 auto 20px', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {clientFirstName && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)', fontSize: 16, color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>
+              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)', fontSize: 'var(--fs-body)', color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>
                 Hi {clientFirstName} — {hasAgentIdentity ? <>prepared for you by <strong>{agentName}</strong></> : 'prepared just for you'}.
               </div>
             )}
             {video.agent_note && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                 {hasAgentIdentity && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>A note from {agentName}</div>}
                 {video.agent_note}
               </div>
@@ -1229,9 +1229,9 @@ export default function PublicWatchPage() {
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 'var(--space-2)',
                 padding: '8px 4px 0',
-                fontSize: 12,
+                fontSize: 'var(--fs-caption)',
                 color: 'var(--ink-soft)',
               }}>
                 <button
@@ -1278,7 +1278,7 @@ export default function PublicWatchPage() {
                   }}
                   style={{ flex: 1, maxWidth: 140, accentColor: 'var(--accent-ink)' }}
                 />
-                <span style={{ fontSize: 11, color: 'var(--ink-light)', minWidth: 30 }}>
+                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', minWidth: 30 }}>
                   {musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}
                 </span>
               </div>
@@ -1314,7 +1314,7 @@ export default function PublicWatchPage() {
               if (chapters.length === 0 || videoDuration === 0 || slideCount === 0) return null
               const segDuration = videoDuration / slideCount
               return (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '4px 0' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', padding: '4px 0' }}>
                   {chapters.map((ch: any, i: number) => {
                     const timestamp = segDuration * i
                     const mins = Math.floor(timestamp / 60)
@@ -1325,16 +1325,16 @@ export default function PublicWatchPage() {
                         key={i}
                         onClick={() => jumpToSlide(i)}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: 6,
+                          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                           padding: '6px 12px', borderRadius: 10,
                           border: isActive ? '1.5px solid var(--accent-ink)' : '1px solid var(--border-light)',
                           background: isActive ? 'var(--accent-soft)' : 'var(--bg-card)',
-                          cursor: 'pointer', fontSize: 12, fontWeight: isActive ? 700 : 500,
+                          cursor: 'pointer', fontSize: 'var(--fs-caption)', fontWeight: isActive ? 700 : 500,
                           color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
                           transition: 'all 0.15s', fontFamily: 'inherit',
                         }}
                       >
-                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--ink-light)' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
                           {mins}:{secs.toString().padStart(2, '0')}
                         </span>
                         <span>{ch.title || `Scene ${i + 1}`}</span>
@@ -1377,7 +1377,7 @@ export default function PublicWatchPage() {
               const paymentLnk = safeLink(pi?.paymentLink) || safeLink(agent?.payment_link_url)
               if (!bookingUrl && !paymentLnk) return null
               return (
-                <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 12 }}>
                   {bookingUrl && (
                     <a
                       href={bookingUrl}
@@ -1385,9 +1385,9 @@ export default function PublicWatchPage() {
                       rel="noopener noreferrer"
                       onClick={() => trackEvent(video.id, 'booking_click')}
                       style={{
-                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
                         height: 48, borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)',
-                        fontSize: 15, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+                        fontSize: 'var(--fs-body)', fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
                       }}
                     >
                       <IconCalendar /> Book a Call
@@ -1400,9 +1400,9 @@ export default function PublicWatchPage() {
                       rel="noopener noreferrer"
                       onClick={() => trackEvent(video.id, 'payment_click')}
                       style={{
-                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
                         height: 48, borderRadius: 10, background: 'var(--ink)', color: 'var(--on-ink)',
-                        fontSize: 15, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+                        fontSize: 'var(--fs-body)', fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
                       }}
                     >
                       Make a Payment
@@ -1477,7 +1477,7 @@ export default function PublicWatchPage() {
             </div>
             <div className="wp-quote-actions">
               {quote.total === 0 ? (
-                <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)' }}>
+                <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink-soft)' }}>
                   This is a complimentary service
                 </div>
               ) : (safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) ? (
@@ -1537,9 +1537,9 @@ export default function PublicWatchPage() {
             rel="noopener noreferrer"
             onClick={() => video && trackEvent(video.id, 'booking_click')}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)',
               width: '100%', height: 52, borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)',
-              fontSize: 16, fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+              fontSize: 'var(--fs-body)', fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
             }}
           >
             <IconCalendar /> Book a Meeting with {agentName}
@@ -1561,7 +1561,7 @@ export default function PublicWatchPage() {
             <div>
               <div className="wp-contact-name">{agentName}</div>
               {agent.company_name && agent.company_name !== agent.full_name && (
-                <div style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginTop: 2 }}>
                   {agent.company_name}
                 </div>
               )}
@@ -1603,7 +1603,7 @@ export default function PublicWatchPage() {
               border: 'none',
               borderRadius: '6px 6px 0 0',
               padding: '8px 16px',
-              fontSize: 11,
+              fontSize: 'var(--fs-caption)',
               fontWeight: 600,
               letterSpacing: '0.03em',
               cursor: 'pointer',
@@ -1641,7 +1641,7 @@ export default function PublicWatchPage() {
                 onClick={e => e.stopPropagation()}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Disclosures & Disclaimers</h3>
+                  <h3 style={{ margin: 0, fontSize: 'var(--fs-lead)', fontWeight: 700 }}>Disclosures & Disclaimers</h3>
                   <button
                     onClick={() => setShowDisclosures(false)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
@@ -1652,10 +1652,10 @@ export default function PublicWatchPage() {
 
                 {industryConfig?.disclaimerText && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {industryConfig.label ?? 'Industry'} Disclosure
                     </div>
-                    <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', margin: 0 }}>
+                    <p style={{ fontSize: 'var(--fs-small)', lineHeight: 1.6, color: 'var(--ink)', margin: 0 }}>
                       {industryConfig.disclaimerText}
                     </p>
                   </div>
@@ -1663,11 +1663,11 @@ export default function PublicWatchPage() {
 
                 {carrierDisclaimers.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Additional Disclosures
                     </div>
                     {carrierDisclaimers.map((d, i) => (
-                      <p key={i} style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', margin: '0 0 8px' }}>
+                      <p key={i} style={{ fontSize: 'var(--fs-small)', lineHeight: 1.6, color: 'var(--ink)', margin: '0 0 8px' }}>
                         {d}
                       </p>
                     ))}
@@ -1675,7 +1675,7 @@ export default function PublicWatchPage() {
                 )}
 
                 <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, marginTop: 16 }}>
-                  <p style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--ink-light)', margin: 0 }}>
+                  <p style={{ fontSize: 'var(--fs-caption)', lineHeight: 1.5, color: 'var(--ink-light)', margin: 0 }}>
                     This presentation was generated on {createdDate} and is intended for informational purposes only. Please consult with a qualified professional before making any decisions based on this content.
                   </p>
                 </div>
@@ -1702,17 +1702,17 @@ export default function PublicWatchPage() {
           background: 'linear-gradient(135deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 80%, var(--link)) 100%)',
           textAlign: 'center', animation: 'fadeInUp 0.5s ease',
         }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--on-ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--on-ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
             Make videos like this one
           </div>
-          <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', marginBottom: 20, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'var(--fs-body)', color: 'rgba(255,255,255,0.75)', marginBottom: 20, lineHeight: 1.5 }}>
             Turn a document, website, or idea into a short narrated video. No editing skills needed.
           </div>
           <a
             href="https://docs2video.com/signup"
             style={{
               display: 'inline-block', padding: '14px 36px', borderRadius: 8,
-              background: 'var(--accent)', color: 'var(--ink)', fontSize: 16, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 'var(--fs-body)', fontWeight: 700,
               textDecoration: 'none', transition: 'opacity 0.15s',
             }}
           >
@@ -1727,16 +1727,16 @@ export default function PublicWatchPage() {
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
           padding: '10px 20px',
           background: 'color-mix(in srgb, var(--ink) 95%, transparent)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)',
         }}>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+          <span style={{ fontSize: 'var(--fs-small)', color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
             Made with Docs2Video
           </span>
           <a
             href="https://docs2video.com/signup"
             style={{
               padding: '6px 16px', borderRadius: 6,
-              background: 'var(--accent)', color: 'var(--ink)', fontSize: 12, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 'var(--fs-caption)', fontWeight: 700,
               textDecoration: 'none',
             }}
           >
@@ -1847,22 +1847,22 @@ export default function PublicWatchPage() {
         >
           <div style={{ width: '100%', maxWidth: 460, margin: 'auto', background: 'var(--bg-card)', borderRadius: 10, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Ask a question</h2>
-              <button onClick={() => setAskOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
+              <h2 style={{ fontSize: 'var(--fs-lead)', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Ask a question</h2>
+              <button onClick={() => setAskOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 'var(--fs-h3)', cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
             </div>
 
             {askSent ? (
               <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 26, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
-                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Question sent</div>
-                <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 16px' }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 'var(--fs-h2)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 800, marginBottom: 4 }}>Question sent</div>
+                <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 16px' }}>
                   We emailed it to the presenter{askEmail.trim() ? ' — they can reply to you directly' : ''}. Thanks!
                 </p>
-                <button onClick={() => setAskOpen(false)} style={{ background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Done</button>
+                <button onClick={() => setAskOpen(false)} style={{ background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--fs-ui)' }}>Done</button>
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', margin: '0 0 14px', lineHeight: 1.5 }}>
                   Type your question and we&rsquo;ll email it straight to the person who made this. Add your email if you&rsquo;d like a reply.
                 </p>
                 <textarea
@@ -1870,29 +1870,29 @@ export default function PublicWatchPage() {
                   onChange={(e) => { setAskQuestion(e.target.value); setAskError('') }}
                   rows={4}
                   placeholder="What would you like to know?"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14, resize: 'vertical', marginBottom: 10 }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', resize: 'vertical', marginBottom: 10 }}
                 />
                 <input
                   type="email"
                   value={askEmail}
                   onChange={(e) => setAskEmail(e.target.value)}
                   placeholder="Your email (optional, for a reply)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14, marginBottom: 10 }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', marginBottom: 10 }}
                 />
                 <input
                   type="text"
                   value={askName}
                   onChange={(e) => setAskName(e.target.value)}
                   placeholder="Your name (optional)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14, marginBottom: 12 }}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', marginBottom: 12 }}
                 />
                 {askError && (
-                  <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 12 }}>{askError}</div>
+                  <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 'var(--fs-small)', marginBottom: 12 }}>{askError}</div>
                 )}
                 <button
                   onClick={submitAsk}
                   disabled={askSending}
-                  style={{ width: '100%', background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: askSending ? 'default' : 'pointer', fontSize: 15, opacity: askSending ? 0.6 : 1 }}
+                  style={{ width: '100%', background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: askSending ? 'default' : 'pointer', fontSize: 'var(--fs-body)', opacity: askSending ? 0.6 : 1 }}
                 >
                   {askSending ? 'Sending…' : 'Send question'}
                 </button>
@@ -1907,7 +1907,7 @@ export default function PublicWatchPage() {
       {/* ============================================================ */}
       <footer className="wp-footer" style={isFreeTier ? { paddingBottom: 48 } : undefined}>
         {isWhiteLabel ? (
-          <span style={{ fontSize: 11, color: 'var(--ink-light)', fontWeight: 600, letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600, letterSpacing: '0.04em' }}>
             {agent?.company_name ?? agentName}
           </span>
         ) : (

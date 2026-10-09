@@ -7,14 +7,14 @@
   margin: -16px 0 28px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-4);
 }
-.head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
-.title { font-size: 17px; font-weight: 800; color: var(--ink); margin: 0; }
-.hint { font-size: 13px; color: var(--ink-light); }
-.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.label { font-size: 14px; font-weight: 700; color: var(--ink); }
-.row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
+.title { font-size: var(--fs-lead); font-weight: 800; color: var(--ink); margin: 0; }
+.hint { font-size: var(--fs-small); color: var(--ink-light); }
+.field { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.label { font-size: var(--fs-ui); font-weight: 700; color: var(--ink); }
+.row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
 .row :global(.input) { flex: 1 1 180px; min-width: 0; }
 .logo {
   width: 56px;
@@ -36,8 +36,8 @@
   max-width: 100%;
   overflow-wrap: anywhere;
 }
-.small { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
-.swatch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
+.small { margin: 0; font-size: var(--fs-small); line-height: 1.45; color: var(--ink-soft); }
+.swatch { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-ui); color: var(--ink-soft); cursor: pointer; }
 .swatch input {
   width: 44px;
   height: 36px;
@@ -47,5 +47,5 @@
   background: var(--bg-card);
   cursor: pointer;
 }
-.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
-.more { font-size: 14px; font-weight: 700; color: var(--link); }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3) var(--space-4); }
+.more { font-size: var(--fs-ui); font-weight: 700; color: var(--link); }

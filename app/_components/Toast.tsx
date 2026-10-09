@@ -48,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-live="polite"
         style={{
           position: 'fixed', top: 16, right: 16, zIndex: 4000,
-          display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 380,
+          display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', maxWidth: 380,
           pointerEvents: 'none',
         }}
       >
@@ -61,16 +61,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               onClick={() => dismiss(t.id)}
               style={{
                 pointerEvents: 'auto', cursor: 'pointer',
-                display: 'flex', alignItems: 'flex-start', gap: 10,
+                display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)',
                 padding: '12px 16px', borderRadius: 10,
                 background: 'var(--bg-card)', border: `1.5px solid ${s.border}`,
                 boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
-                fontSize: 14, fontWeight: 600, lineHeight: 1.4, color: 'var(--ink)',
+                fontSize: 'var(--fs-ui)', fontWeight: 600, lineHeight: 1.4, color: 'var(--ink)',
               }}
             >
               <span style={{
                 flex: '0 0 auto', width: 20, height: 20, borderRadius: 6,
-                display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800,
+                display: 'grid', placeItems: 'center', fontSize: 'var(--fs-caption)', fontWeight: 800,
                 background: s.bg, color: s.fg,
               }}>{s.icon}</span>
               <span>{t.message}</span>

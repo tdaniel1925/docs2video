@@ -11,7 +11,7 @@ export default function BrandsHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -28,13 +28,13 @@ export default function BrandsHelpPage() {
 
       {/* Where to find brands */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Where to find your brands
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>From the top bar</strong> — Click <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> in the top bar. You see all your saved brands. Click <strong style={{ color: 'var(--ink)' }}>{NAMES.newBrand}</strong> to add one, or click a brand to edit it.
           </p>
@@ -57,13 +57,13 @@ export default function BrandsHelpPage() {
 
       {/* Person vs Company */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Person or Company?
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             When you create a brand, choose a <strong>Brand type</strong> at the top of the form:
           </p>
@@ -78,13 +78,13 @@ export default function BrandsHelpPage() {
 
       {/* Personalizing a video */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Personalizing a Video (Person brands)
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Intro line</strong> — Write how you&apos;d like to be introduced, in your own words: <em>"Hi, I&apos;m Sarah Talls, a registered nurse. I&apos;ve prepared this video to walk you through your prescription plan."</em> The video speaks this at the opening.
           </p>
@@ -102,13 +102,13 @@ export default function BrandsHelpPage() {
 
       {/* Logo controls */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Logo Controls (Company brands)
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             <strong style={{ color: 'var(--ink)' }}>Show logo in videos</strong> — A simple on/off switch. When on, your logo appears in the lower corner and on the closing card; when off, videos render without it.
           </p>
@@ -120,47 +120,47 @@ export default function BrandsHelpPage() {
 
       {/* Creating from URL */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Creating a Company Brand from Your Website
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             The fastest way to set up a Company brand is to give it your website. Docs2Video visits the site and fills in your brand colors for you.
           </p>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>1</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Open {NAMES.brands} and click &ldquo;{NAMES.newBrand}.&rdquo;</strong> ({NAMES.brands} is in the top bar.) At the top of the form is a box called <strong style={{ color: 'var(--ink)' }}>Import from website</strong>.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>2</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Enter your website.</strong> Type it in (for example, www.yourcompany.com) and click <strong style={{ color: 'var(--ink)' }}>Analyze brand</strong>, or press Enter.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>3</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Check the colors.</strong> When it says <strong style={{ color: 'var(--ink)' }}>Brand guide generated!</strong>, the colors are filled in. Colors from a website are a best guess, so change any that look wrong.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>4</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Add your logo and save.</strong> Upload your logo, check the name, and click <strong style={{ color: 'var(--ink)' }}>Create brand</strong>. It is now ready to pick on the Make it yours step.
@@ -171,13 +171,13 @@ export default function BrandsHelpPage() {
 
       {/* Manual Setup */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Setting Up a Company Brand by Hand
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 12 }}>
             If you prefer to set everything manually or do not have a website, you can configure each setting individually:
           </p>
@@ -201,13 +201,13 @@ export default function BrandsHelpPage() {
 
       {/* How Brands Affect Videos */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           How a Brand Shows Up in Your Video
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             The brand a video uses shapes every part of the result:
           </p>
@@ -228,13 +228,13 @@ export default function BrandsHelpPage() {
 
       {/* Managing Multiple Brands */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Managing Several Brands
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             You can create as many brands as you need. This is useful if you work with several clients, manage different product lines, or want separate branding for different audiences.
           </p>

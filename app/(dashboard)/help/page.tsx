@@ -629,13 +629,13 @@ export default function HelpPage() {
 
       {/* User Guides — card grid */}
       <div style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
           User Guides
         </h2>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 14,
+          gap: 'var(--space-4)',
         }}>
           {guides.map(guide => (
             <Link
@@ -643,7 +643,7 @@ export default function HelpPage() {
               href={guide.href}
               style={{
                 display: 'block',
-                background: 'white',
+                background: 'var(--bg-card)',
                 border: '1px solid var(--border-light)',
                 borderRadius: 10,
                 padding: '20px 22px',
@@ -661,11 +661,11 @@ export default function HelpPage() {
                 ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
               }}
             >
-              <div style={{ fontSize: 28, marginBottom: 10 }}>{guide.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
+              <div style={{ fontSize: 'var(--fs-h2)', marginBottom: 10 }}>{guide.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)', marginBottom: 6 }}>
                 {guide.title}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                 {guide.description}
               </div>
             </Link>
@@ -677,7 +677,7 @@ export default function HelpPage() {
       <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '32px 0' }} />
 
       {/* Quick Reference — existing accordion */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
         Quick Reference
       </h2>
 
@@ -689,12 +689,12 @@ export default function HelpPage() {
           placeholder="Search help articles..."
           value={search}
           onChange={e => { setSearch(e.target.value); if (e.target.value) setActiveCategory(null) }}
-          style={{ fontSize: 15 }}
+          style={{ fontSize: 'var(--fs-body)' }}
         />
       </div>
 
       {/* Category pills */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 24, flexWrap: 'wrap' }}>
         <button
           onClick={() => { setActiveCategory(null); setSearch('') }}
           className={`btn btn-sm ${!activeCategory && !search ? 'btn-primary' : 'btn-soft'}`}
@@ -715,18 +715,18 @@ export default function HelpPage() {
       {/* Articles */}
       {filteredArticles.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ink-soft)' }}>
-          <p style={{ fontSize: 16, fontWeight: 600 }}>No articles found</p>
-          <p style={{ fontSize: 14 }}>Try a different search term or category.</p>
+          <p style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>No articles found</p>
+          <p style={{ fontSize: 'var(--fs-ui)' }}>Try a different search term or category.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {filteredArticles.map(article => {
             const isExpanded = expandedArticle === article.id
             return (
               <div
                 key={article.id}
                 style={{
-                  background: 'white',
+                  background: 'var(--bg-card)',
                   border: '1px solid var(--border-light)',
                   borderRadius: 10,
                   overflow: 'hidden',
@@ -743,14 +743,14 @@ export default function HelpPage() {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
+                    gap: 'var(--space-3)',
                     textAlign: 'left',
                   }}
                 >
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{article.icon}</span>
+                  <span style={{ fontSize: 'var(--fs-h3)', flexShrink: 0 }}>{article.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{article.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
+                    <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{article.title}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2 }}>
                       {CATEGORIES.find(c => c.id === article.category)?.label}
                     </div>
                   </div>
@@ -763,7 +763,7 @@ export default function HelpPage() {
                 </button>
 
                 {isExpanded && (
-                  <div style={{ padding: '0 20px 20px 52px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
+                  <div style={{ padding: '0 20px 20px 52px', fontSize: 'var(--fs-ui)', lineHeight: 1.7, color: 'var(--ink-soft)' }}>
                     {article.content.map((paragraph, i) => (
                       <p key={i} style={{ margin: '8px 0' }} dangerouslySetInnerHTML={{
                         __html: paragraph
@@ -785,11 +785,11 @@ export default function HelpPage() {
         background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
-        <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
+        <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', margin: '0 0 12px' }}>
           Click the help button in the bottom-right corner to chat with our AI assistant. It knows everything about the app.
         </p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
           <a href="mailto:support@docs2video.com" className="btn btn-soft">Email support</a>
           <Link href="/settings" className="btn btn-soft">Settings</Link>
         </div>

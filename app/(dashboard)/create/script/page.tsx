@@ -570,7 +570,7 @@ export default function ScriptPage() {
   if (draftLoading) {
     return (
       <Workspace soFar={soFar}>
-        <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 15 }}>Loading&hellip;</div>
+        <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 'var(--fs-body)' }}>Loading&hellip;</div>
       </Workspace>
     )
   }
@@ -616,15 +616,15 @@ export default function ScriptPage() {
       <button
         type="button"
         onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0, marginBottom: 12 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0, marginBottom: 12 }}
       >
         &larr; Back
       </button>
 
-      <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)' }}>
+      <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)' }}>
         Here&rsquo;s the <em style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontWeight: 400 }}>story.</em>
       </h1>
-      <p style={{ fontSize: 15, color: 'var(--ink-soft)', margin: '6px 0 24px', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', margin: '6px 0 24px', lineHeight: 1.6 }}>
         Change any line, or ask for a change on the right. This step is free.
       </p>
 
@@ -669,7 +669,7 @@ export default function ScriptPage() {
           />
           </div>
           {briefNote && !brief && (
-            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>{briefNote}</div>
+            <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginBottom: 16 }}>{briefNote}</div>
           )}
 
           {/*
@@ -682,7 +682,7 @@ export default function ScriptPage() {
               style={{
                 padding: '12px 16px', borderRadius: 10, marginBottom: 16,
                 background: 'var(--warning-bg)', border: '1px solid var(--warning)',
-                color: 'var(--ink)', fontSize: 14, fontWeight: 500,
+                color: 'var(--ink)', fontSize: 'var(--fs-ui)', fontWeight: 500,
               }}
             >
               {saveError}
@@ -692,24 +692,24 @@ export default function ScriptPage() {
           {story === 'writing' && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '28px 20px', textAlign: 'center' }}>
               <div className="spinner" style={{ margin: '0 auto 14px' }} />
-              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
+              <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
                 {scenes.length > 0 ? 'Writing the story again…' : 'Writing your story…'}
               </div>
-              <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                 This usually takes about a minute. It keeps going if you leave — come back to this project and it will be here.
               </div>
             </div>
           )}
 
           {!booting && draftData && story === 'idle' && scenes.length === 0 && !briefBuilding && !answering && !brief?.clarifyingQuestions?.length && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Ready when you are.</div>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)' }}>Ready when you are.</div>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => void writeStory()}>Write the story</button>
             </div>
           )}
 
           {error && (
-            <div id="s2-error" role="alert" style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error-text)', fontSize: 14, marginBottom: 16 }}>
+            <div id="s2-error" role="alert" style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error-text)', fontSize: 'var(--fs-ui)', marginBottom: 16 }}>
               {error}
               {story === 'failed' && (
                 <div style={{ marginTop: 10 }}>
@@ -721,12 +721,12 @@ export default function ScriptPage() {
 
           {story !== 'writing' && scenes.length > 0 && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', marginBottom: 10, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>
                   {scenes.length} scenes{spoken && totalSeconds > 0 ? <> &middot; about {Math.max(1, Math.round(totalSeconds / 60))} min</> : null}
                 </div>
                 <button type="button" onClick={startOver}
-                  style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--ink-light)', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                  style={{ background: 'none', border: 'none', fontSize: 'var(--fs-small)', color: 'var(--ink-light)', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
                   Write it again from the start
                 </button>
               </div>
@@ -765,11 +765,11 @@ export default function ScriptPage() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Slide {previewIdx + 1} preview</div>
-                <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{scenes[previewIdx]?.title}</div>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Slide {previewIdx + 1} preview</div>
+                <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>{scenes[previewIdx]?.title}</div>
               </div>
               <button type="button" aria-label="Close" onClick={() => { setPreviewIdx(null); setPreviewImg(null) }}
-                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-light)', padding: 4 }}>&times;</button>
+                style={{ background: 'none', border: 'none', fontSize: 'var(--fs-h3)', cursor: 'pointer', color: 'var(--ink-light)', padding: 4 }}>&times;</button>
             </div>
             {previewLoading ? (
               <div style={{ aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -782,7 +782,7 @@ export default function ScriptPage() {
                 The preview didn&rsquo;t work — try again
               </div>
             )}
-            <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 10, textAlign: 'center' }}>
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 10, textAlign: 'center' }}>
               A rough preview. The look you pick next changes the final slides.
             </p>
           </div>

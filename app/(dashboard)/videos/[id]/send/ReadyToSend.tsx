@@ -426,7 +426,7 @@ export default function ReadyToSend({
             onBlur={() => { saveNote(note) }}
             style={{ resize: 'vertical', lineHeight: 1.5 }}
           />
-          <div className="rts-row-hint" aria-live="polite" style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <div className="rts-row-hint" aria-live="polite" style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
             <span>
               {noteState === 'saving' ? 'Saving…'
                 : noteState === 'saved' ? 'Saved — it’s on their page.'
@@ -440,7 +440,7 @@ export default function ReadyToSend({
           {/* SWITCHES */}
           <div className="rts-rows">
             <div className="rts-row">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="rts-row-label">Book a call button</div>
                   <div className="rts-row-hint">
@@ -457,7 +457,7 @@ export default function ReadyToSend({
             {(canQuote || qs.kind !== 'none') && (
               qs.kind === 'none' ? (
                 <div className="rts-row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="rts-row-label">Quote with a pay button</div>
                       <div className="rts-row-hint">No quote yet.</div>

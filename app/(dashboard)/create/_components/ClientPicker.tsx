@@ -54,23 +54,23 @@ export default function ClientPicker({ value, onPick }: {
   }
 
   const chip = (on: boolean): React.CSSProperties => ({
-    padding: '10px 14px', borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+    padding: '10px 14px', borderRadius: 9, fontSize: 'var(--fs-ui)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
     border: on ? '2px solid var(--ink)' : '1px solid var(--border)',
     background: on ? 'var(--accent-soft)' : 'var(--bg)', color: 'var(--ink)',
   })
 
   if (value) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft)', fontSize: 15 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft)', fontSize: 'var(--fs-body)' }}>
         <span><strong>{value.clientId ? value.name : 'No client — general'}</strong></span>
-        <button type="button" onClick={() => onPick(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--link)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
+        <button type="button" onClick={() => onPick(null)} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-small)', color: 'var(--link)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
       </div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         {clients.map((c) => (
           <button key={c.id} type="button" style={chip(false)} onClick={() => onPick({ clientId: c.id, name: c.name })}>{c.name}</button>
         ))}
@@ -80,21 +80,21 @@ export default function ClientPicker({ value, onPick }: {
       <input
         type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your clients"
         aria-label="Search your clients"
-        style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit', background: 'var(--bg)' }}
+        style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', background: 'var(--bg)' }}
       />
       {adding && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
           <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" aria-label="New client name"
-            style={{ flex: '1 1 180px', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ flex: '1 1 180px', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit' }} />
           <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email (optional)" aria-label="New client email" type="email"
-            style={{ flex: '1 1 200px', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 14, fontFamily: 'inherit' }} />
+            style={{ flex: '1 1 200px', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit' }} />
           <button type="button" onClick={() => void create()} disabled={busy}
-            style={{ padding: '10px 16px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '10px 16px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'var(--on-ink)', fontWeight: 700, fontSize: 'var(--fs-ui)', cursor: 'pointer', fontFamily: 'inherit' }}>
             {busy ? 'Adding…' : 'Add'}
           </button>
         </div>
       )}
-      {error && <div role="alert" style={{ fontSize: 13, color: 'var(--error)' }}>{error}</div>}
+      {error && <div role="alert" style={{ fontSize: 'var(--fs-small)', color: 'var(--error)' }}>{error}</div>}
     </div>
   )
 }

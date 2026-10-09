@@ -7,13 +7,13 @@ import { NAMES } from '../../../_lib/names'
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
-  fontWeight: 700, fontSize: 15, flexShrink: 0,
+  fontWeight: 700, fontSize: 'var(--fs-body)', flexShrink: 0,
 }
-const step: React.CSSProperties = { display: 'flex', gap: 16, marginBottom: 28, alignItems: 'flex-start' }
-const body: React.CSSProperties = { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6 }
+const step: React.CSSProperties = { display: 'flex', gap: 'var(--space-4)', marginBottom: 28, alignItems: 'flex-start' }
+const body: React.CSSProperties = { fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6 }
 const note: React.CSSProperties = {
   background: 'var(--bg-soft)', border: '1px solid var(--border-light)', borderRadius: 10,
-  padding: '14px 16px', margin: '16px 0', fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6,
+  padding: '14px 16px', margin: '16px 0', fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6,
 }
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
@@ -21,7 +21,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
     <div style={step}>
       <div style={STEP_CIRCLE}>{n}</div>
       <div>
-        <h3 style={{ margin: '4px 0 8px', fontSize: 18, color: 'var(--ink)' }}>{title}</h3>
+        <h3 style={{ margin: '4px 0 8px', fontSize: 'var(--fs-lead)', color: 'var(--ink)' }}>{title}</h3>
         <div style={body}>{children}</div>
       </div>
     </div>
@@ -31,15 +31,15 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 export default function RestyleDeckHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Help Center</Link>
         <span style={{ margin: '0 8px' }}>/</span>
         <span>Restyle a Deck</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 30, color: 'var(--ink)', margin: '0 0 8px' }}>Restyle a slide deck</h1>
-        <p style={{ ...body, fontSize: 16 }}>
+        <h1 style={{ fontSize: 'var(--fs-h2)', color: 'var(--ink)', margin: '0 0 8px' }}>Restyle a slide deck</h1>
+        <p style={{ ...body, fontSize: 'var(--fs-body)' }}>
           Upload a PowerPoint or PDF you already have. We read it slide by slide, keep your words, and redraw every
           slide in a brand-new look you pick. You get back a matching set of slides — and a single PDF of the whole deck.
         </p>

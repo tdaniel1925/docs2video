@@ -157,9 +157,9 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
             // keeps its brighter red through --count-badge (see globals.css).
             background: hasActiveJobs ? 'var(--accent)' : 'var(--count-badge, var(--error))',
             color: hasActiveJobs ? 'var(--ink)' : 'var(--on-ink)',
-            fontSize: 9, fontWeight: 800,
+            fontSize: 'var(--fs-caption)', fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '2px solid white',
+            border: '2px solid var(--bg-card)',
           }}>
             {hasActiveJobs ? '⟳' : unreadCount > 9 ? '9+' : unreadCount}
           </span>
@@ -170,7 +170,7 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
         <div style={{
           position: 'absolute', top: '100%', right: 0, marginTop: 8,
           width: 380, maxHeight: 480, overflowY: 'auto',
-          background: 'white', border: '1px solid var(--border-light)',
+          background: 'var(--bg-card)', border: '1px solid var(--border-light)',
           borderRadius: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
           zIndex: 300,
         }}>
@@ -179,12 +179,12 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
             padding: '14px 18px', borderBottom: '1px solid var(--border-light)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Notifications</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>Notifications</div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
               {unreadCount > 0 && (
                 <button onClick={markAllRead} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: 'var(--mint-darker)', fontWeight: 600,
+                  fontSize: 'var(--fs-caption)', color: 'var(--mint-darker)', fontWeight: 600,
                 }}>
                   Mark all read
                 </button>
@@ -192,13 +192,13 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
               {notifications.length > 0 && (
                 <button onClick={clearAll} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: 'var(--error-text)', fontWeight: 600,
+                  fontSize: 'var(--fs-caption)', color: 'var(--error-text)', fontWeight: 600,
                 }}>
                   Clear all
                 </button>
               )}
               <Link href="/activity" onClick={() => setOpen(false)} style={{
-                fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'none', fontWeight: 600,
+                fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', textDecoration: 'none', fontWeight: 600,
               }}>
                 View all
               </Link>
@@ -208,18 +208,18 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
           {/* Active Jobs */}
           {activeJobs.length > 0 && (
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-light)', background: 'rgba(168,240,212,0.06)' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: 8 }}>
                 In Progress
               </div>
               {activeJobs.map(job => (
                 <div key={job.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title ?? job.type}</span>
-                    <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{job.progress}%</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 'var(--space-2)' }}>
+                    <span style={{ fontSize: 'var(--fs-small)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title ?? job.type}</span>
+                    <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>{job.progress}%</span>
                     <button
                       onClick={() => dismissJob(job.id)}
                       title="Dismiss"
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 'var(--fs-ui)', lineHeight: 1, padding: '0 2px' }}
                     >
                       &times;
                     </button>
@@ -233,7 +233,7 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
                     }} />
                   </div>
                   {job.result_url && (
-                    <Link href={job.result_url} style={{ fontSize: 11, color: 'var(--mint-darker)', fontWeight: 600, marginTop: 4, display: 'inline-block' }}>
+                    <Link href={job.result_url} style={{ fontSize: 'var(--fs-caption)', color: 'var(--mint-darker)', fontWeight: 600, marginTop: 4, display: 'inline-block' }}>
                       View result →
                     </Link>
                   )}
@@ -245,37 +245,37 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
           {/* Notifications list */}
           {notifications.length === 0 && activeJobs.length === 0 ? (
             <div style={{ padding: '40px 18px', textAlign: 'center', color: 'var(--ink-light)' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>No notifications yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>You'll see updates here when your creations are ready.</div>
+              <div style={{ fontSize: 'var(--fs-h2)', marginBottom: 8 }}>🔔</div>
+              <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600 }}>No notifications yet</div>
+              <div style={{ fontSize: 'var(--fs-caption)', marginTop: 4 }}>You'll see updates here when your creations are ready.</div>
             </div>
           ) : (
             notifications.map(n => {
               const Wrapper = n.link ? Link : 'div'
               const wrapperProps = n.link ? { href: n.link, onClick: () => { markRead(n.id); setOpen(false) } } : {}
               return (
-                <div key={n.id} style={{ position: 'relative', borderBottom: '1px solid var(--border-light)', background: n.read ? 'white' : 'rgba(168,240,212,0.06)' }}>
+                <div key={n.id} style={{ position: 'relative', borderBottom: '1px solid var(--border-light)', background: n.read ? 'var(--bg-card)' : 'rgba(168,240,212,0.06)' }}>
                   <Wrapper
                     {...wrapperProps as any}
                     style={{
-                      display: 'flex', gap: 12, padding: '12px 40px 12px 18px',
+                      display: 'flex', gap: 'var(--space-3)', padding: '12px 40px 12px 18px',
                       textDecoration: 'none', color: 'var(--ink)',
                       cursor: n.link ? 'pointer' : 'default',
                     }}
                   >
-                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>
+                    <span style={{ fontSize: 'var(--fs-lead)', flexShrink: 0, marginTop: 2 }}>
                       {TYPE_ICONS[n.type] ?? '📋'}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 'var(--fs-small)', fontWeight: n.read ? 500 : 700, lineHeight: 1.4 }}>
                         {n.title}
                       </div>
                       {n.message && (
-                        <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
                           {n.message}
                         </div>
                       )}
-                      <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 4 }}>
                         {timeAgo(n.created_at)}
                       </div>
                     </div>
@@ -291,7 +291,7 @@ export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
                     style={{
                       position: 'absolute', top: 10, right: 12,
                       border: 'none', background: 'none', cursor: 'pointer',
-                      color: 'var(--ink-light)', fontSize: 16, lineHeight: 1, padding: 2,
+                      color: 'var(--ink-light)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 2,
                     }}
                   >
                     &times;

@@ -36,7 +36,7 @@ export default function PricingHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -53,13 +53,13 @@ export default function PricingHelpPage() {
 
       {/* How Credits Work */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           How Credits Work
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             Every plan includes <strong style={{ color: 'var(--ink)' }}>monthly credits</strong>. Credits are used when you create videos, slide decks, or PDFs. Different actions cost different amounts of credits.
           </p>
@@ -74,13 +74,13 @@ export default function PricingHelpPage() {
 
       {/* Credit Costs */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           What Credits Cost
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)' }}>
@@ -104,13 +104,13 @@ export default function PricingHelpPage() {
           approximate video counts and the feature list all come from
           pricing.ts / credits.ts, so this page can't quote an old price. */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Free — {n(TIER_CREDITS.free)} Credits to Start
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 10 }}>
             Every new account starts with <strong style={{ color: 'var(--ink)' }}>{n(TIER_CREDITS.free)} credits</strong> (enough for <strong style={{ color: 'var(--ink)' }}>about {TIER_APPROX_VIDEOS.free.standard} standard explainer videos</strong>). These are a one-time welcome gift, not a monthly refill. You can try Docs2Video first without a card (the free preview on step 3 needs none); you add a card to unlock the credits when you make your first real one, and nothing is charged until they run out.
           </p>
@@ -124,21 +124,21 @@ export default function PricingHelpPage() {
         const recommended = plan.tier === 'pro'
         return (
           <div key={plan.tier} style={{
-            background: 'white', border: recommended ? '2px solid var(--ink)' : '1px solid var(--border-light)', borderRadius: 10,
+            background: 'var(--bg-card)', border: recommended ? '2px solid var(--ink)' : '1px solid var(--border-light)', borderRadius: 10,
             padding: '28px 32px', marginBottom: 20,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>
                 {plan.label} — {`$${Math.round(plan.monthlyPrice / 100)}`}/month — {n(TIER_CREDITS[plan.tier])} Credits
               </h2>
               {recommended && (
                 <span style={{
-                  background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 700,
+                  background: 'var(--ink)', color: 'var(--on-ink)', fontSize: 'var(--fs-caption)', fontWeight: 700,
                   padding: '3px 10px', borderRadius: 6,
                 }}>RECOMMENDED</span>
               )}
             </div>
-            <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+            <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
               <p style={{ marginBottom: 10 }}>
                 Approximately <strong style={{ color: 'var(--ink)' }}>{TIER_APPROX_VIDEOS[plan.tier].standard} standard explainers</strong> or <strong style={{ color: 'var(--ink)' }}>{TIER_APPROX_VIDEOS[plan.tier].quick} quick videos</strong> per month.
               </p>
@@ -153,13 +153,13 @@ export default function PricingHelpPage() {
 
       {/* Credit Packs */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           Credit Packs
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
           <p style={{ marginBottom: 16 }}>
             Need more credits? Buy a pack anytime, on any plan (including Free): click <strong style={{ color: 'var(--ink)' }}>+ Top Up</strong> next to your credit balance at the top of the screen. Purchased credits <strong style={{ color: 'var(--ink)' }}>never expire</strong> — they stay in your account until used, and are spent after your monthly plan credits.
           </p>
@@ -186,35 +186,35 @@ export default function PricingHelpPage() {
 
       {/* Upgrading / Downgrading */}
       <div style={{
-        background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
         padding: '28px 32px', marginBottom: 20,
       }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }}>
           How to Upgrade or Downgrade
         </h2>
-        <div style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }}>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+        <div style={{ fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>1</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Go to Settings.</strong> Click your profile icon, then select &quot;Settings&quot; from the menu.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>2</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Choose Billing &amp; credits in the menu on the left.</strong> Three boxes show your plan, your credits and what you used this period.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>3</div>
             <div>
               <strong style={{ color: 'var(--ink)' }}>Select your new plan.</strong> Upgrades take effect immediately with new credits. Downgrades take effect at the end of your current billing period.

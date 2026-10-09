@@ -15,6 +15,7 @@ import { cleanWebLink } from '../../_lib/url-validate'
 import { Button, EmptyState, Note } from '../../_components/kit'
 import ViewAlertsSetting from '../activity/ViewAlertsSetting'
 import ApiKeysSection from './ApiKeysSection'
+import { ThemeChoice } from '../../_components/theme'
 import BillingSection from './BillingSection'
 import { sectionFromParams, type SectionId } from './account-sections'
 import s from './settings.module.css'
@@ -459,6 +460,16 @@ export default function SettingsPage() {
               </div>
             </div>
           </form>
+
+          {/* Light or dark (round C) — this browser only. Docs2Video only:
+              Text2Art's screens keep their own look. */}
+          {storefront.showVideoFeatures && (
+          <div className="settings-card">
+            <h3>Appearance</h3>
+            <p className="ssub">Light, dark, or follow your computer. Saved on this browser. Share pages you send always stay light.</p>
+            <ThemeChoice />
+          </div>
+          )}
 
           {/* Security: change email + password */}
           <div className="settings-card">

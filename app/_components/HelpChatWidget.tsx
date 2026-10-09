@@ -124,7 +124,7 @@ export default function HelpChatWidget() {
           position: 'fixed', bottom: 'calc(88px + var(--bottom-bar, 0px))', right: 24,
           width: 380, maxWidth: 'calc(100vw - 48px)',
           height: 500, maxHeight: 'calc(100vh - 140px)',
-          background: 'white', border: '1px solid var(--border-light)',
+          background: 'var(--bg-card)', border: '1px solid var(--border-light)',
           borderRadius: 10, display: 'flex', flexDirection: 'column',
           boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
           zIndex: 99, overflow: 'hidden',
@@ -141,12 +141,12 @@ export default function HelpChatWidget() {
           {/* Header */}
           <div style={{
             padding: '14px 18px', borderBottom: '1px solid var(--border-light)',
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
           }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>Help Assistant</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>
+              <div style={{ fontWeight: 700, fontSize: 'var(--fs-ui)' }}>Help Assistant</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
                 {guide.own ? <>On this screen: <strong style={{ color: 'var(--ink-soft)' }}>{guide.title}</strong></> : <>Ask anything about {brand.name}</>}
               </div>
             </div>
@@ -163,20 +163,20 @@ export default function HelpChatWidget() {
           {/* Messages */}
           <div style={{
             flex: 1, overflowY: 'auto', padding: 16,
-            display: 'flex', flexDirection: 'column', gap: 10,
+            display: 'flex', flexDirection: 'column', gap: 'var(--space-3)',
           }}>
             {messages.length === 0 && (
               <div style={{ textAlign: 'center', marginTop: 32, padding: '0 16px' }}>
-                <div style={{ fontSize: 28, marginBottom: 12 }}>&#128075;</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>How can I help?</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5, marginBottom: 16 }}>
+                <div style={{ fontSize: 'var(--fs-h2)', marginBottom: 12 }}>&#128075;</div>
+                <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600, marginBottom: 6 }}>How can I help?</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', lineHeight: 1.5, marginBottom: 16 }}>
                   {!brand.showVideoFeatures
                     ? 'Ask me anything about making flyers, ads, social posts, banners or business cards — or about credits and billing.'
                     : guide.own
                       ? `Questions people ask on ${guide.title}:`
                       : 'Ask me anything about videos, presentations, slide decks, custom graphics, billing, or any feature.'}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {(brand.showVideoFeatures
                     ? guide.asks
                     : ['How do I make a flyer?', 'What do credits cost?', 'Can I use my own photos?', 'What sizes can I get?']
@@ -187,12 +187,12 @@ export default function HelpChatWidget() {
                       style={{
                         padding: '8px 12px', borderRadius: 8,
                         border: '1px solid var(--border-light)',
-                        background: 'white', cursor: 'pointer',
-                        fontSize: 12, color: 'var(--ink)', textAlign: 'left',
+                        background: 'var(--bg-card)', cursor: 'pointer',
+                        fontSize: 'var(--fs-caption)', color: 'var(--ink)', textAlign: 'left',
                         transition: 'background 0.1s',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-soft)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-card)')}
                     >
                       {q}
                     </button>
@@ -205,7 +205,7 @@ export default function HelpChatWidget() {
                 <div
                   className={msg.role === 'assistant' ? 'help-chat-html' : undefined}
                   style={{
-                    padding: '10px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.55,
+                    padding: '10px 14px', borderRadius: 10, fontSize: 'var(--fs-small)', lineHeight: 1.55,
                     background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-soft)',
                     color: msg.role === 'user' ? 'var(--ink)' : 'var(--ink)',
                     border: msg.role === 'assistant' ? '1px solid var(--border-light)' : 'none',
@@ -222,7 +222,7 @@ export default function HelpChatWidget() {
             ))}
             {loading && (
               <div style={{ alignSelf: 'flex-start' }}>
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-soft)', border: '1px solid var(--border-light)', display: 'flex', gap: 4 }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-soft)', border: '1px solid var(--border-light)', display: 'flex', gap: 'var(--space-1)' }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out infinite' }} />
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out 0.2s infinite' }} />
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out 0.4s infinite' }} />
@@ -235,7 +235,7 @@ export default function HelpChatWidget() {
 
           {/* Input */}
           <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-light)' }}>
-            <div style={{ display: 'flex', gap: 8, border: '1px solid var(--border)', borderRadius: 8, padding: '4px 4px 4px 12px' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 4px 4px 12px' }}>
               <input
                 type="text"
                 placeholder="Ask a question..."
@@ -243,13 +243,13 @@ export default function HelpChatWidget() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                 disabled={loading}
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: 'var(--ink)' }}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 'var(--fs-small)', background: 'transparent', color: 'var(--ink)' }}
               />
               <button
                 onClick={() => { void send() }}
                 disabled={loading || !input.trim()}
                 className="btn btn-primary"
-                style={{ padding: '6px 14px', fontSize: 12, borderRadius: 6, opacity: loading || !input.trim() ? 0.5 : 1 }}
+                style={{ padding: '6px 14px', fontSize: 'var(--fs-caption)', borderRadius: 6, opacity: loading || !input.trim() ? 0.5 : 1 }}
               >
                 Send
               </button>

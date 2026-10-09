@@ -8,6 +8,7 @@ import NotificationBell from './NotificationBell'
 import BuyCreditsModal from './BuyCreditsModal'
 import ClassicHeader from './ClassicHeader'
 import HowToUseDialog from './HowToUse'
+import { ThemeToggle } from './theme'
 import { Button, Chip } from './kit'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
@@ -266,6 +267,8 @@ function TopBar({ profile, brand, lowCreditsAt }: { profile: Profile; brand: Bra
                   </Link>
                 ))}
                 <hr className="kit-menu-sep" />
+                {/* Light / dark (round C). System · Light · Dark is in Settings → Profile. */}
+                <ThemeToggle onDone={() => setMenuOpen(false)} />
                 <form action={logout}>
                   <button type="submit" className="kit-menu-item">{SIGN_OUT}</button>
                 </form>

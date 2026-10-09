@@ -182,7 +182,7 @@ export default function FaqPage() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null)
 
   const renderFaqList = (items: FaqItem[], prefix: string) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       {items.map((item, index) => {
         const id = `${prefix}-${index}`
         const isExpanded = expandedFaq === id
@@ -190,7 +190,7 @@ export default function FaqPage() {
           <div
             key={id}
             style={{
-              background: 'white',
+              background: 'var(--bg-card)',
               border: '1px solid var(--border-light)',
               borderRadius: 10,
               overflow: 'hidden',
@@ -207,12 +207,12 @@ export default function FaqPage() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: 'var(--space-3)',
                 textAlign: 'left',
               }}
             >
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{item.question}</div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{item.question}</div>
               </div>
               <svg
                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2"
@@ -223,7 +223,7 @@ export default function FaqPage() {
             </button>
 
             {isExpanded && (
-              <div style={{ padding: '0 20px 20px 20px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
+              <div style={{ padding: '0 20px 20px 20px', fontSize: 'var(--fs-ui)', lineHeight: 1.7, color: 'var(--ink-soft)' }}>
                 {item.answer.map((paragraph, i) => (
                   <p key={i} style={{ margin: '8px 0' }} dangerouslySetInnerHTML={{
                     __html: paragraph
@@ -242,7 +242,7 @@ export default function FaqPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -258,13 +258,13 @@ export default function FaqPage() {
       </div>
 
       {/* Common Questions */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
         Common Questions
       </h2>
       {renderFaqList(FAQ_ITEMS, 'faq')}
 
       {/* Troubleshooting */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 36, marginBottom: 16, color: 'var(--ink)' }}>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginTop: 36, marginBottom: 16, color: 'var(--ink)' }}>
         Troubleshooting
       </h2>
       {renderFaqList(TROUBLESHOOTING, 'ts')}
@@ -275,8 +275,8 @@ export default function FaqPage() {
         background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
-        <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
+        <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', margin: '0 0 12px' }}>
           Click the help button in the bottom-right corner to chat with our AI assistant, or contact support directly.
         </p>
         <a href="mailto:support@docs2video.com" className="btn btn-soft">Email support</a>

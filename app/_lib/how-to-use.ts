@@ -215,7 +215,7 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Settings',
     intro: 'Your account: pick a part from the menu on the left (a row at the top on a phone).',
     steps: [
-      '**Profile** — your name, company, phone and role (press **Save changes**), your sign-in email and password, your photos and your API keys. **Run the setup again** walks you through setup; **Delete account** is at the very bottom.',
+      '**Profile** — your name, company, phone and role (press **Save changes**), your sign-in email and password, your photos, your API keys and **Appearance** (System, Light or Dark — this browser only; share pages stay light). **Run the setup again** walks you through setup; **Delete account** is at the very bottom.',
       '**Billing & credits** — three boxes show your plan, your credits and what you used this period. Below them are the plans, the **Credit packs** and your invoices (**Manage billing & invoices**).',
       '**Brand kit** — your default brand: change its logo or colors, or see all your brands.',
       '**Email & sending** — connect your email so sends come from you, and add your booking link, your Stripe payment link and your view alerts. Links must start with https://.',
@@ -235,7 +235,7 @@ export const GETTING_AROUND: HowToGuide = {
     `**${NAMES.newButton}** starts something new: a video, a presentation or a slide deck.`,
     `**${NAMES.library}** has everything you’ve made. **${NAMES.clients}** are the people you send to. **${NAMES.brands}** are your logos and colors.`,
     'Your credits are the gold box. Press it to top up.',
-    'Press your initial at the top right for your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center and Sign out.',
+    'Press your initial at the top right for your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center, a Dark mode / Light mode switch and Sign out.',
     'The logo takes you Home.',
   ],
   helpHref: '/help/getting-started',

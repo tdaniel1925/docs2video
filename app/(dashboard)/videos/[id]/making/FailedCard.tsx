@@ -22,10 +22,10 @@ export default function FailedCard({ video, onRetry }: { video: Video; onRetry: 
       >
         <TriangleAlert size={20} />
       </span>
-      <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: 'var(--ink)' }}>{FAILED_WORDS.title}</h2>
-      <p style={{ margin: '0 auto 6px', maxWidth: 560, fontSize: 15, lineHeight: 1.55, color: 'var(--ink-soft)' }}>{FAILED_WORDS.what}</p>
+      <h2 style={{ margin: '0 0 8px', fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)' }}>{FAILED_WORDS.title}</h2>
+      <p style={{ margin: '0 auto 6px', maxWidth: 560, fontSize: 'var(--fs-body)', lineHeight: 1.55, color: 'var(--ink-soft)' }}>{FAILED_WORDS.what}</p>
       {video.error_message && (
-        <p style={{ margin: '0 auto 12px', maxWidth: 560, fontSize: 13.5, color: 'var(--ink-light)' }}>What we know: {video.error_message}</p>
+        <p style={{ margin: '0 auto 12px', maxWidth: 560, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>What we know: {video.error_message}</p>
       )}
 
       {/*
@@ -38,15 +38,15 @@ export default function FailedCard({ video, onRetry }: { video: Video; onRetry: 
       */}
       {video.progress_detail?.startsWith('[fail]') && (
         <details style={{ margin: '0 auto 12px', textAlign: 'left', maxWidth: 620 }}>
-          <summary style={{ fontSize: 13, color: 'var(--ink-soft)', cursor: 'pointer' }}>The technical details</summary>
+          <summary style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', cursor: 'pointer' }}>The technical details</summary>
           <pre style={{
-            fontSize: 11.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            fontSize: 'var(--fs-caption)', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             background: 'var(--bg-soft)', borderRadius: 8, padding: '10px 12px', marginTop: 8,
             color: 'var(--ink-soft)', maxHeight: 220, overflow: 'auto',
           }}>{video.progress_detail.replace(/^\[fail\]\s*/, '')}</pre>
         </details>
       )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginTop: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', justifyContent: 'center', marginTop: 16 }}>
         <Button onClick={onRetry}><RotateCcw size={16} />{FAILED_WORDS.retry}</Button>
         <Button href="/create" variant="secondary">{FAILED_WORDS.fresh}</Button>
       </div>

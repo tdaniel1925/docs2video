@@ -70,8 +70,8 @@ export function PresLookPicker({ value, onChange }: { value: string; onChange: (
               {/* A mini slide drawn from the template's own colors. */}
               <div className={s.lookSwatch} style={{ background: paper }}>
                 <div style={{ width: 30, height: 3, background: accent, borderRadius: 2, marginBottom: 7 }} />
-                <div style={{ fontSize: 14, fontWeight: 800, color: ink, lineHeight: 1.15 }}>Your title<span style={{ color: accent }}>.</span></div>
-                <div style={{ marginTop: 7, display: 'flex', gap: 4 }}>
+                <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 800, color: ink, lineHeight: 1.15 }}>Your title<span style={{ color: accent }}>.</span></div>
+                <div style={{ marginTop: 7, display: 'flex', gap: 'var(--space-1)' }}>
                   <span style={{ flex: 2, height: 5, background: ink, opacity: 0.25, borderRadius: 3 }} />
                   <span style={{ flex: 1, height: 5, background: accent, opacity: 0.7, borderRadius: 3 }} />
                 </div>

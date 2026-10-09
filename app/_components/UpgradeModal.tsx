@@ -52,13 +52,13 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
         }}
       >
         <h2 style={{
-          fontSize: 22, fontWeight: 800, color: 'var(--ink)',
+          fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)',
           marginBottom: 8, letterSpacing: '-0.02em',
         }}>
           Upgrade for more credits
         </h2>
         <p style={{
-          fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24,
+          fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24,
         }}>
           A paid plan gives you a fresh pool of credits every month for videos, slide decks and PDFs.
         </p>
@@ -70,10 +70,10 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           background: 'rgba(199, 232, 168, 0.06)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Pro</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>${PRO.monthlyPrice / 100}/mo</span>
+            <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--ink)' }}>Pro</span>
+            <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)' }}>${PRO.monthlyPrice / 100}/mo</span>
           </div>
-          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
+          <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
             {PRO.monthlyCredits.toLocaleString('en-US')} credits/mo (~{PRO.approxStandardVideos} standard videos)
           </p>
           <button
@@ -81,7 +81,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
             disabled={loading === 'pro'}
             style={{
               width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-              background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, fontWeight: 700,
+              background: 'var(--accent)', color: 'var(--ink)', fontSize: 'var(--fs-ui)', fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit',
               opacity: loading === 'pro' ? 0.6 : 1,
             }}
@@ -96,7 +96,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
           style={{
             width: '100%', padding: '12px', borderRadius: 8,
             border: '1.5px solid var(--border-light)', background: 'white',
-            fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)',
+            fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink-soft)',
             cursor: 'pointer', fontFamily: 'inherit',
           }}
         >

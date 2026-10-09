@@ -184,7 +184,7 @@ export default function CreateCommercialPage() {
             style={{ ...styles.sourceTab, ...(source === t.id ? styles.sourceTabActive : {}) }}
             onClick={() => { setSource(t.id); setError(null) }}
           >
-            <span style={{ fontSize: 16 }}>{t.icon}</span> {t.label}
+            <span style={{ fontSize: 'var(--fs-body)' }}>{t.icon}</span> {t.label}
           </button>
         ))}
       </div>
@@ -324,35 +324,35 @@ export default function CreateCommercialPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   wrap: { maxWidth: 640, margin: '0 auto', padding: '24px 32px' },
-  back: { fontSize: 14, color: 'var(--ink-soft)', textDecoration: 'none', display: 'inline-block', marginBottom: 20 },
+  back: { fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', textDecoration: 'none', display: 'inline-block', marginBottom: 20 },
   header: { marginBottom: 28 },
-  icon: { fontSize: 32, display: 'block', marginBottom: 8 },
-  h1: { fontSize: 26, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.02em' },
-  sub: { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.5 },
-  sourceTabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  sourceTab: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
-  sourceTabActive: { border: '1.5px solid var(--ink)', background: 'var(--ink)', color: 'white' },
-  label: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 18 },
+  icon: { fontSize: 'var(--fs-h1)', display: 'block', marginBottom: 8 },
+  h1: { fontSize: 'var(--fs-h2)', fontWeight: 800, color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.02em' },
+  sub: { fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.5 },
+  sourceTabs: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 18 },
+  sourceTab: { display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', padding: '9px 14px', fontSize: 'var(--fs-small)', fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--ink-soft)', cursor: 'pointer' },
+  sourceTabActive: { border: '1.5px solid var(--ink)', background: 'var(--ink)', color: 'var(--on-ink)' },
+  label: { display: 'block', fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', marginBottom: 18 },
   req: { color: 'var(--warning-text)', fontWeight: 700 },
   opt: { color: 'var(--ink-light)', fontWeight: 500 },
-  input: { display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', color: 'var(--ink)', boxSizing: 'border-box' },
-  file: { display: 'block', width: '100%', marginTop: 6, fontSize: 13, color: 'var(--ink-soft)' },
-  hint: { display: 'block', marginTop: 6, fontSize: 12, color: 'var(--ink-light)', fontWeight: 500 },
-  row: { display: 'flex', gap: 16 },
-  toggleRow: { display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20 },
+  input: { display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', fontSize: 'var(--fs-body)', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--ink)', boxSizing: 'border-box' },
+  file: { display: 'block', width: '100%', marginTop: 6, fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' },
+  hint: { display: 'block', marginTop: 6, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 500 },
+  row: { display: 'flex', gap: 'var(--space-4)' },
+  toggleRow: { display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20 },
   toggle: { width: 44, height: 24, borderRadius: 10, position: 'relative', transition: 'background 0.2s', flexShrink: 0 },
-  knob: { position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: 10, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'transform 0.2s' },
-  toggleLabel: { fontSize: 14, fontWeight: 600, color: 'var(--ink)' },
-  advToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)', padding: 0, marginBottom: 14, textAlign: 'left' },
-  styleGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
-  styleChip: { padding: '8px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1.5px solid var(--border-light)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
+  knob: { position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: 10, background: 'var(--bg-card)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'transform 0.2s' },
+  toggleLabel: { fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink)' },
+  advToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)', padding: 0, marginBottom: 14, textAlign: 'left' },
+  styleGrid: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 20 },
+  styleChip: { padding: '8px 14px', fontSize: 'var(--fs-small)', fontWeight: 600, borderRadius: 8, border: '1.5px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--ink-soft)', cursor: 'pointer' },
   styleChipActive: { border: '1.5px solid var(--accent-ink)', background: 'var(--accent-soft)', color: 'var(--ink)' },
-  error: { fontSize: 14, color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
-  costBox: { marginBottom: 16, fontSize: 14 },
+  error: { fontSize: 'var(--fs-ui)', color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
+  costBox: { marginBottom: 16, fontSize: 'var(--fs-ui)' },
   costOk: { color: 'var(--ink-soft)' },
   bal: { color: 'var(--ink-light)' },
   costWarn: { color: 'var(--warning-text)' },
   buyLink: { color: 'var(--ink)', fontWeight: 700, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', font: 'inherit' },
-  cta: { width: '100%', padding: '15px 24px', fontSize: 16, fontWeight: 800, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', cursor: 'pointer', letterSpacing: '-0.01em' },
+  cta: { width: '100%', padding: '15px 24px', fontSize: 'var(--fs-body)', fontWeight: 800, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'var(--on-ink)', cursor: 'pointer', letterSpacing: '-0.01em' },
   ctaDisabled: { opacity: 0.45, cursor: 'not-allowed' },
 }

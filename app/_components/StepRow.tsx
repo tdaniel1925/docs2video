@@ -40,7 +40,7 @@ export function StepRow({
   soft: string
 }) {
   const head: CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+    display: 'flex', alignItems: 'center', gap: 'var(--space-3)', width: '100%',
     padding: '11px 13px', background: 'none', border: 'none', cursor: 'pointer',
     font: 'inherit', textAlign: 'left', color: ink,
   }
@@ -58,28 +58,28 @@ export function StepRow({
         <span style={{
           width: 20, height: 20, borderRadius: 6, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 800,
+          fontSize: 'var(--fs-caption)', fontWeight: 800,
           background: done ? ink : 'transparent',
           color: done ? 'white' : soft,
           border: done ? '1px solid transparent' : `1px solid ${line}`,
         }}>{done ? '✓' : n}</span>
 
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700 }}>{title}</span>
+          <span style={{ display: 'block', fontSize: 'var(--fs-small)', fontWeight: 700 }}>{title}</span>
           {done && answer && (
             <span style={{
-              display: 'block', fontSize: 12.5, color: soft, marginTop: 1,
+              display: 'block', fontSize: 'var(--fs-small)', color: soft, marginTop: 1,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{answer}</span>
           )}
           {!done && optional && (
-            <span style={{ display: 'block', fontSize: 12.5, color: soft, marginTop: 1 }}>
+            <span style={{ display: 'block', fontSize: 'var(--fs-small)', color: soft, marginTop: 1 }}>
               Optional — skip it and the artwork is invented
             </span>
           )}
         </span>
 
-        <span style={{ fontSize: 11, color: soft, flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 'var(--fs-caption)', color: soft, flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
       </button>
 
       {open && <div style={{ padding: '2px 13px 14px' }}>{children}</div>}
@@ -117,7 +117,7 @@ export function DropHint({
       style={{
         display: 'block', marginTop: 12, padding: '14px 16px',
         border: `1px dashed ${line}`, borderRadius: 9, cursor: 'pointer',
-        fontSize: 12.5, color: soft, lineHeight: 1.55, textAlign: 'center',
+        fontSize: 'var(--fs-small)', color: soft, lineHeight: 1.55, textAlign: 'center',
       }}>
       <strong style={{ color: ink }}>{what}</strong>
       <br />

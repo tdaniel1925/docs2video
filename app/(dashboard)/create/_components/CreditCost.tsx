@@ -39,10 +39,10 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     border: '1px solid var(--border-light)',
     background: 'var(--bg-card)',
-    fontSize: 14,
+    fontSize: 'var(--fs-ui)',
     color: 'var(--ink)',
   },
-  muted: { fontSize: 13, color: 'var(--ink-light)' },
-  error: { fontSize: 13, color: 'var(--error-text)' },
+  muted: { fontSize: 'var(--fs-small)', color: 'var(--ink-light)' },
+  error: { fontSize: 'var(--fs-small)', color: 'var(--error-text)' },
   warning: { color: 'var(--ink)' },
 }

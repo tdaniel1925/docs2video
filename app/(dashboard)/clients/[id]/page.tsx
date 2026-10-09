@@ -271,7 +271,7 @@ export default function ClientDetailPage() {
     return (
       <div style={{ textAlign: 'center', padding: 60 }}>
         <div className="spinner lg" />
-        <p style={{ marginTop: 16, color: 'var(--ink-light)', fontSize: 14 }}>Loading client...</p>
+        <p style={{ marginTop: 16, color: 'var(--ink-light)', fontSize: 'var(--fs-ui)' }}>Loading client...</p>
       </div>
     )
   }
@@ -279,7 +279,7 @@ export default function ClientDetailPage() {
   if (!client) {
     return (
       <div style={{ maxWidth: 800, textAlign: 'center', padding: 60 }}>
-        <p style={{ fontSize: 15, color: 'var(--ink-soft)' }}>Client not found.</p>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)' }}>Client not found.</p>
         <Link href="/clients" className="btn btn-soft btn-sm" style={{ marginTop: 16, textDecoration: 'none' }}>Back to Clients</Link>
       </div>
     )
@@ -290,7 +290,7 @@ export default function ClientDetailPage() {
   return (
     <div style={{ maxWidth: 900 }}>
       {/* Back link */}
-      <Link href="/clients" style={{ fontSize: 13, color: 'var(--ink-light)', textDecoration: 'none', marginBottom: 16, display: 'inline-block' }}>
+      <Link href="/clients" style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', textDecoration: 'none', marginBottom: 16, display: 'inline-block' }}>
         &larr; Back to Clients
       </Link>
 
@@ -301,7 +301,7 @@ export default function ClientDetailPage() {
           background: msg.type === 'ok' ? 'var(--success-bg)' : 'var(--error-bg)',
           borderRadius: 8,
           marginBottom: 16,
-          fontSize: 14,
+          fontSize: 'var(--fs-ui)',
           color: msg.type === 'ok' ? 'var(--success)' : 'var(--error-text)',
         }}>
           {msg.text}
@@ -311,11 +311,11 @@ export default function ClientDetailPage() {
       {/* Header */}
       {!editing ? (
         <div className="settings-card" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 22 }}>{client.name}</h2>
-              {client.company && <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--ink-soft)' }}>{client.company}</p>}
-              <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <h2 style={{ margin: 0, fontSize: 'var(--fs-h3)' }}>{client.name}</h2>
+              {client.company && <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)' }}>{client.company}</p>}
+              <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 8, flexWrap: 'wrap', fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>
                 {client.email && <span>{client.email}</span>}
                 {client.phone && <span>{client.phone}</span>}
                 {client.industry && <span>{client.industry}</span>}
@@ -326,12 +326,12 @@ export default function ClientDetailPage() {
                 </span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               <button className="btn btn-soft btn-sm" onClick={startEdit}>Edit</button>
               {!confirmDelete ? (
                 <button className="btn btn-sm" style={{ background: 'var(--error-bg)', color: 'var(--error-text)', border: '1px solid var(--error-border)' }} onClick={() => setConfirmDelete(true)}>Delete</button>
               ) : (
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
                   <button className="btn btn-sm" style={{ background: 'var(--error)', color: 'var(--on-ink)', border: 'none' }} onClick={handleDelete}>Yes, delete</button>
                   <button className="btn btn-soft btn-sm" onClick={() => setConfirmDelete(false)}>Cancel</button>
                 </div>
@@ -340,36 +340,36 @@ export default function ClientDetailPage() {
           </div>
 
           {/* Tags */}
-          <div style={{ marginTop: 12, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ marginTop: 12, display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
             {(client.tags ?? []).map(tag => (
               <span key={tag} className="tag mint" style={{ cursor: 'pointer' }} onClick={() => removeTag(tag)}>
                 {tag} &times;
               </span>
             ))}
-            <div style={{ display: 'inline-flex', gap: 4 }}>
+            <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
               <input
                 className="input"
                 value={newTag}
                 onChange={e => setNewTag(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
                 placeholder="Add tag..."
-                style={{ width: 120, padding: '4px 8px', fontSize: 12 }}
+                style={{ width: 120, padding: '4px 8px', fontSize: 'var(--fs-caption)' }}
               />
             </div>
           </div>
 
           {/* Stats row */}
-          <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13 }}><strong>{client.total_videos_sent}</strong> videos sent</div>
-            <div style={{ fontSize: 13 }}><strong>{client.total_views}</strong> total views</div>
-            <div style={{ fontSize: 13 }}><strong>${((client.total_revenue ?? 0) / 100).toLocaleString()}</strong> revenue</div>
+          <div style={{ display: 'flex', gap: 'var(--space-5)', marginTop: 16, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 'var(--fs-small)' }}><strong>{client.total_videos_sent}</strong> videos sent</div>
+            <div style={{ fontSize: 'var(--fs-small)' }}><strong>{client.total_views}</strong> total views</div>
+            <div style={{ fontSize: 'var(--fs-small)' }}><strong>${((client.total_revenue ?? 0) / 100).toLocaleString()}</strong> revenue</div>
           </div>
         </div>
       ) : (
         /* Edit form */
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <h3>Edit client</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="input-label">Name *</label>
               <input className="input" value={editName} onChange={e => setEditName(e.target.value)} />
@@ -405,7 +405,7 @@ export default function ClientDetailPage() {
               <textarea className="input" rows={3} value={editNotes} onChange={e => setEditNotes(e.target.value)} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 12 }}>
             <button className="btn btn-primary btn-sm" onClick={saveEdit}>Save changes</button>
             <button className="btn btn-soft btn-sm" onClick={() => setEditing(false)}>Cancel</button>
           </div>
@@ -413,7 +413,7 @@ export default function ClientDetailPage() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border-light)', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 20, borderBottom: '1px solid var(--border-light)', paddingBottom: 0 }}>
         {TABS.map(t => (
           <button
             key={t}
@@ -431,7 +431,7 @@ export default function ClientDetailPage() {
         <div>
           {/* Add Note form */}
           <div className="settings-card" style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14 }}>Add note</h3>
+            <h3 style={{ fontSize: 'var(--fs-ui)' }}>Add note</h3>
             <div className="form-group">
               <input
                 className="input"
@@ -456,25 +456,25 @@ export default function ClientDetailPage() {
 
           {/* Timeline */}
           {activities.length === 0 ? (
-            <p style={{ fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No activity yet.</p>
+            <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No activity yet.</p>
           ) : (
             <div>
               {activities.map(a => (
                 <div key={a.id} className="activity-row" style={{
                   display: 'flex',
-                  gap: 12,
+                  gap: 'var(--space-3)',
                   padding: '12px 16px',
                   borderBottom: '1px solid var(--border-light)',
                   alignItems: 'flex-start',
                 }}>
-                  <div style={{ fontSize: 18, lineHeight: 1, marginTop: 2 }}>
+                  <div style={{ fontSize: 'var(--fs-lead)', lineHeight: 1, marginTop: 2 }}>
                     {ACTIVITY_ICONS[a.type] ?? '\u25CF'}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{a.title}</div>
-                    {a.description && <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>{a.description}</div>}
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>{a.title}</div>
+                    {a.description && <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginTop: 2 }}>{a.description}</div>}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>
                     {formatRelativeTime(a.created_at)}
                   </div>
                 </div>
@@ -493,22 +493,22 @@ export default function ClientDetailPage() {
             </Link>
           </div>
           {videos.length === 0 ? (
-            <p style={{ fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No videos shared with this client yet.</p>
+            <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No videos shared with this client yet.</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260, 1fr))', gap: 'var(--space-4)' }}>
               {videos.map(v => (
                 <Link key={v.id} href={`/videos/${v.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div className="settings-card" style={{ padding: 0, overflow: 'hidden' }}>
                     {v.thumbnail_url ? (
                       <img src={v.thumbnail_url} alt={v.title} style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} />
                     ) : (
-                      <div style={{ width: '100%', height: 140, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-light)', fontSize: 13 }}>
+                      <div style={{ width: '100%', height: 140, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-light)', fontSize: 'var(--fs-small)' }}>
                         No thumbnail
                       </div>
                     )}
                     <div style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{v.title || 'Untitled'}</div>
-                      <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 12, color: 'var(--ink-soft)' }}>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>{v.title || 'Untitled'}</div>
+                      <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 6, fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)' }}>
                         <span>{v.views} views</span>
                         <span>{v.plays} plays</span>
                         <span>{new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
@@ -533,7 +533,7 @@ export default function ClientDetailPage() {
             </div>
           )}
           {emails.length === 0 ? (
-            <p style={{ fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No emails sent to this client yet.</p>
+            <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No emails sent to this client yet.</p>
           ) : (
             <div>
               {emails.map(e => (
@@ -545,8 +545,8 @@ export default function ClientDetailPage() {
                   alignItems: 'center',
                 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{e.subject || 'No subject'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>{e.subject || 'No subject'}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', marginTop: 2 }}>
                       {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                   </div>
@@ -568,10 +568,10 @@ export default function ClientDetailPage() {
       {tab === 'payments' && (
         <div>
           {quotes.length === 0 ? (
-            <p style={{ fontSize: 14, color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No quotes or payments for this client.</p>
+            <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', textAlign: 'center', padding: 32 }}>No quotes or payments for this client.</p>
           ) : (
             <>
-              <div style={{ marginBottom: 16, fontSize: 15, fontWeight: 700 }}>
+              <div style={{ marginBottom: 16, fontSize: 'var(--fs-body)', fontWeight: 700 }}>
                 Total revenue: ${quotes.filter(q => q.status === 'paid').reduce((s, q) => s + q.total, 0).toLocaleString()}
               </div>
               {quotes.map(q => (
@@ -583,8 +583,8 @@ export default function ClientDetailPage() {
                   alignItems: 'center',
                 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>${(q.total / 100).toFixed(2)}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>${(q.total / 100).toFixed(2)}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', marginTop: 2 }}>
                       {new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                   </div>

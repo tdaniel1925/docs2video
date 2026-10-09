@@ -13,21 +13,21 @@ const DESIGN = CREDIT_COSTS.flyer.toLocaleString('en-US')
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
-  fontWeight: 700, fontSize: 15, flexShrink: 0,
+  fontWeight: 700, fontSize: 'var(--fs-body)', flexShrink: 0,
 }
 
-const step: React.CSSProperties = { display: 'flex', gap: 16, marginBottom: 28, alignItems: 'flex-start' }
-const body: React.CSSProperties = { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6 }
+const step: React.CSSProperties = { display: 'flex', gap: 'var(--space-4)', marginBottom: 28, alignItems: 'flex-start' }
+const body: React.CSSProperties = { fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6 }
 const list: React.CSSProperties = { ...body, marginTop: 10, paddingLeft: 20 }
 const note: React.CSSProperties = {
   background: 'var(--bg-soft)', border: '1px solid var(--border-light)', borderRadius: 10,
-  padding: '14px 16px', margin: '16px 0', fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6,
+  padding: '14px 16px', margin: '16px 0', fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6,
 }
 
 export default function FlyersHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -199,7 +199,7 @@ export default function FlyersHelpPage() {
         </div>
       </div>
 
-      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Slide decks (a whole presentation)</h2>
+      <h2 style={{ fontSize: 'var(--fs-h3)', margin: '36px 0 12px' }}>Slide decks (a whole presentation)</h2>
       <p style={body}>
         On the <strong>What</strong> step, tap <strong>A slide deck</strong>. On the Content step, describe what the
         deck is about and who it&rsquo;s for — or paste your notes. It asks <strong>How long should this deck
@@ -218,14 +218,14 @@ export default function FlyersHelpPage() {
         <Link href="/help/restyle-deck" style={{ color: 'var(--ink)', fontWeight: 700 }}>Restyle a Deck</Link> instead.
       </div>
 
-      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Business cards</h2>
+      <h2 style={{ fontSize: 'var(--fs-h3)', margin: '36px 0 12px' }}>Business cards</h2>
       <p style={body}>
         On the <strong>Sizes</strong> step, tick <strong>Business card — front</strong> and <strong>back</strong> in the
         Business cards group. A card is treated as a card, not a shrunken poster: the name is the largest thing on it,
         the job title sits underneath, the contact details group together, and the back is kept simple.
       </p>
 
-      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Working from a design you like</h2>
+      <h2 style={{ fontSize: 'var(--fs-h3)', margin: '36px 0 12px' }}>Working from a design you like</h2>
       <p style={body}>
         On the <strong>Style</strong> step, use <strong>Drop or paste a design you like</strong>. You can choose a file,
         drag one in, or copy an image and paste it straight onto the page.
@@ -236,7 +236,7 @@ export default function FlyersHelpPage() {
         reused. Only use a design you own or have permission to use.
       </div>
 
-      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Using your own photos and logo</h2>
+      <h2 style={{ fontSize: 'var(--fs-h3)', margin: '36px 0 12px' }}>Using your own photos and logo</h2>
       <p style={body}>
         Add a headshot, the actual property, or your product and the design is built around it. A photo of a person
         becomes the featured subject and is <strong>redrawn</strong> into the artwork, so it stays recognisable but is
@@ -244,7 +244,7 @@ export default function FlyersHelpPage() {
         <strong>QR code</strong> are the exceptions: they are placed exactly as you uploaded them, never redrawn.
       </p>
 
-      <h2 style={{ fontSize: 20, margin: '36px 0 12px' }}>Common questions</h2>
+      <h2 style={{ fontSize: 'var(--fs-h3)', margin: '36px 0 12px' }}>Common questions</h2>
       <p style={body}><strong>What does it cost?</strong><br />
         {DESIGN} credits per design (each size is its own design), per deck slide, per <strong>Edit a part</strong>, and per
         logo or QR placement. The price is shown on the Sizes and Review steps before you start.

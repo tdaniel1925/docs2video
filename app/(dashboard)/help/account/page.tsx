@@ -20,21 +20,21 @@ const PLAN_LIST = (() => {
 
 const NUM: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
 }
 const CARD: React.CSSProperties = {
-  background: 'white', border: '1px solid var(--border-light)', borderRadius: 10,
+  background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10,
   padding: '28px 32px', marginBottom: 20,
 }
-const H2: React.CSSProperties = { fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
-const BODY: React.CSSProperties = { fontSize: 14, lineHeight: 1.8, color: 'var(--ink-soft)' }
+const H2: React.CSSProperties = { fontSize: 'var(--fs-h3)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 16, color: 'var(--ink)' }
+const BODY: React.CSSProperties = { fontSize: 'var(--fs-ui)', lineHeight: 1.8, color: 'var(--ink-soft)' }
 const INK: React.CSSProperties = { color: 'var(--ink)' }
 
 export default function AccountHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
@@ -64,6 +64,9 @@ export default function AccountHelpPage() {
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Your details</strong> — Your full name, company name, phone and role. Click <strong style={INK}>Save changes</strong>; you&rsquo;ll see &ldquo;Saved!&rdquo;.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Appearance</strong> — Pick <strong style={INK}>System</strong>, <strong style={INK}>Light</strong> or <strong style={INK}>Dark</strong>. System follows your computer&rsquo;s setting. The screen changes as soon as you click — there is nothing to save. The choice is kept on this browser only, so a new computer or phone starts on System. For a quick switch, click your initial at the top right and choose <strong style={INK}>Dark mode</strong> (or <strong style={INK}>Light mode</strong>). Share pages you send to clients always stay light.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Security</strong> — Change your email address or password. Forgot it? See <a href="#reset-password" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>Forgot your password?</a> below.
@@ -171,19 +174,19 @@ export default function AccountHelpPage() {
       <div style={CARD}>
         <h2 style={H2}>Changing your plan</h2>
         <div style={BODY}>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>1</div>
             <div>
               <strong style={INK}>Go to Settings → Billing &amp; credits.</strong> Scroll to <strong style={INK}>Plans</strong>.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>2</div>
             <div>
               <strong style={INK}>Pick the plan you want.</strong> Click <strong style={INK}>Subscribe to [Plan]</strong>, or <strong style={INK}>Switch to [Plan]</strong> if you already have one.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <div style={NUM}>3</div>
             <div>
               <strong style={INK}>Pay on the secure Stripe page.</strong> When you&rsquo;re done you come back to your dashboard with the new plan&rsquo;s credits.
@@ -196,25 +199,25 @@ export default function AccountHelpPage() {
       <div style={CARD} id="reset-password">
         <h2 style={H2}>Forgot your password? (or setting one for the first time)</h2>
         <div style={BODY}>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>1</div>
             <div>
               <strong style={INK}>Ask for a reset link.</strong> On the sign-in page, click <strong style={INK}>Forgot password?</strong>. Type your email address and click <strong style={INK}>Send Reset Link</strong>. You&rsquo;ll see &ldquo;Check Your Email&rdquo;.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>2</div>
             <div>
               <strong style={INK}>Open the email and click the link.</strong> It works on any device — your phone is fine. The link works once and expires after a while.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>3</div>
             <div>
               <strong style={INK}>Choose your new password.</strong> You land on a page called <strong style={INK}>Set a new password</strong>. Type a password of at least 8 characters, type it again to confirm, and click <strong style={INK}>Save new password</strong>.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>4</div>
             <div>
               <strong style={INK}>You&rsquo;re in.</strong> You&rsquo;ll see &ldquo;Password updated&rdquo;. Click <strong style={INK}>Continue</strong> to go to your dashboard.

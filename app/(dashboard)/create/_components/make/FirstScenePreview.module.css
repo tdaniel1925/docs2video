@@ -4,7 +4,7 @@
 .box {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -16,35 +16,35 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px 16px;
+  gap: var(--space-3) var(--space-4);
 }
 
 .title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-body);
   font-weight: 800;
   color: var(--ink);
 }
 
 .lead {
   margin: 2px 0 0;
-  font-size: 14px;
+  font-size: var(--fs-ui);
   line-height: 1.5;
   color: var(--ink-soft);
 }
 
 .left {
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--fs-small);
   color: var(--ink-light);
 }
 
 .waiting {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-ui);
   color: var(--ink-soft);
 }
 
@@ -60,7 +60,7 @@
 
 .caption {
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--fs-small);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -71,7 +71,7 @@
 
 .changed {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-ui);
   font-weight: 600;
   color: var(--ink);
 }

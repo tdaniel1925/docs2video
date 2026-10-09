@@ -48,14 +48,14 @@ export default function ViewAlertsSetting() {
   }
 
   return (
-    <div id="view-alerts" style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: '18px 22px', marginBottom: 20 }}>
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>View alerts</div>
-      <div style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12 }}>
+    <div id="view-alerts" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '18px 22px', marginBottom: 20 }}>
+      <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', marginBottom: 4 }}>View alerts</div>
+      <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 12 }}>
         When a client opens something you shared, we email you (and text you if your phone is saved). Your own previews never count.
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         {OPTIONS.map(o => (
-          <label key={o.value} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: available ? 'pointer' : 'default', opacity: available ? 1 : 0.6 }}>
+          <label key={o.value} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start', cursor: available ? 'pointer' : 'default', opacity: available ? 1 : 0.6 }}>
             <input
               type="radio"
               name="view-alerts"
@@ -65,19 +65,19 @@ export default function ViewAlertsSetting() {
               style={{ marginTop: 3 }}
             />
             <span>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{o.label}</span>
-              <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-light)' }}>{o.help}</span>
+              <span style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>{o.label}</span>
+              <span style={{ display: 'block', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>{o.help}</span>
             </span>
           </label>
         ))}
       </div>
       {!available && (
-        <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 10 }}>
+        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 10 }}>
           This setting isn’t switched on for your account yet. Until it is, you get one alert per viewer every 12 hours.
         </div>
       )}
       {notice && (
-        <div role="status" style={{ fontSize: 12, marginTop: 10, color: notice.ok ? 'var(--mint-darker)' : 'var(--error)' }}>{notice.text}</div>
+        <div role="status" style={{ fontSize: 'var(--fs-caption)', marginTop: 10, color: notice.ok ? 'var(--mint-darker)' : 'var(--error)' }}>{notice.text}</div>
       )}
     </div>
   )

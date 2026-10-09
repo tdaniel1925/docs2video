@@ -7,17 +7,17 @@ import { NAMES } from '../../../_lib/names'
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
-  fontWeight: 700, fontSize: 15, flexShrink: 0,
+  fontWeight: 700, fontSize: 'var(--fs-body)', flexShrink: 0,
 }
 
-const step: React.CSSProperties = { display: 'flex', gap: 16, marginBottom: 28, alignItems: 'flex-start' }
-const body: React.CSSProperties = { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6 }
+const step: React.CSSProperties = { display: 'flex', gap: 'var(--space-4)', marginBottom: 28, alignItems: 'flex-start' }
+const body: React.CSSProperties = { fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6 }
 
 export default function CommercialsHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>

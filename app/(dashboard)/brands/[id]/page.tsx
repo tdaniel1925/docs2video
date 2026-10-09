@@ -368,12 +368,12 @@ export default function EditBrandPage() {
       <div className="wizard-card brand-form">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <h2 style={{ marginBottom: 0 }}>Edit {brand.name}</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Link href={`/brands/${params.id}/guide`} className="btn btn-soft" style={{ fontSize: 13 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Link href={`/brands/${params.id}/guide`} className="btn btn-soft" style={{ fontSize: 'var(--fs-small)' }}>
               View Brand Guide
             </Link>
             <InlineConfirm message="Delete this brand?" confirmLabel="Delete" onConfirm={handleDelete}>
-              <button className="btn btn-danger" style={{ fontSize: 13 }}>Delete</button>
+              <button className="btn btn-danger" style={{ fontSize: 'var(--fs-small)' }}>Delete</button>
             </InlineConfirm>
           </div>
         </div>
@@ -384,7 +384,7 @@ export default function EditBrandPage() {
           {(storefront.showVideoFeatures || profileType === 'person') && (
           <div className="form-group">
             <label className="input-label">Brand type</label>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {(['company', 'person'] as const).map((t) => (
                 <button
                   key={t}
@@ -392,9 +392,9 @@ export default function EditBrandPage() {
                   onClick={() => setProfileType(t)}
                   style={{
                     flex: 1, padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
-                    fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
+                    fontSize: 'var(--fs-ui)', fontWeight: 700, fontFamily: 'inherit',
                     border: profileType === t ? '2px solid var(--accent-ink)' : '1px solid var(--border)',
-                    background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'white',
+                    background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'var(--bg-card)',
                     color: 'var(--ink)',
                   }}
                 >
@@ -435,12 +435,12 @@ export default function EditBrandPage() {
               <div className="form-group">
                 <label className="input-label">Photo <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
                 {photoUrl && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 10 }}>
                     <img src={photoUrl} alt="Presenter" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border)' }} />
                     <button
                       type="button"
                       onClick={() => { setPhotoUrl(''); if (photoInputRef.current) photoInputRef.current.value = '' }}
-                      style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 'var(--fs-small)', cursor: 'pointer', textDecoration: 'underline' }}
                     >
                       Remove photo
                     </button>
@@ -451,9 +451,9 @@ export default function EditBrandPage() {
                   style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: '20px 16px', textAlign: 'center', cursor: 'pointer' }}
                 >
                   {photoUploading ? (
-                    <span style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Uploading...</span>
+                    <span style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)' }}>Uploading...</span>
                   ) : (
-                    <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>Click to upload a headshot</span>
+                    <span style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)' }}>Click to upload a headshot</span>
                   )}
                   <input
                     ref={photoInputRef}
@@ -463,7 +463,7 @@ export default function EditBrandPage() {
                     style={{ display: 'none' }}
                   />
                 </div>
-                {photoError && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{photoError}</div>}
+                {photoError && <div style={{ marginTop: 8, fontSize: 'var(--fs-small)', color: 'var(--error)', fontWeight: 500 }}>{photoError}</div>}
               </div>
 
               <div className="form-group">
@@ -477,14 +477,14 @@ export default function EditBrandPage() {
                   value={introLine}
                   onChange={(e) => setIntroLine(e.target.value)}
                 />
-                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>
+                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>
                   Spoken at the start of your video — write it the way you&apos;d say it.
                 </p>
               </div>
 
               <div className="form-group">
                 <label className="input-label">Accent color</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                   <label style={{ display: 'block', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
                     <div style={{ width: 44, height: 44, borderRadius: 10, background: colors.primary_color, border: '2px solid var(--border)' }} />
                     <input
@@ -495,7 +495,7 @@ export default function EditBrandPage() {
                       style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                     />
                   </label>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'monospace' }}>{colors.primary_color.toUpperCase()}</span>
+                  <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink)', fontFamily: 'monospace' }}>{colors.primary_color.toUpperCase()}</span>
                 </div>
               </div>
 
@@ -508,15 +508,15 @@ export default function EditBrandPage() {
                   <option value="both">Both</option>
                   <option value="none">None</option>
                 </select>
-                <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>Where your photo appears in the video.</p>
+                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>Where your photo appears in the video.</p>
               </div>
 
               <div className="check-row">
-                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={showNameOnSlides} onChange={(e) => setShowNameOnSlides(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-                  <span style={{ fontSize: 14.5, fontWeight: 500 }}>Show my name on slides</span>
+                  <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 500 }}>Show my name on slides</span>
                 </label>
-                <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>
+                <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>
                   Off = the document title leads the cover; your name still appears in the intro and closing.
                 </p>
               </div>
@@ -524,7 +524,7 @@ export default function EditBrandPage() {
               {/* Contact info — shown on the closing card */}
               <div className="form-group">
                 <label className="input-label">Contact info <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional, for closing card)</span></label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   <input
                     type="tel"
                     className="input"
@@ -576,7 +576,7 @@ export default function EditBrandPage() {
             <label className="input-label">Upload Logo <span style={{ color: 'var(--ink-light)', fontWeight: 400 }}>(optional)</span></label>
             {/* SAY THE SHORTCUT. A gesture nobody is told about is a gesture
                 nobody uses, however well it works. */}
-            <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '-2px 0 8px' }}>
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '-2px 0 8px' }}>
               Pick a file, drag one in, or just paste it with {pasteKeyLabel()}.
             </p>
             <input type="hidden" name="logo_file_url" value={logoFileUrl ?? ''} />
@@ -585,14 +585,14 @@ export default function EditBrandPage() {
             <input type="hidden" name="logo_dark_url" value={logoDarkUrl ?? ''} />
             <input type="hidden" name="logo_chip" value={logoChip ? 'true' : 'false'} />
             {logoFileUrl && logoLightUrl && (
-              <div style={{ marginTop: 6, fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
+              <div style={{ marginTop: 6, fontSize: 'var(--fs-caption)', color: 'var(--success)', fontWeight: 600 }}>
                 ✓ {storefront.showVideoFeatures ? 'Ready for video' : 'Ready to place on designs'} {logoChip ? '(shown on a subtle panel)' : ''}
               </div>
             )}
 
             {/* Preview */}
             {(logoFileUrl) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 12 }}>
                 <img
                   src={logoFileUrl}
                   alt="Brand logo"
@@ -601,7 +601,7 @@ export default function EditBrandPage() {
                 <button
                   type="button"
                   onClick={handleRemoveLogo}
-                  style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+                  style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 'var(--fs-small)', cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   Remove logo
                 </button>
@@ -625,12 +625,12 @@ export default function EditBrandPage() {
               }}
             >
               {uploading ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)' }}>
                   <span className="spinner" />
-                  <span style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Uploading...</span>
+                  <span style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)' }}>Uploading...</span>
                 </div>
               ) : (
-                <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>
+                <span style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)' }}>
                   Drop your logo here or click to upload
                 </span>
               )}
@@ -643,23 +643,23 @@ export default function EditBrandPage() {
               />
             </div>
             {uploadError && (
-              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{uploadError}</div>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-small)', color: 'var(--error)', fontWeight: 500 }}>{uploadError}</div>
             )}
             {generatingLogoKit && (
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                 <span className="spinner" />
-                <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Generating styled logos...</span>
+                <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>Generating styled logos...</span>
               </div>
             )}
             {logoKitError && (
-              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)', fontWeight: 500 }}>{logoKitError}</div>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-small)', color: 'var(--error)', fontWeight: 500 }}>{logoKitError}</div>
             )}
             <div style={{ marginTop: 12 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
                 <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-                <span style={{ fontSize: 14.5, fontWeight: 500 }}>{storefront.showVideoFeatures ? 'Show logo in videos' : 'Add my logo to designs'}</span>
+                <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 500 }}>{storefront.showVideoFeatures ? 'Show logo in videos' : 'Add my logo to designs'}</span>
               </label>
-              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>{storefront.showVideoFeatures ? 'Turn off to render videos without your logo.' : 'Turn off to leave your logo off the artwork.'}</p>
+              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '6px 0 0 30px' }}>{storefront.showVideoFeatures ? 'Turn off to render videos without your logo.' : 'Turn off to leave your logo off the artwork.'}</p>
             </div>
           </div>
 
@@ -696,7 +696,7 @@ export default function EditBrandPage() {
               {Object.entries(colors).filter(([k]) => k !== 'text_color').map(([key, value]) => (
                 <div key={key} className="pcm-row" style={{ background: value }}>
                   <span>{COLOR_LABELS[key]}</span>
-                  <span style={{ opacity: 0.85, fontSize: 12, fontWeight: 500 }}>{COLOR_ROLES[key]}</span>
+                  <span style={{ opacity: 0.85, fontSize: 'var(--fs-caption)', fontWeight: 500 }}>{COLOR_ROLES[key]}</span>
                 </div>
               ))}
             </div>
@@ -729,7 +729,7 @@ export default function EditBrandPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="input-label">Industry</label>
               <input
@@ -840,7 +840,7 @@ export default function EditBrandPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="input-label">LinkedIn</label>
               <input
@@ -861,7 +861,7 @@ export default function EditBrandPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label className="input-label">Instagram</label>
               <input
@@ -903,19 +903,19 @@ export default function EditBrandPage() {
           />
 
           <div className="check-row" style={{ marginTop: 20 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
               <input type="checkbox" name="is_default" value="true" defaultChecked={brand.is_default} style={{ width: 18, height: 18, accentColor: 'var(--ink)' }} />
-              <span style={{ fontSize: 14.5, fontWeight: 500 }}>Set as default brand</span>
+              <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 500 }}>Set as default brand</span>
             </label>
           </div>
 
           {error && (
-            <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
+            <div style={{ borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 'var(--fs-small)', marginBottom: 16, color: 'var(--ink)', fontWeight: 600 }}>
               {error}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
             <Link href="/brands" className="btn btn-soft">Cancel</Link>
             <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
               {loading ? 'Saving...' : 'Save changes \u2192'}
@@ -929,7 +929,7 @@ export default function EditBrandPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <div>
             <h2 style={{ marginBottom: 4 }}>Brand Deck</h2>
-            <p style={{ color: 'var(--ink-light)', fontSize: 14, margin: 0 }}>
+            <p style={{ color: 'var(--ink-light)', fontSize: 'var(--fs-ui)', margin: 0 }}>
               Generate a custom branded slide template. Your logo's colors will be matched across all slides.
             </p>
           </div>
@@ -938,11 +938,11 @@ export default function EditBrandPage() {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
+                gap: 'var(--space-2)',
                 // Was bright green on a green tint (under 2:1) — now the readable success pair.
                 background: 'var(--success-bg)',
                 color: 'var(--success)',
-                fontSize: 12,
+                fontSize: 'var(--fs-caption)',
                 fontWeight: 600,
                 padding: '5px 12px',
                 borderRadius: 10,
@@ -961,7 +961,7 @@ export default function EditBrandPage() {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-            gap: 12,
+            gap: 'var(--space-3)',
             marginBottom: 20,
           }}
         >
@@ -994,8 +994,8 @@ export default function EditBrandPage() {
                 }}
               />
               <div style={{ padding: '8px 10px' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{style.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-light)', lineHeight: 1.3 }}>{style.description}</div>
+                <div style={{ fontSize: 'var(--fs-small)', fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{style.name}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', lineHeight: 1.3 }}>{style.description}</div>
               </div>
             </button>
           ))}
@@ -1012,7 +1012,7 @@ export default function EditBrandPage() {
                 width: `${Math.max(10, (generatingSlide / 4) * 100)}%`,
               }} />
             </div>
-            <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: 0, textAlign: 'center' }}>
+            <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', margin: 0, textAlign: 'center' }}>
               Slide {generatingSlide} of 4 &mdash; {generatingSlide <= 1 ? 'Designing title slide...' : generatingSlide === 2 ? 'Creating data layout...' : generatingSlide === 3 ? 'Building comparison chart...' : 'Finishing CTA slide...'}
             </p>
           </div>
@@ -1039,7 +1039,7 @@ export default function EditBrandPage() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 12,
+                gap: 'var(--space-3)',
               }}
             >
               {brand.reference_slides.map((slideUrl, i) => (
@@ -1065,7 +1065,7 @@ export default function EditBrandPage() {
                   <div
                     style={{
                       padding: '8px 12px',
-                      fontSize: 12,
+                      fontSize: 'var(--fs-caption)',
                       fontWeight: 600,
                       color: 'var(--ink-light)',
                       borderTop: '1px solid var(--border)',

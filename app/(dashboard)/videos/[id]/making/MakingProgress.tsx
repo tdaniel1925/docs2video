@@ -81,7 +81,7 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
 
       {/* Hero progress card */}
       <div style={{
-        background: 'white', borderRadius: 10, padding: '36px 32px',
+        background: 'var(--bg-card)', borderRadius: 10, padding: '36px 32px',
         border: '1px solid var(--border-light)', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
         textAlign: 'center', marginBottom: 20,
       }}>
@@ -89,7 +89,7 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
         <div style={{ fontSize: 56, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.03em', lineHeight: 1 }}>
           {pct}%
         </div>
-        <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 4, marginBottom: 20 }}>
+        <div style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', marginTop: 4, marginBottom: 20 }}>
           {timeRemaining > 0
             ? `About ${minutes > 0 ? `${minutes} min` : ''}${minutes > 0 && seconds > 0 ? ' ' : ''}${seconds > 0 ? `${seconds}s` : ''} remaining`
             : `${elapsedMin}:${elapsedSec.toString().padStart(2, '0')} elapsed — almost done`
@@ -111,21 +111,21 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
 
         {/* Current stage highlight */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 12,
+          display: 'inline-flex', alignItems: 'center', gap: 'var(--space-3)',
           background: 'var(--accent-soft)', border: '1px solid var(--accent)',
           borderRadius: 10, padding: '12px 24px',
         }}>
-          <span style={{ fontSize: 24 }}>{currentStep.icon}</span>
+          <span style={{ fontSize: 'var(--fs-h3)' }}>{currentStep.icon}</span>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{currentStep.label}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{progressDetail ?? currentStep.sub}</div>
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{currentStep.label}</div>
+            <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)' }}>{progressDetail ?? currentStep.sub}</div>
           </div>
         </div>
       </div>
 
       {/* Stage pipeline */}
       <div style={{
-        background: 'white', borderRadius: 10, padding: '24px 28px',
+        background: 'var(--bg-card)', borderRadius: 10, padding: '24px 28px',
         border: '1px solid var(--border-light)', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
@@ -148,19 +148,19 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
                 <div style={{
                   width: 34, height: 34, borderRadius: '50%', zIndex: 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: isDone ? 14 : 13, fontWeight: 700,
+                  fontSize: isDone ? 'var(--fs-ui)' : 'var(--fs-small)', fontWeight: 700,
                   background: isDone ? 'var(--accent)' : isActive ? 'var(--ink)' : 'var(--border)',
-                  color: isDone ? 'var(--ink)' : isActive ? 'white' : 'var(--ink-light)',
+                  color: isDone ? 'var(--ink)' : isActive ? 'var(--on-ink)' : 'var(--ink-light)',
                   transition: 'all 0.5s ease',
                   ...(isActive ? { animation: 'pulseGlow 2s ease-in-out infinite' } : {}),
                 }}>
                   {isDone ? '✓' : isActive ? (
-                    <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderTopColor: 'white' }} />
+                    <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderTopColor: 'var(--bg-card)' }} />
                   ) : i + 1}
                 </div>
                 {/* Label */}
                 <div style={{
-                  fontSize: 11, fontWeight: isActive ? 700 : 500, marginTop: 8,
+                  fontSize: 'var(--fs-caption)', fontWeight: isActive ? 700 : 500, marginTop: 8,
                   color: isDone ? 'var(--mint-darker)' : isActive ? 'var(--ink)' : 'var(--ink-light)',
                   textAlign: 'center', lineHeight: 1.3, transition: 'all 0.3s ease',
                 }}>
@@ -168,7 +168,7 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
                 </div>
                 {/* Active description */}
                 {isActive && (
-                  <div style={{ fontSize: 10, color: 'var(--ink-soft)', marginTop: 4, textAlign: 'center', maxWidth: 90 }}>
+                  <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', marginTop: 4, textAlign: 'center', maxWidth: 90 }}>
                     {progressDetail ?? step.desc.replace('...', '')}
                   </div>
                 )}
@@ -182,16 +182,16 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
       <div style={{
         background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         borderRadius: 10, padding: '14px 20px', marginBottom: 20,
-        display: 'flex', alignItems: 'center', gap: 12,
+        display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
       }}>
-        <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
-        <div key={factIndex} className="fact-rotate" style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+        <span style={{ fontSize: 'var(--fs-lead)', flexShrink: 0 }}>💡</span>
+        <div key={factIndex} className="fact-rotate" style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
           {FUN_FACTS[factIndex]}
         </div>
       </div>
 
       {/* Safety message */}
-      <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ textAlign: 'center', fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         You can safely leave this page — your video continues generating in the background.
         <br />
         This page updates automatically every 3 seconds.
@@ -204,7 +204,7 @@ export default function MakingProgress({ status, createdAt, progressDetail, prog
           background: 'var(--surface-raised)', border: '1px solid var(--border)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
+          <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginBottom: 12 }}>
             Taking longer than expected? Progress is at {pct}%.
             {pct < 30 ? ' The video server may be busy.' : pct < 70 ? ' Slides are still being designed.' : ' Almost done — hang tight.'}
           </div>

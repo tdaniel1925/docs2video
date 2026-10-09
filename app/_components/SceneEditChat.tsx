@@ -71,7 +71,7 @@ export default function SceneEditChat({ scene, outputType, sourceData, onApply }
         onClick={(e) => { e.stopPropagation(); setOpen(true) }}
         style={{
           background: 'none', border: '1px solid var(--border)', borderRadius: 6,
-          padding: '3px 10px', fontSize: 11, color: 'var(--ink-light)', cursor: 'pointer',
+          padding: '3px 10px', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', cursor: 'pointer',
           fontFamily: 'inherit', fontWeight: 600,
         }}
         title="Edit this scene by chatting with AI"
@@ -89,32 +89,32 @@ export default function SceneEditChat({ scene, outputType, sourceData, onApply }
         background: 'var(--bg-soft)', overflow: 'hidden', width: '100%',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(199,232,168,0.25)' }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>✨ Edit this scene with AI</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '6px 10px', background: 'rgba(199,232,168,0.25)' }}>
+        <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--ink)' }}>✨ Edit this scene with AI</span>
         {prevScene && (
-          <button onClick={undo} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-soft)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+          <button onClick={undo} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 8px', fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
             ↺ Undo
           </button>
         )}
-        <button onClick={() => setOpen(false)} style={{ marginLeft: prevScene ? 6 : 'auto', background: 'none', border: 'none', fontSize: 16, lineHeight: 1, color: 'var(--ink-light)', cursor: 'pointer', padding: 0 }} title="Close">×</button>
+        <button onClick={() => setOpen(false)} style={{ marginLeft: prevScene ? 6 : 'auto', background: 'none', border: 'none', fontSize: 'var(--fs-body)', lineHeight: 1, color: 'var(--ink-light)', cursor: 'pointer', padding: 0 }} title="Close">×</button>
       </div>
 
       {msgs.length > 0 && (
-        <div ref={scrollRef} style={{ maxHeight: 160, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div ref={scrollRef} style={{ maxHeight: 160, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {msgs.map((m, i) => (
             <div key={i} style={{
               alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '85%', padding: '6px 10px', borderRadius: 8, fontSize: 12, lineHeight: 1.45,
-              background: m.role === 'user' ? 'var(--accent)' : 'white',
+              maxWidth: '85%', padding: '6px 10px', borderRadius: 8, fontSize: 'var(--fs-caption)', lineHeight: 1.45,
+              background: m.role === 'user' ? 'var(--accent)' : 'var(--bg-card)',
               border: m.role === 'user' ? 'none' : '1px solid var(--border-light)',
               color: 'var(--ink)',
             }}>{m.text}</div>
           ))}
-          {busy && <div style={{ alignSelf: 'flex-start', fontSize: 12, color: 'var(--ink-light)', padding: '4px 6px' }}>Thinking…</div>}
+          {busy && <div style={{ alignSelf: 'flex-start', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', padding: '4px 6px' }}>Thinking…</div>}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 6, padding: 8 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', padding: 8 }}>
         <input
           type="text"
           value={input}
@@ -122,18 +122,18 @@ export default function SceneEditChat({ scene, outputType, sourceData, onApply }
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
           placeholder='e.g. "make it shorter and more upbeat"'
           disabled={busy}
-          style={{ flex: 1, fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-light)', outline: 'none', fontFamily: 'inherit', background: 'white' }}
+          style={{ flex: 1, fontSize: 'var(--fs-caption)', padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border-light)', outline: 'none', fontFamily: 'inherit', background: 'var(--bg-card)' }}
         />
         <button
           onClick={send}
           disabled={busy || !input.trim()}
           className="btn btn-primary btn-sm"
-          style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, opacity: busy || !input.trim() ? 0.5 : 1 }}
+          style={{ fontSize: 'var(--fs-caption)', padding: '7px 14px', borderRadius: 6, opacity: busy || !input.trim() ? 0.5 : 1 }}
         >
           {busy ? '…' : 'Send'}
         </button>
       </div>
-      {err && <div style={{ fontSize: 11, color: 'var(--error-text)', padding: '0 10px 8px' }}>{err}</div>}
+      {err && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--error-text)', padding: '0 10px 8px' }}>{err}</div>}
     </div>
   )
 }
