@@ -48,6 +48,10 @@ export const CREDIT_COSTS = {
   // videoStandard's 1,000 credits, and cheaper than the old Gemini-drawn
   // slides on this same route (~13c a slide). If fal fails, Gemini draws the
   // slide instead (~13c) — still covered. So the normal video price stands.
+  // Every drawn slide is also SPELL-CHECKED (render-service/slide-spellcheck.js:
+  // Gemini 2.5 Flash read-back, ~0.1c a check); a slide with a dropped or
+  // squeezed word is redrawn once (+~0.3c fal + one more check). ~12 slides
+  // ≈ +1.2c when all pass — still covered.
   videoQuick: 500,
   videoStandard: 1000,
   videoDetailed: 1500,

@@ -5,7 +5,8 @@
 // are pure and live in first-scene-preview.ts.
 //
 // Nothing here spends credits. Only the Drawn slides look makes an AI picture
-// (one gpt-image draw on fal at low quality, ~0.3c — measured 2026-10-09);
+// (one gpt-image draw on fal at low quality, ~0.3c — measured 2026-10-09 —
+// plus a ~0.1c spell-check read-back, and one redraw only if words are wrong);
 // every other look is drawn by code.
 // =============================================================================
 
@@ -27,6 +28,7 @@ import {
 import { stillCacheKey } from './first-scene-preview-keys'
 import { drawnSlidePrompt, drawnSlideText, drawStyleOf } from './drawn-slides'
 import { drawSlide } from './slide-engine'
+import { drawChecked, expectedFromPrompt } from './slide-spellcheck'
 
 type Draft = Record<string, unknown>
 const STORAGE_BUCKET = 'videos'
@@ -251,13 +253,29 @@ export async function storeVoice(admin: SupabaseClient, path: string, mp3: Buffe
 
 // ── Drawn slides: one real picture, drawn here (no render service needed) ──
 
-/** Draws the preview slide (fal gpt-image at low quality, Gemini if fal fails) and stores it. */
+/** The free preview route may run 60 s: only redraw a misspelt slide when the first draw + check left time for it. */
+const PREVIEW_REDRAW_BEFORE_MS = 25_000
+
+/**
+ * Draws the preview slide (fal gpt-image at low quality, Gemini if fal fails),
+ * spell-checks it (slide-spellcheck.ts, ~0.1c: a dropped / wrong / squeezed
+ * word → one redraw if there's time, the better one kept; a check that
+ * can't run accepts the slide) and stores it.
+ */
 export async function drawPreviewStill(admin: SupabaseClient, path: string, plan: PreviewPlan): Promise<string> {
   const prompt = String(plan.request.prompt || '')
   if (!prompt) throw new Error('drawn preview: no prompt')
-  const raw = await drawSlide(prompt, null, { quality: 'low' })
   const sharp = (await import('sharp')).default
-  const png = await sharp(raw).resize(1920, 1080, { fit: 'cover', position: 'centre' }).png().toBuffer()
+  const started = Date.now()
+  const drawOne = async () => sharp(await drawSlide(prompt, null, { quality: 'low' })).resize(1920, 1080, { fit: 'cover', position: 'centre' }).png().toBuffer()
+  const { buf } = await drawChecked({
+    expected: expectedFromPrompt(prompt),
+    draw: drawOne,
+    canRedraw: () => Date.now() - started < PREVIEW_REDRAW_BEFORE_MS,
+    label: 'drawn preview',
+  })
+  if (!buf) throw new Error('drawn preview: no picture')
+  const png = buf
   const { error } = await admin.storage.from(STORAGE_BUCKET).upload(path, png, { contentType: 'image/png', upsert: true })
   if (error) throw new Error(`still upload: ${error.message}`)
   return publicUrlFor(admin, path)

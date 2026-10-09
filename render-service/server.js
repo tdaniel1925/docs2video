@@ -2960,12 +2960,12 @@ app.post('/generate', authCheck, async (req, res) => {
     // picture beats a failed video. Old app builds never send imageEngine.
     const useFal = req.body.imageEngine === 'fal'
     let falStyleRef = null
-    async function drawOneWithFal(idx) {
+    async function drawOneWithFal(idx, opts = {}) {
       const { drawWithFal } = require('./fal-image')
       let lastErr = null
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          const raw = await drawWithFal(slidePrompts[idx], { refImage: process.env.DRAWN_SLIDE_REF === 'off' ? null : falStyleRef })
+          const raw = await drawWithFal(slidePrompts[idx], { refImage: opts.noRef || process.env.DRAWN_SLIDE_REF === 'off' ? null : falStyleRef })
           const sharp = require('sharp')
           return await sharp(raw).resize(1920, 1080, { fit: 'cover', position: 'centre' }).png().toBuffer()
         } catch (e) {
@@ -2978,9 +2978,26 @@ app.post('/generate', authCheck, async (req, res) => {
       return null
     }
 
+    // SPELL-CHECK (slide-spellcheck.js): read the drawn slide back with Gemini
+    // 2.5 Flash (~0.1c) and compare with the words the prompt asked for. A
+    // dropped / wrong word or number, or words squeezed together ("toyou") →
+    // redraw once with the same prompt (WITHOUT the style reference — the
+    // near-copy layout is what squeezed "to you"); still wrong → keep the one
+    // with fewer problems. A check that can't run accepts the slide.
+    async function drawCheckedWithFal(idx) {
+      const { drawChecked, expectedFromPrompt } = require('./slide-spellcheck')
+      const res = await drawChecked({
+        expected: expectedFromPrompt(slidePrompts[idx]),
+        draw: (attempt) => drawOneWithFal(idx, { noRef: attempt === 2 }),
+        log: (m) => console.warn(`[${videoId}] slide ${idx + 1}: ${m}`),
+        label: `slide ${idx + 1}`,
+      })
+      return res.buf
+    }
+
     async function generateOneSlide(idx) {
       if (useFal) {
-        const drawn = await drawOneWithFal(idx)
+        const drawn = await drawCheckedWithFal(idx)
         if (drawn) return drawn
       }
       const prompt = slidePrompts[idx]

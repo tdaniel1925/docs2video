@@ -148,7 +148,8 @@ export default function CreatingVideosPage() {
           small sample: <strong style={INK}>3D infographic</strong> (glossy 3D objects and cards — picked for you), <strong style={INK}>Illustrated</strong>{' '}
           (friendly flat drawings) and <strong style={INK}>Classic</strong> (a clean business slide). The voice and music play over the slides as a video.
           Each slide keeps its words short so they are drawn correctly, money shows with a $ and commas, and no logos or company or product names are
-          drawn (your contact details go on the last slide as plain text). It costs the same as any other look and takes about 4–6 minutes.
+          drawn (your contact details go on the last slide as plain text). After each slide is drawn, its words are read back and checked — if a
+          word is missing or two words are squeezed together, that slide is drawn again. It costs the same as any other look and takes about 4–6 minutes.
           <strong style={INK}> Free preview</strong> draws your first scene in the style you picked.
         </p>
         <p style={P}>

@@ -191,10 +191,12 @@ describe('fal first, Gemini when fal fails', () => {
   it('render service /generate: a slide fal cannot draw drops through to the Gemini loop', () => {
     const src = read('render-service/server.js')
     const fn = src.slice(src.indexOf('async function generateOneSlide(idx)'), src.indexOf("model: 'gemini-3-pro-image-preview',\n            contents: [{ role: 'user', parts }]"))
-    expect(fn).toMatch(/if \(useFal\) \{\s*const drawn = await drawOneWithFal\(idx\)\s*if \(drawn\) return drawn\s*\}/)
-    // drawOneWithFal returns null (never throws) after its tries, so Gemini runs.
-    const one = src.slice(src.indexOf('async function drawOneWithFal(idx)'), src.indexOf('async function generateOneSlide(idx)'))
+    expect(fn).toMatch(/if \(useFal\) \{\s*const drawn = await drawCheckedWithFal\(idx\)\s*if \(drawn\) return drawn\s*\}/)
+    // drawOneWithFal returns null (never throws) after its tries, so Gemini runs
+    // (the spell-check wrapper hands a null first draw straight back).
+    const one = src.slice(src.indexOf('async function drawOneWithFal(idx, opts = {})'), src.indexOf('async function drawCheckedWithFal(idx)'))
     expect(one).toMatch(/falling back to Gemini`\)\s*return null/)
+    expect(src).toMatch(/return res\.buf\n/)
     expect(src).toMatch(/const useFal = req\.body\.imageEngine === 'fal'/)
   })
 

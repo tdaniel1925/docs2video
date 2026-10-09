@@ -55,6 +55,7 @@ COPY slides.js ./
 COPY commercial.js ./
 COPY present-export.js ./
 COPY fal-image.js ./
+COPY slide-spellcheck.js ./
 
 EXPOSE 4000
 
