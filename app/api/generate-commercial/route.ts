@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { lookup } from 'node:dns/promises'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { logError } from '../../_lib/error-logger'
@@ -41,6 +42,18 @@ export async function POST(request: Request) {
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
   const { url, text, brandName, music, style, musicUrl, logoUrl, goal } = body || {}
   if (!url && !text) return NextResponse.json({ error: 'Provide a url or text' }, { status: 400 })
+
+  // A mistyped address ("botmakersa.ai") used to start the job, fail on the
+  // render service with "fetch failed", and show only "generation failed".
+  // Check the name exists first and say so in plain words — nothing charged.
+  if (url) {
+    let host = ''
+    try { host = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname } catch { /* bad address */ }
+    const found = host ? await lookup(host).then(() => true, (e: NodeJS.ErrnoException) => e?.code !== 'ENOTFOUND') : false
+    if (!found) {
+      return NextResponse.json({ error: `We couldn't find ${host || 'that website'}. Check the address for a typo and try again — nothing was charged.`, code: 'site_not_found' }, { status: 400 })
+    }
+  }
 
   const admin = createAdminClient()
 
