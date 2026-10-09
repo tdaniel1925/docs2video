@@ -1,9 +1,12 @@
 import OpenAI from 'openai'
 import { normalizeVoice, ttsOrder, type OpenAIVoice } from './voice-choice'
+import { falSpeak } from './fal-tts'
 
 const TTS_MAX_CHARS = 4096
 
-// Voice engine order (voice-choice.ts ttsOrder — the same rule every look uses):
+// Voice engine order: fal.ai FIRST (fal-tts.ts — the same ElevenLabs voices,
+// the customer's pick mapped by FAL_VOICE_MAP), then the old pair below
+// (voice-choice.ts ttsOrder — the same rule every look uses):
 //  - Sarah (nova) or nothing picked: ElevenLabs Rachel first (a warm female
 //    voice, matches the female-default rule), OpenAI Sarah as the fallback.
 //  - any other voice picked: that OpenAI voice first, ElevenLabs as the
@@ -113,6 +116,17 @@ export async function synthesizeSpeech(
 
   const voice = normalizeVoice(voiceId)
   let lastError: Error | null = null
+  // PRIMARY (2026-10-09): fal.ai — the same ElevenLabs voices, in the voice the
+  // customer picked (fal-tts.ts FAL_VOICE_MAP). Retries + a real-audio check
+  // live in falSpeak; any failure drops to the old chain below.
+  if (process.env.FAL_KEY) {
+    try {
+      return (await falSpeak(text, { voiceId: voice })).audio
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`[tts] fal voice failed (${lastError.message}) — trying ElevenLabs/OpenAI`)
+    }
+  }
   for (const provider of ttsOrder(voice)) {
     if (provider === 'elevenlabs') {
       if (!ELEVEN_API_KEY) continue
@@ -133,7 +147,7 @@ export async function synthesizeSpeech(
   }
 
   // Both providers failed — throw instead of silently substituting silence.
-  throw new Error(`TTS failed (ElevenLabs + OpenAI). Last error: ${lastError?.message || 'Unknown error'}`)
+  throw new Error(`TTS failed (fal + ElevenLabs + OpenAI). Last error: ${lastError?.message || 'Unknown error'}`)
 }
 
 /** OpenAI TTS-HD in the given voice — up to 3 tries with backoff, 30s each. */

@@ -130,11 +130,17 @@ app.post('/selftest', authCheck, async (req, res) => {
     if (!parts.some(p => p.inlineData)) throw new Error('No image in Gemini response')
   })
 
-  // TTS: exercise the REAL chain (ElevenLabs primary → OpenAI fallback), so a
+  // TTS: exercise the REAL chain (fal primary → ElevenLabs → OpenAI), so a
   // green check means renders can actually voice scenes regardless of provider.
   await time('tts', async () => {
     const b = await ttsToBuffer('System check.', 'nova')
     if (b.length < 100) throw new Error(`TTS returned ${b.length} bytes`)
+  })
+  // fal on its own, so a green 'tts' that quietly came from a fallback (or a
+  // fallback that is about to run dry) is visible. ~$0.001 per run.
+  await time('tts_fal', async () => {
+    const r = await require('./fal-tts').falSpeak('System check.', { voiceId: 'nova', attempts: 1 })
+    if (!r.audio || r.audio.length < 1024) throw new Error(`fal returned ${r.audio ? r.audio.length : 0} bytes`)
   })
 
   // Supabase read/write + storage upload/delete
@@ -1123,6 +1129,14 @@ async function openaiSpeak(spoken, voiceId) {
 
 async function ttsToBuffer(text, voiceId) {
   const spoken = speakable(text) || ' '
+  // PRIMARY (2026-10-09): fal.ai — the same ElevenLabs voices on the fal bill,
+  // in the voice the customer picked (fal-tts.js FAL_VOICE_MAP). Retries +
+  // real-audio check live in falSpeak; any failure drops to the old chain.
+  if (process.env.FAL_KEY && spoken.trim()) {
+    try { return (await require('./fal-tts').falSpeak(spoken, { voiceId })).audio } catch (e) {
+      console.warn(`[tts] fal voice failed (${e.message}) — falling back to ElevenLabs/OpenAI`)
+    }
+  }
   if (require('./slides').wantsChosenVoice(voiceId)) {
     try { return await openaiSpeak(spoken, voiceId) } catch (e) {
       if (!ELEVEN_API_KEY) throw e

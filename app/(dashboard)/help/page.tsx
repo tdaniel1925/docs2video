@@ -487,6 +487,7 @@ const ARTICLES: HelpArticle[] = [
     content: [
       'On step 3, **The look**, press **Change** (or open **More options**), then press play next to any voice to hear it and click the voice to choose it.',
       'The default is **Sarah**, a warm female voice. Voices range from warm and conversational to professional and authoritative.',
+      'The sample you hear is the same voice your video will speak with.',
       'Pick your voice before you generate. To change it afterwards, the video has to be made again.',
     ],
   },

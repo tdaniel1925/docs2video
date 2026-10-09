@@ -22,9 +22,11 @@ function stable(v: unknown): string {
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 40)
 
-/** Same words + same voice = same file, so re-previewing costs us nothing. */
+/** Same words + same voice = same file, so re-previewing costs us nothing.
+ *  v2-fal (2026-10-09): voices now come from fal, so older cached samples
+ *  (OpenAI / ElevenLabs-direct) are not replayed as if they were the new voice. */
 export function audioCacheKey(text: string, engine: string, voice: string): string {
-  return hash(`voice|v1|${engine}|${voice}|${String(text).trim()}`)
+  return hash(`voice|v2-fal|${engine}|${voice}|${String(text).trim()}`)
 }
 
 /** Same look + same content + same brand = same picture. */

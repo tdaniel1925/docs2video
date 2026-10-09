@@ -5,6 +5,17 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-10-09 — Voices now come from fal.ai (not deployed)
+
+- **Why:** OpenAI TTS said "no credits remaining" and ElevenLabs-direct said "payment_required" the same day, so narration was down. Owner decision: use fal.ai for voices.
+- **What:** fal's ElevenLabs **turbo v2.5** (`fal-ai/elevenlabs/tts/turbo-v2.5`, override with `FAL_TTS_MODEL`) is now the FIRST voice everywhere; ElevenLabs-direct then OpenAI stay behind it as fallbacks. One helper per side: `render-service/fal-tts.js` and `app/_lib/fal-tts.ts` (plain fetch to fal.run, 3 tries with backoff on 429/5xx/timeouts/missing audio, 45s timeout, no retry on other 4xx; a reply only counts if it carries an audio URL that downloads to real mp3/wav >1 KB — fal's "COMPLETED with nothing" is a failure).
+- **Voices** (`FAL_VOICE_MAP`, identical on both sides, a test checks): nova/Sarah → **Rachel** (the voice production already used), shimmer/Emily → Sarah, onyx/James → Brian, echo/Michael → Chris, alloy/Alex → River, fable/Oliver → George. Step-3 samples `public/samples/solo-*.mp3` remade with fal (`node scripts/generate-voice-samples.js --force`) so the sample = the video voice. Free-preview voice cache key bumped to `v2-fal`.
+- **Word timings:** fal returns per-character timestamps (`timestamps: true`) → exact word times for Slide Deck / Kit sync (same as ElevenLabs-direct). If a reply ever lacks them, times are estimated from the measured mp3 length (OpenAI-style).
+- **Loudness:** fal voices differ (Rachel −23.5, Brian −21.9, Sarah −15.5 LUFS), so the render service normalises every fal clip to −16 LUFS / −1.5 dBTP in memory (ffmpeg loudnorm; kept as-is if ffmpeg fails). Website-side clips (presentations, preview, re-render) are not normalised (no ffmpeg on Vercel); presentation exports already normalise.
+- **Covered:** render-service `ttsToBuffer` (Aurora/Cinematic/Infographic/Editorial/Explainer/Drawn/classic), `slides.ttsTimed` (Slide Deck, Kit, commercials, Fix-a-Scene, fix-narration), `/selftest` (+ new `tts_fal` check); app `synthesizeSpeech` (presentations, re-render, admin campaigns), free-preview voice, Inngest `synthesizeNarration`. One-off `remotion/scripts/gen-*.mjs` and `scripts/director/*` marketing tools still call ElevenLabs directly (not production).
+- **Measured (real calls):** ~1.1–1.8 s per clip (+0.3 s loudness), about $0.05 per minute of narration ($0.05 per 1,000 characters, ~1,000 characters a minute). Gemini read-back matched every word, including "$500,000" and "$142 a month". Sample: `.shots/fal-voice/bakery-bright.mp4` (voice −16.8 LUFS, music under voice −39.6 dB). Test spend ≈ $0.15.
+- **Deploy:** website (Vercel) + video service image (`fal-tts.js` added to Dockerfile + build-context.sh). FAL_KEY is already in Vercel prod + ECS task def :2. No Lambda redeploy (remotion/src unchanged).
+
 ## 2026-10-09 — The scene kit: new video engine behind KIT_ENGINE (not deployed)
 
 - **What it is:** one composition `KitVideo` (`remotion/src/kit/`, registered in Root.tsx) that renders a plan of 8 scene types — Title (optional real presenter photo + "Prepared for"), BigNumber (count-up that lands on the spoken word), Comparison (two real sides, same unit), Timeline, Chart (bar/donut/line), Checklist (≤4), Quote, CTA (contact rows from the agent's profile + button). Every scene fills the same 16:9 grid with one hero element; all words are `<Fit>/<FitBox>`; money via `formatFigure` ($ + commas).
@@ -715,7 +726,8 @@ AI Social add-on: $50/mo, plus 25 credits per caption set and 25 credits per pla
 | Service | Env Var | Purpose |
 |---------|---------|---------|
 | Gemini | `GEMINI_API_KEY` | Image gen, text extraction, script writing |
-| OpenAI | `OPENAI_API_KEY` | TTS voices, logo styling (GPT Image) |
+| fal.ai | `FAL_KEY` (optional `FAL_TTS_MODEL`) | PRIMARY narration voice (ElevenLabs turbo v2.5 via fal, since 2026-10-09); Drawn slides pictures |
+| OpenAI | `OPENAI_API_KEY` | TTS voice fallback, logo styling (GPT Image) |
 | Anthropic | `ANTHROPIC_API_KEY` | Claude for brand-kit chat (Sofia AI) |
 | Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | DB, auth, storage |
 | Stripe | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Subscriptions, payments |

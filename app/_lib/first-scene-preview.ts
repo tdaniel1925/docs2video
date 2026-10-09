@@ -158,6 +158,8 @@ export function lookNote(output: string, look: string): string | null {
 // The sample must sound like the finished video. Every narrated look —
 // Animated slides, Aurora, Cinematic, Infographic, Editorial, Explainer — and
 // interactive presentations now follow ONE rule (voice-choice.ts):
+//  • since 2026-10-09 every voice is spoken by fal.ai first (fal-tts.ts —
+//    same ElevenLabs voices); the engine below is the fallback if fal fails:
 //  • Sarah (the default) is spoken by ElevenLabs;
 //  • any other voice picked is spoken by that OpenAI voice.
 // (Before, only the Animated slides look used the pick and the sample said so.)

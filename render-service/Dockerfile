@@ -55,6 +55,7 @@ COPY slides.js ./
 COPY commercial.js ./
 COPY present-export.js ./
 COPY fal-image.js ./
+COPY fal-tts.js ./
 COPY slide-spellcheck.js ./
 COPY audio-mix.js ./
 COPY drawn-assembly.js ./

@@ -14,6 +14,7 @@ import OpenAI from 'openai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Brand } from './types'
 import { synthesizeSpeech, speakable } from './tts'
+import { falSpeak } from './fal-tts'
 import { buildV3Payload } from './v3-render'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from './presentation'
 import { isRegulated, productTokens, scrubComplianceText } from './compliance'
@@ -237,6 +238,13 @@ export function buildPreviewPlan(o: {
 
 /** The sample, spoken the way the finished piece will speak it. */
 export async function synthesizePreviewVoice(text: string, pick: { engine: 'elevenlabs' | 'openai'; voice: string }): Promise<Buffer> {
+  // fal first (2026-10-09) — the same voice the finished video will use
+  // (fal-tts.ts FAL_VOICE_MAP); the old engines only if fal fails.
+  if (process.env.FAL_KEY) {
+    try { return (await falSpeak(speakable(text), { voiceId: pick.voice })).audio } catch (err) {
+      console.warn(`[preview] fal voice failed (${err instanceof Error ? err.message : err}) — trying ElevenLabs/OpenAI`)
+    }
+  }
   if (pick.engine === 'elevenlabs') return synthesizeSpeech(text, pick.voice)
   // A voice other than Sarah, in any look: that OpenAI voice, same model and
   // speed as render-service/slides.js openaiTimed (the V3/editorial renders use

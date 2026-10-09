@@ -50,6 +50,7 @@ const elevenCalls: string[] = []
 beforeEach(() => {
   fake.openaiCalls.length = 0
   elevenCalls.length = 0
+  vi.stubEnv('FAL_KEY', '') // fal-first is tested in fal-tts.test.ts; here: the fallback order
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     elevenCalls.push(String(url))
     return new Response(new Uint8Array(500), { status: 200 })

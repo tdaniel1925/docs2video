@@ -13,6 +13,7 @@ const { join } = require('path')
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const GEMINI_KEY = process.env.GEMINI_API_KEY
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY
+const { falSpeak } = require('./fal-tts')
 const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_TOKEN = process.env.CLOUDFLARE_API_KEY   // Workers AI API token (named _API_KEY in env)
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
@@ -249,7 +250,30 @@ async function openaiTimed(text, outPath, voice) {
 function wantsChosenVoice(voiceId) {
   return typeof voiceId === 'string' && OPENAI_VOICES.includes(voiceId) && voiceId !== 'nova'
 }
+/**
+ * fal FIRST (2026-10-09): the same ElevenLabs turbo-v2.5 voices on the fal
+ * bill, in the voice the customer picked (fal-tts.js FAL_VOICE_MAP — Sarah/nova
+ * = Rachel, the voice these videos always had). fal returns per-character
+ * timings, so words are EXACT like ElevenLabs-direct; if a reply ever comes
+ * without them, the words are estimated from the measured mp3 length (the
+ * same estimate the OpenAI path uses).
+ */
+async function falTimed(text, outPath, voiceId) {
+  const spoken = speakable(text)
+  const r = await falSpeak(spoken, { voiceId, timestamps: true, settings: { stability: 0.55, similarity_boost: 0.8, style: 0.25 } })
+  await writeFile(outPath, r.audio)
+  if (r.words && r.words.length) return { words: r.words, durationSec: r.words[r.words.length - 1].end, voice: 'fal' }
+  const durationSec = await audioDurationSec(outPath)
+  if (!durationSec) throw new Error('fal TTS: no timings and could not measure audio duration (ffprobe)')
+  return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'fal' }
+}
+// fal first, then the old chain (ElevenLabs direct / OpenAI, by voice choice).
 async function ttsTimed(text, outPath, voiceId) {
+  if (process.env.FAL_KEY) {
+    try { return await falTimed(text, outPath, voiceId) } catch (err) {
+      console.warn(`[tts] fal voice failed (${err && err.message}) — falling back to ElevenLabs/OpenAI`)
+    }
+  }
   if (wantsChosenVoice(voiceId)) {
     try { return await openaiTimed(text, outPath, voiceId) } catch (err) {
       console.warn(`[tts] OpenAI voice "${voiceId}" failed (${err && err.message}) — falling back to ElevenLabs`)

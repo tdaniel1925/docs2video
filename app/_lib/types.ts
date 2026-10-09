@@ -386,7 +386,9 @@ export interface SentEmail {
   created_at: string
 }
 
-// OpenAI TTS voices — used by render service for video narration
+// Narration voices. The ids are the old OpenAI names (kept so saved drafts and
+// the v1 API keep working); since 2026-10-09 fal.ai speaks them with ElevenLabs
+// voices — see FAL_VOICE_MAP in app/_lib/fal-tts.ts (nova/Sarah = Rachel).
 export const VOICE_OPTIONS = [
   { id: 'nova', name: 'Sarah', gender: 'Female', description: 'Friendly and natural — the default voice' },
   { id: 'shimmer', name: 'Emily', gender: 'Female', description: 'Warm and gentle' },
