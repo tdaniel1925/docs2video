@@ -3513,7 +3513,9 @@ h1.hero-title--big {
   width: 250px; flex-shrink: 0; box-sizing: border-box; padding: 22px 16px;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
   display: flex; flex-direction: column; gap: var(--space-2);
-  position: sticky; top: 20px; min-height: 420px;
+  /* Stays put under the top bar (72px + its 1px line) while the middle scrolls. */
+  position: sticky; top: calc(73px + var(--space-5)); min-height: 420px;
+  max-height: calc(100vh - 73px - 2 * var(--space-5)); overflow-y: auto;
 }
 .steps-rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .steps-rail-title { font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 8px; }
@@ -3536,7 +3538,7 @@ h1.hero-title--big {
 .steps-rail-note strong { color: var(--ink); }
 @media (max-width: 900px) {
   .steps-shell { flex-direction: column; align-items: stretch; gap: var(--space-4); }
-  .steps-rail { width: 100%; min-height: 0; position: static; padding: 10px 12px; }
+  .steps-rail { width: 100%; min-height: 0; position: static; max-height: none; overflow: visible; padding: 10px 12px; }
   .steps-rail ol { flex-direction: row; gap: var(--space-1); }
   .steps-rail-item { flex: 1; flex-direction: column; align-items: center; text-align: center; gap: var(--space-1); padding: 6px 2px; }
   .steps-rail-label { font-size: var(--fs-caption); }
@@ -3589,10 +3591,11 @@ h1.hero-title--big {
 
 .ws-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-5); align-items: start; }
 .ws-work { min-width: 0; }
-.ws-side { position: sticky; top: 20px; display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+/* Like the step rail: stays under the top bar; scrolls inside itself if taller than the window. */
+.ws-side { position: sticky; top: calc(73px + var(--space-5)); max-height: calc(100vh - 73px - 2 * var(--space-5)); overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 @media (max-width: 1180px) {
   .ws-grid { grid-template-columns: minmax(0, 1fr); }
-  .ws-side { position: static; }
+  .ws-side { position: static; max-height: none; overflow: visible; }
 }
 
 .ws-sofar { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px; padding: 14px 16px; }
