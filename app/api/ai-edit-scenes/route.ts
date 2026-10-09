@@ -78,28 +78,36 @@ Rules:
 - Slides count must stay between 3 and ${MAX_SCENES}.
 - Respond with ONLY a JSON array of slides. No commentary, no markdown fence.`
 
-  try {
+  // One ask, plus one retry when the slide count comes back out of range —
+  // "make it shorter" on an already short story used to cut it below 3 and
+  // the customer just saw "That change didn't work".
+  const floor = Math.max(3, Math.ceil(scenes.length / 3))
+  const inRange = (n: number) => n >= floor && n <= MAX_SCENES
+  const ask = async (extra?: string) => {
     const msg = await getClaude().messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 8000,
       system,
       messages: [{
         role: 'user',
-        content: `Current slides:\n${JSON.stringify(scenes, null, 1)}\n\nInstruction: ${instruction}`,
+        content: `Current slides:\n${JSON.stringify(scenes, null, 1)}\n\nInstruction: ${instruction}${extra ? `\n\n${extra}` : ''}`,
       }],
     })
-
     const text = msg.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('')
     const start = text.indexOf('[')
     const end = text.lastIndexOf(']')
     if (start < 0 || end <= start) throw new Error('editor returned no slide list')
-    const revised = JSON.parse(text.slice(start, end + 1)) as unknown[]
+    return (JSON.parse(text.slice(start, end + 1)) as unknown[]).filter(isScene)
+  }
 
-    const clean = revised.filter(isScene)
-    if (clean.length < 3 || clean.length > MAX_SCENES) throw new Error('edit produced an invalid number of slides')
-    // A whole-deck wipe is never a plausible edit — refuse rather than let one
-    // bad model response destroy a user's script with no undo on the server.
-    if (clean.length < Math.ceil(scenes.length / 3)) throw new Error('edit removed most of the deck — rejected')
+  try {
+    let clean = await ask()
+    if (!inRange(clean.length)) {
+      clean = await ask(`Your last answer had ${clean.length} slides. Return between ${floor} and ${MAX_SCENES} slides — make each slide shorter rather than removing more slides.`)
+    }
+    // Still out of range: refuse rather than let one bad model response wipe
+    // a user's script (there is no undo on the server).
+    if (!inRange(clean.length)) throw new Error('edit produced an invalid number of slides')
 
     return NextResponse.json({ scenes: clean })
   } catch (err) {
