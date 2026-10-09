@@ -34,6 +34,7 @@
     "in": "^0.19.0",
     "inngest": "^4.5.1",
     "lamejs": "^1.2.1",
+    "lucide-react": "^1.47.0",
     "music-metadata": "^11.13.0",
     "next": "16.2.6",
     "nodemailer": "^8.0.7",

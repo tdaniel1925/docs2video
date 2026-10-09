@@ -2204,6 +2204,9 @@ h1.hero-title em {
   border-bottom: 1px solid var(--border-light);
 }
 .settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 500;
@@ -2223,6 +2226,8 @@ h1.hero-title em {
   color: var(--ink);
   border-bottom-color: var(--ink);
 }
+/* Phones: tighter tabs so the three (now with icons) fit without sideways scroll. */
+@media (max-width: 600px) { .settings-tab { padding: 10px 8px; gap: 6px; } }
 
 /* ============= ACTIVITY ROW ============= */
 .activity-row:hover { background: var(--bg-soft) !important; }

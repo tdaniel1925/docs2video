@@ -248,21 +248,37 @@ test.describe('Library (/videos)', () => {
     await page.getByRole('link', { name: 'All', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Your Library', level: 1 })).toBeVisible()
 
-    const rows = page.locator('tbody tr')
-    if (await rows.count()) {
-      for (const size of ['50', '100', '25']) {
+    // Picture cards (round A): each card says where it is in plain words.
+    const cards = page.getByRole('list', { name: 'Your work' }).getByRole('listitem')
+    if (await cards.count()) {
+      await expect(cards.first()).toContainText(/Ready to send|Ready|Making…|Didn’t finish|Draft — not made yet/)
+      for (const size of ['48', '96', '24']) {
         await page.getByRole('button', { name: size, exact: true }).click()
         await expect(page.getByText(new RegExp(`^Showing \\d+–\\d+ of \\d+$`))).toBeVisible()
-        expect(await rows.count()).toBeLessThanOrEqual(Number(size))
+        expect(await cards.count()).toBeLessThanOrEqual(Number(size))
       }
-      const next = page.getByRole('button', { name: 'Next →' })
+      const next = page.getByRole('button', { name: 'Next' })
       if (await next.isEnabled()) {
         await next.click()
         await expect(page.getByText(/^Page 2 \//)).toBeVisible()
-        await page.getByRole('button', { name: '← Previous' }).click()
+        await page.getByRole('button', { name: 'Previous' }).click()
         await expect(page.getByText(/^Page 1 \//)).toBeVisible()
       }
-      const open = rows.first().getByRole('link', { name: 'Open' })
+      // Search narrows the cards to what matches; clearing brings them back.
+      const before = await cards.count()
+      await page.getByRole('searchbox', { name: 'Search your library' }).fill('zzzz-nothing-matches-this')
+      await expect(page.getByText(/Nothing matches/)).toBeVisible()
+      await page.getByRole('button', { name: 'Clear search' }).first().click()
+      await expect(cards).toHaveCount(before)
+      // Cards ↔ List, remembered after a reload.
+      await page.getByRole('button', { name: 'List', exact: true }).click()
+      await expect(page.locator('tbody tr').first()).toBeVisible()
+      await page.reload()
+      await expect(page.locator('tbody tr').first()).toBeVisible()
+      await page.getByRole('button', { name: 'Cards', exact: true }).click()
+      await expect(cards.first()).toBeVisible()
+      // Pressing a card opens it.
+      const open = cards.first().getByRole('link', { name: /^Open / })
       const href = (await open.getAttribute('href'))!
       if (href.startsWith('/videos/')) {
         await open.click()
@@ -275,23 +291,43 @@ test.describe('Library (/videos)', () => {
     await expect(page).toHaveURL(/\/create$/)
   })
 
-  test('Delete asks first, then removes the row (delete mocked — nothing real is deleted)', async ({ page }) => {
+  test('Delete is only in the "…" menu and asks first, then removes the card (delete mocked — nothing real is deleted)', async ({ page }) => {
     await page.goto('/videos?type=video')
-    const row = page.locator('tbody tr').filter({ has: page.getByRole('button', { name: 'Delete' }) }).first()
-    test.skip(!(await row.count()), 'no videos to try Delete on')
-    const href = (await row.getByRole('link', { name: 'Open' }).getAttribute('href'))!
+    const cards = page.getByRole('list', { name: 'Your work' }).getByRole('listitem')
+    test.skip(!(await cards.count()), 'no videos to try Delete on')
+    // No Delete button anywhere until a menu is opened.
+    await expect(page.getByRole('button', { name: /^Delete/ })).toHaveCount(0)
+    const card = cards.first()
+    const href = (await card.getByRole('link', { name: /^Open / }).getAttribute('href'))!
     const deletes: string[] = []
     await page.route('**/api/videos/*', async (r) => {
       if (r.request().method() !== 'DELETE') return r.fallback()
       deletes.push(r.request().url())
       await r.fulfill({ json: { success: true } })
     })
-    await row.getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByText('Delete?')).toBeVisible()
-    await row.getByRole('button', { name: 'Delete', exact: true }).click()
+    await card.getByRole('button', { name: /^More for / }).click()
+    await page.getByRole('menuitem', { name: 'Delete…' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Delete this for good?' })
+    await expect(dialog).toBeVisible()
+    // Cancel deletes nothing.
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog).toBeHidden()
+    expect(deletes).toHaveLength(0)
+    await card.getByRole('button', { name: /^More for / }).click()
+    await page.getByRole('menuitem', { name: 'Delete…' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click()
     await expect.poll(() => deletes.length).toBe(1)
     await expect(page.getByText('Deleted.')).toBeVisible()
-    await expect(page.locator(`tbody a[href="${href}"]`)).toHaveCount(0)
+    await expect(page.getByRole('list', { name: 'Your work' }).locator(`a[href="${href}"]`)).toHaveCount(0)
+  })
+
+  test('a ready video has Send, and it opens the send panel', async ({ page }) => {
+    await page.goto('/videos?type=video')
+    const send = page.getByRole('link', { name: /^Send / }).first()
+    test.skip(!(await send.count()), 'no ready videos')
+    await expect(send).toHaveAttribute('href', /^\/videos\/[\w-]+#send$/)
+    await send.click()
+    await expect(page.getByRole('region', { name: 'Ready to send' })).toBeInViewport({ timeout: 30000 })
   })
 
   test('a draft is labelled Draft and Open resumes it (same as Home)', async ({ page }) => {
@@ -300,10 +336,12 @@ test.describe('Library (/videos)', () => {
     const { videoId } = await made.json()
     try {
       await page.goto('/videos')
-      const row = page.locator('tbody tr').filter({ has: page.locator(`a[href*="${videoId}"]`) })
-      await expect(row).toHaveCount(1)
-      await expect(row.locator('td').nth(3)).toHaveText('Draft')
-      await expect(row.getByRole('link', { name: 'Open' })).toHaveAttribute('href', `/create?id=${videoId}`)
+      const card = page.getByRole('list', { name: 'Your work' }).getByRole('listitem').filter({ has: page.locator(`a[href*="${videoId}"]`) })
+      await expect(card).toHaveCount(1)
+      await expect(card).toContainText('Draft — not made yet')
+      await expect(card.getByRole('link', { name: /^Open / })).toHaveAttribute('href', `/create?id=${videoId}`)
+      // No Send on a draft.
+      await expect(card.getByRole('link', { name: /^Send / })).toHaveCount(0)
     } finally {
       await page.request.delete(`/api/videos/draft?videoId=${videoId}`)
     }

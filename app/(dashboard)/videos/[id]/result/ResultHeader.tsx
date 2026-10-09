@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Copy, Ellipsis, Pencil, Share2, Trash2 } from 'lucide-react'
 import type { Video } from '../../../../_lib/types'
 import { Button, Dialog } from '../../../../_components/kit'
 import DownloadsMenu from './DownloadsMenu'
@@ -104,10 +105,7 @@ export default function ResultHeader({ video, setVideo, onNotice }: {
           ) : (
             <h1 className="page-title res-title" onClick={startRename} title="Click to rename — the name shows on your client’s page">
               <span className="res-title-text">{video.title ?? 'Untitled'}</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="res-title-pen">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
+              <Pencil size={16} className="res-title-pen" />
             </h1>
           )}
           <div className="res-meta">
@@ -127,20 +125,20 @@ export default function ResultHeader({ video, setVideo, onNotice }: {
 
         <div className="res-head-actions">
           {finished && <DownloadsMenu video={video} onNotice={onNotice} />}
-          <Menu label="More" testId="more-menu">
+          <Menu label={<><Ellipsis size={16} />More</>} testId="more-menu">
             {(close) => (
               <>
-                <button type="button" role="menuitem" className="kit-menu-item" onClick={() => { close(); startRename() }}>Rename</button>
+                <button type="button" role="menuitem" className="kit-menu-item" onClick={() => { close(); startRename() }}><span className="res-menu-word"><Pencil size={16} />Rename</span></button>
                 {finished && (
                   <button type="button" role="menuitem" className="kit-menu-item" onClick={() => { close(); router.push(`/create?duplicate=${video.id}`) }}>
-                    Duplicate
+                    <span className="res-menu-word"><Copy size={16} />Duplicate</span>
                   </button>
                 )}
                 {finished && (
-                  <button type="button" role="menuitem" className="kit-menu-item" onClick={() => { close(); setSocial(true) }}>Social posts</button>
+                  <button type="button" role="menuitem" className="kit-menu-item" onClick={() => { close(); setSocial(true) }}><span className="res-menu-word"><Share2 size={16} />Social posts</span></button>
                 )}
                 <hr className="kit-menu-sep" />
-                <button type="button" role="menuitem" className="kit-menu-item res-danger" onClick={() => { close(); setConfirmDelete(true) }}>Delete</button>
+                <button type="button" role="menuitem" className="kit-menu-item res-danger" onClick={() => { close(); setConfirmDelete(true) }}><span className="res-menu-word"><Trash2 size={16} />Delete</span></button>
               </>
             )}
           </Menu>

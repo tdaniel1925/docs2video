@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { CreditCard, Plug, UserRound, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/client'
@@ -530,11 +531,12 @@ export default function SettingsPage() {
 
   if (!profile) return <div style={{ color: 'var(--ink-light)', padding: 64, textAlign: 'center' }}>Loading...</div>
 
-  const tabs: { id: SettingsTab; label: string }[] = [
-    { id: 'profile', label: 'Profile' },
+  // Each tab carries its picture from the one icon set (lucide, 16px).
+  const tabs: { id: SettingsTab; label: string; Icon: LucideIcon }[] = [
+    { id: 'profile', label: 'Profile', Icon: UserRound },
     // 'Style & Branding' tab removed per product decision (block kept in code).
-    { id: 'integrations', label: 'Integrations' },
-    { id: 'subscription', label: 'Subscription' },
+    { id: 'integrations', label: 'Integrations', Icon: Plug },
+    { id: 'subscription', label: 'Subscription', Icon: CreditCard },
   ]
 
   const photoSlots = [
@@ -561,6 +563,7 @@ export default function SettingsPage() {
             onClick={() => setTab(t.id)}
             className={`settings-tab${tab === t.id ? ' active' : ''}`}
           >
+            <t.Icon size={16} />
             {t.label}
           </button>
         ))}

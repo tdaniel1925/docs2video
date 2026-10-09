@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { FileText, Film, GalleryVerticalEnd, Presentation, type LucideIcon } from 'lucide-react'
 import s from './make.module.css'
 import { formatCredits } from './usePriceQuote'
 import { PRES_LOOKS, VIDEO_LOOKS, VIDEO_SAMPLE_KINDS, type VideoLookId } from './looks'
@@ -95,6 +96,16 @@ const OUTPUT_TEXT: Record<MakeOutput, { name: string; desc: string }> = {
   pdf: { name: 'PDF file', desc: 'The file you started from the deck builder.' },
 }
 
+/** One picture per output (lucide, 20px) — the same ones the Library's
+ *  placeholders use, so a presentation looks like a presentation everywhere. */
+const OUTPUT_ICON: Record<MakeOutput, LucideIcon> = {
+  video: Film,
+  interactive: Presentation,
+  deck: GalleryVerticalEnd,
+  pptx: Presentation,
+  pdf: FileText,
+}
+
 export function OutputPicker({ offered, value, onChange, options }: {
   offered: MakeOutput[]
   value: MakeOutput
@@ -106,9 +117,11 @@ export function OutputPicker({ offered, value, onChange, options }: {
       {offered.map((o) => {
         const on = value === o
         const q = options?.[o]
+        const Icon = OUTPUT_ICON[o]
         return (
           <button key={o} type="button" role="radio" aria-checked={on} className={`${s.output} ${on ? s.outputOn : ''}`} onClick={() => onChange(o)}>
             <span className={`${s.radio} ${on ? s.radioOn : ''}`} aria-hidden />
+            <span className={`${s.outputIcon} ${on ? s.outputIconOn : ''}`}><Icon size={20} /></span>
             <span className={s.outputBody}>
               <span className={s.outputName}>{OUTPUT_TEXT[o].name}</span>
               <span className={s.outputDesc} style={{ display: 'block' }}>{OUTPUT_TEXT[o].desc}</span>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Clapperboard, Download, FileText, Film, Presentation, ScrollText, type LucideIcon } from 'lucide-react'
 import type { Video } from '../../../../_lib/types'
 import Menu from './Menu'
 import { downloadsFor, scriptText, type DownloadItem } from './downloads'
@@ -27,6 +28,16 @@ function safeName(title: string | null | undefined, fallback: string) {
  * project really has (see downloads.ts), each with a line saying what it is;
  * the one download that costs credits shows its price.
  */
+/** One picture per kind of file (lucide, 16px), beside its words. */
+const FILE_ICON: Record<DownloadItem['key'], LucideIcon> = {
+  mp4: Film,
+  'video-file': Film,
+  'export-video': Clapperboard,
+  pdf: FileText,
+  pptx: Presentation,
+  script: ScrollText,
+}
+
 export default function DownloadsMenu({ video, onNotice }: { video: Video; onNotice: Notice }) {
   const items = downloadsFor(video)
   const [busy, setBusy] = useState<string | null>(null)
@@ -77,8 +88,10 @@ export default function DownloadsMenu({ video, onNotice }: { video: Video; onNot
   }
 
   return (
-    <Menu label={busy ? 'Preparing…' : 'Download'} testId="downloads-menu">
-      {(close) => items.map((item) => (
+    <Menu label={<><Download size={16} />{busy ? 'Preparing…' : 'Download'}</>} testId="downloads-menu">
+      {(close) => items.map((item) => {
+        const Icon = FILE_ICON[item.key]
+        return (
         <button
           key={item.key}
           type="button"
@@ -87,13 +100,15 @@ export default function DownloadsMenu({ video, onNotice }: { video: Video; onNot
           disabled={!!busy || (item.key === 'export-video' && exportState === 'started')}
           onClick={() => { close(); run(item) }}
         >
-          <span>
+          <Icon size={16} className="res-menu-icon" />
+          <span className="res-menu-text">
             <span className="res-menu-label">{item.label}</span>
             {item.hint && <span className="res-menu-hint">{item.key === 'export-video' && exportState === 'started' ? 'Exporting — refresh in a few minutes' : item.hint}</span>}
           </span>
           {item.credits != null && <span className="kit-chip kit-chip--money">{item.credits.toLocaleString('en-US')} credits</span>}
         </button>
-      ))}
+        )
+      })}
     </Menu>
   )
 }

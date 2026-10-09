@@ -53,3 +53,19 @@ export function isCurrent(pathname: string, href: string): boolean {
  *  window event (HelpChatWidget listens). On a phone the assistant has no
  *  floating button on Docs2Video — it covered the page. */
 export const OPEN_HELP_EVENT = 'd2v:open-help'
+
+/**
+ * FOCUS HEADER (round A, 2026-10). While making something (every /create page,
+ * the waiting screen included) the full bar is swapped for VidWiz's quiet one:
+ * Home on the left, the step numbers in the middle, credits on the right.
+ * Library, Clients and Brands pulled people out of a half-made project.
+ */
+export function isFocusPath(pathname: string): boolean {
+  return pathname === '/create' || pathname.startsWith('/create/')
+}
+
+/** What the middle of the focus header says on /create pages that aren't one
+ *  of the four steps (the commercial maker has its own single screen). */
+export function focusTitle(pathname: string): string {
+  return pathname.startsWith('/create/commercial') ? 'New commercial' : 'New project'
+}

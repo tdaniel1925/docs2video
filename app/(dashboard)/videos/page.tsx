@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/server'
 import { NAMES, KIND_NAMES, kindOfOutput, type LibraryKind } from '../../_lib/names'
 import { madeLabel } from '../dashboard/_home/derive'
-import LibraryTable, { type LibraryItem } from './LibraryTable'
+import Library from './Library'
+import { isPicture, type LibraryItem } from './library-items'
+import { flyerFileId, signFlyerPictures } from './library-pictures'
 
 type Creation = {
   id: string
@@ -16,6 +18,9 @@ type Creation = {
   _videoId?: string | null
   _status?: string | null
   _progressPct?: number | null
+  /** A picture for the card (thumbnail, else the first slide picture). */
+  _picture: string | null
+  _duration: number | null
   /** Which tab this row belongs on (null = only under All). */
   _kind: LibraryKind | null
   /** What the Type column says. */
@@ -65,12 +70,20 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   // Query BOTH tables and merge — videos table is authoritative for videos,
   // presentations and slide decks; creations has everything else (deck-builder
   // decks, graphics, logos, etc.)
+  //
+  // The cards' pictures come from the SAME query: the thumbnail, else just the
+  // first slide picture (slide_urls->>0, one short string per row — not the
+  // whole list, and no extra query per card). If a column is missing in this
+  // database the whole select would fail and empty the Library, so it falls
+  // back to the plain columns and shows placeholders instead.
+  const BASE = 'id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at, deducted_cost, draft_data, output_type'
+  const readVideos = async () => {
+    const rich = await supabase.from('videos').select(`${BASE}, duration, first_slide:slide_urls->>0`).eq('user_id', user!.id).order('created_at', { ascending: false })
+    if (!rich.error) return rich
+    return supabase.from('videos').select(BASE).eq('user_id', user!.id).order('created_at', { ascending: false })
+  }
   const [{ data: videos }, { data: otherCreations }] = await Promise.all([
-    supabase
-      .from('videos')
-      .select('id, user_id, title, thumbnail_url, video_url, status, progress_pct, progress_detail, created_at, deducted_cost, draft_data, output_type')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false }),
+    readVideos(),
     supabase
       .from('creations')
       .select('*')
@@ -84,6 +97,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
   const allItems: Creation[] = [
     ...videoRows.map(v => {
       const outputType = (v as { output_type?: string | null }).output_type ?? null
+      const extra = v as { duration?: number | null; first_slide?: string | null }
       return {
         id: v.id,
         user_id: v.user_id,
@@ -98,6 +112,8 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         _videoId: v.id,
         _status: v.status,
         _progressPct: v.progress_pct,
+        _picture: v.thumbnail_url || (isPicture(extra.first_slide) ? extra.first_slide! : null),
+        _duration: typeof extra.duration === 'number' ? extra.duration : null,
         _kind: kindOfOutput(outputType),
         _label: madeLabel(outputType),
       }
@@ -106,6 +122,9 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       ...c,
       _videoId: null as string | null,
       _status: null as string | null,
+      // Custom Graphics: the file IS the picture.
+      _picture: (c.thumbnail_url as string | null) || (isPicture(c.file_url) ? c.file_url as string : null),
+      _duration: null as number | null,
       _kind: kindOfCreation(c.type),
       _label: CREATION_LABELS[c.type] ?? c.type,
     })),
@@ -121,8 +140,11 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         ? allItems.filter(item => item.type === typeFilter)
         : allItems
 
-  // Shape for the client table (which handles its own 25/50/100 pagination,
-  // delete, and columns). Recipient is read from the video's draft_data.
+  // Shape for the client Library (cards or list, search, sort, paging and
+  // delete live there). Recipient is read from the video's draft_data.
+  // Custom Graphics: sign all their pictures in one go (library-pictures.ts).
+  const signed = await signFlyerPictures(user!.id, filteredItems.map(i => i._picture))
+  const pictureOf = (url: string | null) => { const id = flyerFileId(url); return (id && signed.get(id)) || url }
   const draftById = new Map(videoRows.map(v => [v.id, (v as any).draft_data as any]))
   const libraryItems: LibraryItem[] = filteredItems.map((item) => {
     const draft = item._videoId ? draftById.get(item._videoId) : null
@@ -130,10 +152,13 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       id: item.id,
       videoId: item._videoId ?? null,
       type: item.type,
+      kind: item._kind,
       label: item._label,
       title: item.title ?? null,
       recipient: draft?.recipientName ?? null,
       fileUrl: item.file_url ?? null,
+      picture: pictureOf(item._picture ?? null),
+      duration: item._duration ?? null,
       status: item._status ?? null,
       progressPct: item._progressPct ?? null,
       draftStep: draft?.step,
@@ -156,20 +181,20 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         <Link href="/create/start" className="btn btn-primary btn-lg">{NAMES.newButton}</Link>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+      <nav className="kit-tabs" aria-label="Show one kind" style={{ marginBottom: 16 }}>
         {FILTER_TABS.map(tab => (
           <Link
             key={tab.key}
             href={tab.key ? `/videos?type=${tab.key}` : '/videos'}
-            className={`btn btn-sm ${(tab.key ? activeTab?.key === tab.key : isAll) ? 'btn-primary' : 'btn-soft'}`}
+            className="kit-tab"
             aria-current={(tab.key ? activeTab?.key === tab.key : isAll) ? 'page' : undefined}
           >
             {tab.label}
           </Link>
         ))}
-      </div>
+      </nav>
 
-      <LibraryTable items={libraryItems} emptyLabel={activeTab?.label.toLowerCase() ?? null} />
+      <Library items={libraryItems} emptyLabel={activeTab?.label.toLowerCase() ?? null} />
     </div>
   )
 }

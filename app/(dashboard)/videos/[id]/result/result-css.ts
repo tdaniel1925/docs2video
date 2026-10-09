@@ -21,7 +21,10 @@ export const RESULT_CSS = `
 .res-menu { width: 280px; }
 .res-menu--left { left: 0; right: auto; }
 @media (max-width: 520px) { .res-menu { right: auto; left: 0; width: min(280px, calc(100vw - 32px)); } }
-.res-menu-item { align-items: flex-start; }
+.res-menu-item { align-items: flex-start; justify-content: flex-start; }
+.res-menu-icon { flex-shrink: 0; margin-top: 2px; color: var(--ink-soft); }
+.res-menu-text { flex: 1; }
+.res-menu-word { display: inline-flex; align-items: center; gap: 10px; }
 .res-menu-item:disabled { opacity: 0.5; cursor: default; }
 .res-menu-label { display: block; font-weight: 600; }
 .res-menu-hint { display: block; font-size: 12.5px; color: var(--ink-light); margin-top: 1px; }

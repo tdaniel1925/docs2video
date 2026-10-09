@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Clapperboard, FileText, Globe, Lightbulb } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/server'
 import { getBrand } from '../../_lib/brand-server'
@@ -287,17 +288,13 @@ function Projects({ rows }: { rows: ProjectRow[] }) {
   )
 }
 
-/** Small line pictures for the start cards (they take the card's colour). */
+/** The start cards' pictures — the one icon set (lucide), 20px, taking the
+ *  card's colour. Decoration beside the words, so hidden from screen readers. */
 function StartIcon({ kind }: { kind: StartCard['key'] }) {
-  const common = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   switch (kind) {
-    case 'document':
-      return <svg {...common}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>
-    case 'website':
-      return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
-    case 'idea':
-      return <svg {...common}><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z" /></svg>
-    case 'commercial':
-      return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5v5l4-2.5z" /></svg>
+    case 'document': return <FileText size={20} />
+    case 'website': return <Globe size={20} />
+    case 'idea': return <Lightbulb size={20} />
+    case 'commercial': return <Clapperboard size={20} />
   }
 }

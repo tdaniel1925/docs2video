@@ -207,6 +207,9 @@
   box-sizing: border-box;
 }
 .radioOn { border: 5px solid var(--ink); }
+/* The output's picture (lucide). */
+.outputIcon { display: inline-grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; margin-top: -6px; border-radius: 8px; background: var(--surface); color: var(--ink); }
+.outputIconOn { background: var(--accent); }
 .outputBody { flex: 1; min-width: 0; }
 .outputName { font-size: 15px; font-weight: 800; color: var(--ink); }
 .outputDesc { font-size: 13px; color: var(--ink-soft); margin-top: 2px; line-height: 1.4; }
@@ -354,3 +357,8 @@
   cursor: zoom-out;
 }
 .lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 8px; }
+
+/* Phones: the output names need the room more than the picture does. */
+@media (max-width: 520px) {
+  .outputIcon { display: none; }
+}

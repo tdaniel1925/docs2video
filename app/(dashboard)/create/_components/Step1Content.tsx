@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { ClipboardPaste, Globe, Sparkles, Upload, type LucideIcon } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadAndExtract, uploadAndExtractMany } from './uploadAndExtract'
 import ClientPicker, { type PickedClient } from './ClientPicker'
@@ -30,11 +31,11 @@ async function parseApiResponse(res: Response, friendly: string): Promise<Record
   }
 }
 
-const CONTENT_METHODS: { id: Exclude<InputMethod, null>; label: string; desc: string }[] = [
-  { id: 'url', label: 'Website URL', desc: 'Pull from a web page' },
-  { id: 'upload', label: 'Upload file', desc: 'PDF, Word, or PowerPoint' },
-  { id: 'text', label: 'Paste text', desc: 'Paste your own content' },
-  { id: 'idea', label: 'AI writes it', desc: 'Describe it, AI drafts it' },
+const CONTENT_METHODS: { id: Exclude<InputMethod, null>; label: string; desc: string; Icon: LucideIcon }[] = [
+  { id: 'url', label: 'Website URL', desc: 'Pull from a web page', Icon: Globe },
+  { id: 'upload', label: 'Upload file', desc: 'PDF, Word, or PowerPoint', Icon: Upload },
+  { id: 'text', label: 'Paste text', desc: 'Paste your own content', Icon: ClipboardPaste },
+  { id: 'idea', label: 'AI writes it', desc: 'Describe it, AI drafts it', Icon: Sparkles },
 ]
 
 /** The real stages of reading, for the way the content is coming in. Each is
@@ -550,7 +551,7 @@ export default function Step1Content() {
             name="content-source"
             value={method}
             onChange={(m) => { setMethod(m); setError(null) }}
-            choices={CONTENT_METHODS.map((m) => ({ value: m.id, label: m.label, hint: m.desc, disabled: reading }))}
+            choices={CONTENT_METHODS.map((m) => ({ value: m.id, label: m.label, hint: m.desc, icon: <m.Icon size={20} />, disabled: reading }))}
           />
 
           {method === 'url' && (

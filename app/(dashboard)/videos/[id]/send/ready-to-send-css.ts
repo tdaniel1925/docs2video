@@ -48,6 +48,11 @@ export const READY_TO_SEND_CSS = `
 
 .rts-link--small { font-size: 12.5px; padding: 4px 0; margin-top: 4px; }
 .rts-from { margin-top: 8px; text-align: center; }
+/* Icon + words on one line (lucide icons, 16px). */
+.rts-inline-icon { display: inline-block; vertical-align: -3px; }
+.rts-icon-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+/* The Library's Send button lands here (#send) — clear of the sticky bar. */
+.rts { scroll-margin-top: 88px; }
 .rts-alt { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px; margin-top: 10px; }
 .rts-dot-sep { color: var(--ink-light); }
 .rts-center { text-align: center; }

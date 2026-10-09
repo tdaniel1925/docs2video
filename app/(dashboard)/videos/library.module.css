@@ -1,0 +1,222 @@
+/* The Library — picture cards (VidWiz's library layout) in Docs2Video's
+   cream / mint / navy. Colours only from the names in globals.css; corners
+   never above 10px. */
+
+/* ── Search · order · count · cards/list ─────────────────────────────── */
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 380px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink-light);
+}
+.search:focus-within { border-color: var(--ink); }
+.search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; outline: none; }
+.search input::-webkit-search-cancel-button { display: none; }
+.clear { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: var(--surface); color: var(--ink-soft); cursor: pointer; }
+.sort {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.count { margin-right: auto; color: var(--ink-light); font-size: 14px; }
+.viewToggle { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); }
+.viewToggle button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.viewToggle button[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); }
+.viewToggle button:focus-visible, .clear:focus-visible, .more:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+/* ── The cards ───────────────────────────────────────────────────────── */
+/* 4 across on a computer, then 3, 2 and 1 as the screen narrows. */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card:hover { border-color: var(--border); box-shadow: var(--shadow); }
+.cardRaised { z-index: 5; }
+/* One invisible link over the whole card opens it. */
+.hit { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.hit:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+.media { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 9px 9px 0 0; background: var(--surface); }
+.thumb { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+/* Posters and flyers are tall: show their top (the headline), not the middle. */
+.thumb[data-kind='graphic'] { object-position: top center; }
+.placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--surface), var(--bg-soft));
+  color: var(--ink-light);
+  font-size: 13px;
+  font-weight: 700;
+}
+.placeholder[data-kind='video'] { background: linear-gradient(135deg, var(--sky), var(--bg-soft)); }
+.placeholder[data-kind='presentation'] { background: linear-gradient(135deg, var(--accent-soft), var(--bg-soft)); }
+.placeholder[data-kind='deck'] { background: linear-gradient(135deg, var(--peach), var(--bg-soft)); }
+.placeholder[data-kind='graphic'] { background: linear-gradient(135deg, var(--lilac), var(--bg-soft)); }
+
+/* The kind, top left — "Presentation", "Graphic". */
+.kind {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+/* Send, bottom right of the picture, on ready videos. */
+.send {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.send:hover { background: color-mix(in srgb, var(--ink) 86%, var(--on-ink)); }
+.send:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+.body { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; min-width: 0; }
+.title { font-size: 15px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 30px; }
+.status { font-size: 14px; font-weight: 700; }
+.status[data-tone='ready'] { color: var(--accent-ink); }
+.status[data-tone='making'] { color: var(--warning-text); }
+.status[data-tone='failed'] { color: var(--error-text); }
+.status[data-tone='draft'] { color: var(--ink-soft); }
+.meta { font-size: 13px; color: var(--ink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The "…" menu: right of the title, above the card's link layer. */
+.menu { position: absolute; right: 6px; top: 8px; z-index: 3; }
+.menuFlat { display: inline-block; position: relative; }
+.more {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.more:hover, .more[aria-expanded='true'] { background: var(--surface); color: var(--ink); }
+.menuPanel { width: 190px; }
+.menuWord { display: inline-flex; align-items: center; gap: 10px; }
+.danger { color: var(--error-text); }
+.confirmTitle { margin: 0; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+
+/* ── The list (the old table) ────────────────────────────────────────── */
+.tableWrap { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-light);
+  padding: 10px 16px;
+  white-space: nowrap;
+  background: var(--bg-soft);
+}
+.table th:first-child { border-top-left-radius: 10px; }
+.table th:last-child { border-top-right-radius: 10px; }
+.table td { padding: 10px 16px; font-size: 14px; border-top: 1px solid var(--border-light); vertical-align: middle; }
+.titleCell { max-width: 320px; }
+.titleCell a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 600; text-decoration: none; }
+.titleCell a:hover { text-decoration: underline; }
+.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.soft { color: var(--ink-soft); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowActions { display: inline-flex; align-items: center; gap: 4px; }
+.phoneStatus { display: none; font-size: 13px; margin-top: 2px; }
+.table .menuPanel { right: 0; }
+
+/* ── Paging ──────────────────────────────────────────────────────────── */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.pagerSide { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.perPage { display: inline-flex; align-items: center; gap: 6px; }
+.small { min-height: 32px; padding: 4px 10px; }
+
+@media (max-width: 760px) {
+  .search { max-width: none; flex-basis: 100%; }
+  .count { margin-right: auto; }
+  /* Phone list: title, status and actions only — no sideways scroll. */
+  .wide { display: none; }
+  .table td, .table th { padding: 10px; }
+  .titleCell { max-width: 190px; }
+  .statusCol { display: none; }
+  .phoneStatus { display: block; }
+  .pager { justify-content: center; }
+  /* Phones can't hover, so the menu button is always there. */
+}
+@media (max-width: 520px) {
+  .grid { grid-template-columns: 1fr; }
+}

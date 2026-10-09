@@ -15,6 +15,8 @@ export type Choice<T extends string> = {
   label: ReactNode
   hint?: ReactNode
   aside?: ReactNode
+  /** A small picture before the words (a 20px lucide icon). Decoration only. */
+  icon?: ReactNode
   disabled?: boolean
 }
 
@@ -47,6 +49,7 @@ export default function Choices<T extends string>({ legend, hideLegend, choices,
             disabled={c.disabled}
             onChange={() => onChange(c.value)}
           />
+          {c.icon != null && <span className="kit-choice-icon" aria-hidden="true">{c.icon}</span>}
           <span className="kit-choice-body">
             <span className="kit-choice-label">{c.label}</span>
             {c.hint != null && <span className="kit-choice-hint">{c.hint}</span>}

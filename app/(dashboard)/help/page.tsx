@@ -108,6 +108,12 @@ const GUIDES: HelpGuide[] = [
     icon: '🎨',
   },
   {
+    href: '/help/library',
+    title: 'Your Library',
+    description: 'Picture cards for everything you’ve made: what “Ready to send”, “Making…” and “Didn’t finish” mean, the Send button, search, cards or list, and deleting safely.',
+    icon: '📁',
+  },
+  {
     href: '/help/downloads',
     title: 'Downloads & Formats',
     description: 'The Download menu: MP4 video, PDF slides, PowerPoint and the script — and why a video only lists the ones its look can make.',
@@ -156,6 +162,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '📊',
     content: [
       `The top bar has four words: **${NAMES.newButton}**, **${NAMES.library}**, **${NAMES.clients}** and **${NAMES.brands}**. The logo takes you Home. On the right are **${NAMES.howToUse}**, your credits and your initial, which opens the account menu: your plan, Analytics, AI Social, Affiliate Program, Settings, Help Center and Sign out.`,
+      `**While you make something** — the top bar steps aside for a quieter one: **Home** on the left (your draft is saved as you go and waits on Home), the four step numbers in the middle, and **${NAMES.howToUse}** and your credits on the right. On a phone, the **?** button holds ${NAMES.howToUse} and the help assistant.`,
       `**Credits** — Your balance is the gold box in the top bar. It turns amber when fewer than ${n(CREDIT_COSTS.videoStandard)} are left (one standard video). Every creation spends credits (see Pricing). Click it (**+ Top Up**) to buy more.`,
       '**Start something new** — Home opens with four cards: **From a document**, **From a website**, **From an idea** and **A commercial**. Each one opens the first step with that choice already made. Already have the words? Click **Paste your text** under the cards.',
       `**${NAMES.newButton}** — Starts any new project too: a narrated video, an interactive presentation or a slide deck. Commercials and custom graphics also start from the links under the first step.`,
@@ -255,11 +262,13 @@ const ARTICLES: HelpArticle[] = [
     category: 'management',
     icon: '📁',
     content: [
-      `The **${NAMES.library}** (top bar) lists everything you\'ve made in a table: title, type, recipient, status, credits and date.`,
+      `The **${NAMES.library}** (top bar) shows everything you\'ve made as picture cards: a picture, the name, a coloured status line (**Ready to send**, **Making…**, **Didn’t finish** or **Draft**), the date and who it’s for.`,
       `Use the tabs to show ${LIBRARY_TABS}. The tab you pick stays chosen when you refresh.`,
-      '• **Videos and presentations** open their detail page, with the player, downloads and sharing.',
-      '• **Graphics** open the image file in a new tab.',
-      'It shows 25 items per page (you can switch to 50 or 100). Use **Previous** / **Next** to move between pages.',
+      '• **Press a card** to open it. Videos and presentations open their page, with the player, sending and downloads. **Graphics** open the image in a new tab.',
+      '• A ready video has a **Send** button that goes straight to sending it.',
+      '• **Search by name or client**, change the order, or switch between **Cards** and **List** (the list is a table; your choice is remembered on this computer).',
+      '• To delete, press **…** on the card, then **Delete…** — it asks first.',
+      'It shows 24 items per page (you can switch to 48 or 96). Use **Previous** / **Next** to move between pages. The full guide is "Your Library" in the guides above.',
     ],
   },
   // Billing & Credits

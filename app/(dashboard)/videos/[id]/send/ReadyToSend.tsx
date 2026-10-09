@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Link from 'next/link'
+import { Link2, Mail, Send, UserRoundPlus } from 'lucide-react'
 import type { Video } from '../../../../_lib/types'
 import SharePreview from './SharePreview'
 import SendSwitch from './SendSwitch'
@@ -69,6 +70,14 @@ export default function ReadyToSend({
   const isDeck = outputType === 'interactive' || outputType === 'deck'
   const thing = isDeck ? 'presentation' : 'video'
   const insurance = isInsuranceVideo(video.script)
+
+  // The Library's Send button opens /videos/<id>#send. This panel appears only
+  // once the project has loaded, after the browser has already looked for
+  // #send, so it scrolls itself into view when it arrives.
+  const sectionRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (window.location.hash === '#send') sectionRef.current?.scrollIntoView({ block: 'start' })
+  }, [])
 
   const [shareUrl, setShareUrl] = useState(`/watch/${video.id}`)
   useEffect(() => { setShareUrl(`${window.location.origin}/watch/${video.id}`) }, [video.id])
@@ -329,7 +338,7 @@ export default function ReadyToSend({
   const bookingFromThisVideo = !!facts?.bookingUrl
 
   return (
-    <section className="rts" aria-label="Ready to send">
+    <section className="rts" id="send" ref={sectionRef} aria-label="Ready to send">
       <style>{READY_TO_SEND_CSS}</style>
 
       <h2 className="rts-title">Ready to <em>send.</em></h2>
@@ -365,8 +374,8 @@ export default function ReadyToSend({
               <div className="rts-row-hint" style={{ marginTop: 2 }}>
                 {client.email}{client.fromStep1 ? ' · from step 1' : ''}
               </div>
-              <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
-                Send to someone else
+              <button type="button" className="rts-link rts-link--small rts-icon-link" onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
+                <UserRoundPlus size={16} />Send to someone else
               </button>
             </div>
           ) : (
@@ -526,7 +535,7 @@ export default function ReadyToSend({
             onClick={send}
             disabled={sending || client === null}
           >
-            {sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}
+            <span className="rts-icon-link"><Send size={16} />{sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}</span>
           </button>
           <div className="rts-row-hint rts-from">
             {mailbox === null ? ''
@@ -535,12 +544,12 @@ export default function ReadyToSend({
                 : <>Sends from Docs2Video’s address, and replies come to you. <Link href={SETTINGS_INTEGRATIONS}>Connect your email</Link> to send from it.</>}
           </div>
           <div className="rts-alt">
-            <button type="button" className="rts-link" onClick={copyLink}>
-              {copyState === 'copied' ? '✓ Link copied' : 'or copy the link'}
+            <button type="button" className="rts-link rts-icon-link" onClick={copyLink}>
+              <Link2 size={16} />{copyState === 'copied' ? '✓ Link copied' : 'or copy the link'}
             </button>
             <span aria-hidden="true" className="rts-dot-sep">·</span>
-            <button type="button" className="rts-link" onClick={copyEmail}>
-              {emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}
+            <button type="button" className="rts-link rts-icon-link" onClick={copyEmail}>
+              <Mail size={16} />{emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}
             </button>
           </div>
           <div className="rts-row-hint rts-center">

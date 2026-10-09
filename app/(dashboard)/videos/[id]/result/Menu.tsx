@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 /**
  * A button that drops a small menu (the kit's menu look, like the avatar
@@ -33,7 +34,7 @@ export default function Menu({ label, children, variant = 'secondary', align = '
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {label} <span aria-hidden="true">▾</span>
+        {label}<ChevronDown size={16} />
       </button>
       {open && (
         <div className={`kit-menu res-menu${align === 'left' ? ' res-menu--left' : ''}`} role="menu">

@@ -30,7 +30,10 @@ test.describe('1440 wide', () => {
 
   test('the bar is exactly + New, Library, Clients, Brands — and the logo goes Home', async ({ page }) => {
     await page.goto('/videos')
-    await expect(mainNav(page).getByRole('link')).toHaveText(['+ New', 'Library', 'Clients', 'Brands'])
+    // + New wears a plus icon beside "New" (round A's one icon set); its
+    // name is still "+ New" (names.ts), which is what a screen reader says.
+    const names = await mainNav(page).getByRole('link').evaluateAll((ls) => ls.map((l) => l.getAttribute('aria-label') || (l.textContent || '').trim()))
+    expect(names).toEqual(['+ New', 'Library', 'Clients', 'Brands'])
     await expect(page.getByRole('banner').getByRole('link', { name: 'Dashboard' })).toHaveCount(0)
     await expect(mainNav(page).getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
 

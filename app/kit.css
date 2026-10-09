@@ -169,6 +169,8 @@
 .kit-choice:has(input:focus-visible) { outline: 2px solid var(--link); outline-offset: 2px; }
 .kit-choice:has(input:disabled) { cursor: not-allowed; background: var(--surface); }
 .kit-choice input { margin: 3px 0 0; accent-color: var(--accent-ink); flex-shrink: 0; }
+.kit-choice-icon { display: inline-grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; background: var(--surface); color: var(--ink); }
+.kit-choice:has(input:checked) .kit-choice-icon { background: var(--accent); }
 .kit-choice-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kit-choice-label { font-size: 15px; font-weight: 700; color: var(--ink); }
 .kit-choice-hint { font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
@@ -399,6 +401,7 @@
   color: var(--ink-soft);
   text-decoration: none;
 }
+.kit-topbar-link { display: inline-flex; align-items: center; gap: 7px; }
 .kit-topbar-link:hover { background: var(--surface); color: var(--ink); }
 .kit-topbar-link[aria-current='page'] { background: var(--accent); color: var(--ink); }
 .kit-topbar-end { display: flex; align-items: center; gap: 8px; margin-left: auto; }
@@ -433,4 +436,64 @@
 @media (max-width: 360px) {
   .kit-topbar-logo img { height: 34px; }
   .kit-credit-top { display: none; }
+}
+
+/* ── Focus header (round A) — while making something, VidWiz's quiet header
+   replaces the full bar: ← Home · the step numbers · How to use · credits.
+   It reuses the top bar's frame so the page below doesn't jump. ───────── */
+.kit-focusbar .kit-topbar-inner { gap: 16px; }
+.kit-focusbar-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.kit-focusbar-exit:hover { background: var(--surface); color: var(--ink); }
+.kit-focusbar-exit:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.kit-focusbar-steps {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.kit-focusbar-step { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--ink-light); white-space: nowrap; }
+.kit-focusbar-num {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+}
+.kit-focusbar-step.is-now { color: var(--ink); }
+.kit-focusbar-step.is-now .kit-focusbar-num { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.kit-focusbar-step.is-done { color: var(--ink-soft); }
+.kit-focusbar-step.is-done .kit-focusbar-num { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.kit-focusbar-title { margin: 0 auto; font-size: 15px; font-weight: 800; color: var(--ink); }
+.kit-focusbar .kit-topbar-end { margin-left: 0; }
+.kit-focusbar-help { display: none; }
+
+@media (max-width: 1100px) {
+  /* Mid widths: the numbers and the current step's words only. */
+  .kit-focusbar-step:not(.is-now) .kit-focusbar-word { display: none; }
+  .kit-focusbar-steps { gap: 10px; }
+}
+@media (max-width: 900px) {
+  .kit-focusbar .kit-topbar-inner { gap: 8px; }
+  .kit-focusbar-exit { padding: 8px 6px; }
+  .kit-focusbar-exit span { display: none; }
+  .kit-focusbar-step .kit-focusbar-word { display: none; }
+  .kit-focusbar-steps { gap: 6px; }
+  .kit-focusbar-help { display: block; }
+  .kit-focusbar .kit-icon-btn { width: 36px; height: 36px; }
 }
