@@ -87,7 +87,7 @@ describe('one colour set', () => {
   })
 
   it('every words-on-ground pair is at least 4.5:1', () => {
-    const t = tokens(block(':root'))
+    const t = tokens(block(':root, .light-island'))
     const hex = (name: string) => {
       const v = t[name]
       if (!/^#[0-9a-fA-F]{6}$/.test(v ?? '')) throw new Error(`${name} should be a 6-digit hex in :root, is ${v}`)
