@@ -34,3 +34,41 @@ export const PRES_LOOKS: { id: string; name: string; tagline: string; swatch: [s
 export function isPresLook(v: unknown): v is string {
   return PRES_LOOKS.some((l) => l.id === v)
 }
+
+// ── The look cards on step 3 ────────────────────────────────────────────────
+//
+// Step 3 draws its look cards from this one list, so a new look is ONE more
+// entry in VIDEO_LOOKS (plus its /style-samples/<id>-cover.png picture) — or,
+// for a look that isn't ready to show its samples yet, one entry here with
+// its own `thumb`. `recommended` puts the BEST tag on a card (and it is the
+// one picked when nothing was saved); `tag` adds a small word next to the
+// name ("NEW").
+
+export type LookCard = {
+  id: string
+  name: string
+  tagline: string
+  /** A picture (video looks) or a mini slide drawn from three colours (presentations). */
+  thumb: { kind: 'img'; src: string } | { kind: 'swatch'; swatch: [string, string, string] }
+  recommended?: boolean
+  tag?: string
+  /** Sample pictures shown under the cards when this look is picked. */
+  samples?: string[]
+}
+
+/** Which video look carries the BEST tag (and is picked by default). */
+export const RECOMMENDED_VIDEO_LOOK: VideoLookId = 'slides'
+
+export function lookCards(output: string): LookCard[] {
+  if (output === 'interactive' || output === 'deck') {
+    return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0 }))
+  }
+  return VIDEO_LOOKS.map((l) => ({
+    id: l.id,
+    name: l.name,
+    tagline: l.tagline,
+    thumb: { kind: 'img', src: `/style-samples/${l.id}-cover.png` },
+    recommended: l.id === RECOMMENDED_VIDEO_LOOK,
+    samples: VIDEO_SAMPLE_KINDS.map((k) => `/style-samples/${l.id}-${k}.png`),
+  }))
+}

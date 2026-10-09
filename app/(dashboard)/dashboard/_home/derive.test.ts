@@ -17,10 +17,10 @@ function video(over: Partial<VideoRow> = {}): VideoRow {
 const noNames = { quotes: [], clients: new Map() }
 
 describe('project status', () => {
-  it('drafts say which of the 4 steps they are on', () => {
-    expect(projectStatus(video({ status: 'draft', draft_data: { step: 5 } }), [], [], NOW).label).toBe('Draft · step 2 of 4')
-    expect(projectStatus(video({ status: 'draft', draft_data: { step: 4 } }), [], [], NOW).label).toBe('Draft · step 2 of 4')
-    expect(projectStatus(video({ status: 'draft', draft_data: null }), [], [], NOW).label).toBe('Draft · step 1 of 4')
+  it('drafts say which of the 3 steps they are on', () => {
+    expect(projectStatus(video({ status: 'draft', draft_data: { step: 5 } }), [], [], NOW).label).toBe('Draft · step 2 of 3')
+    expect(projectStatus(video({ status: 'draft', draft_data: { step: 4 } }), [], [], NOW).label).toBe('Draft · step 2 of 3')
+    expect(projectStatus(video({ status: 'draft', draft_data: null }), [], [], NOW).label).toBe('Draft · step 1 of 3')
   })
 
   it('ready with no send and no views is just "Ready" — never a guessed status', () => {

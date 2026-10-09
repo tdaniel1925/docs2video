@@ -51,16 +51,16 @@ test('the Create tiles come first, and each opens step 1 with its source already
   await expect(page.getByText('Start from a document')).toHaveCount(0)
 
   // What each source shows on step 1 once it is picked.
-  const cases: [RegExp, string, (p: Page) => ReturnType<Page['getByText']>][] = [
-    [/^From a document/, 'upload', (p) => p.getByText('Click to upload')],
-    [/^From a website/, 'url', (p) => p.getByPlaceholder('yourcompany.com')],
-    [/^From an idea/, 'ai', (p) => p.getByText('AI will generate content based on your description above.')],
+  const cases: [RegExp, string, string, (p: Page) => ReturnType<Page['getByText']>][] = [
+    [/^From a document/, 'upload', 'Add your document.', (p) => p.getByText('Drop your file here')],
+    [/^From a website/, 'url', 'Add your website.', (p) => p.getByPlaceholder('yourcompany.com')],
+    [/^From an idea/, 'ai', 'Describe your idea.', (p) => p.getByLabel('Your idea')],
   ]
-  for (const [name, source, shown] of cases) {
+  for (const [name, source, heading, shown] of cases) {
     await page.goto('/dashboard')
     await start.getByRole('link', { name }).click()
     await expect(page).toHaveURL(new RegExp(`/create\\?source=${source}$`))
-    await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible()
     await expect(shown(page)).toBeVisible()
   }
   await page.goto('/dashboard')
@@ -78,10 +78,10 @@ test('the Create tiles come first, and each opens step 1 with its source already
   await expect(page).toHaveURL(/\/brands$/)
 })
 
-test('step 1 without ?source starts with nothing picked', async ({ page }) => {
+test('step 1 without ?source opens on a document', async ({ page }) => {
   await page.goto('/create')
-  await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
-  await expect(page.getByText('Click to upload')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Add your document.' })).toBeVisible()
+  await expect(page.getByText('Drop your file here')).toBeVisible()
   await expect(page.getByPlaceholder('yourcompany.com')).toHaveCount(0)
 })
 
@@ -106,7 +106,7 @@ test('every project row opens its project, and "See all" opens the library', asy
     const cells = row.getByRole('cell')
     await expect(cells).toHaveCount(5)
     // "Where it's at" is one of the real states, never blank.
-    await expect(cells.nth(3)).toHaveText(/^(Draft · step [1-4] of 4|Making… \d+%|Didn’t finish|Clicked to book a call|Watched( to the end)?|Sent (today|yesterday|\d+ days ago)|Ready)$/)
+    await expect(cells.nth(3)).toHaveText(/^(Draft · step [1-3] of 3|Making… \d+%|Didn’t finish|Clicked to book a call|Watched( to the end)?|Sent (today|yesterday|\d+ days ago)|Ready)$/)
     const action = cells.nth(4).getByRole('link', { name: /^(Continue|Open)$/ })
     const href = await action.getAttribute('href')
     expect(href, `row ${i} action`).toMatch(/^(\/videos\/[\w-]+|\/create(\/script)?\?id=[\w-]+|https?:\/\/.+)$/)
@@ -170,7 +170,7 @@ test('banners, when shown, lead to the right place', async ({ page }) => {
   }
 })
 
-test('a draft shows as "Draft · step 1 of 4"; Continue reopens it and Discard removes it', async ({ page }) => {
+test('a draft shows as "Draft · step 1 of 3"; Continue reopens it and Discard removes it', async ({ page }) => {
   const purpose = `E2E home draft ${Date.now()}`
   const made = await page.request.post('/api/videos/draft', {
     data: { outputType: 'video', purpose, contentMethod: 'idea', extractedData: { title: purpose, sections: [{ title: 'x', content: 'y' }] } },
@@ -181,13 +181,13 @@ test('a draft shows as "Draft · step 1 of 4"; Continue reopens it and Discard r
     await page.goto('/dashboard')
     const row = table(page).getByRole('row').filter({ hasText: purpose })
     await expect(row).toHaveCount(1)
-    await expect(row.getByRole('cell').nth(3)).toHaveText('Draft · step 1 of 4')
+    await expect(row.getByRole('cell').nth(3)).toHaveText('Draft · step 1 of 3')
     await expect(row.getByRole('cell').nth(1)).toHaveText('No client')
 
     await row.getByRole('link', { name: 'Continue' }).click()
     await expect(page).toHaveURL(new RegExp(`/create\\?id=${videoId}$`))
     // Step 1 reopens the SAME draft with what was typed.
-    await expect(page.getByPlaceholder(/Explain our services/)).toHaveValue(purpose)
+    await expect(page.getByLabel('Your idea')).toHaveValue(purpose)
 
     await page.goto('/dashboard')
     page.once('dialog', (d) => d.accept())

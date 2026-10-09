@@ -1,11 +1,14 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
 import { FAKE_ID, draftRow, mockDraft, quote, storyDraft } from './helpers/fixtures'
-import { alertOf, collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, jsonBody, type Guard } from './helpers/guard'
+import { collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, jsonBody, type Guard } from './helpers/guard'
 
 /*
- * STEP 3 — "Make it yours" (/create/theme).
+ * STEP 3 — "The look" (/create/theme).
  *
- * The draft and the price are mocked; "Make it" is intercepted and its body
+ * "Pick a look.": look cards three across, one settings line ("Sarah · music
+ * off · standard  Change"), a "More options" fold, the brand line, and the
+ * bottom bar: the price (the server's), "Free preview" and "Make it". The
+ * draft and the price are mocked; "Make it" is intercepted and its body
  * checked against every choice made on screen. Nothing is generated or
  * charged.
  */
@@ -39,13 +42,19 @@ async function open(page: Page, draftOver: Record<string, unknown> = {}, q = quo
   const draft = await mockDraft(page, draftRow(storyDraft({ brandId: null, ...draftOver })))
   const quotes = await mockQuote(page, q)
   await page.goto(url)
-  await expect(page.getByRole('heading', { name: 'Make it yours.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Pick a look.' })).toBeVisible()
   return { draft, quotes }
 }
 
-const makeBtn = (page: Page) => page.getByRole('button', { name: /^(Make it|Starting…)/ })
+const bar = (page: Page) => page.getByRole('region', { name: 'The price' })
+const makeBtn = (page: Page) => bar(page).getByRole('button', { name: /^(Make it|Starting…)$/ })
 const look = (page: Page, name: string) => page.getByRole('radiogroup', { name: 'The look' }).getByRole('radio', { name: new RegExp(name) })
-const panel = (page: Page) => page.getByRole('complementary', { name: 'The price' })
+const more = async (page: Page) => {
+  const fold = page.locator('#more-options')
+  if (!(await fold.evaluate((d) => (d as HTMLDetailsElement).open))) await page.getByText('More options', { exact: true }).click()
+  return fold
+}
+const make = (page: Page, name: 'Video' | 'Presentation') => page.getByRole('radiogroup', { name: 'Make' }).getByRole('radio', { name: new RegExp(`^${name}`) })
 
 test.beforeEach(async ({ page }) => {
   guard = await guardRealWorld(page)
@@ -54,7 +63,9 @@ test.beforeEach(async ({ page }) => {
   // The card page loads Stripe's script; with no Stripe key in a local
   // .env.local (or no network to js.stripe.com) it complains once it is
   // reached. These tests only check that Make it GETS there.
-  consoleErrors = collectConsoleErrors(page, [/status of (402|409|500)/, /status of 406/, /publishable key/i, /js\.stripe\.com/])
+  consoleErrors = collectConsoleErrors(page, [/status of (402|409|500)/, /status of 406/, /publishable key/i, /js\.stripe\.com/, /Failed to load Stripe\.js/])
+  await page.addInitScript(() => { try { localStorage.setItem('cookie_consent', 'accepted') } catch { /* fine */ } })
+  await page.route('**/api/preview-first-scene**', (r) => r.request().method() === 'GET' ? r.fulfill({ json: { remainingToday: 3 } }) : r.fallback())
 })
 test.afterEach(() => {
   expectNoBlockedCalls(guard)
@@ -66,48 +77,52 @@ test.describe('Step 3 — the price is always the server’s', () => {
     await mockDraft(page, draftRow(storyDraft({ brandId: null })))
     await mockQuote(page, quote(), 2500)
     await page.goto(url)
-    await expect(panel(page)).toContainText('Working out the price…')
+    await expect(bar(page)).toContainText('Working out the price…')
     await expect(makeBtn(page)).toBeDisabled()
     await expect(makeBtn(page)).toHaveText('Make it')
-    const outputs = page.getByRole('radiogroup', { name: 'What do you want to send?' })
-    await expect(outputs).not.toContainText(/\d+ credits?/)
-    await expect(outputs).toContainText('…')
-    // No number anywhere on the price panel until the server answers.
-    expect(await panel(page).textContent(), 'no made-up price while loading').not.toMatch(/\d[\d,]*\s*credits?/)
+    // No number anywhere in the bar until the server answers.
+    expect(await bar(page).textContent(), 'no made-up price while loading').not.toMatch(/\d[\d,]*\s*credits?/)
+    const fold = await more(page)
+    await expect(page.getByRole('radiogroup', { name: 'Make' })).not.toContainText(/\d+ credits?/)
+    await expect(page.getByRole('radiogroup', { name: 'Make' })).toContainText('…')
 
-    await expect(panel(page)).toContainText('Narrated video, standard length200 credits')
-    await expect(panel(page)).toContainText('Extra document40 credits')
-    await expect(panel(page)).toContainText('Total240 credits')
-    await expect(panel(page)).toContainText('You have 1,000 credits. 760 credits left after this.')
-    await expect(makeBtn(page)).toHaveText('Make it — 240 credits')
-    await expect(page.getByRole('radio', { name: /Narrated video/ })).toContainText('240 credits')
-    await expect(page.getByRole('radio', { name: /Interactive presentation/ })).toContainText('150 credits')
+    await expect(bar(page)).toContainText('240 credits')
+    await expect(bar(page)).toContainText('760 left after')
+    await expect(makeBtn(page)).toBeEnabled()
+    await expect(fold).toContainText('Narrated video, standard length200 credits')
+    await expect(fold).toContainText('Extra document40 credits')
+    await expect(fold).toContainText('Total240 credits')
+    await expect(fold).toContainText('You have 1,000 credits.')
+    await expect(make(page, 'Video')).toContainText('240 credits')
+    await expect(make(page, 'Presentation')).toContainText('150 credits')
     // Slide decks are no longer made (videos-only, 2026-10-09) — even when the
     // price answer still lists one, the screen doesn't offer it.
     await expect(page.getByRole('radio', { name: /Slide deck/ })).toHaveCount(0)
-    await expect(page.getByRole('radiogroup', { name: 'What do you want to send?' }).getByRole('radio')).toHaveCount(2)
+    await expect(page.getByRole('radiogroup', { name: 'Make' }).getByRole('radio')).toHaveCount(2)
   })
 
   test('a price that cannot be worked out is said plainly and Make stays off', async ({ page }) => {
     await mockDraft(page, draftRow(storyDraft({ brandId: null })))
     await page.route('**/api/price-quote**', (route) => route.fulfill({ status: 500, json: { error: 'Pricing is unavailable right now.' } }))
     await page.goto(url)
-    await expect(panel(page)).toContainText('Pricing is unavailable right now.')
+    await expect(bar(page)).toContainText('Pricing is unavailable right now.')
     await expect(makeBtn(page)).toBeDisabled()
-    await expect(panel(page)).not.toContainText(/\d+ credits?/)
+    await expect(bar(page)).not.toContainText(/\d+ credits?/)
   })
 
   test('free accounts are told nothing is charged', async ({ page }) => {
     const q = quote()
     ;(q.options.video as { free: boolean }).free = true
     await open(page, {}, q)
-    await expect(panel(page)).toContainText('Your account isn’t charged for this.')
+    await expect(bar(page)).toContainText('Free')
+    await expect(bar(page)).toContainText('Your account isn’t charged for this.')
   })
 
   test('short on credits: says how many more and Top up opens the credit packs', async ({ page }) => {
     await open(page, {}, quote({ balance: 100 }))
-    await expect(panel(page)).toContainText('You need 140 credits more.')
-    await panel(page).getByRole('button', { name: 'Top up credits' }).click()
+    await expect(bar(page)).toContainText('You need 140 credits more.')
+    await expect(bar(page)).toContainText('You have 100 credits')
+    await bar(page).getByRole('button', { name: 'Top up credits' }).click()
     await expect(page.getByRole('heading', { name: 'Buy credits' })).toBeVisible()
     await page.getByRole('button', { name: 'Close' }).click()
     await expect(page.getByRole('heading', { name: 'Buy credits' })).toHaveCount(0)
@@ -115,7 +130,7 @@ test.describe('Step 3 — the price is always the server’s', () => {
 
   test('a card is needed first: the warning shows and Make goes to the card page and back', async ({ page }) => {
     const { quotes } = await open(page, {}, quote({ blockedReason: 'card_required' }))
-    await expect(panel(page)).toContainText('Add a card to start your free trial.')
+    await expect(bar(page)).toContainText('Add a card to start your free trial.')
     let intents = 0
     await page.route('**/api/create-setup-intent', (route) => { intents++; return route.fulfill({ json: { clientSecret: 'seti_e2e_secret_x' } }) })
     await page.route('**/api/generate-video', (route) => route.fulfill({ status: 402, json: { code: 'card_required', error: 'Add a card first.' } }))
@@ -124,65 +139,82 @@ test.describe('Step 3 — the price is always the server’s', () => {
     await expect(page.getByRole('heading', { name: 'Add your payment method' })).toBeVisible()
     // The card page knows where to send them back to.
     await expect(page.getByRole('button', { name: 'Save card & continue →' })).toBeVisible()
-    expect(intents).toBe(1)
+    // (the card page may ask twice in development, where React runs effects twice)
+    expect(intents).toBeGreaterThanOrEqual(1)
     expect(quotes.calls).toBeGreaterThanOrEqual(2)
   })
 
   test('an already-started project says so and links to its progress', async ({ page }) => {
     await open(page, {}, quote({ startable: false, status: 'processing' }))
-    await expect(panel(page)).toContainText('This one has already been started. Open it to see how it’s going.')
+    await expect(bar(page)).toContainText('This one has already been started. Open it to see how it’s going.')
     await expect(makeBtn(page)).toBeDisabled()
-    await page.getByRole('button', { name: 'See its progress' }).click()
+    await bar(page).getByRole('button', { name: 'See its progress' }).click()
     await expect(page).toHaveURL(new RegExp(`/create/generating\\?id=${FAKE_ID}`))
   })
 })
 
 test.describe('Step 3 — choices', () => {
-  test('output cards switch the looks, the voice and the price', async ({ page }) => {
+  test('one settings line; Change opens More options', async ({ page }) => {
     await open(page)
-    const video = page.getByRole('radio', { name: /Narrated video/ })
-    await expect(video).toHaveAttribute('aria-checked', 'true')
-    await expect(look(page, 'Slide Deck')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'The voice' })).toBeVisible()
-    await expect(page.getByText('Background music')).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Length' })).toBeVisible()
+    await expect(page.getByTestId('settings-line')).toHaveText('Sarah · music off · standard')
+    await expect(page.locator('#more-options')).not.toHaveAttribute('open', '')
+    await page.getByRole('button', { name: 'Change', exact: true }).first().click()
+    await expect(page.locator('#more-options')).toHaveAttribute('open', '')
+    await page.getByRole('radiogroup', { name: 'Background music' }).getByRole('radio', { name: /^On/ }).click()
+    await page.getByRole('radiogroup', { name: 'The voice' }).getByRole('radio', { name: /James/ }).click()
+    await expect(page.getByTestId('settings-line')).toHaveText('James · music on · standard')
+  })
 
-    await page.getByRole('radio', { name: /Interactive presentation/ }).click()
-    await expect(page.getByRole('radio', { name: /Interactive presentation/ })).toHaveAttribute('aria-checked', 'true')
+  test('Video or Presentation switches the looks, the voice options and the price', async ({ page }) => {
+    await open(page)
+    const fold = await more(page)
+    await expect(make(page, 'Video')).toHaveAttribute('aria-checked', 'true')
+    await expect(look(page, 'Slide Deck')).toBeVisible()
+    await expect(fold.getByText('Voice', { exact: true })).toBeVisible()
+    await expect(fold.getByText('Music', { exact: true })).toBeVisible()
+    await expect(fold.getByText('Length', { exact: true })).toBeVisible()
+
+    await make(page, 'Presentation').click()
+    await expect(make(page, 'Presentation')).toHaveAttribute('aria-checked', 'true')
     await expect(look(page, 'Heritage')).toHaveAttribute('aria-checked', 'true')
     await expect(look(page, 'Slide Deck')).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'The voice' })).toBeVisible()
-    await expect(page.getByText('Background music')).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Length' })).toHaveCount(0)
-    await expect(panel(page)).toContainText('Total150 credits')
-    await expect(makeBtn(page)).toHaveText('Make it — 150 credits')
+    await expect(fold.getByText('Voice', { exact: true })).toBeVisible()
+    await expect(fold.getByText('Music', { exact: true })).toHaveCount(0)
+    await expect(fold.getByText('Length', { exact: true })).toHaveCount(0)
+    await expect(bar(page)).toContainText('150 credits')
+    await expect(page.getByTestId('settings-line')).toHaveText('Sarah · presentation')
     // A presentation has a share page too, so the client note is offered.
-    await expect(page.getByText('For your client')).toBeVisible()
+    await expect(fold.getByText('A note to your client')).toBeVisible()
   })
 
   test('an old draft saved as a slide deck opens as a video (decks are no longer made)', async ({ page }) => {
     await open(page, { outputType: 'deck' })
-    await expect(page.getByRole('radio', { name: /Narrated video/ })).toHaveAttribute('aria-checked', 'true')
+    await more(page)
+    await expect(make(page, 'Video')).toHaveAttribute('aria-checked', 'true')
     await expect(page.getByRole('radio', { name: /Slide deck/ })).toHaveCount(0)
-    await expect(makeBtn(page)).toHaveText('Make it — 240 credits')
+    await expect(bar(page)).toContainText('240 credits')
   })
 
-  test('look thumbnails load, pick a look, and the samples open larger', async ({ page }) => {
+  test('look cards: pictures load, BEST on the recommended one, pick a look, examples open larger', async ({ page }) => {
     await open(page)
     const looks = page.getByRole('radiogroup', { name: 'The look' }).getByRole('radio')
     await expect(looks).toHaveCount(6)
     // Every thumbnail is a real picture (none broken).
     await page.waitForFunction(() => [...document.querySelectorAll('[role=radiogroup][aria-label="The look"] img')].every((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0), null, { timeout: 15000 })
     await expect(look(page, 'Slide Deck')).toHaveAttribute('aria-checked', 'true')
-    await expect(page.getByText('Add photo backgrounds')).toBeVisible()
+    await expect(look(page, 'Slide Deck')).toContainText('BEST')
+    await expect(page.getByRole('radiogroup', { name: 'The look' }).getByText('BEST')).toHaveCount(1)
+    const fold = await more(page)
+    await expect(fold.getByText('Add photo backgrounds')).toBeVisible()
 
     await look(page, 'Aurora').click()
     await expect(look(page, 'Aurora')).toHaveAttribute('aria-checked', 'true')
     await expect(look(page, 'Slide Deck')).toHaveAttribute('aria-checked', 'false')
     await expect(page.getByText(/Aurora\. Modern motion graphics/)).toBeVisible()
-    await expect(page.getByText('Add photo backgrounds')).toHaveCount(0)
+    await expect(fold.getByText('Add photo backgrounds')).toHaveCount(0)
     await expect(page.getByText('Usually about 3–5 minutes.', { exact: false })).toBeVisible()
 
+    await page.getByText('See examples of Aurora').click()
     await page.getByRole('button', { name: 'Enlarge Aurora data sample' }).click()
     const big = page.locator('img[alt="Sample"]')
     await expect(big).toHaveAttribute('src', '/style-samples/aurora-data.png')
@@ -192,6 +224,7 @@ test.describe('Step 3 — choices', () => {
 
   test('Sarah is the default voice; ▶ plays the real sample and ■ stops it', async ({ page }) => {
     await open(page)
+    await more(page)
     const voices = page.getByRole('radiogroup', { name: 'The voice' })
     await expect(voices.getByRole('radio', { name: /Sarah/ })).toHaveAttribute('aria-checked', 'true')
     const sample = page.waitForResponse((r) => r.url().endsWith('/samples/solo-nova.mp3'))
@@ -213,23 +246,24 @@ test.describe('Step 3 — choices', () => {
 
   test('the note to the client stops at 400 characters', async ({ page }) => {
     await open(page)
-    await page.getByText('For your client').click()
+    await more(page)
     const note = page.getByPlaceholder('A short personal message shown above it on the share page…')
     await note.fill('x'.repeat(450))
     await expect(note).toHaveValue('x'.repeat(400))
     await expect(page.getByText('400/400')).toBeVisible()
   })
 
-  test('the length is shown and "Change the length" and Back go to the story', async ({ page }) => {
+  test('the length is shown and "Change the length" and step 2 in the header go to the story', async ({ page }) => {
     await open(page, { detailLevel: 'detailed' }, quote({ detailLevel: 'detailed' }))
-    await expect(page.getByText('Detailed', { exact: false }).first()).toBeVisible()
+    await expect(page.getByTestId('settings-line')).toHaveText('Sarah · music off · detailed')
+    await more(page)
     await page.getByRole('button', { name: 'Change the length' }).click()
     // Lands ON the length choice of the story step, not just the top of it.
     await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}#length$`))
     await expect(page.getByRole('radiogroup', { name: 'Length' })).toBeInViewport()
     await expect(page.getByRole('radio', { name: /Detailed/ })).toHaveAttribute('aria-checked', 'true')
     await page.goto(url)
-    await page.getByRole('button', { name: '← Back to the story' }).click()
+    await page.getByRole('link', { name: 'Back to step 2: The story' }).click()
     await expect(page).toHaveURL(new RegExp(`/create/script\\?id=${FAKE_ID}$`))
   })
 
@@ -237,7 +271,7 @@ test.describe('Step 3 — choices', () => {
     await mockBrands(page, [BRAND])
     await open(page, { brandId: undefined })
     await expect(page.getByText('Using Acme Insurance’s logo and colors.')).toBeVisible()
-    await page.getByRole('button', { name: 'Change', exact: true }).click()
+    await page.locator('.cf-brand').getByRole('button', { name: 'Change', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/create/brand\\?id=${FAKE_ID}$`))
   })
 
@@ -246,6 +280,24 @@ test.describe('Step 3 — choices', () => {
     await expect(page.getByText('No brand on this one yet — it will use plain colors.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add your brand' })).toBeVisible()
   })
+
+  test('Free preview in the bar shows the first scene on the page, free', async ({ page }) => {
+    const asked: any[] = []
+    await page.route('**/api/preview-first-scene', (r) => {
+      if (r.request().method() !== 'POST') return r.fallback()
+      asked.push(jsonBody(r.request()))
+      return r.fulfill({ json: { imageUrl: '/style-samples/slides-data.png', audioUrl: null, remainingToday: 2, voiceNote: null, lookNote: null } })
+    })
+    await open(page)
+    await look(page, 'Aurora').click()
+    await bar(page).getByRole('button', { name: 'Free preview' }).click()
+    const shown = page.getByRole('region', { name: 'Free preview' })
+    await expect(shown.getByRole('img', { name: /Preview of your first scene/ })).toBeVisible()
+    expect(asked).toEqual([{ videoId: FAKE_ID, output: 'video', look: 'aurora', voiceId: 'nova' }])
+    // A different look afterwards offers "Preview again".
+    await look(page, 'Cinematic').click()
+    await expect(bar(page).getByRole('button', { name: 'Preview again' })).toBeVisible()
+  })
 })
 
 test.describe('Step 3 — Make it', () => {
@@ -253,9 +305,9 @@ test.describe('Step 3 — Make it', () => {
     await mockBrands(page, [BRAND])
     const { draft, quotes } = await open(page, { brandId: undefined, sourcePdfPath: 'u/doc.pdf', sourcePdfName: 'plan.pdf' })
     await look(page, 'Explainer').click()
+    await more(page)
     await page.getByRole('radiogroup', { name: 'The voice' }).getByRole('radio', { name: /Emily/ }).click()
-    await page.getByText('Background music').click()
-    await page.getByText('For your client').click()
+    await page.getByRole('radiogroup', { name: 'Background music' }).getByRole('radio', { name: /^On/ }).click()
     await page.getByText('Let them download the original PDF').click()
     await page.getByPlaceholder('A short personal message shown above it on the share page…').fill('  Hi Jordan — here is your plan.  ')
 
@@ -290,6 +342,7 @@ test.describe('Step 3 — Make it', () => {
     const { draft } = await open(page)
     const gen: any[] = []
     await page.route('**/api/generate-video', async (route) => { gen.push(jsonBody(route.request())); await route.fulfill({ json: { success: true } }) })
+    await more(page)
     await page.getByText('Add photo backgrounds').click()
     await makeBtn(page).click()
     await expect(page).toHaveURL(/style=slides$/)
@@ -316,7 +369,7 @@ test.describe('Step 3 — Make it', () => {
     await open(page)
     await page.route('**/api/generate-video', (route) => route.fulfill({ status: 409, json: { error: 'You already have a video being made. Wait for it to finish, then try again.' } }))
     await makeBtn(page).click()
-    await expect(panel(page).getByRole('alert')).toHaveText('You already have a video being made. Wait for it to finish, then try again.')
+    await expect(bar(page).getByRole('alert')).toHaveText('You already have a video being made. Wait for it to finish, then try again.')
     await expect(makeBtn(page)).toBeEnabled()
     await expect(page).toHaveURL(new RegExp('/create/theme'))
   })
@@ -327,7 +380,7 @@ test.describe('Step 3 — Make it', () => {
     await makeBtn(page).click()
     await expect(page.getByRole('heading', { name: 'You need more credits' })).toBeVisible()
     await expect(page.getByText('This needs 240 credits, and you have 100.', { exact: false })).toBeVisible()
-    await expect(panel(page).getByRole('alert')).toContainText('You need 240 credits but only have 100.')
+    await expect(bar(page).getByRole('alert')).toContainText('You need 240 credits but only have 100.')
 
     const buys: any[] = []
     await page.route('**/api/credits/buy', async (route) => { buys.push(jsonBody(route.request())); await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_e2e' } }) })
@@ -346,8 +399,8 @@ test.describe('Step 3 — Make it', () => {
     let n = 0
     await page.route('**/api/generate-video', (route) => { n++; return route.fulfill({ json: {} }) })
     await makeBtn(page).click()
-    await expect(panel(page).getByRole('alert')).toHaveText('The price changed to 300 credits. Check it, then press Make it again.')
-    await expect(makeBtn(page)).toHaveText('Make it — 300 credits')
+    await expect(bar(page).getByRole('alert')).toHaveText('The price changed to 300 credits. Check it, then press Make it again.')
+    await expect(bar(page)).toContainText('300 credits')
     expect(n).toBe(0)
   })
 
@@ -357,13 +410,14 @@ test.describe('Step 3 — Make it', () => {
     let n = 0
     await page.route('**/api/generate-video', (route) => { n++; return route.fulfill({ json: {} }) })
     await makeBtn(page).click()
-    await expect(panel(page).getByRole('alert')).toHaveText('Draft save failed')
+    await expect(bar(page).getByRole('alert')).toHaveText('Draft save failed')
     expect(n).toBe(0)
   })
 
   test('an interactive presentation starts the presentation builder with the chosen look', async ({ page }) => {
     const { draft } = await open(page)
-    await page.getByRole('radio', { name: /Interactive presentation/ }).click()
+    await more(page)
+    await make(page, 'Presentation').click()
     await look(page, 'Midnight').click()
     await page.getByRole('radiogroup', { name: 'The voice' }).getByRole('radio', { name: /Oliver/ }).click()
     const pres: any[] = []
@@ -377,7 +431,8 @@ test.describe('Step 3 — Make it', () => {
   test('a presentation with a card needed goes to the card page without starting anything', async ({ page }) => {
     await open(page, {}, quote({ blockedReason: 'card_required' }))
     await page.route('**/api/create-setup-intent', (route) => route.fulfill({ json: { clientSecret: 'seti_e2e_secret_x' } }))
-    await page.getByRole('radio', { name: /Interactive presentation/ }).click()
+    await more(page)
+    await make(page, 'Presentation').click()
     await makeBtn(page).click()
     await expect(page).toHaveURL(/\/setup-payment\?next=/)
     // guardRealWorld would have caught a call to generate-presentation.
@@ -385,12 +440,13 @@ test.describe('Step 3 — Make it', () => {
 
   test('presentation: not enough credits shows the top-up', async ({ page }) => {
     await open(page)
-    await page.getByRole('radio', { name: /Interactive presentation/ }).click()
+    await more(page)
+    await make(page, 'Presentation').click()
     await page.route('**/api/generate-presentation', (route) => route.fulfill({ status: 402, json: { code: 'insufficient_credits', error: 'Not enough credits for a presentation.', needed: 150, balance: 10 } }))
     await makeBtn(page).click()
     await expect(page.getByRole('heading', { name: 'You need more credits' })).toBeVisible()
     await page.getByRole('button', { name: 'Not now' }).click()
-    await expect(panel(page).getByRole('alert')).toContainText('Not enough credits for a presentation.')
+    await expect(bar(page).getByRole('alert')).toContainText('Not enough credits for a presentation.')
   })
 })
 

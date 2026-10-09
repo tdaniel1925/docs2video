@@ -29,7 +29,7 @@ describe('?source= on step 1', () => {
     const step1 = code('app/(dashboard)/create/_components/Step1Content.tsx')
     expect(step1).toMatch(/useState<InputMethod>\(\(\) => methodFromSource\(searchParams\.get\('source'\)\)\)/)
     // Every value the table can produce is one of step 1's real choices.
-    const ids = [...step1.matchAll(/\{ id: '(\w+)', label:/g)].map((m) => m[1])
+    const ids = [...step1.matchAll(/^ {2}(\w+): \{ lead: /gm)].map((m) => m[1])
     expect(ids.length).toBe(4)
     for (const method of Object.values(CREATE_SOURCES)) expect(ids, method).toContain(method)
   })

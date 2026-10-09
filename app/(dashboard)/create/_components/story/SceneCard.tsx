@@ -18,6 +18,8 @@ interface Props {
   onDragStart: () => void
   onDrop: () => void
   onDragEnd: () => void
+  /** Shown inside step 2's editor, where the compact cards do the moving. */
+  noDrag?: boolean
 }
 
 const label: React.CSSProperties = {
@@ -32,7 +34,7 @@ const label: React.CSSProperties = {
  */
 export default function SceneCard({
   scene, index, outputType, saved, open, onToggle, onChange, onPreview, sourceData,
-  dragging, onDragStart, onDrop, onDragEnd,
+  dragging, onDragStart, onDrop, onDragEnd, noDrag,
 }: Props) {
   const sd = scene.slideData || {}
   const bullets: any[] = sd.bullets || []
@@ -46,25 +48,25 @@ export default function SceneCard({
 
   return (
     <div
-      draggable={!isBookend}
-      onDragStart={() => { if (!isBookend) onDragStart() }}
+      draggable={!isBookend && !noDrag}
+      onDragStart={() => { if (!isBookend && !noDrag) onDragStart() }}
       onDragOver={e => e.preventDefault()}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       style={{
-        marginBottom: 10, borderRadius: 10, background: 'var(--bg-card)',
+        marginBottom: noDrag ? 0 : 10, borderRadius: 10, background: 'var(--bg-card)',
         border: dragging ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
         opacity: dragging ? 0.6 : 1, transition: 'opacity 0.2s, border-color 0.2s',
       }}
     >
       <div style={{ display: 'flex', gap: 'var(--space-3)', padding: '14px 16px 10px', alignItems: 'flex-start' }}>
         <span
-          title={isBookend ? undefined : 'Drag to move this scene'}
+          title={isBookend || noDrag ? undefined : 'Drag to move this scene'}
           style={{
             width: 28, height: 28, borderRadius: '50%', flexShrink: 0, marginTop: 2,
             background: isBookend ? 'var(--ink)' : 'var(--surface)', color: isBookend ? 'var(--bg-card)' : 'var(--ink)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 'var(--fs-caption)', cursor: isBookend ? 'default' : 'grab',
+            fontWeight: 800, fontSize: 'var(--fs-caption)', cursor: isBookend || noDrag ? 'default' : 'grab',
           }}
         >{index + 1}</span>
 

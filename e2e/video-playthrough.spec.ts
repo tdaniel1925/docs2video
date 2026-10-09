@@ -22,29 +22,25 @@ test.describe('Full video playthrough (gated, real AI spend)', () => {
   test('signup-state user creates a video end to end', async ({ page }) => {
     await loginAsTestUser(page)
 
-    // Step 1 — What it's about: a general video, "AI writes it" (no upload).
-    await page.goto('/create')
-    await page.getByRole('button', { name: 'No client — general' }).click()
-    await page.getByPlaceholder(/Explain our services/).fill('A short explainer about the benefits of whole life insurance for a young family.')
-    await page.getByRole('radio', { name: /^AI writes it/ }).check()
-    await page.getByRole('button', { name: 'Read it and plan the story →' }).click()
-    await expect(page.getByRole('heading', { name: 'Here’s what we read' })).toBeVisible({ timeout: 180000 })
-    await page.getByRole('button', { name: 'Looks right — write the story →' }).click()
+    // Step 1 — Your content: a general video from an idea (no upload).
+    await page.goto('/create?source=ai')
+    await page.getByLabel('Your idea').fill('A short explainer about the benefits of whole life insurance for a young family.')
+    await page.getByRole('button', { name: 'Read it →' }).click()
 
-    // Step 2 — Check the story: wait for it to be written, then accept it.
+    // Step 2 — The story: wait for it to be written, then accept it.
     await page.waitForURL(/\/create\/script\?id=/, { timeout: 180000 })
     const videoId = new URL(page.url()).searchParams.get('id')
     expect(videoId).toBeTruthy()
     const skip = page.getByRole('button', { name: 'Skip — just write it' })
-    const scene = page.getByLabel('Scene 2 title')
+    const scene = page.getByRole('button', { name: 'Edit scene 2' })
     await expect(skip.or(scene)).toBeVisible({ timeout: 240000 })
     if (await skip.isVisible()) await skip.click()
     await expect(scene).toBeVisible({ timeout: 240000 })
-    await page.getByRole('button', { name: 'Looks right — pick the look →' }).click()
+    await page.getByRole('button', { name: 'Pick a look →' }).click()
 
-    // Step 3 — Make it yours: defaults (Slide Deck, Sarah), then Make it (REAL spend).
+    // Step 3 — The look: defaults (Slide Deck, Sarah), then Make it (REAL spend).
     await page.waitForURL(/\/create\/theme\?id=/)
-    await page.getByRole('button', { name: /^Make it — / }).click()
+    await page.getByRole('button', { name: 'Make it', exact: true }).click()
     await page.waitForURL(/\/create\/generating\?id=/, { timeout: 60000 })
 
     // Poll the video row until completed (via the authenticated API)

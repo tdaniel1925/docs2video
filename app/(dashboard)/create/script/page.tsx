@@ -1,13 +1,14 @@
 'use client'
 
 /*
- * STEP 2 — "Check the story".
+ * STEP 2 — "The story" (/create/script).
  *
- * The brief (the one point + numbers) and the script (the scenes) used to be
- * two pages with the brand and voice steps between them. They are one screen
- * now: the brief is built on arrival, the story is written from it straight
- * away, and every line stays editable. Asking for a change rewrites the whole
- * story. Nothing here costs credits — generation is paid for in step 3.
+ * "Here's the story.": the one point (a big card) and the numbers (big
+ * tiles) we read from the content — editable, exactly as they go into the
+ * story — then "N scenes · about X minutes" as title cards in two columns
+ * (Edit opens the full scene editor in place), and one "Ask for a change"
+ * line. Asking rewrites the whole story. Nothing here costs credits — the
+ * bottom bar says "Free"; generation is paid for on step 3.
  *
  * The script is written in the BACKGROUND on the server and saved to the
  * draft, so a reload (or closing the tab) mid-write picks the job back up
@@ -18,7 +19,7 @@
  * land, so every video was Standard.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { VideoBrief } from '../../../_lib/types'
 import { addBookends, bookendOptsFrom, keepAutoMarks, sceneSeconds } from '../_components/story/bookends'
@@ -28,10 +29,8 @@ import SceneCard from '../_components/story/SceneCard'
 import LengthPicker from '../_components/story/LengthPicker'
 import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../_components/story/lengths'
 import { Note } from '../../../_components/kit'
-import Workspace from '../_components/workspace/Workspace'
-import MainAction, { type Missing } from '../_components/workspace/MainAction'
-import { factsFromDraft } from '../_components/workspace/facts'
-import { usePriceQuote } from '../_components/make/usePriceQuote'
+import BottomBar from '../_components/workspace/BottomBar'
+import { type Missing } from '../_components/workspace/MainAction'
 
 type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
 type StoryState = 'idle' | 'writing' | 'ready' | 'failed'
@@ -69,6 +68,14 @@ export default function ScriptPage() {
   const [briefNote, setBriefNote] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [answering, setAnswering] = useState(false)
+  // The point / numbers as last saved, and whether they were edited since —
+  // edited after the story was written means the scenes say the old ones.
+  const savedBriefRef = useRef<VideoBrief | null>(null)
+  const briefRef = useRef<VideoBrief | null>(null)
+  const briefChangedRef = useRef(false)
+  const [briefChanged, setBriefChanged] = useState(false)
+  // The scene open in the full editor (the cards show titles only).
+  const [editIdx, setEditIdx] = useState<number | null>(null)
 
   const [scenes, setScenes] = useState<any[]>([])
   const [story, setStory] = useState<StoryState>('idle')
@@ -91,12 +98,59 @@ export default function ScriptPage() {
   const loadedRef = useRef(false)
   // true until the first load has decided what to do (show, resume, ask or write)
   const [booting, setBooting] = useState(true)
-  // The price for "Your video so far" — the server's quote for the saved
-  // draft. Re-read when the story (and so its length) changes.
-  const { quote, loading: quoteLoading, refresh: refreshPrice } = usePriceQuote(videoId)
-  useEffect(() => {
-    if (story === 'ready') void refreshPrice()
-  }, [story, detailLevel, refreshPrice])
+  useEffect(() => { briefRef.current = brief }, [brief])
+
+  /** A point/numbers the server gave us (or that were saved): the new "as saved". */
+  function takeBrief(b: VideoBrief) {
+    savedBriefRef.current = b
+    briefRef.current = b
+    briefChangedRef.current = false
+    setBriefChanged(false)
+    setBrief(b)
+  }
+
+  /** The person changed the point, a number or the summary. */
+  function editBrief(patch: Partial<VideoBrief>) {
+    setBrief((b) => {
+      const next = b ? { ...b, ...patch } : b
+      briefRef.current = next
+      return next
+    })
+    briefChangedRef.current = true
+    setBriefChanged(true)
+  }
+
+  function undoBriefEdits() {
+    if (savedBriefRef.current) setBrief(savedBriefRef.current)
+    briefRef.current = savedBriefRef.current
+    briefChangedRef.current = false
+    setBriefChanged(false)
+  }
+
+  /** Save the edited point / numbers to the draft (the story writer reads them there). */
+  async function saveBrief(): Promise<boolean> {
+    const b = briefRef.current
+    if (!videoId || !b) return true
+    const clean: VideoBrief = {
+      ...b,
+      angle: (b.angle ?? '').trim() || savedBriefRef.current?.angle || b.angle,
+      figures: (b.figures ?? []).map((f) => ({ label: (f.label ?? '').trim(), value: (f.value ?? '').trim() })).filter((f) => f.value),
+    }
+    try {
+      const res = await fetch('/api/videos/draft', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId, updates: { brief: clean } }),
+      })
+      if (!res.ok) throw new Error(`brief save failed (${res.status})`)
+    } catch (err) {
+      console.error('[story] brief save failed:', err)
+      setError('We couldn’t save your changes to the point and numbers. Please try again.')
+      return false
+    }
+    takeBrief(clean)
+    return true
+  }
 
   /**
    * AUTO-SAVE — and the tick only appears when something was actually saved.
@@ -211,6 +265,8 @@ export default function ScriptPage() {
   async function writeStory(len: StoryLength = pickedRef.current): Promise<boolean> {
     const draft = draftRef.current
     if (!videoId || !draft) return false
+    // Edited point / numbers go to the draft first: the writer reads them there.
+    if (briefChangedRef.current && !(await saveBrief())) return false
     setStory('writing'); setError(null)
     const extracted = draft.extractedData || draft.inlineBrand || {}
     const dl = len
@@ -264,7 +320,7 @@ export default function ScriptPage() {
     try {
       const r = await fetch('/api/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId }) })
       const d = await r.json().catch(() => ({}))
-      if (d?.brief) { setBrief(d.brief); return d.brief }
+      if (d?.brief) { takeBrief(d.brief); return d.brief }
       setBriefNote('We couldn’t sum up the main point this time. The story below still uses everything you gave us.')
       return null
     } catch {
@@ -304,7 +360,7 @@ export default function ScriptPage() {
         setScenes(addBookends(draft.scenes, bookendOptsFrom(draft)))
         setStory('ready')
       }
-      if (draft.brief && !draft.briefSkipped) setBrief(draft.brief)
+      if (draft.brief && !draft.briefSkipped) takeBrief(draft.brief)
       setDraftLoading(false)
 
       // A story written before this screen (or with "Skip") keeps its brief
@@ -346,7 +402,7 @@ export default function ScriptPage() {
       })
       const d = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(d.error || 'We couldn’t use those answers. Please try again.')
-      if (d.brief) { setBrief(d.brief); setAnswers({}) }
+      if (d.brief) { takeBrief(d.brief); setAnswers({}) }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'We couldn’t use those answers. Please try again.')
       setAnswering(false)
@@ -455,12 +511,28 @@ export default function ScriptPage() {
         })
         const d = await r.json().catch(() => ({}))
         if (!r.ok) throw new Error('That change didn’t work — nothing was changed.')
-        if (d.brief) setBrief(d.brief)
+        if (d.brief) takeBrief(d.brief)
         setChat(c => [...c, { role: 'assistant', text: d.reply || 'Updated what the story will cover.' }])
       }
     } catch (e) {
       setChat(c => [...c, { role: 'assistant', text: e instanceof Error ? e.message : 'That change didn’t work — nothing was changed.' }])
     } finally { setAsking(false) }
+  }
+
+  /** "Rewrite the story with it": the edited point / numbers, a new story. */
+  async function rewriteWithBrief() {
+    if (story === 'writing' || scenes.length === 0) return
+    const before = scenes
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    undoRef.current = null
+    setEditIdx(null)
+    setScenes([])
+    const ok = await writeStory()
+    if (!ok) {
+      setScenes(before)
+      setStory('ready')
+      autoSave(before, -1, true)
+    }
   }
 
   function undoAsk() {
@@ -495,6 +567,7 @@ export default function ScriptPage() {
     autoSave(updated, target, true)
     setDragIdx(null)
     setOpenIdx(null)
+    setEditIdx(null)
   }
 
   async function handlePreviewSlide(idx: number) {
@@ -559,34 +632,28 @@ export default function ScriptPage() {
     }
   }
 
-  const priced = quote?.options?.[(outputType as keyof NonNullable<typeof quote>['options'])] ?? null
-  const soFar = factsFromDraft(draftData, {
-    point: brief?.angle || brief?.summary || null,
-    output: outputType,
-    length: lengthName(detailLevel),
-    price: { kind: 'quote', credits: priced?.total ?? null, free: priced?.free, loading: quoteLoading },
-  })
-
   if (draftLoading) {
     return (
-      <Workspace soFar={soFar}>
+      <div className="cf-page">
         <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 'var(--fs-body)' }}>Loading&hellip;</div>
-      </Workspace>
+      </div>
     )
   }
 
-  // Why "Looks right" can't be pressed yet — said under it, never a silent grey button.
+  // Why "Pick a look" can't be pressed yet — said under it, never a silent grey button.
   const questionsWaiting = scenes.length === 0 && story !== 'writing' && !!brief?.clarifyingQuestions?.length
   const missing: Missing | null =
     story === 'writing' ? { reason: 'Your story is still being written — usually about a minute.' }
       : questionsWaiting ? { reason: 'Answer the quick questions first, or skip them.', target: 's2-point' }
         : asking ? { reason: 'Wait for your change to finish.' }
           : lengthPending ? { reason: `First rewrite the story as ${lengthName(pickedLength)}, or keep it ${lengthName(detailLevel)}.`, target: LENGTH_ANCHOR }
-            : scenes.length === 0 ? { reason: story === 'failed' ? 'The story wasn’t written — press Try again.' : 'The story isn’t written yet.', target: story === 'failed' ? 's2-error' : undefined }
-              : null
+            : briefChanged && scenes.length > 0 ? { reason: 'First rewrite the story with your changes, or undo them.', target: 's2-point' }
+              : scenes.length === 0 ? { reason: story === 'failed' ? 'The story wasn’t written — press Try again.' : 'The story isn’t written yet.', target: story === 'failed' ? 's2-error' : undefined }
+                : null
 
   const totalSeconds = scenes.reduce((sum: number, s: any) => sum + sceneSeconds(s), 0)
   const spoken = outputType === 'video' || outputType === 'pptx'
+  const minutes = Math.max(1, Math.round(totalSeconds / 60))
   const askNote = story === 'writing'
     ? 'You can ask for changes once the story is written.'
     : scenes.length === 0 && !brief
@@ -594,165 +661,181 @@ export default function ScriptPage() {
       : null
 
   return (
-    <Workspace
-      soFar={soFar}
-      side={
-        <>
-          <AskPanel
-            messages={chat}
-            busy={asking}
-            disabledNote={askNote}
-            onSend={(t) => void ask(t)}
-            canUndo={!!undoRef.current}
-            onUndo={undoAsk}
-          />
-          <MainAction onClick={() => void goToLook()} disabled={submitting} busy={submitting} missing={missing} note="Free — nothing is charged until step 3.">
-            {submitting ? 'Saving…' : 'Looks right — pick the look →'}
-          </MainAction>
-        </>
-      }
-    >
-    <div className="story-page">
-      <button
-        type="button"
-        onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0, marginBottom: 12 }}
-      >
-        &larr; Back
-      </button>
-
-      <h1 style={{ fontSize: 'var(--fs-h1)', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)' }}>
-        Here&rsquo;s the <em style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontWeight: 400 }}>story.</em>
+    <div className="cf-page story-page">
+      <h1 className="cf-h1">
+        Here&rsquo;s the <em>story.</em>
       </h1>
-      <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', margin: '6px 0 24px', lineHeight: 1.6 }}>
-        Change any line, or ask for a change on the right. This step is free.
-      </p>
 
       {combineFailed ? (
-        <Note tone="warn" className="s2-note">
-          We couldn&rsquo;t compare your files automatically this time. The story still uses all of them — ask on the right for what to compare or focus on.
+        <Note tone="warn">
+          We couldn&rsquo;t compare your files automatically this time. The story still uses all of them — ask for what to compare or focus on, below the scenes.
         </Note>
       ) : null}
 
       {copied ? (
-        <Note tone="ok" className="s2-note">
+        <Note tone="ok">
           This is a copy of your earlier project — the story, look, voice and brand came with it. Change anything you like. Nothing is made or charged until you press Make it on the next step.
         </Note>
       ) : null}
 
-      <div>
-        <div>
-          {draftData ? (
-            <LengthPicker
-              picked={pickedLength}
-              storyLength={detailLevel}
-              hasStory={scenes.length > 0}
-              writing={story === 'writing'}
-              spoken={outputType !== 'deck' && outputType !== 'pdf'}
-              isVideo={outputType === 'video'}
-              flash={flashLength}
-              onPick={pickLength}
-              onRewrite={() => void rewriteAtLength()}
-              onKeep={keepLength}
-            />
-          ) : null}
-          <div id="s2-point">
-          <OnePoint
-            brief={brief}
-            building={briefBuilding}
-            showQuestions={scenes.length === 0 && story !== 'writing'}
-            answers={answers}
-            setAnswers={setAnswers}
-            answering={answering}
-            onAnswer={submitAnswers}
-            onSkipQuestions={skipQuestions}
+      <div id="s2-point" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <OnePoint
+          brief={brief}
+          building={briefBuilding}
+          onEdit={editBrief}
+          changed={briefChanged}
+          writing={story === 'writing'}
+          hasStory={scenes.length > 0}
+          onRewrite={() => void rewriteWithBrief()}
+          onUndo={undoBriefEdits}
+          showQuestions={scenes.length === 0 && story !== 'writing'}
+          answers={answers}
+          setAnswers={setAnswers}
+          answering={answering}
+          onAnswer={submitAnswers}
+          onSkipQuestions={skipQuestions}
+        />
+      </div>
+      {briefNote && !brief && (
+        <p className="cf-hint">{briefNote}</p>
+      )}
+
+      <div className="cf-scenes-head">
+        <h2 className="cf-h2" style={{ margin: 0 }}>
+          {story === 'writing' ? 'Writing the scenes…' : scenes.length > 0 ? `${scenes.length} scenes` : 'The scenes'}
+          {story !== 'writing' && scenes.length > 0 && spoken && totalSeconds > 0 ? <small>about {minutes} minute{minutes === 1 ? '' : 's'}</small> : null}
+        </h2>
+        {draftData ? (
+          <LengthPicker
+            picked={pickedLength}
+            storyLength={detailLevel}
+            hasStory={scenes.length > 0}
+            writing={story === 'writing'}
+            spoken={outputType !== 'deck' && outputType !== 'pdf'}
+            isVideo={outputType === 'video'}
+            flash={flashLength}
+            onPick={pickLength}
+            onRewrite={() => void rewriteAtLength()}
+            onKeep={keepLength}
           />
+        ) : null}
+      </div>
+
+      {/*
+        * SAVING IS BROKEN — said out loud, directly above the scenes, so it
+        * sits beside the work at risk. It stays until a save succeeds.
+        */}
+      {saveError && (
+        <div role="alert" className="kit-note kit-note--warn">
+          <div className="kit-note-body"><p>{saveError}</p></div>
+        </div>
+      )}
+
+      {story === 'writing' && (
+        <div className="cf-card cf-reading" style={{ alignItems: 'center', textAlign: 'center' }}>
+          <div className="spinner" />
+          <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, color: 'var(--ink)' }}>
+            {scenes.length > 0 ? 'Writing the story again…' : 'Writing your story…'}
           </div>
-          {briefNote && !brief && (
-            <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginBottom: 16 }}>{briefNote}</div>
-          )}
+          <p className="cf-hint">
+            This usually takes about a minute. It keeps going if you leave — come back to this project and it will be here.
+          </p>
+        </div>
+      )}
 
-          {/*
-            * SAVING IS BROKEN — said out loud, directly above the scenes, so
-            * it sits beside the work at risk. It stays until a save succeeds.
-            */}
-          {saveError && (
-            <div
-              role="alert"
-              style={{
-                padding: '12px 16px', borderRadius: 10, marginBottom: 16,
-                background: 'var(--warning-bg)', border: '1px solid var(--warning)',
-                color: 'var(--ink)', fontSize: 'var(--fs-ui)', fontWeight: 500,
-              }}
-            >
-              {saveError}
+      {!booting && draftData && story === 'idle' && scenes.length === 0 && !briefBuilding && !answering && !brief?.clarifyingQuestions?.length && (
+        <div className="cf-card cf-quick">
+          <span className="cf-hint">Ready when you are.</span>
+          <button type="button" className="kit-btn kit-btn--secondary" onClick={() => void writeStory()}>Write the story</button>
+        </div>
+      )}
+
+      {error && (
+        <div id="s2-error" role="alert" className="kit-note kit-note--stop">
+          <div className="kit-note-body"><p>{error}</p></div>
+          {story === 'failed' && (
+            <div className="kit-note-action">
+              <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={() => void writeStory()}>Try again</button>
             </div>
-          )}
-
-          {story === 'writing' && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '28px 20px', textAlign: 'center' }}>
-              <div className="spinner" style={{ margin: '0 auto 14px' }} />
-              <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
-                {scenes.length > 0 ? 'Writing the story again…' : 'Writing your story…'}
-              </div>
-              <div style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
-                This usually takes about a minute. It keeps going if you leave — come back to this project and it will be here.
-              </div>
-            </div>
-          )}
-
-          {!booting && draftData && story === 'idle' && scenes.length === 0 && !briefBuilding && !answering && !brief?.clarifyingQuestions?.length && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)' }}>Ready when you are.</div>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => void writeStory()}>Write the story</button>
-            </div>
-          )}
-
-          {error && (
-            <div id="s2-error" role="alert" style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error-text)', fontSize: 'var(--fs-ui)', marginBottom: 16 }}>
-              {error}
-              {story === 'failed' && (
-                <div style={{ marginTop: 10 }}>
-                  <button type="button" className="btn btn-soft btn-sm" onClick={() => void writeStory()}>Try again</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {story !== 'writing' && scenes.length > 0 && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', marginBottom: 10, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>
-                  {scenes.length} scenes{spoken && totalSeconds > 0 ? <> &middot; about {Math.max(1, Math.round(totalSeconds / 60))} min</> : null}
-                </div>
-                <button type="button" onClick={startOver}
-                  style={{ background: 'none', border: 'none', fontSize: 'var(--fs-small)', color: 'var(--ink-light)', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-                  Write it again from the start
-                </button>
-              </div>
-              {scenes.map((scene: any, i: number) => (
-                <SceneCard
-                  key={i}
-                  scene={scene}
-                  index={i}
-                  outputType={outputType}
-                  saved={savedScene === i}
-                  open={openIdx === i}
-                  onToggle={() => setOpenIdx(openIdx === i ? null : i)}
-                  onChange={(s, instant) => updateScene(i, s, instant)}
-                  onPreview={() => handlePreviewSlide(i)}
-                  sourceData={draftData?.extractedData}
-                  dragging={dragIdx === i}
-                  onDragStart={() => setDragIdx(i)}
-                  onDrop={() => dropOn(i)}
-                  onDragEnd={() => setDragIdx(null)}
-                />
-              ))}
-            </>
           )}
         </div>
+      )}
 
-      </div>
+      {story !== 'writing' && scenes.length > 0 && (
+        <>
+          <ol className="cf-scenes" aria-label="The scenes">
+            {scenes.map((scene: any, i: number) => {
+              const role = scene._role as ('cover' | 'closing' | undefined)
+              const bookend = role === 'cover' || role === 'closing'
+              const open = editIdx === i
+              return (
+                <Fragment key={i}>
+                  <li
+                    className={`cf-card cf-scene ${dragIdx === i ? 'is-dragging' : ''} ${open ? 'is-open' : ''}`}
+                    draggable={!bookend}
+                    data-scene={i + 1}
+                    onDragStart={() => { if (!bookend) setDragIdx(i) }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => dropOn(i)}
+                    onDragEnd={() => setDragIdx(null)}
+                    title={bookend ? undefined : 'Drag to move this scene'}
+                  >
+                    <span className="cf-scene-n">{i + 1}</span>
+                    <span className="cf-scene-title">
+                      {bookend ? <small>{role === 'cover' ? 'Opening' : 'Closing'}</small> : null}
+                      {scene.title || 'Untitled scene'}
+                    </span>
+                    <button
+                      type="button"
+                      className="cf-scene-edit"
+                      aria-expanded={open}
+                      aria-label={open ? `Close scene ${i + 1}` : `Edit scene ${i + 1}`}
+                      onClick={() => { setEditIdx(open ? null : i); setOpenIdx(null) }}
+                    >
+                      {open ? 'Done' : 'Edit'}
+                    </button>
+                  </li>
+                  {open ? (
+                    <li className="cf-scene-editor">
+                      <SceneCard
+                        scene={scene}
+                        index={i}
+                        outputType={outputType}
+                        saved={savedScene === i}
+                        open={openIdx === i}
+                        onToggle={() => setOpenIdx(openIdx === i ? null : i)}
+                        onChange={(s, instant) => updateScene(i, s, instant)}
+                        onPreview={() => handlePreviewSlide(i)}
+                        sourceData={draftData?.extractedData}
+                        dragging={false}
+                        noDrag
+                        onDragStart={() => {}}
+                        onDrop={() => {}}
+                        onDragEnd={() => {}}
+                      />
+                    </li>
+                  ) : null}
+                </Fragment>
+              )
+            })}
+          </ol>
+          <p className="cf-hint">
+            Drag a card to move a scene.{' '}
+            <button type="button" className="cf-link" onClick={startOver} style={{ fontWeight: 500, color: 'var(--ink-light)' }}>
+              Write it again from the start
+            </button>
+          </p>
+        </>
+      )}
+
+      <AskPanel
+        messages={chat}
+        busy={asking}
+        disabledNote={askNote}
+        onSend={(t) => void ask(t)}
+        canUndo={!!undoRef.current}
+        onUndo={undoAsk}
+      />
 
       {/* Slide preview */}
       {previewIdx !== null && (
@@ -788,7 +871,17 @@ export default function ScriptPage() {
           </div>
         </div>
       )}
+
+      <BottomBar
+        label="Next step"
+        info="Free"
+        sub="Changes cost nothing"
+        onMain={() => void goToLook()}
+        mainLabel={submitting ? 'Saving…' : 'Pick a look →'}
+        disabled={submitting}
+        busy={submitting}
+        missing={missing}
+      />
     </div>
-    </Workspace>
   )
 }

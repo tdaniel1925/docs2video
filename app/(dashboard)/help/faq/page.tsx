@@ -44,14 +44,14 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Is there a limit on video length?',
     answer: [
-      `On step 2, **Check the story**, you pick the **Length**: **Short** (under 1 minute), **Standard** (2–5 minutes) or **Detailed** (5–15 minutes). The final length also depends on how much content you give it. Longer videos cost more credits (${n(CREDIT_COSTS.videoQuick)} / ${n(CREDIT_COSTS.videoStandard)} / ${n(CREDIT_COSTS.videoDetailed)}); step 3 shows the exact price.`,
+      `On step 2, **The story**, you pick the **Length**: **Short** (under 1 minute), **Standard** (2–5 minutes) or **Detailed** (5–15 minutes). The final length also depends on how much content you give it. Longer videos cost more credits (${n(CREDIT_COSTS.videoQuick)} / ${n(CREDIT_COSTS.videoStandard)} / ${n(CREDIT_COSTS.videoDetailed)}); step 3 shows the exact price.`,
       'Changing the length after the story is written offers **Rewrite at this length** — free. **Change the length** on step 3 takes you straight back to it.',
     ],
   },
   {
     question: 'Can I use my own voice for narration?',
     answer: [
-      'Not at the moment. Videos use AI voices. On step 3, **Make it yours**, press **▶** next to a voice to hear it and pick the tone you like.',
+      'Not at the moment. Videos use AI voices. On step 3, **The look**, press **▶** next to a voice to hear it and pick the tone you like.',
     ],
   },
   {
@@ -102,7 +102,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How long are unfinished drafts kept?',
     answer: [
-      'A draft you have started but not generated is kept for **24 hours** after you last changed it. Once it has a story (step 2, **Check the story**), it is kept for **14 days** after your last change, so a script you wrote is not lost over a weekend.',
+      'A draft you have started but not generated is kept for **24 hours** after you last changed it. Once it has a story (step 2, **The story**), it is kept for **14 days** after your last change, so a script you wrote is not lost over a weekend.',
       'After that the draft and any file you uploaded for it are deleted. Finished videos are never deleted this way.',
     ],
   },
@@ -115,7 +115,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Do I need a card to try it?',
     answer: [
-      'No. Sign up with your name, email and a password and you land on **Home**. Make your first project, add your brand on step 3, and press **See a free preview** to see the first scene and hear the voice — free, a few a day.',
+      'No. Sign up with your name, email and a password and you land on **Home**. Make your first project, add your brand on step 3, and press **Free preview** to see the first scene and hear the voice — free, a few a day.',
       'You add a card only when you press **Make it** on a real video or presentation. The card page opens and brings you back afterwards. Saving the card starts your free credits; nothing is charged until they run out.',
     ],
   },
@@ -151,7 +151,7 @@ const TROUBLESHOOTING: FaqItem[] = [
   {
     question: 'The AI misunderstood my document.',
     answer: [
-      'On step 2, **The one point** at the top shows what the AI understood. If it is off, type what to change under **Change it by asking** (for example "focus on the retirement income numbers") — it rewrites the story — before you press **Looks right — pick the look**.',
+      'On step 2, **The one point** at the top shows what the AI understood. If it is off, type what to change under **Ask for a change** (for example "focus on the retirement income numbers") — it rewrites the story — before you press **Looks right — pick the look**.',
       'If it is badly wrong, try a cleaner file (a text-based PDF rather than a scan), or paste the text in directly with **Paste text**.',
     ],
   },

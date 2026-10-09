@@ -437,7 +437,8 @@
 }
 
 /* ── Focus header (round A) — while making something, VidWiz's quiet header
-   replaces the full bar: ← Home · the step numbers · How to use · credits.
+   replaces the full bar: ← Home · the three steps · How to use · credits.
+   A step already done is a link back to it (same draft).
    It reuses the top bar's frame so the page below doesn't jump. ───────── */
 .kit-focusbar .kit-topbar-inner { gap: var(--space-4); }
 .kit-focusbar-exit {
@@ -462,36 +463,38 @@
   padding: 0;
   list-style: none;
 }
-.kit-focusbar-step { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-ui); font-weight: 700; color: var(--ink-light); white-space: nowrap; }
+.kit-focusbar-step { display: inline-flex; align-items: center; gap: var(--space-3); padding: 8px 12px; border-radius: 8px; font-size: var(--fs-lead); font-weight: 700; color: var(--ink-light); white-space: nowrap; text-decoration: none; }
+a.kit-focusbar-step:hover { background: var(--surface); color: var(--ink); }
+a.kit-focusbar-step:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
 .kit-focusbar-num {
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--border);
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--border);
   border-radius: 50%;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-ui);
   font-weight: 800;
 }
 .kit-focusbar-step.is-now { color: var(--ink); }
 .kit-focusbar-step.is-now .kit-focusbar-num { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
-.kit-focusbar-step.is-done { color: var(--ink-soft); }
+.kit-focusbar-step.is-done { color: var(--ink-body, var(--ink-soft)); }
 .kit-focusbar-step.is-done .kit-focusbar-num { background: var(--accent); border-color: var(--accent); color: var(--ink); }
 .kit-focusbar-title { margin: 0 auto; font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
 .kit-focusbar .kit-topbar-end { margin-left: 0; }
 .kit-focusbar-help { display: none; }
 
 @media (max-width: 1100px) {
-  /* Mid widths: the numbers and the current step's words only. */
-  .kit-focusbar-step:not(.is-now) .kit-focusbar-word { display: none; }
-  .kit-focusbar-steps { gap: var(--space-3); }
+  .kit-focusbar-steps { gap: var(--space-1); }
+  .kit-focusbar-step { font-size: var(--fs-body); padding: 8px; }
 }
 @media (max-width: 900px) {
   .kit-focusbar .kit-topbar-inner { gap: var(--space-2); }
   .kit-focusbar-exit { padding: 8px 6px; }
   .kit-focusbar-exit span { display: none; }
   .kit-focusbar-step .kit-focusbar-word { display: none; }
-  .kit-focusbar-steps { gap: var(--space-2); }
+  .kit-focusbar-steps { gap: var(--space-1); }
+  .kit-focusbar-step { padding: 6px; }
   .kit-focusbar-help { display: block; }
   .kit-focusbar .kit-icon-btn { width: 36px; height: 36px; }
 }
@@ -667,6 +670,8 @@ textarea:focus-visible {
 .kit-text-h3      { font-size: var(--fs-h3);      line-height: var(--lh-h3); font-weight: 800; letter-spacing: -0.01em; }
 .kit-text-h2      { font-size: var(--fs-h2);      line-height: var(--lh-h2); font-weight: 800; letter-spacing: -0.02em; }
 .kit-text-h1      { font-size: var(--fs-h1);      line-height: var(--lh-h1); font-weight: 800; letter-spacing: -0.025em; }
+.kit-text-big     { font-size: var(--fs-big);     line-height: var(--lh-big); font-weight: 700; }
+.kit-text-display { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 800; letter-spacing: -0.025em; }
 
 /* Gaps between things: a row (wraps) or a stack, with a gap from the scale. */
 .kit-row   { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

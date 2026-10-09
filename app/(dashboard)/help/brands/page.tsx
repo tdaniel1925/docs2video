@@ -22,7 +22,7 @@ export default function BrandsHelpPage() {
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
           <h1>Brands &amp; Personalization</h1>
-          <p>A brand is who your video comes from. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). Your default brand is used automatically, and you can switch to another saved brand on the <strong>Make it yours</strong> step whenever you make a video.</p>
+          <p>A brand is who your video comes from. It can be a <strong>Person</strong> (you, with your name, role, and photo) or a <strong>Company</strong> (your logo, colors, and contact info). Your default brand is used automatically, and you can switch to another saved brand on the <strong>The look</strong> step whenever you make a video.</p>
         </div>
       </div>
 
@@ -39,10 +39,10 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>From the top bar</strong> — Click <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> in the top bar. You see all your saved brands. Click <strong style={{ color: 'var(--ink)' }}>{NAMES.newBrand}</strong> to add one, or click a brand to edit it.
           </p>
           <p>
-            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step you see which brand is in use. Click <strong style={{ color: 'var(--ink)' }}>Change</strong> to pick another saved brand or make a new one. No brand at all? The video uses plain colors.
+            <strong style={{ color: 'var(--ink)' }}>While making a video</strong> — On the <strong style={{ color: 'var(--ink)' }}>The look</strong> step you see which brand is in use. Click <strong style={{ color: 'var(--ink)' }}>Change</strong> to pick another saved brand or make a new one. No brand at all? The video uses plain colors.
           </p>
           <p style={{ marginTop: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Your first brand, inside your first project</strong> — New accounts don&apos;t fill in a brand page first. On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step of your first project, <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> opens right on the page (later, click <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> on the brand line):
+            <strong style={{ color: 'var(--ink)' }}>Your first brand, inside your first project</strong> — New accounts don&apos;t fill in a brand page first. On the <strong style={{ color: 'var(--ink)' }}>The look</strong> step of your first project, <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> opens right on the page (later, click <strong style={{ color: 'var(--ink)' }}>Add your brand</strong> on the brand line):
           </p>
           <ol style={{ margin: '6px 0 0', paddingLeft: 20 }}>
             <li>Type <strong style={{ color: 'var(--ink)' }}>Your name or company</strong>.</li>
@@ -163,7 +163,7 @@ export default function BrandsHelpPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 'var(--fs-ui)', flexShrink: 0,
             }}>4</div>
             <div>
-              <strong style={{ color: 'var(--ink)' }}>Add your logo and save.</strong> Upload your logo, check the name, and click <strong style={{ color: 'var(--ink)' }}>Create brand</strong>. It is now ready to pick on the Make it yours step.
+              <strong style={{ color: 'var(--ink)' }}>Add your logo and save.</strong> Upload your logo, check the name, and click <strong style={{ color: 'var(--ink)' }}>Create brand</strong>. It is now ready to pick on the The look step.
             </div>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function BrandsHelpPage() {
             <strong style={{ color: 'var(--ink)' }}>Default Brand</strong> — Tick <strong style={{ color: 'var(--ink)' }}>Set as default brand</strong> when creating or editing a brand. That brand is picked for you first when you make something new.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--ink)' }}>Choosing a Brand for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>Make it yours</strong> step, click <strong style={{ color: 'var(--ink)' }}>Change</strong> next to the brand and pick the one you want. The video uses that brand&apos;s logo, colors, photo and contact details.
+            <strong style={{ color: 'var(--ink)' }}>Choosing a Brand for a Video</strong> — On the <strong style={{ color: 'var(--ink)' }}>The look</strong> step, click <strong style={{ color: 'var(--ink)' }}>Change</strong> next to the brand and pick the one you want. The video uses that brand&apos;s logo, colors, photo and contact details.
           </p>
           <p>
             <strong style={{ color: 'var(--ink)' }}>Editing a Brand</strong> — Click <strong style={{ color: 'var(--ink)' }}>{NAMES.brands}</strong> in the top bar and click any brand to edit it. Changes don&apos;t alter videos you already made; everything you make afterwards uses the new settings.

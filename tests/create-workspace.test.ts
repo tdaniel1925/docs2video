@@ -3,16 +3,17 @@ import { readFileSync } from 'fs'
 import path from 'path'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { STEPS, phoneStepLine, stepIndexFor } from '../app/(dashboard)/create/_components/workspace/steps'
+import { STEPS, stepHref, stepIndexFor } from '../app/(dashboard)/create/_components/workspace/steps'
 import MainAction from '../app/(dashboard)/create/_components/workspace/MainAction'
 import { waitingStages } from '../app/(dashboard)/create/generating/stages'
 import { IN_PROGRESS_STATUSES } from '../app/_lib/video-running'
 import { announceVideoReady, markReadySeen, sweepReadyVideos, type SendReadyEmail } from '../app/_lib/video-ready'
 
 /*
- * PHASE 3 — the workspace (2026-10). Guards for what the customer was promised:
- *  - the step rail and "Your video so far" are on every step, the waiting
- *    screen included (the rail used to vanish there);
+ * THE CREATE FLOW (phase 3, reshaped 2026-10-09 to the owner-approved sketch).
+ * Guards for what the customer was promised:
+ *  - three steps in the focus header; no step rail and no "so far" panel
+ *    (tests/create-flow-sketch.test.ts has the layout guards);
  *  - no percentage is made up by a timer;
  *  - a main button that can't be pressed says why (and "Show me");
  *  - "we'll email you when it's ready" is true, and the email goes once.
@@ -27,36 +28,24 @@ const STEP_SCREENS = [
   `${CREATE}/generating/page.tsx`,
 ]
 
-describe('three-part workspace on every step', () => {
-  it('the rail covers all four steps, the waiting screen included', () => {
-    expect(STEPS).toHaveLength(4)
+describe('three steps, then the making screen', () => {
+  it('the steps are Your content · The story · The look; the making screen comes after them', () => {
+    expect(STEPS.map((s) => s.label)).toEqual(['Your content', 'The story', 'The look'])
     expect(stepIndexFor('/create')).toBe(0)
     expect(stepIndexFor('/create/script')).toBe(1)
+    expect(stepIndexFor('/create/brief')).toBe(1)
     expect(stepIndexFor('/create/theme')).toBe(2)
+    expect(stepIndexFor('/create/brand')).toBe(2)
+    // all three done on the making screen
     expect(stepIndexFor('/create/generating')).toBe(3)
     expect(stepIndexFor('/create/commercial')).toBe(-1)
-    const layout = read(`${CREATE}/layout.tsx`)
-    expect(layout).not.toMatch(/generating/) // no "hide the rail here" exception
-    expect(layout).toMatch(/className="steps-rail"/)
   })
 
-  it('the phone gets one line: "Step 2 of 4 · The story"', () => {
-    expect(phoneStepLine(1)).toBe('Step 2 of 4 · The story')
-    expect(phoneStepLine(3)).toBe('Step 4 of 4 · Send it')
-  })
-
-  it.each(STEP_SCREENS)('%s puts its work inside <Workspace> (with "Your video so far")', (file) => {
-    const src = read(file)
-    expect(src).toMatch(/<Workspace\b/)
-    expect(src).toMatch(/soFar=\{/)
-  })
-
-  it('the summary panel is titled for what is being made and shows the price row', () => {
-    const panel = read(`${CREATE}/_components/workspace/SoFarPanel.tsx`)
-    expect(panel).toMatch(/Your \{noun\} so far/)
-    expect(panel).toMatch(/<dt>Price<\/dt>/)
-    // never a price typed or worked out in the browser
-    expect(panel).not.toMatch(/\b(500|1000|1500|1,000)\b/)
+  it('a step already done links back to it for the same draft', () => {
+    expect(stepHref(0, 'abc')).toBe('/create?id=abc')
+    expect(stepHref(1, 'abc')).toBe('/create/script?id=abc')
+    expect(stepHref(2, 'abc')).toBe('/create/theme?id=abc')
+    expect(stepHref(0, null)).toBeNull()
   })
 })
 
@@ -112,11 +101,11 @@ describe('a main button that can’t be pressed says why', () => {
     expect(html).not.toMatch(/disabled/)
   })
 
-  it.each(STEP_SCREENS.slice(0, 3))('%s moves on with <MainAction>, not a bare disabled button', (file) => {
+  it.each(STEP_SCREENS.slice(0, 3))('%s moves on with the bottom bar (its MainAction), not a bare disabled button', (file) => {
     const src = read(file)
-    const usesPanel = /<PricePanel/.test(src)
-    expect(usesPanel || /<MainAction\b/.test(src)).toBe(true)
+    expect(src).toMatch(/<BottomBar\b/)
     expect(src).not.toMatch(/className="btn btn-primary btn-lg btn-full"/)
+    expect(read(`${CREATE}/_components/workspace/BottomBar.tsx`)).toMatch(/<MainAction onClick=\{onMain\}/)
   })
 })
 

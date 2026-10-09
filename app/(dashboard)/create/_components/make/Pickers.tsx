@@ -1,111 +1,107 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { FileText, Film, GalleryVerticalEnd, Presentation, type LucideIcon } from 'lucide-react'
-import s from './make.module.css'
+import { Play, Square } from 'lucide-react'
 import { formatCredits } from './usePriceQuote'
-import { PRES_LOOKS, VIDEO_LOOKS, VIDEO_SAMPLE_KINDS, type VideoLookId } from './looks'
+import type { LookCard } from './looks'
 import { VOICE_OPTIONS } from '../../../../_lib/types'
 import type { MakeOutput, OutputQuote } from '../../../../_lib/price-quote'
 
 // ── The look ────────────────────────────────────────────────────────────────
 
-export function VideoLookPicker({ value, onChange, onZoom }: {
-  value: VideoLookId
-  onChange: (id: VideoLookId) => void
+/**
+ * The look cards, three across (two on a phone): a big picture, the name,
+ * BEST on the recommended one. Drawn from lookCards() in looks.ts, so a new
+ * look is one more entry there. The picked look's one-line description and
+ * sample pictures sit under the cards.
+ */
+export function LookPicker({ cards, value, onChange, onZoom, note }: {
+  cards: LookCard[]
+  value: string
+  onChange: (id: string) => void
   onZoom: (url: string) => void
+  /** Extra words after the picked look's description (how long it takes). */
+  note?: string | null
 }) {
-  const sel = VIDEO_LOOKS.find((l) => l.id === value) ?? VIDEO_LOOKS[0]
+  const sel = cards.find((l) => l.id === value) ?? cards[0]
   return (
     <>
-      <div className={s.looks} role="radiogroup" aria-label="The look">
-        {VIDEO_LOOKS.map((l) => (
+      <div className="cf-looks" role="radiogroup" aria-label="The look">
+        {cards.map((l) => (
           <button
             key={l.id}
             type="button"
             role="radio"
             aria-checked={value === l.id}
-            className={`${s.look} ${value === l.id ? s.lookOn : ''}`}
+            className="cf-look"
             onClick={() => onChange(l.id)}
           >
-            {l.id === 'slides' ? <span className={s.lookBadge}>Recommended</span> : null}
-            <img className={s.lookThumb} src={`/style-samples/${l.id}-cover.png`} alt="" loading="lazy" />
-            <div className={s.lookName}>{l.name}</div>
+            {l.recommended ? <span className="cf-look-best">BEST</span> : null}
+            {l.thumb.kind === 'img'
+              // eslint-disable-next-line @next/next/no-img-element -- a sample picture, shown as is
+              ? <img className="cf-look-thumb" src={l.thumb.src} alt="" loading="lazy" />
+              : <Swatch swatch={l.thumb.swatch} />}
+            <span className="cf-look-cap">
+              {l.name}
+              {l.tag ? <small>{l.tag}</small> : null}
+            </span>
           </button>
         ))}
       </div>
-      <div className={s.lookDetail}>
-        <p><strong>{sel.name}.</strong> {sel.tagline}</p>
-        <div className={s.samples}>
-          {VIDEO_SAMPLE_KINDS.map((kind) => {
-            const url = `/style-samples/${sel.id}-${kind}.png`
-            return (
-              <button key={kind} type="button" className={s.sample} onClick={() => onZoom(url)} aria-label={`Enlarge ${sel.name} ${kind} sample`}>
-                <img src={url} alt={`${sel.name} ${kind} sample`} loading="lazy" />
-              </button>
-            )
-          })}
+      {sel ? (
+        <div className="cf-look-detail">
+          <p className="cf-hint"><strong style={{ color: 'var(--ink)' }}>{sel.name}.</strong> {sel.tagline}{note ? ` ${note}` : ''}</p>
+          {sel.samples?.length ? (
+            <details className="cf-examples">
+            <summary>See examples of {sel.name}</summary>
+            <div className="cf-samples">
+              {sel.samples.map((url) => {
+                const kind = url.replace(/^.*-(\w+)\.png$/, '$1')
+                return (
+                  <button key={url} type="button" className="cf-sample" onClick={() => onZoom(url)} aria-label={`Enlarge ${sel.name} ${kind} sample`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a sample picture */}
+                    <img src={url} alt={`${sel.name} ${kind} sample`} loading="lazy" />
+                  </button>
+                )
+              })}
+            </div>
+            </details>
+          ) : null}
         </div>
-      </div>
+      ) : null}
     </>
   )
 }
 
-export function PresLookPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const sel = PRES_LOOKS.find((l) => l.id === value) ?? PRES_LOOKS[0]
+/** A mini slide drawn from a presentation look's own three colours. */
+function Swatch({ swatch }: { swatch: [string, string, string] }) {
+  const [paper, ink, accent] = swatch
   return (
-    <>
-      <div className={s.looks} role="radiogroup" aria-label="The look">
-        {PRES_LOOKS.map((l) => {
-          const [paper, ink, accent] = l.swatch
-          return (
-            <button
-              key={l.id}
-              type="button"
-              role="radio"
-              aria-checked={value === l.id}
-              className={`${s.look} ${value === l.id ? s.lookOn : ''}`}
-              onClick={() => onChange(l.id)}
-            >
-              {/* A mini slide drawn from the template's own colors. */}
-              <div className={s.lookSwatch} style={{ background: paper }}>
-                <div style={{ width: 30, height: 3, background: accent, borderRadius: 2, marginBottom: 7 }} />
-                <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 800, color: ink, lineHeight: 1.15 }}>Your title<span style={{ color: accent }}>.</span></div>
-                <div style={{ marginTop: 7, display: 'flex', gap: 'var(--space-1)' }}>
-                  <span style={{ flex: 2, height: 5, background: ink, opacity: 0.25, borderRadius: 3 }} />
-                  <span style={{ flex: 1, height: 5, background: accent, opacity: 0.7, borderRadius: 3 }} />
-                </div>
-              </div>
-              <div className={s.lookName}>{l.name}</div>
-            </button>
-          )
-        })}
-      </div>
-      <p className={s.note}><strong>{sel.name}.</strong> {sel.tagline} You can switch looks after it’s built, free.</p>
-    </>
+    <span className="cf-look-swatch" style={{ background: paper }}>
+      <span className="cf-look-swatch-bar" style={{ background: accent }} />
+      <span className="cf-look-swatch-title" style={{ color: ink }}>Your title<span style={{ color: accent }}>.</span></span>
+    </span>
   )
 }
 
-// ── What to send ────────────────────────────────────────────────────────────
+// ── What to make ────────────────────────────────────────────────────────────
 
-const OUTPUT_TEXT: Record<MakeOutput, { name: string; desc: string }> = {
-  video: { name: 'Narrated video', desc: 'A voice walks them through it.' },
-  interactive: { name: 'Interactive presentation', desc: 'They click through at their own pace, with narration.' },
-  deck: { name: 'Slide deck', desc: 'Silent slides for a meeting. Download as PDF or PowerPoint.' },
-  pptx: { name: 'PowerPoint file', desc: 'The file you started from the deck builder.' },
-  pdf: { name: 'PDF file', desc: 'The file you started from the deck builder.' },
+const OUTPUT_NAME: Record<MakeOutput, string> = {
+  video: 'Video',
+  interactive: 'Presentation',
+  deck: 'Slide deck',
+  pptx: 'PowerPoint file',
+  pdf: 'PDF file',
+}
+const OUTPUT_HINT: Record<MakeOutput, string> = {
+  video: 'A narrated video. A voice walks them through it.',
+  interactive: 'An interactive presentation. They click through at their own pace, with narration.',
+  deck: 'Silent slides for a meeting.',
+  pptx: 'A PowerPoint file.',
+  pdf: 'A PDF file.',
 }
 
-/** One picture per output (lucide, 20px) — the same ones the Library's
- *  placeholders use, so a presentation looks like a presentation everywhere. */
-const OUTPUT_ICON: Record<MakeOutput, LucideIcon> = {
-  video: Film,
-  interactive: Presentation,
-  deck: GalleryVerticalEnd,
-  pptx: Presentation,
-  pdf: FileText,
-}
-
+/** Video or presentation, each with the server's price (… while it loads). */
 export function OutputPicker({ offered, value, onChange, options }: {
   offered: MakeOutput[]
   value: MakeOutput
@@ -113,20 +109,12 @@ export function OutputPicker({ offered, value, onChange, options }: {
   options: Partial<Record<MakeOutput, OutputQuote>> | null
 }) {
   return (
-    <div className={s.outputs} role="radiogroup" aria-label="What do you want to send?">
+    <div className="cf-chips" role="radiogroup" aria-label="Make">
       {offered.map((o) => {
-        const on = value === o
         const q = options?.[o]
-        const Icon = OUTPUT_ICON[o]
         return (
-          <button key={o} type="button" role="radio" aria-checked={on} className={`${s.output} ${on ? s.outputOn : ''}`} onClick={() => onChange(o)}>
-            <span className={`${s.radio} ${on ? s.radioOn : ''}`} aria-hidden />
-            <span className={`${s.outputIcon} ${on ? s.outputIconOn : ''}`}><Icon size={20} /></span>
-            <span className={s.outputBody}>
-              <span className={s.outputName}>{OUTPUT_TEXT[o].name}</span>
-              <span className={s.outputDesc} style={{ display: 'block' }}>{OUTPUT_TEXT[o].desc}</span>
-            </span>
-            <span className={s.outputPrice}>{q ? formatCredits(q.total) : '…'}</span>
+          <button key={o} type="button" role="radio" aria-checked={value === o} className="cf-chip" title={OUTPUT_HINT[o]} onClick={() => onChange(o)}>
+            {OUTPUT_NAME[o]} <small>{q ? formatCredits(q.total) : '…'}</small>
           </button>
         )
       })}
@@ -136,7 +124,8 @@ export function OutputPicker({ offered, value, onChange, options }: {
 
 // ── The voice ───────────────────────────────────────────────────────────────
 
-/** Voices in VOICE_OPTIONS order — Sarah (nova) first, the default. */
+/** Voices in VOICE_OPTIONS order — Sarah (nova) first, the default. ▶ plays
+ *  a sample without choosing it; pressing the name chooses it. */
 export function VoicePicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const [playing, setPlaying] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -154,18 +143,19 @@ export function VoicePicker({ value, onChange }: { value: string; onChange: (id:
   }
 
   return (
-    <div className={s.chips} role="radiogroup" aria-label="The voice">
+    <div className="cf-chips" role="radiogroup" aria-label="The voice">
       {VOICE_OPTIONS.map((v) => {
         const on = value === v.id
         return (
-          <div key={v.id} className={`${s.chip} ${on ? s.chipOn : ''}`}>
+          <span key={v.id} className={`cf-chip ${on ? 'is-on' : ''}`} style={{ padding: '6px 14px 6px 6px' }}>
             <button
               type="button"
-              className={s.play}
+              className="cf-scene-edit"
+              style={{ padding: 6, display: 'inline-grid', placeItems: 'center' }}
               onClick={() => toggle(v.id)}
               aria-label={playing === v.id ? `Stop ${v.name} sample` : `Play ${v.name} sample`}
             >
-              {playing === v.id ? '■' : '▶'}
+              {playing === v.id ? <Square size={14} /> : <Play size={14} />}
             </button>
             <button
               type="button"
@@ -174,9 +164,9 @@ export function VoicePicker({ value, onChange }: { value: string; onChange: (id:
               onClick={() => onChange(v.id)}
               style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textAlign: 'left' }}
             >
-              {v.name} <span className={s.chipSub}>{v.gender.toLowerCase()}</span>
+              {v.name} <small>{v.gender.toLowerCase()}</small>
             </button>
-          </div>
+          </span>
         )
       })}
     </div>

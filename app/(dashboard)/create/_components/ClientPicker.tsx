@@ -1,25 +1,31 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Search } from 'lucide-react'
 
 /**
- * WHO IS IT FOR? — asked ONCE, on the first screen.
+ * "FOR" — who the project is for. Optional, asked once on step 1.
  *
- * This replaces the separate /create/client page. The answer rides on the
- * draft (clientId + recipientName) and is reused for the cover greeting, the
- * send email and the share page, so the later steps never ask again.
+ * Your most recent clients are chips: press one to pick it, press it again
+ * to make the project general. "+ New" adds a client right here; "Find" looks
+ * through the rest. The answer rides on the draft (clientId + recipientName)
+ * and is reused for the cover greeting, the send email and the share page.
  */
 export type PickedClient = { clientId: string | null; name: string }
 
 type Client = { id: string; name: string; email: string | null }
 
-export default function ClientPicker({ value, onPick }: {
-  /** null = not chosen yet. clientId null = "no client — general". */
+const RECENT = 2
+
+export default function ClientPicker({ value, onPick, disabled }: {
+  /** null = nothing chosen. clientId null = general (no client). */
   value: PickedClient | null
   onPick: (c: PickedClient | null) => void
+  disabled?: boolean
 }) {
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
+  const [finding, setFinding] = useState(false)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -27,15 +33,14 @@ export default function ClientPicker({ value, onPick }: {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (value) return
     const t = setTimeout(() => {
       fetch(`/api/clients?search=${encodeURIComponent(search)}&sort=last_activity_at&order=desc`)
         .then((r) => (r.ok ? r.json() : { clients: [] }))
-        .then((d) => setClients((d.clients ?? []).slice(0, 6)))
+        .then((d) => setClients((d.clients ?? []).slice(0, finding ? 8 : RECENT)))
         .catch(() => setClients([]))
     }, 200)
     return () => clearTimeout(t)
-  }, [search, value])
+  }, [search, finding])
 
   async function create() {
     if (!newName.trim()) { setError('Add their name'); return }
@@ -47,54 +52,58 @@ export default function ClientPicker({ value, onPick }: {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not add that client'); return }
+      setClients((list) => [{ id: data.client.id, name: data.client.name, email: data.client.email ?? null }, ...list.filter((c) => c.id !== data.client.id)])
       onPick({ clientId: data.client.id, name: data.client.name })
       setAdding(false); setNewName(''); setNewEmail('')
     } catch { setError('Could not add that client') }
     finally { setBusy(false) }
   }
 
-  const chip = (on: boolean): React.CSSProperties => ({
-    padding: '10px 14px', borderRadius: 9, fontSize: 'var(--fs-ui)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-    border: on ? '2px solid var(--ink)' : '1px solid var(--border)',
-    background: on ? 'var(--accent-soft)' : 'var(--bg)', color: 'var(--ink)',
-  })
-
-  if (value) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-soft)', fontSize: 'var(--fs-body)' }}>
-        <span><strong>{value.clientId ? value.name : 'No client — general'}</strong></span>
-        <button type="button" onClick={() => onPick(null)} style={{ background: 'none', border: 'none', fontSize: 'var(--fs-small)', color: 'var(--link)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
-      </div>
-    )
-  }
+  const pickedId = value?.clientId ?? null
+  // The picked client stays on show even when it isn't one of the recent ones.
+  const shown = pickedId && !clients.some((c) => c.id === pickedId)
+    ? [{ id: pickedId, name: value?.name || 'Your client', email: null }, ...clients]
+    : clients
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-        {clients.map((c) => (
-          <button key={c.id} type="button" style={chip(false)} onClick={() => onPick({ clientId: c.id, name: c.name })}>{c.name}</button>
-        ))}
-        <button type="button" style={chip(adding)} onClick={() => setAdding((a) => !a)}>+ New client</button>
-        <button type="button" style={chip(false)} onClick={() => onPick({ clientId: null, name: '' })}>No client — general</button>
+      <div className="cf-chips" role="group" aria-label="Your clients">
+        {shown.map((c) => {
+          const on = c.id === pickedId
+          return (
+            <button
+              key={c.id}
+              type="button"
+              className="cf-chip"
+              aria-pressed={on}
+              disabled={disabled}
+              onClick={() => onPick(on ? { clientId: null, name: '' } : { clientId: c.id, name: c.name })}
+            >
+              {c.name}
+            </button>
+          )
+        })}
+        <button type="button" className="cf-chip cf-chip--link" aria-expanded={adding} disabled={disabled} onClick={() => { setAdding((a) => !a); setFinding(false) }}>+ New</button>
+        <button type="button" className="cf-chip cf-chip--link" aria-expanded={finding} disabled={disabled} onClick={() => { setFinding((f) => !f); setAdding(false); setSearch('') }}>
+          <Search size={16} />Find
+        </button>
       </div>
-      <input
-        type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your clients"
-        aria-label="Search your clients"
-        style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', background: 'var(--bg)' }}
-      />
+      {finding && (
+        <input
+          type="search" className="cf-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search your clients"
+          aria-label="Search your clients" autoFocus
+        />
+      )}
       {adding && (
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" aria-label="New client name"
-            style={{ flex: '1 1 180px', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit' }} />
-          <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email (optional)" aria-label="New client email" type="email"
-            style={{ flex: '1 1 200px', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit' }} />
-          <button type="button" onClick={() => void create()} disabled={busy}
-            style={{ padding: '10px 16px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'var(--on-ink)', fontWeight: 700, fontSize: 'var(--fs-ui)', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <input className="cf-input" style={{ flex: '1 1 160px' }} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" aria-label="New client name" />
+          <input className="cf-input" style={{ flex: '1 1 200px' }} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email (optional)" aria-label="New client email" type="email" />
+          <button type="button" className="kit-btn kit-btn--secondary" onClick={() => void create()} disabled={busy}>
             {busy ? 'Adding…' : 'Add'}
           </button>
         </div>
       )}
-      {error && <div role="alert" style={{ fontSize: 'var(--fs-small)', color: 'var(--error)' }}>{error}</div>}
+      {error && <div role="alert" style={{ fontSize: 'var(--fs-small)', color: 'var(--error-text)' }}>{error}</div>}
     </div>
   )
 }

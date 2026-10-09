@@ -15,9 +15,9 @@ const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8')
 describe('help knows the page', () => {
   it('step 3 and Home each give the assistant their own screen, in the screen’s words', () => {
     const step3 = helpContextFor('/create/theme')
-    expect(step3).toContain('Step 3 — Make it yours')
+    expect(step3).toContain('Step 3 — The look')
     expect(step3).toContain('"Add your brand"')
-    expect(step3).toContain('"See a free preview"')
+    expect(step3).toContain('"Free preview"')
     expect(step3).not.toContain('**')
     const home = helpContextFor('/dashboard')
     expect(home).toContain('"Home"')
@@ -68,9 +68,9 @@ describe('help knows the page', () => {
     expect(read('app/_components/HelpChatWidget.tsx')).toMatch(/brand\.showVideoFeatures \? 'help-fab help-fab--tucked' : 'help-fab'/)
   })
 
-  it('the pinned phone button sits above the cookie notice, not under it', () => {
+  it('the bottom bar sits above the cookie notice, not under it', () => {
     const css = read('app/globals.css')
-    expect(css).toMatch(/\.ws-main-action \{\s*position: fixed; left: 0; right: 0; bottom: var\(--bottom-bar, 0px\);/)
+    expect(css).toMatch(/\.cf-bar \{\s*position: fixed; left: 0; right: 0; bottom: var\(--bottom-bar, 0px\);/)
     expect(read('app/_components/CookieBanner.tsx')).toContain("root.style.setProperty('--bottom-bar'")
     // Found by the e2e run: the round help button sat UNDER the notice too.
     const w = read('app/_components/HelpChatWidget.tsx')

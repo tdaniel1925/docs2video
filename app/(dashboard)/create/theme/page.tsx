@@ -1,7 +1,10 @@
 'use client'
 
-// STEP 3 — MAKE IT YOURS. One screen: the look, what to send, the voice, and
-// the price with the one button that spends credits.
+// STEP 3 — "THE LOOK" (/create/theme). "Pick a look.": the look cards three
+// across, ONE settings line ("Sarah · music on · standard  Change") and a
+// "More options" fold (voice, music, video or presentation, length, photo
+// backgrounds, things for your client, the price lines). The bottom bar holds
+// the price, the free preview and Make it — the one button that spends.
 //
 // The price is never worked out here. It comes from /api/price-quote, which
 // uses the same functions generate-video and generate-presentation charge
@@ -9,22 +12,21 @@
 // every choice to the draft, re-reads the price, and stops if it changed.
 
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { Button, Note } from '../../../_components/kit'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BuyCreditsModal from '../../../_components/BuyCreditsModal'
 import { createClient } from '../../../_lib/supabase/client'
 import { VOICE_OPTIONS } from '../../../_lib/types'
 // Types only — the price helper itself is server code and never runs here.
 import type { MakeOutput } from '../../../_lib/price-quote'
-import s from '../_components/make/make.module.css'
-import PricePanel from '../_components/make/PricePanel'
-import { OutputPicker, PresLookPicker, VideoLookPicker, VoicePicker } from '../_components/make/Pickers'
+import { LookPicker, OutputPicker, VoicePicker } from '../_components/make/Pickers'
 import { usePriceQuote, formatCredits } from '../_components/make/usePriceQuote'
-import { isPresLook, isVideoLook, PRES_LOOKS, type VideoLookId } from '../_components/make/looks'
+import { isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, type VideoLookId } from '../_components/make/looks'
 // The same list the story step chooses from — one set of names for both.
 import { LENGTHS, LENGTH_ANCHOR } from '../_components/story/lengths'
-import Workspace from '../_components/workspace/Workspace'
-import { clientLabel, factsFromDraft, lookName, voiceName } from '../_components/workspace/facts'
-import FirstScenePreview from '../_components/make/FirstScenePreview'
+import BottomBar from '../_components/workspace/BottomBar'
+import { settingsLine } from '../_components/workspace/facts'
+import FirstScenePreview, { useFirstScenePreview } from '../_components/make/FirstScenePreview'
 import AddBrandPiece from '../_components/make/AddBrandPiece'
 import { D2V_OUTPUTS, d2vOutputs } from '../../../_lib/videos-only'
 
@@ -63,7 +65,7 @@ function MakeItYours() {
   const [addingBrand, setAddingBrand] = useState(false)
 
   const [output, setOutput] = useState<MakeOutput>('video')
-  const [videoLook, setVideoLook] = useState<VideoLookId>('slides')
+  const [videoLook, setVideoLook] = useState<VideoLookId>(RECOMMENDED_VIDEO_LOOK)
   const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
   const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
   const [aiMusic, setAiMusic] = useState(false)
@@ -72,6 +74,10 @@ function MakeItYours() {
   const [agentNote, setAgentNote] = useState('')
 
   const [lightbox, setLightbox] = useState<string | null>(null)
+  // "More options" — voice, music, what to make, length, extras, the price lines.
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDetailsElement>(null)
+  const previewRef = useRef<HTMLElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const inFlight = useRef(false) // stops a double-click before React re-renders
   const [error, setError] = useState<{ message: string; topUp?: boolean } | null>(null)
@@ -276,19 +282,36 @@ function MakeItYours() {
     }
   }
 
+  // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
+  // account): the button sits in the bottom bar beside Make it, the picture
+  // on the page. It previews the choices on screen right now.
+  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : videoLook, voiceId })
+  // Bring the preview into view when it starts, so the wait is seen.
+  useEffect(() => {
+    if (preview.busy) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [preview.busy])
+
+  function openMore() {
+    setMoreOpen(true)
+    // After the fold opens, bring it into view.
+    window.setTimeout(() => moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
   if (loading) {
     return (
-      <Workspace soFar={factsFromDraft(null)}>
+      <div className="cf-page">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>
-      </Workspace>
+      </div>
     )
   }
   if (!videoId || loadError) {
     return (
-      <div className={s.page}>
-        <h1 className={s.title}>We couldn’t find this project.</h1>
-        <p className={s.lead}>{loadError || 'Start a new one and it will be saved as you go.'}</p>
-        <button type="button" className="btn btn-primary" onClick={() => router.push('/create')}>Start a project</button>
+      <div className="cf-page">
+        <h1 className="cf-h1">We couldn’t find this project.</h1>
+        <p className="cf-hint">{loadError || 'Start a new one and it will be saved as you go.'}</p>
+        <div className="cf-buttons">
+          <button type="button" className="kit-btn kit-btn--secondary" onClick={() => router.push('/create')}>Start a project</button>
+        </div>
       </div>
     )
   }
@@ -296,196 +319,208 @@ function MakeItYours() {
   const started = quote && !quote.startable
   const length = LENGTHS.find((l) => l.id === (quote?.detailLevel ?? draft?.detailLevel)) ?? null
   const makeLabel = 'Make it'
+  const balance = quote?.balance ?? null
+  const total = shown?.total ?? null
+  const after = total !== null && balance !== null ? balance - total : null
+  const short = !shown?.free && after !== null && after < 0
+  const topUp = () => setBuyCredits((b) => b ?? { balance: quote?.balance })
 
-  // "Your video so far": the saved draft, with this screen's choices on top
-  // (they're only saved when Make it is pressed, but the summary should
-  // already show them).
-  const soFar = factsFromDraft(draft, {
-    client: clientLabel(draft) ?? (draft?.clientId ? 'Your client' : 'No client — general'),
-    output,
-    look: lookName(output, isPres ? presLook : videoLook),
-    voice: voiceName(voiceId),
-    price: { kind: 'quote', credits: shown?.total ?? null, free: shown?.free, loading: quoteLoading },
-  })
+  // The bar's left side: the price in big words, from the server's quote.
+  const barInfo = shown
+    ? (shown.free ? 'Free' : formatCredits(shown.total))
+    : (quoteError ? 'No price yet' : '…')
+  const barSub = shown
+    ? (shown.free
+        ? 'Your account isn’t charged for this.'
+        : after !== null && after >= 0
+          ? `${formatCredits(after).replace(/ credits?$/, '')} left after`
+          : balance !== null ? `You have ${formatCredits(balance)}` : null)
+    : (quoteError || 'Working out the price…')
 
-  // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
-  // account) — mounted right above the Make it button, given the choices on
-  // screen so it previews what is picked right now.
-  const firstScenePreview = videoId
-    ? <FirstScenePreview videoId={videoId} output={output} look={isPres ? presLook : videoLook} voiceId={voiceId} />
-    : null
+  // One message beside the button at a time, the one that matters most.
+  const notice = started ? (
+    <Note tone="info" action={<button type="button" className="cf-link" onClick={() => router.push(`/create/generating?id=${videoId}`)}>See its progress</button>}>
+      This one has already been started. Open it to see how it’s going.
+    </Note>
+  ) : error ? (
+    <Note tone="stop">
+      {error.message}
+      {error.topUp ? (<> <button type="button" className="cf-link" onClick={topUp}>Top up credits</button></>) : null}
+    </Note>
+  ) : quote?.blockedReason === 'card_required' ? (
+    // LIGHT START: an account with no card reaches this screen and the free
+    // preview; the card is asked for only now, for the real thing.
+    <Note tone="warn">Add a card to start your free trial. We’ll take you there when you press Make it, then bring you back here. The free preview doesn’t need one.</Note>
+  ) : short ? (
+    <Note tone="warn">
+      You need {formatCredits(-(after as number))} more.{' '}
+      <button type="button" className="cf-link" onClick={topUp}>Top up credits</button>
+    </Note>
+  ) : null
+
+  const cards = lookCards(output)
 
   return (
-    <Workspace
-      soFar={soFar}
-      side={
-        <PricePanel
-          quote={shown}
-          balance={quote?.balance ?? null}
-          quoteError={quoteError}
-          loading={quoteLoading || !!started}
-          blockedReason={quote?.blockedReason ?? null}
-          submitting={submitting}
-          submitLabel={makeLabel}
-          timeNote={timeNote}
-          error={started
-            ? { message: 'This one has already been started. Open it to see how it’s going.' }
-            : error}
-          onMake={handleMake}
-          onTopUp={() => setBuyCredits((b) => b ?? { balance: quote?.balance })}
-          preview={firstScenePreview}
+    <div className="cf-page">
+      <h1 className="cf-h1">Pick a <em>look.</em></h1>
+
+      <LookPicker
+        cards={cards}
+        value={isPres ? presLook : videoLook}
+        onChange={(id) => {
+          if (isPres) { if (isPresLook(id)) setPresLook(id) }
+          else if (isVideoLook(id)) setVideoLook(id)
+        }}
+        onZoom={setLightbox}
+        note={timeNote}
+      />
+
+      <FirstScenePreview ref={previewRef} preview={preview} />
+
+      {/* Everything else, in one line. "Change" opens More options. */}
+      <div className="cf-card cf-quick">
+        <span data-testid="settings-line">{settingsLine({ output, voiceId, aiMusic, length: isVideo ? (length?.name ?? null) : null })}</span>
+        <button type="button" className="cf-link" onClick={openMore} aria-controls="more-options">Change</button>
+      </div>
+
+      {/* The brand in use, with a way to change it — one slim line. */}
+      <div className="cf-card cf-brand">
+        {brand?.logo_url ? <img className="cf-brand-logo" src={brand.logo_url} alt="" /> : null}
+        {brand ? (
+          <span className="cf-brand-dots" aria-hidden>
+            {[brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean).map((c, i) => (
+              <span key={i} className="cf-brand-dot" style={{ background: c as string }} />
+            ))}
+          </span>
+        ) : null}
+        <span className="cf-brand-text">
+          {brand
+            ? <>Using <strong>{brand.name}</strong>’s logo and colors.</>
+            : <>No brand on this one yet — it will use plain colors.</>}
+        </span>
+        {brand ? (
+          <button type="button" className="cf-link" onClick={() => router.push(`/create/brand?id=${videoId}`)}>Change</button>
+        ) : (
+          <button type="button" className="cf-link" aria-expanded={addingBrand} onClick={() => setAddingBrand((o) => !o)}>Add your brand</button>
+        )}
+      </div>
+      {!brand && addingBrand && videoId ? (
+        <AddBrandPiece
+          videoId={videoId}
+          draft={draft}
+          onClose={() => setAddingBrand(false)}
+          onSaved={(b) => {
+            setBrand(b)
+            setDraft((d) => ({ ...(d ?? {}), brandId: b.id }))
+            setAddingBrand(false)
+          }}
         />
-      }
-    >
-    <div className={s.page}>
-      <button type="button" className={s.back} onClick={() => router.push(`/create/script?id=${videoId}`)}>&larr; Back to the story</button>
+      ) : null}
 
-      <div>
-        <div>
-          <h1 className={s.title}>Make it <em>yours.</em></h1>
-          <p className={s.lead}>Pick the look, what to send and the voice. Your logo and colors come from your brand.</p>
-
-          {/* Brand in use, with a way to change it */}
-          <div className={s.brand}>
-            {brand?.logo_url ? <img className={s.brandLogo} src={brand.logo_url} alt="" /> : null}
-            {brand ? (
-              <div className={s.brandDots} aria-hidden>
-                {[brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean).map((c, i) => (
-                  <span key={i} className={s.brandDot} style={{ background: c as string }} />
-                ))}
-              </div>
-            ) : null}
-            <div className={s.brandText}>
-              {brand
-                ? <>Using <strong>{brand.name}</strong>’s logo and colors.</>
-                : <>No brand on this one yet — it will use plain colors.</>}
+      <details
+        id="more-options"
+        ref={moreRef}
+        className="cf-card cf-more"
+        open={moreOpen}
+        onToggle={(e) => setMoreOpen((e.currentTarget as HTMLDetailsElement).open)}
+      >
+        <summary>More options</summary>
+        <div className="cf-more-in">
+          {narrated ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Voice</span>
+              <VoicePicker value={voiceId} onChange={setVoiceId} />
             </div>
-            {brand ? (
-              <button type="button" className={s.link} onClick={() => router.push(`/create/brand?id=${videoId}`)}>Change</button>
-            ) : (
-              <button type="button" className={s.link} aria-expanded={addingBrand} onClick={() => setAddingBrand((o) => !o)}>Add your brand</button>
-            )}
-          </div>
-          {!brand && addingBrand && videoId ? (
-            <AddBrandPiece
-              videoId={videoId}
-              draft={draft}
-              onClose={() => setAddingBrand(false)}
-              onSaved={(b) => {
-                setBrand(b)
-                setDraft((d) => ({ ...(d ?? {}), brandId: b.id }))
-                setAddingBrand(false)
-              }}
-            />
           ) : null}
 
-          <section className={s.section}>
-            <div className={s.sectionHead}>
-              <h2 className={s.sectionTitle}>What do you want to send?</h2>
-              <span className={s.sectionHint}>pick one — each project makes one of these</span>
+          {isVideo ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Music</span>
+              <div className="cf-chips" role="radiogroup" aria-label="Background music">
+                <button type="button" role="radio" aria-checked={aiMusic} className="cf-chip" onClick={() => setAiMusic(true)}>On <small>soft, under the voice</small></button>
+                <button type="button" role="radio" aria-checked={!aiMusic} className="cf-chip" onClick={() => setAiMusic(false)}>Off</button>
+              </div>
             </div>
+          ) : null}
+
+          <div className="cf-row">
+            <span className="cf-row-name">Make</span>
             <OutputPicker
               offered={d2vOutputs(quote?.offered ?? D2V_OUTPUTS)}
               value={output}
               onChange={(o) => { setOutput(o); setError(null) }}
               options={quote?.options ?? null}
             />
-          </section>
-
-          <section className={s.section}>
-            <div className={s.sectionHead}>
-              <h2 className={s.sectionTitle}>The look</h2>
-              <span className={s.sectionHint}>{isPres ? 'for the presentation' : 'for the video'}</span>
-            </div>
-            {isPres
-              ? <PresLookPicker value={presLook} onChange={setPresLook} />
-              : <VideoLookPicker value={videoLook} onChange={setVideoLook} onZoom={setLightbox} />}
-            {isVideo && videoLook === 'slides' ? (
-              <label className={s.toggleRow}>
-                <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} />
-                <span>
-                  <span className={s.toggleTitle}>Add photo backgrounds</span>
-                  <span className={s.toggleDesc}>Photo backdrops behind each slide. Looks richer, but adds about 2–3 minutes. Same price.</span>
-                </span>
-              </label>
-            ) : null}
-          </section>
-
-          {narrated ? (
-            <section className={s.section}>
-              <div className={s.sectionHead}>
-                <h2 className={s.sectionTitle}>The voice</h2>
-                <span className={s.sectionHint}>press ▶ to hear a sample</span>
-              </div>
-              <VoicePicker value={voiceId} onChange={setVoiceId} />
-              {isVideo ? (
-                <label className={s.toggleRow}>
-                  <input type="checkbox" checked={aiMusic} onChange={(e) => setAiMusic(e.target.checked)} />
-                  <span>
-                    <span className={s.toggleTitle}>Background music</span>
-                    <span className={s.toggleDesc}>Soft music under the voice that fades in and out. Same price.</span>
-                  </span>
-                </label>
-              ) : null}
-            </section>
-          ) : null}
+          </div>
 
           {isVideo ? (
-            <section className={s.section}>
-              <div className={s.sectionHead}>
-                <h2 className={s.sectionTitle}>Length</h2>
-                <span className={s.sectionHint}>chosen with your story</span>
-              </div>
-              <div className={s.chips}>
-                {LENGTHS.map((l) => (
-                  <span key={l.id} className={`${s.chip} ${length?.id === l.id ? s.chipOn : ''}`} style={{ cursor: 'default', opacity: length?.id === l.id ? 1 : 0.55 }}>
-                    {l.name} <span className={s.chipSub}>{l.minutes}</span>
-                  </span>
-                ))}
-              </div>
-              <p className={s.note}>
-                The story is written at this length, so changing it means rewriting the story — that&rsquo;s free.{' '}
-                {/* Lands on the length choice on the story step, not the top of the page. */}
-                <button type="button" className={s.link} onClick={() => router.push(`/create/script?id=${videoId}#${LENGTH_ANCHOR}`)}>Change the length</button>
-              </p>
-            </section>
+            <div className="cf-row">
+              <span className="cf-row-name">Length</span>
+              <span className="cf-hint" style={{ color: 'var(--ink)' }}>
+                {length ? <><strong>{length.name}</strong> · {length.minutes}</> : 'Standard'}
+              </span>
+              {/* Lands on the length choice on the story step, not the top of the page. */}
+              <button type="button" className="cf-link" onClick={() => router.push(`/create/script?id=${videoId}#${LENGTH_ANCHOR}`)}>Change the length</button>
+            </div>
+          ) : null}
+
+          {isVideo && videoLook === 'slides' ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Photos</span>
+              <label className="cf-toggle">
+                <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} />
+                <span>
+                  Add photo backgrounds
+                  <small>Photo backdrops behind each slide. Looks richer, but adds about 2–3 minutes. Same price.</small>
+                </span>
+              </label>
+            </div>
           ) : null}
 
           {/* Share-page extras (videos and presentations both have a share page). */}
-          <section className={s.section}>
-            <details className={s.details} open={!!agentNote || allowSourceDownload}>
-              <summary>For your client <span className={s.sectionHint}>(optional)</span></summary>
+          <div className="cf-row" style={{ alignItems: 'flex-start' }}>
+            <span className="cf-row-name">For your client</span>
+            <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               {draft?.sourcePdfPath ? (
-                <label className={s.toggleRow}>
+                <label className="cf-toggle">
                   <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} />
                   <span>
-                    <span className={s.toggleTitle}>Let them download the original PDF</span>
-                    <span className={s.toggleDesc}>Adds a “Download original document” button to the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.</span>
+                    Let them download the original PDF
+                    <small>Adds a “Download original document” button to the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.</small>
                   </span>
                 </label>
               ) : null}
-              <label style={{ display: 'block', marginTop: 12 }}>
-                <span className={s.toggleTitle}>A note to your client</span>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>A note to your client</span>
                 <textarea
-                  className={s.textarea}
+                  className="cf-input"
                   value={agentNote}
                   onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
                   placeholder="A short personal message shown above it on the share page…"
                   rows={3}
                 />
-                <span className={s.sectionHint}>{agentNote.length}/400</span>
+                <span className="cf-hint" style={{ fontSize: 'var(--fs-small)' }}>{agentNote.length}/400</span>
               </label>
-            </details>
-          </section>
+            </div>
+          </div>
+
+          {/* What's in the price — the server's own lines. */}
+          <div className="cf-row" style={{ alignItems: 'flex-start' }}>
+            <span className="cf-row-name">Price</span>
+            {shown ? (
+              <div className="cf-price-lines" aria-label="What’s in the price">
+                {shown.lines.map((l) => (
+                  <div key={l.label} className="cf-price-line"><span>{l.label}</span><span>{formatCredits(l.credits)}</span></div>
+                ))}
+                <div className="cf-price-line is-total"><span>Total</span><span>{formatCredits(shown.total)}</span></div>
+                {!shown.free && balance !== null ? <span className="cf-hint" style={{ fontSize: 'var(--fs-small)' }}>You have {formatCredits(balance)}.</span> : null}
+              </div>
+            ) : (
+              <span className="cf-hint">{quoteError || 'Working out the price…'}</span>
+            )}
+          </div>
         </div>
-
-      </div>
-
-      {started ? (
-        <p className={s.note} style={{ textAlign: 'right' }}>
-          <button type="button" className={s.link} onClick={() => router.push(`/create/generating?id=${videoId}`)}>See its progress</button>
-        </p>
-      ) : null}
+      </details>
 
       <BuyCreditsModal
         open={!!buyCredits}
@@ -495,11 +530,38 @@ function MakeItYours() {
       />
 
       {lightbox ? (
-        <div className={s.lightbox} onClick={() => setLightbox(null)}>
+        <div className="cf-lightbox" onClick={() => setLightbox(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a sample picture, larger */}
           <img src={lightbox} alt="Sample" />
         </div>
       ) : null}
+
+      <BottomBar
+        label="The price"
+        info={barInfo}
+        sub={barSub}
+        notice={notice}
+        helper={
+          <span className="cf-main">
+            <Button
+              variant="secondary"
+              className="cf-helper-btn"
+              onClick={() => void preview.make()}
+              disabled={preview.busy || preview.noneLeft}
+              aria-busy={preview.busy || undefined}
+              disabledReason={preview.disabledReason}
+              title={preview.leftLabel ?? undefined}
+            >
+              {preview.label}
+            </Button>
+          </span>
+        }
+        onMain={handleMake}
+        mainLabel={submitting ? 'Starting…' : makeLabel}
+        disabled={submitting || !!started}
+        busy={submitting}
+        missing={submitting || started ? null : !shown || quoteLoading ? { reason: quoteError || 'Working out the price…' } : null}
+      />
     </div>
-    </Workspace>
   )
 }

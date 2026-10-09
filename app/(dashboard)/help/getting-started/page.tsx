@@ -75,7 +75,7 @@ export default function GettingStartedPage() {
             <strong style={INK}>You land on Home.</strong> No card and no setup pages first. A note at the top says <strong style={INK}>Try it before you add a card.</strong>
           </Row>
           <Row n={4}>
-            <strong style={INK}>Make your first project.</strong> Pick a start card, let it read your document and check the story. On step 3 (<strong style={INK}>Make it yours</strong>) press <strong style={INK}>See a free preview</strong> to see the first scene in your look and hear the voice — free, {FREE_PREVIEWS_PER_DAY} a day, no card needed.
+            <strong style={INK}>Make your first project.</strong> Pick a start card, let it read your document and check the story. On step 3 (<strong style={INK}>The look</strong>) press <strong style={INK}>Free preview</strong> to see the first scene in your look and hear the voice — free, {FREE_PREVIEWS_PER_DAY} a day, no card needed.
           </Row>
           <Row n={5} last>
             <strong style={INK}>Add your brand there too.</strong> On the same step, <strong style={INK}>Add your brand</strong> asks for your name, logo and colours — <strong style={INK}>Fill in from it</strong> reads them from your website. It is optional; with no logo your name shows as text. The old five-page <strong style={INK}>Setup Wizard</strong> is still there if you want it: <strong style={INK}>Run the setup again</strong> in Settings → Profile.

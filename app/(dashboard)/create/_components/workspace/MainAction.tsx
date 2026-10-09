@@ -11,8 +11,8 @@ import { Button } from '../../../../_components/kit'
  * - When it can't be pressed it says WHY underneath. When the why is a
  *   missing answer on the screen, "Show me" scrolls to that answer and lights
  *   it up, so nobody has to hunt for the grey box they skipped.
- * - On a phone it is pinned to the bottom of the screen, above the phone's
- *   home bar (.ws-main-action in globals.css).
+ * - It sits in the step's bottom bar (BottomBar.tsx), fixed to the bottom
+ *   of the screen; on a phone it fills the bar's width.
  */
 export type Missing = { reason: string; target?: string }
 
@@ -62,11 +62,11 @@ export default function MainAction({
     </>
   ) : null
   return (
-    <div className="ws-main-action">
-      <Button variant="primary" full onClick={onClick} disabled={off} aria-busy={busy || undefined} price={price || undefined} disabledReason={reason}>
+    <div className="cf-main">
+      <Button variant="primary" className="cf-main-btn" onClick={onClick} disabled={off} aria-busy={busy || undefined} price={price || undefined} disabledReason={reason}>
         {children}
       </Button>
-      {note ? <p className="ws-main-note">{note}</p> : null}
+      {note ? <p className="cf-main-note">{note}</p> : null}
     </div>
   )
 }

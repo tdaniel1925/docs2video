@@ -9,13 +9,12 @@ import { IN_PROGRESS_STATUSES } from '../../../_lib/video-running'
 import { madeNoun, tipsFor } from '../_components/generatingTips'
 import { NAMES } from '../../../_lib/names'
 import { Button, Note } from '../../../_components/kit'
-import Workspace from '../_components/workspace/Workspace'
 import Stages from '../_components/workspace/Stages'
-import { factsFromDraft } from '../_components/workspace/facts'
 import { waitingStages } from './stages'
 
 /*
- * STEP 4 — "Send it": the making/waiting screen.
+ * THE MAKING SCREEN — after the three steps (the header shows all three
+ * done). One wide column, big words, like the steps before it.
  *
  * HONEST WAITING. Everything on this screen comes from the project's row,
  * which the render service writes as it works:
@@ -133,40 +132,36 @@ export default function GeneratingPage() {
   }, [tips.length])
 
   const noun = madeNoun(outputType)
-  const soFar = factsFromDraft(row?.draft_data ?? null, {
-    output: outputType,
-    price: row?.deducted_cost ? { kind: 'charged', credits: row.deducted_cost } : { kind: 'later' },
-  })
 
   if (!videoId) {
     return (
-      <Workspace soFar={soFar}>
-        <div className="s4-page">
-          <h1 className="s1-title">Nothing to show here</h1>
-          <p className="s1-lead">This page didn’t get a project to show — it may not have started. Start again, or find it in your Library.</p>
-          <div className="s4-buttons">
+      <>
+        <div className="cf-page">
+          <h1 className="cf-h1">Nothing to show here</h1>
+          <p className="cf-hint">This page didn’t get a project to show — it may not have started. Start again, or find it in your Library.</p>
+          <div className="cf-buttons">
             <Button href="/create">Start over</Button>
             <Button href="/dashboard" variant="secondary">Home</Button>
           </div>
         </div>
-      </Workspace>
+      </>
     )
   }
 
   if (error) {
     return (
-      <Workspace soFar={soFar}>
-        <div className="s4-page">
-          <h1 className="s1-title">Something went wrong</h1>
+      <>
+        <div className="cf-page">
+          <h1 className="cf-h1">Something went wrong</h1>
           <Note tone="stop">{error}</Note>
-          <div className="s4-buttons">
+          <div className="cf-buttons">
             {/* Back to step 3 with everything filled in — Make it there starts it again. */}
             <Button href={`/create/theme?id=${videoId}`}>Try again</Button>
             <Button href="/create" variant="secondary">Start over</Button>
             <Button href="/dashboard" variant="secondary">Home</Button>
           </div>
         </div>
-      </Workspace>
+      </>
     )
   }
 
@@ -192,11 +187,11 @@ export default function GeneratingPage() {
       } catch { notify('Download failed. Please try again.', 'error') }
     }
     return (
-      <Workspace soFar={soFar}>
-        <div className="s4-page">
-          <h1 className="s1-title">Your slides are ready!</h1>
-          <p className="s1-lead">Download as a PDF or an editable-format PowerPoint.</p>
-          <div className="s4-buttons">
+      <>
+        <div className="cf-page">
+          <h1 className="cf-h1">Your slides are ready!</h1>
+          <p className="cf-hint">Download as a PDF or an editable-format PowerPoint.</p>
+          <div className="cf-buttons">
             <Button onClick={() => void downloadAs('pdf')}>Download PDF</Button>
             <Button variant="secondary" onClick={() => void downloadAs('pptx')}>Download PowerPoint</Button>
           </div>
@@ -205,7 +200,7 @@ export default function GeneratingPage() {
           </Note>
           <Button href="/dashboard" variant="quiet">Back to Home</Button>
         </div>
-      </Workspace>
+      </>
     )
   }
 
@@ -220,28 +215,28 @@ export default function GeneratingPage() {
   const usual = isSlides ? 'about 10 minutes' : 'about 3–5 minutes'
 
   return (
-    <Workspace soFar={soFar}>
-      <div className="s4-page">
-        <h1 className="s1-title">Making your {noun}</h1>
-        <p className="s1-lead">
+    <>
+      <div className="cf-page">
+        <h1 className="cf-h1">Making your <em>{noun}.</em></h1>
+        <p className="cf-hint">
           This usually takes {usual}. {minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`} so far.
         </p>
 
-        <div className="kit-card s4-progress" role="status" aria-live="polite">
+        <div className="cf-card cf-making" role="status" aria-live="polite">
           <Stages stages={stages} current={current} detail={row?.progress_detail || null} label={`Making your ${noun}`} />
-          <div className="s4-bar" aria-hidden="true"><div className="s4-bar-fill" style={{ width: `${pct}%` }} /></div>
-          <p className="s1-hint">About {pct}% done — the same number Home shows for this project.</p>
+          <div className="cf-making-bar" aria-hidden="true"><div className="cf-making-fill" style={{ width: `${pct}%` }} /></div>
+          <p className="cf-hint">About {pct}% done — the same number Home shows for this project.</p>
         </div>
 
         {/* Scene filmstrip — fills in as scenes are really built */}
         {slotCount > 0 && (
-          <div className="s4-film">
-            <p className="s1-hint">{previews.length} of {slotCount} scenes ready</p>
-            <div className="s4-film-row">
+          <div className="cf-film">
+            <p className="cf-hint">{previews.length} of {slotCount} scenes ready</p>
+            <div className="cf-film-row">
               {Array.from({ length: slotCount }).map((_, i) => {
                 const url = previewByIdx.get(i)
                 return (
-                  <div key={i} className={`s4-frame ${url ? 'is-ready' : ''}`}>
+                  <div key={i} className={`cf-frame ${url ? 'is-ready' : ''}`}>
                     {url ? <img src={url} alt={`Scene ${i + 1}`} /> : <span>{i + 1}</span>}
                   </div>
                 )
@@ -254,8 +249,8 @@ export default function GeneratingPage() {
           we’ll email you when it’s ready. Your {noun} keeps building, and it lands in your {NAMES.library}.
         </Note>
 
-        {row ? <p className="s1-hint s4-tip" key={`${outputType}-${tipIdx}`}>{tips[tipIdx % tips.length]}</p> : null}
+        {row ? <p className="cf-hint cf-tip" key={`${outputType}-${tipIdx}`}>{tips[tipIdx % tips.length]}</p> : null}
       </div>
-    </Workspace>
+    </>
   )
 }

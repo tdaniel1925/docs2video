@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 export type AskMsg = { role: 'user' | 'assistant'; text: string }
 
@@ -12,18 +12,16 @@ interface Props {
   onSend: (text: string) => void
   canUndo: boolean
   onUndo: () => void
-  children?: React.ReactNode
 }
 
-const CHIPS = ['Make it shorter', 'Simpler words']
-
-/** "Change it by asking" — one instruction rewrites the whole story. */
-export default function AskPanel({ messages, busy, disabledNote, onSend, canUndo, onUndo, children }: Props) {
+/**
+ * "Ask for a change" — one line under the scenes. One instruction rewrites
+ * the whole story (before it's written, it reshapes the point instead).
+ * The last few replies show under it, with a one-step Undo.
+ */
+export default function AskPanel({ messages, busy, disabledNote, onSend, canUndo, onUndo }: Props) {
   const [text, setText] = useState('')
-  const endRef = useRef<HTMLDivElement>(null)
   const off = busy || !!disabledNote
-
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [messages, busy])
 
   const send = (t: string) => {
     const msg = t.trim()
@@ -32,60 +30,39 @@ export default function AskPanel({ messages, busy, disabledNote, onSend, canUndo
     onSend(msg)
   }
 
+  const recent = messages.slice(-4)
+
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <div>
-        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Change it by asking</div>
-        <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginTop: 2 }}>Rewrites the whole story</div>
-      </div>
-
-      {messages.length > 0 && (
-        <div style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{
-              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', fontSize: 'var(--fs-ui)', lineHeight: 1.45,
-              padding: '8px 12px', borderRadius: 10,
-              background: m.role === 'user' ? 'var(--ink)' : 'var(--bg-soft)',
-              color: m.role === 'user' ? 'var(--bg-card)' : 'var(--ink)',
-            }}>{m.text}</div>
-          ))}
-          {busy && <div style={{ alignSelf: 'flex-start', fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>Rewriting&hellip;</div>}
-          <div ref={endRef} />
-        </div>
-      )}
-
-      {canUndo && !busy && (
-        <button type="button" onClick={onUndo} className="btn btn-soft btn-sm" style={{ alignSelf: 'flex-start' }}>
-          Undo that change
-        </button>
-      )}
-
-      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-        {CHIPS.map(c => (
-          <button key={c} type="button" onClick={() => send(c)} disabled={off}
-            style={{ fontSize: 'var(--fs-small)', fontWeight: 600, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--ink)', cursor: off ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: off ? 0.5 : 1 }}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+    <section aria-label="Change the whole story" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <form className="cf-ask" onSubmit={(e) => { e.preventDefault(); send(text) }}>
         <input
+          className="cf-input"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(text) } }}
           disabled={off}
-          aria-label="Tell it what to change"
-          placeholder="Tell it what to change…"
-          style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none', background: 'var(--bg-card)' }}
+          aria-label="Ask for a change"
+          placeholder="Ask for a change, e.g. make it shorter"
         />
-        <button type="button" className="btn btn-soft btn-sm" onClick={() => send(text)} disabled={off || !text.trim()}>
-          {busy ? 'Working…' : 'Send'}
+        <button type="submit" className="kit-btn kit-btn--secondary cf-helper-btn" disabled={off || !text.trim()}>
+          {busy ? 'Working…' : 'Change'}
         </button>
-      </div>
-      {disabledNote && <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>{disabledNote}</div>}
+      </form>
+      {disabledNote ? <p className="cf-hint">{disabledNote}</p> : null}
 
-      {children}
-    </div>
+      {recent.length > 0 || busy ? (
+        <ul className="cf-ask-log" aria-live="polite">
+          {recent.map((m, i) => (
+            <li key={i} className={m.role === 'user' ? 'is-you' : ''}>{m.role === 'user' ? `You: ${m.text}` : m.text}</li>
+          ))}
+          {busy ? <li>Rewriting&hellip;</li> : null}
+        </ul>
+      ) : null}
+
+      {canUndo && !busy ? (
+        <button type="button" onClick={onUndo} className="kit-btn kit-btn--quiet kit-btn--sm" style={{ alignSelf: 'flex-start' }}>
+          Undo that change
+        </button>
+      ) : null}
+    </section>
   )
 }

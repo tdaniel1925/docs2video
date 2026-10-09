@@ -188,8 +188,7 @@ test.describe('Clients', () => {
     // Start a video for them: step 1 opens with this client already chosen.
     await page.locator('a[href*="/create/client?clientId="]').first().click()
     await expect(page).toHaveURL(/\/create\?clientId=/)
-    await expect(page.locator('.ws-work').getByText(name, { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Change' })).toBeVisible()
+    await expect(page.locator('.cf-page').getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'true')
 
     // Delete: Cancel keeps, Confirm removes.
     await page.goto(clientUrl)
@@ -265,7 +264,7 @@ test.describe('Library (/videos)', () => {
         await expect(page.getByText(new RegExp(`^Showing \\d+–\\d+ of \\d+$`))).toBeVisible()
         expect(await cards.count()).toBeLessThanOrEqual(Number(size))
       }
-      const next = page.getByRole('button', { name: 'Next' })
+      const next = page.getByRole('button', { name: 'Next', exact: true })
       if (await next.isEnabled()) {
         await next.click()
         await expect(page.getByText(/^Page 2 \//)).toBeVisible()

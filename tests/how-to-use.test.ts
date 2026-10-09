@@ -62,7 +62,7 @@ describe('How to use — routes', () => {
     expect(howToFor('/create').title).toMatch(/^Step 1/)
     expect(howToFor('/create/script').title).toMatch(/^Step 2/)
     expect(howToFor('/create/theme').title).toMatch(/^Step 3/)
-    expect(howToFor('/create/generating').title).toMatch(/^Step 4/)
+    expect(howToFor('/create/generating').title).toBe('Making it')
     expect(howToFor('/videos').title).toBe('Library')
     expect(howToFor('/videos/0b8d2c1e-1111-4a4a-9a9a-123456789abc').title).toBe('Your finished project')
     expect(howToFor('/brands/new').title).toBe('Brands')

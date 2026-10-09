@@ -1,17 +1,20 @@
 'use client'
 
-// THE FREE PREVIEW on step 3 ("Make it yours"). Before paying, the customer
-// can see their FIRST CONTENT scene as a still picture in the look they
-// picked, and hear ~10 seconds of the voice reading it. 3 a day per account;
-// it never spends credits (app/api/preview-first-scene).
+// THE FREE PREVIEW on step 3 ("The look"). Before paying, the customer can
+// see their FIRST CONTENT scene as a still picture in the look they picked,
+// and hear ~10 seconds of the voice reading it. 3 a day per account; it never
+// spends credits (app/api/preview-first-scene).
 //
-// Mount with just the project id — the preview then uses the choices saved on
-// the draft. Pass the choices on screen too (output, look, voiceId) so the
-// preview shows what is picked right now, and so "Preview again" appears when
-// the look or voice changes after a preview.
+// Two parts, because the button lives in the bottom bar (next to Make it)
+// and the picture lives on the page:
+//   useFirstScenePreview(...)  — the state and the one call that makes it
+//   <FirstScenePreview preview={…} />  — the picture, the voice and any note
+// Pass the choices on screen (output, look, voiceId) so the preview shows
+// what is picked right now, and so "Preview again" appears when the look or
+// voice changes after a preview.
 
-import { useEffect, useRef, useState } from 'react'
-import { Button, Note } from '../../../../_components/kit'
+import { forwardRef, useEffect, useRef, useState } from 'react'
+import { Note } from '../../../../_components/kit'
 import { CAP_REACHED_MESSAGE, previewsLeftLabel } from '../../../../_lib/first-scene-preview'
 import s from './FirstScenePreview.module.css'
 
@@ -25,14 +28,16 @@ type Result = {
   choice: Choice
 }
 
-export default function FirstScenePreview({ videoId, output, look, voiceId }: { videoId: string } & Choice) {
+export type FirstScenePreviewState = ReturnType<typeof useFirstScenePreview>
+
+export function useFirstScenePreview({ videoId, output, look, voiceId }: { videoId: string } & Choice) {
   const [left, setLeft] = useState<number | null | undefined>(undefined) // undefined = still loading; null = no limit
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState<{ message: string; cap?: boolean } | null>(null)
   const inFlight = useRef(false)
 
-  // How many are left today, for the label under the button.
+  // How many are left today, for the line under the button.
   useEffect(() => {
     let alive = true
     fetch('/api/preview-first-scene')
@@ -42,15 +47,14 @@ export default function FirstScenePreview({ videoId, output, look, voiceId }: { 
     return () => { alive = false }
   }, [])
 
-  const passedChoice = output !== undefined || look !== undefined || voiceId !== undefined
   // The look or voice on screen differs from what the picture shows.
-  const changed = !!result && passedChoice && (
+  const changed = !!result && (
     (look !== undefined && look !== result.choice.look) ||
     (voiceId !== undefined && voiceId !== result.choice.voiceId) ||
     (output !== undefined && output !== result.choice.output)
   )
 
-  async function makePreview() {
+  async function make() {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
@@ -77,30 +81,32 @@ export default function FirstScenePreview({ videoId, output, look, voiceId }: { 
   }
 
   const noneLeft = left === 0
-  // Without the choices passed in we can't tell what changed — offer it anyway
-  // (an unchanged preview comes back from storage and isn't counted).
-  const showButton = !result || changed || !passedChoice
+  return {
+    left, busy, result, error, changed, noneLeft, make,
+    /** The words for the bar button. */
+    label: busy ? 'Making your preview…' : result && changed ? 'Preview again' : 'Free preview',
+    /** Why the bar button can't be pressed (none left today). */
+    disabledReason: noneLeft && !busy ? CAP_REACHED_MESSAGE : undefined,
+    /** "3 free previews left today" (null when unknown or unlimited). */
+    leftLabel: left !== undefined && !noneLeft ? previewsLeftLabel(left) : null,
+    /** Nothing to make again: the picture already shows these choices. */
+    upToDate: !!result && !changed,
+  }
+}
 
+/** The picture of the first scene and the voice reading it. Shows nothing
+ *  until a preview is asked for. */
+const FirstScenePreview = forwardRef<HTMLElement, { preview: FirstScenePreviewState }>(function FirstScenePreview({ preview }, ref) {
+  const { busy, result, error, changed } = preview
+  if (!busy && !result && !error) return null
   return (
-    <section className={s.box} aria-label="Free preview">
+    <section ref={ref} className={`cf-card ${s.box}`} aria-label="Free preview">
       <div className={s.head}>
         <div>
-          <h3 className={s.title}>See it before you pay</h3>
-          <p className={s.lead}>A picture of your first scene in this look, and the voice reading it. Free.</p>
+          <h3 className={s.title}>Your free preview</h3>
+          <p className={s.lead}>Your first scene in this look, and the voice reading it. Nothing is charged.</p>
         </div>
-        {showButton && (
-          <div>
-            <Button
-              variant="secondary"
-              onClick={makePreview}
-              disabled={busy || noneLeft}
-              disabledReason={noneLeft && !busy ? CAP_REACHED_MESSAGE : undefined}
-            >
-              {busy ? 'Making your preview…' : result ? 'Preview again' : 'See a free preview'}
-            </Button>
-            {left !== undefined && !noneLeft && <p className={s.left}>{previewsLeftLabel(left)}</p>}
-          </div>
-        )}
+        {preview.leftLabel ? <p className={s.left}>{preview.leftLabel}</p> : null}
       </div>
 
       {busy && (
@@ -125,4 +131,6 @@ export default function FirstScenePreview({ videoId, output, look, voiceId }: { 
       )}
     </section>
   )
-}
+})
+
+export default FirstScenePreview

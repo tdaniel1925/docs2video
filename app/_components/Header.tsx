@@ -15,7 +15,7 @@ import type { Profile } from '../_lib/types'
 import { DOCS2VIDEO, type Brand } from '../_lib/brand'
 import { NAMES, planLabel } from '../_lib/names'
 import { ACCOUNT_MENU, OPEN_HELP_EVENT, SIGN_OUT, creditLevel, focusTitle, isCurrent, isFocusPath } from '../_lib/top-bar'
-import { STEPS, stepIndexFor } from '../(dashboard)/create/_components/workspace/steps'
+import { STEPS, stepHref, stepIndexFor } from '../(dashboard)/create/_components/workspace/steps'
 
 /* ONE ICON SET (round A): lucide, the set VidWiz uses. Two sizes only — 16 in
    buttons and menus, 20 for the bell and the phone menu button. Icons sit
@@ -85,10 +85,10 @@ function CreditChip({ credits, lowCreditsAt, onTopUp }: { credits: number; lowCr
 
 /*
  * THE FOCUS HEADER — VidWiz's header while you make something:
- *   ← Home     (1) What it's about  (2) The story  (3) Make it yours  (4) Send it     How to use · credits
- * The step numbers come from the same list as the step rail (steps.ts), so
- * the two can't disagree. Leaving is safe: drafts are saved as you go and
- * wait on Home (the rail's note says so too).
+ *   ← Home     (1) Your content  (2) The story  (3) The look     How to use · credits
+ * The steps come from steps.ts. A step already done links back to it for
+ * the same draft; on the making screen all three show done. Leaving is safe:
+ * drafts are saved as you go and wait on Home.
  * On a phone: the arrow, the numbers alone, one help button and the balance.
  */
 function FocusHeader({ brand, pathname, lowCreditsAt }: { brand: Brand; pathname: string; lowCreditsAt: number }) {
@@ -99,6 +99,13 @@ function FocusHeader({ brand, pathname, lowCreditsAt }: { brand: Brand; pathname
   const helpRef = useRef<HTMLDivElement>(null)
   const closeHowTo = useCallback(() => setHowToOpen(false), [])
   const active = stepIndexFor(pathname)
+  // The draft this screen is working on (?id=…), so a step already done can
+  // link back to it. Read once the page is in the browser (the header sits in
+  // the layout, outside any page's search params).
+  const [draftId, setDraftId] = useState<string | null>(null)
+  useEffect(() => {
+    try { setDraftId(new URLSearchParams(window.location.search).get('id')) } catch { setDraftId(null) }
+  }, [pathname])
 
   useEffect(() => { setHelpOpen(false) }, [pathname])
   useEffect(() => {
@@ -122,10 +129,20 @@ function FocusHeader({ brand, pathname, lowCreditsAt }: { brand: Brand; pathname
           <ol className="kit-focusbar-steps" aria-label="Progress">
             {STEPS.map((step, i) => {
               const state = i < active ? 'done' : i === active ? 'now' : 'todo'
+              // Back to a step already done — not from the making screen,
+              // where the project has already started.
+              const href = state === 'done' && active < STEPS.length ? stepHref(i, draftId) : null
+              const inner = (
+                <>
+                  <span className="kit-focusbar-num" aria-hidden="true">{state === 'done' ? <Check size={14} strokeWidth={3} /> : i + 1}</span>
+                  <span className="kit-focusbar-word">{step.label}</span>
+                </>
+              )
               return (
-                <li key={step.label} className={`kit-focusbar-step is-${state}`} aria-current={state === 'now' ? 'step' : undefined}>
-                  <span className="kit-focusbar-num" aria-hidden="true">{state === 'done' ? <Check size={12} strokeWidth={3} /> : i + 1}</span>
-                  <span className="kit-focusbar-word">{step.short}</span>
+                <li key={step.label} aria-current={state === 'now' ? 'step' : undefined}>
+                  {href
+                    ? <Link href={href} className={`kit-focusbar-step is-${state}`} aria-label={`Back to step ${i + 1}: ${step.label}`}>{inner}</Link>
+                    : <span className={`kit-focusbar-step is-${state}`}>{inner}</span>}
                 </li>
               )
             })}

@@ -1,46 +1,28 @@
-/* Step 2 — the length choice. The chips themselves are step 3's (make.module.css)
-   so both screens look the same. Corners stay at 10px or less. */
+/* Step 2 — the length choice, compact, beside "N scenes · about X minutes".
+   The chips are the create flow's (.cf-chip in globals.css). Corners ≤ 10px. */
 
 .box {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+  scroll-margin-top: 96px;
   border-radius: 10px;
-  padding: 16px 18px;
-  margin-bottom: 18px;
-  scroll-margin-top: 24px;
   transition: box-shadow 0.4s ease;
 }
 
 /* Arriving from step 3's "Change the length": a short glow says "it's here". */
 .flash { box-shadow: 0 0 0 3px var(--accent); }
 
-.head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: 10px;
-}
-.title { font-size: var(--fs-body); font-weight: 800; color: var(--ink); margin: 0; }
-.hint { font-size: var(--fs-small); color: var(--ink-light); }
-
-/* Three side by side, the time under the name, so the row never wraps into
-   an odd two-and-one — even at phone width. */
-.box .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.box .chips button { flex-direction: column; align-items: flex-start; gap: var(--space-1); text-align: left; }
-.box .chips button:disabled { cursor: default; opacity: 0.55; }
-
-.note { font-size: var(--fs-small); color: var(--ink-light); margin: 10px 0 0; line-height: 1.5; }
-
 /* The free rewrite offer, shown when a story exists at another length. */
 .offer {
-  margin-top: 12px;
+  max-width: 560px;
   padding: 12px 14px;
   border-radius: 10px;
   background: var(--warning-bg, var(--bg-soft));
   border: 1px solid var(--warning, var(--border));
-  font-size: var(--fs-ui);
-  color: var(--ink);
+  font-size: var(--fs-body);
+  color: var(--warning-text, var(--ink));
   line-height: 1.5;
 }
 .offer p { margin: 0 0 10px; }
@@ -50,9 +32,13 @@
   border: none;
   padding: 0;
   font-family: inherit;
-  font-size: var(--fs-ui);
+  font-size: var(--fs-body);
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--warning-text, var(--ink-soft));
   text-decoration: underline;
   cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .box { align-items: stretch; }
 }

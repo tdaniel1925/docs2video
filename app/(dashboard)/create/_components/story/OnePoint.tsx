@@ -1,10 +1,20 @@
 'use client'
 
+import { X } from 'lucide-react'
 import type { VideoBrief } from '../../../../_lib/types'
+import { Note } from '../../../../_components/kit'
 
 interface Props {
   brief: VideoBrief | null
   building: boolean
+  /** Change the point, the numbers or the summary (marks the story out of date). */
+  onEdit: (patch: Partial<VideoBrief>) => void
+  /** Edits made since the story was written: offer a free rewrite. */
+  changed: boolean
+  writing: boolean
+  hasStory: boolean
+  onRewrite: () => void
+  onUndo: () => void
   /** show the AI's questions (only before the story is written) */
   showQuestions: boolean
   answers: Record<string, string>
@@ -14,92 +24,126 @@ interface Props {
   onSkipQuestions: () => void
 }
 
-const eyebrow: React.CSSProperties = {
-  fontSize: 'var(--fs-caption)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-soft)',
-}
-
 /**
- * THE ONE POINT — what the story is built around (the brief's angle), plus the
- * numbers it pulled from the source. If the AI was unsure about something that
- * would change the story, its questions show here before anything is written.
+ * WHAT WE READ — the one point (a big card) and the numbers (big tiles),
+ * exactly as they'll go into the story. Every one can be changed or removed
+ * right here, so a wrong number is caught before it's narrated. (This was
+ * "Here's what we read" on step 1; it sits next to the story now.)
+ *
+ * Changing them after the story is written leaves the scenes saying the old
+ * ones — so a free "Rewrite the story with these" is offered, or "Undo".
+ *
+ * If the AI was unsure about something that would change the story, its
+ * questions show here before anything is written.
  */
-export default function OnePoint({ brief, building, showQuestions, answers, setAnswers, answering, onAnswer, onSkipQuestions }: Props) {
+export default function OnePoint({
+  brief, building, onEdit, changed, writing, hasStory, onRewrite, onUndo,
+  showQuestions, answers, setAnswers, answering, onAnswer, onSkipQuestions,
+}: Props) {
   if (building) {
     return (
-      <div style={{ ...box, display: 'flex', alignItems: 'center', gap: 'var(--space-3)', color: 'var(--ink-soft)', fontSize: 'var(--fs-ui)' }}>
-        <div className="spinner" /> Reading what you gave us&hellip;
+      <div className="cf-card cf-reading" style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <div className="spinner" /> <span className="cf-hint">Finding the one point and the numbers&hellip;</span>
       </div>
     )
   }
   if (!brief) return null
 
-  const point = brief.angle || brief.summary
+  const point = brief.angle || brief.summary || ''
+  const figures = brief.figures ?? []
   const questions = showQuestions ? (brief.clarifyingQuestions || []) : []
   const anyAnswer = Object.values(answers).some(v => v?.trim())
+  const setFig = (i: number, part: Partial<{ label: string; value: string }>) =>
+    onEdit({ figures: figures.map((f, j) => (j === i ? { ...f, ...part } : f)) })
 
   return (
     <>
-      <div style={box}>
-        <div style={eyebrow}>The one point</div>
-        {point ? <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, color: 'var(--ink)', lineHeight: 1.35, marginTop: 6 }}>{point}</div> : null}
-        {brief.figures?.length ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)', marginTop: 12 }}>
-            {brief.figures.map((f, i) => (
-              <span key={i} style={{ fontSize: 'var(--fs-small)', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '5px 10px', color: 'var(--ink)' }}>
-                <strong>{f.value}</strong> <span style={{ color: 'var(--ink-light)' }}>{f.label}</span>
-              </span>
-            ))}
-            <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>numbers from your source</span>
+      <textarea
+        className="cf-card cf-point"
+        aria-label="The one point"
+        value={point}
+        rows={Math.max(1, Math.ceil(point.length / 60))}
+        onChange={(e) => onEdit({ angle: e.target.value })}
+      />
+
+      {figures.length ? (
+        <ul className="cf-nums" aria-label="The numbers we’ll use">
+          {figures.map((f, i) => (
+            <li key={i} className="cf-card cf-num">
+              <input className="cf-num-value" aria-label={`Number ${i + 1}`} value={f.value ?? ''} onChange={(e) => setFig(i, { value: e.target.value })} />
+              <input className="cf-num-label" aria-label={`What number ${i + 1} is`} value={f.label ?? ''} onChange={(e) => setFig(i, { label: e.target.value })} />
+              <button type="button" className="cf-num-x" aria-label={`Remove ${f.value || 'this number'}`} onClick={() => onEdit({ figures: figures.filter((_, j) => j !== i) })}>
+                <X size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {changed && hasStory && !writing ? (
+        <Note
+          tone="warn"
+          title="You changed what we read."
+          action={
+            <span className="cf-buttons">
+              <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={onRewrite}>Rewrite the story with it</button>
+              <button type="button" className="kit-btn kit-btn--quiet kit-btn--sm" onClick={onUndo}>Undo my changes</button>
+            </span>
+          }
+        >
+          The scenes still say the old version. Rewriting is free and takes about a minute.
+        </Note>
+      ) : null}
+
+      {brief.keyPoints?.length || brief.summary ? (
+        <details className="cf-card cf-more">
+          <summary>What it covers</summary>
+          <div className="cf-more-in">
+            <label className="cf-hint" htmlFor="s2-summary">What it says, in short</label>
+            <textarea id="s2-summary" className="cf-input" rows={3} value={brief.summary ?? ''} onChange={(e) => onEdit({ summary: e.target.value })} />
+            {brief.keyPoints?.length ? (
+              <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--ink)', fontSize: 'var(--fs-body)', lineHeight: 1.6 }}>
+                {brief.keyPoints.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
+            ) : null}
+            {brief.avoid?.length ? <p className="cf-hint"><strong>Leaving out:</strong> {brief.avoid.join(', ')}</p> : null}
           </div>
-        ) : null}
-        {brief.keyPoints?.length ? (
-          <details style={{ marginTop: 12 }}>
-            <summary style={{ fontSize: 'var(--fs-small)', fontWeight: 600, color: 'var(--ink-soft)', cursor: 'pointer' }}>What it covers</summary>
-            <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: 'var(--ink)', fontSize: 'var(--fs-ui)', lineHeight: 1.6 }}>
-              {brief.keyPoints.map((p, i) => <li key={i}>{p}</li>)}
-            </ul>
-            {brief.avoid?.length ? <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginTop: 6 }}><strong>Leaving out:</strong> {brief.avoid.join(', ')}</div> : null}
-          </details>
-        ) : null}
-      </div>
+        </details>
+      ) : null}
 
       {questions.length ? (
-        <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 10, padding: 18, marginBottom: 18 }}>
-          <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 800, color: 'var(--ink)', marginBottom: 2 }}>A couple of quick questions first</div>
-          <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginBottom: 14 }}>Your answers make the story more accurate. You can skip them.</div>
+        <div className="cf-card cf-reading" style={{ borderColor: 'var(--warning)' }}>
+          <p className="cf-label" style={{ margin: 0, flexDirection: 'column', alignItems: 'flex-start' }}>
+            A couple of quick questions first
+            <small>Your answers make the story more accurate. You can skip them.</small>
+          </p>
           {questions.map((q) => (
-            <div key={q.id} style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>{q.question}</div>
-              {q.why ? <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginBottom: 8 }}>{q.why}</div> : <div style={{ height: 6 }} />}
+            <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, color: 'var(--ink)' }}>{q.question}</div>
+              {q.why ? <div className="cf-hint">{q.why}</div> : null}
               {q.options?.length ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 8 }}>
-                  {q.options.map((opt) => {
-                    const active = answers[q.id] === opt
-                    return (
-                      <button key={opt} type="button" onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
-                        style={{ fontSize: 'var(--fs-small)', fontWeight: 600, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
-                          border: active ? '1.5px solid var(--ink)' : '1.5px solid var(--border-light)',
-                          background: active ? 'var(--ink)' : 'var(--bg-card)', color: active ? 'var(--bg-card)' : 'var(--ink)' }}>
-                        {opt}
-                      </button>
-                    )
-                  })}
+                <div className="cf-chips">
+                  {q.options.map((opt) => (
+                    <button key={opt} type="button" className="cf-chip" aria-pressed={answers[q.id] === opt} onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}>
+                      {opt}
+                    </button>
+                  ))}
                 </div>
               ) : null}
               <input
+                className="cf-input"
                 value={answers[q.id] && !q.options?.includes(answers[q.id]) ? answers[q.id] : (q.options ? '' : (answers[q.id] || ''))}
                 onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
                 placeholder={q.options?.length ? 'Or type your own…' : 'Type your answer…'}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none', background: 'var(--bg-card)' }}
+                aria-label={`Your answer: ${q.question}`}
               />
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button type="button" className="btn btn-primary btn-sm" onClick={onAnswer} disabled={answering || !anyAnswer}>
+          <div className="cf-buttons" style={{ alignItems: 'center' }}>
+            <button type="button" className="kit-btn kit-btn--secondary" onClick={onAnswer} disabled={answering || !anyAnswer}>
               {answering ? 'Using your answers…' : 'Use my answers and write the story'}
             </button>
-            <button type="button" onClick={onSkipQuestions} disabled={answering}
-              style={{ background: 'none', border: 'none', fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button type="button" className="cf-link" onClick={onSkipQuestions} disabled={answering}>
               Skip — just write it
             </button>
           </div>
@@ -107,10 +151,4 @@ export default function OnePoint({ brief, building, showQuestions, answers, setA
       ) : null}
     </>
   )
-}
-
-const box: React.CSSProperties = {
-  background: 'var(--accent-soft)',
-  border: '1px solid var(--accent)',
-  borderRadius: 10, padding: '18px 20px', marginBottom: 18,
 }

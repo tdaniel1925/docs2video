@@ -1,32 +1,41 @@
 /**
- * THE FOUR STEPS — one list, used by the step rail (desktop), the one-line
- * "Step 2 of 4 · The story" bar (phone) and the guard test.
+ * THE THREE STEPS — one list, used by the focus header (the step numbers at
+ * the top of every create screen) and the guard test.
  *
- *   1 What it's about   /create                         client, goal, content
- *   2 Check the story   /create/script (/brief forwards) points and scenes
- *   3 Make it yours     /create/theme (+ /brand, /voice) look, voice, price, make
- *   4 Send it           /create/generating → the result page
+ *   1 Your content   /create                           the document, website, text or idea
+ *   2 The story      /create/script (/brief forwards)  the one point, the numbers, the scenes
+ *   3 The look       /create/theme (+ /brand, /voice)   look, voice, price, Make it
  *
- * The waiting screen IS step 4, so it keeps the rail too: people waiting on
- * a video should still see where they are and what they chose.
+ * The making screen (/create/generating) and the result page come after the
+ * three steps: they are not a step. On the making screen the header shows all
+ * three ticked (makingDone).
  *
  * Pure on purpose (no React) so a test can check every path.
  */
 export const STEPS = [
-  { label: 'What it’s about', short: 'What it’s about', hint: 'Client, goal, your document', paths: ['/create'] },
-  { label: 'Check the story', short: 'The story', hint: 'Points and scenes — free', paths: ['/create/brief', '/create/script'] },
-  { label: 'Make it yours', short: 'Make it yours', hint: 'Look, voice, what to send', paths: ['/create/theme', '/create/brand', '/create/voice'] },
-  { label: 'Send it', short: 'Send it', hint: 'Making it, then one link', paths: ['/create/generating'] },
+  { label: 'Your content', paths: ['/create'] },
+  { label: 'The story', paths: ['/create/brief', '/create/script'] },
+  { label: 'The look', paths: ['/create/theme', '/create/brand', '/create/voice'] },
 ] as const
 
-/** Which step (0-based) a path belongs to, or -1 for pages outside the flow
- *  (the commercial maker has its own screen). */
+/** Pages that come after the three steps (all three show as done). */
+export const AFTER_STEPS = ['/create/generating'] as const
+
+/** Which step (0-based) a path belongs to; STEPS.length for the making
+ *  screen (every step done); -1 for pages outside the flow (the commercial
+ *  maker has its own screen). */
 export function stepIndexFor(pathname: string): number {
+  if ((AFTER_STEPS as readonly string[]).includes(pathname)) return STEPS.length
   return STEPS.findIndex((s) => (s.paths as readonly string[]).includes(pathname))
 }
 
-/** The phone's one line: "Step 2 of 4 · The story". */
-export function phoneStepLine(index: number): string {
-  const s = STEPS[index]
-  return s ? `Step ${index + 1} of ${STEPS.length} · ${s.short}` : ''
+/** Where a step that is already done opens again, for the same draft. Null
+ *  when there is no draft yet (nothing to go back to). */
+export function stepHref(index: number, draftId: string | null): string | null {
+  if (!draftId) return null
+  const id = encodeURIComponent(draftId)
+  if (index === 0) return `/create?id=${id}`
+  if (index === 1) return `/create/script?id=${id}`
+  if (index === 2) return `/create/theme?id=${id}`
+  return null
 }

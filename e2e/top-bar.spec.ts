@@ -49,7 +49,7 @@ test.describe('1440 wide', () => {
 
     await mainNav(page).getByRole('link', { name: '+ New' }).click()
     await expect(page).toHaveURL(/\/create$/)
-    await expect(page.getByRole('heading', { name: 'What’s this about?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Add your document.' })).toBeVisible()
   })
 
   test('the credit chip is gold (amber when low) and opens the top-up window', async ({ page }) => {
@@ -96,7 +96,7 @@ test.describe('1440 wide', () => {
   for (const [path, title, firstWords] of [
     ['/dashboard', 'Home', /Create/],
     ['/videos', 'Library', /Use the tabs/],
-    ['/create', 'Step 1 — What it’s about', /Who is it for\?/],
+    ['/create', 'Step 1 — Your content', /Drop your file/],
     ['/brands', 'Brands', /Company/],
     ['/clients', 'Clients', /Add a client/],
     ['/settings', 'Settings', /Profile/],

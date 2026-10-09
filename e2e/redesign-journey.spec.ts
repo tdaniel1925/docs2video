@@ -3,7 +3,7 @@ import path from 'node:path'
 import { collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, jsonBody } from './helpers/guard'
 
 /*
- * ONE REAL RUN through the four steps, against the live services:
+ * ONE REAL RUN through the three steps, against the live services:
  *   step 1: real upload of a small PDF, real reading of it, real draft
  *   step 2: real "one point" + story writing (free AI), one real rewrite + undo
  *   step 3: the price shown must be exactly /api/price-quote's; the brand
@@ -26,58 +26,57 @@ test('a document becomes a story, gets its look and price, and is discarded from
   try {
     // ── Step 1 ──
     await page.goto('/create')
-    await page.getByRole('button', { name: 'No client — general' }).click()
-    await page.getByPlaceholder(/Explain our services/).fill(purpose)
-    await page.getByRole('radio', { name: /^Upload file/ }).check()
+    await page.getByPlaceholder('e.g. Book a review call').fill(purpose)
     await page.locator('input[type=file]').first().setInputFiles(path.join(__dirname, 'fixtures', 'sample-plan.pdf'))
-    await page.getByRole('button', { name: 'Read it and plan the story →' }).click()
+    await page.getByRole('button', { name: 'Read it →' }).click()
     await expect(page.getByRole('button', { name: 'Reading…' })).toBeVisible()
-    // Here's what we read (the real summary) — then on to the story.
-    await expect(page.getByRole('heading', { name: 'Here’s what we read' })).toBeVisible({ timeout: 180000 })
-    await page.getByRole('button', { name: 'Looks right — write the story →' }).click()
-    await page.waitForURL(/\/create\/script\?id=/, { timeout: 60000 })
+    // Read, then straight on to the story (the point and numbers are there).
+    await page.waitForURL(/\/create\/script\?id=/, { timeout: 240000 })
     videoId = new URL(page.url()).searchParams.get('id')!
     expect(videoId).toMatch(/^[0-9a-f-]{36}$/)
 
     // ── Step 2 (real brief + story) ──
     const skip = page.getByRole('button', { name: 'Skip — just write it' })
-    const firstTitle = page.getByLabel('Scene 2 title')
-    await expect(skip.or(firstTitle)).toBeVisible({ timeout: 240000 })
+    const secondCard = page.locator('[data-scene="2"]')
+    await expect(skip.or(secondCard)).toBeVisible({ timeout: 240000 })
     if (await skip.isVisible()) await skip.click()
-    await expect(firstTitle).toBeVisible({ timeout: 240000 })
-    await expect(page.getByText('The one point')).toBeVisible()
-    const before = await firstTitle.inputValue()
-    const count = await page.getByLabel(/^Scene \d+ title$/).count()
+    await expect(secondCard).toBeVisible({ timeout: 240000 })
+    await expect(page.getByLabel('The one point')).toBeVisible()
+    const before = (await secondCard.textContent()) ?? ''
+    const count = await page.locator('[data-scene]').count()
     expect(count).toBeGreaterThanOrEqual(3)
 
-    // One real "change it by asking", then Undo.
-    await page.getByRole('button', { name: 'Make it shorter' }).click()
+    // One real "ask for a change", then Undo.
+    await page.getByLabel('Ask for a change').fill('Make it shorter')
+    await page.getByRole('button', { name: 'Change', exact: true }).click()
     await expect(page.getByText(/Done — I rewrote the story|That change didn’t work/)).toBeVisible({ timeout: 180000 })
     await expect(page.getByText('Done — I rewrote the story.', { exact: false }), 'the real rewrite worked').toBeVisible()
     await page.getByRole('button', { name: 'Undo that change' }).click()
-    await expect(firstTitle).toHaveValue(before)
+    await expect(secondCard).toHaveText(before)
 
-    await page.getByRole('button', { name: 'Looks right — pick the look →' }).click()
+    await page.getByRole('button', { name: 'Pick a look →' }).click()
     await page.waitForURL(new RegExp(`/create/theme\\?id=${videoId}$`))
 
     // ── Step 3: the price is the server's, to the credit ──
-    const makeBtn = page.getByRole('button', { name: /^Make it — / })
-    await expect(makeBtn).toBeVisible({ timeout: 30000 })
+    const bar = page.getByRole('region', { name: 'The price' })
+    const makeBtn = bar.getByRole('button', { name: 'Make it', exact: true })
+    await expect(makeBtn).toBeEnabled({ timeout: 30000 })
     const q = await (await page.request.get(`/api/price-quote?videoId=${videoId}`)).json()
     const fmt = (n: number) => `${n.toLocaleString('en-US')} credit${n === 1 ? '' : 's'}`
-    await expect(makeBtn).toHaveText(`Make it — ${fmt(q.options.video.total)}`)
-    const panel = page.getByRole('complementary', { name: 'The price' })
-    await expect(panel).toContainText(`Total${fmt(q.options.video.total)}`)
-    for (const l of q.options.video.lines) await expect(panel).toContainText(`${l.label}${fmt(l.credits)}`)
-    if (!q.options.video.free) await expect(panel).toContainText(`You have ${fmt(q.balance)}.`)
+    if (!q.options.video.free) await expect(bar).toContainText(fmt(q.options.video.total))
+    await page.getByText('More options', { exact: true }).click()
+    const fold = page.locator('#more-options')
+    await expect(fold).toContainText(`Total${fmt(q.options.video.total)}`)
+    for (const l of q.options.video.lines) await expect(fold).toContainText(`${l.label}${fmt(l.credits)}`)
+    if (!q.options.video.free) await expect(fold).toContainText(`You have ${fmt(q.balance)}.`)
     for (const o of q.offered) {
-      await expect(page.getByRole('radiogroup', { name: 'What do you want to send?' })).toContainText(fmt(q.options[o].total))
+      if (q.options[o]) await expect(page.getByRole('radiogroup', { name: 'Make' })).toContainText(fmt(q.options[o].total))
     }
 
     // ── Brand round trip (real). With a brand, "Change" opens the brand page.
     //    With none, "Add your brand" opens in place (phase 5) and its "More
     //    brand options" link opens the same brand page. ──
-    const change = page.getByRole('button', { name: 'Change', exact: true })
+    const change = page.locator('.cf-brand').getByRole('button', { name: 'Change', exact: true })
     if (await change.isVisible().catch(() => false)) {
       await change.click()
     } else {
@@ -97,13 +96,14 @@ test('a document becomes a story, gets its look and price, and is discarded from
       await page.getByRole('button', { name: 'Skip — no brand on this one' }).click()
     }
     await page.waitForURL(new RegExp(`/create/theme\\?id=${videoId}$`))
-    await expect(makeBtn).toBeVisible({ timeout: 30000 })
+    await expect(makeBtn).toBeEnabled({ timeout: 30000 })
     if (brandName) await expect(page.getByText(`Using ${brandName}’s logo and colors.`)).toBeVisible()
     else await expect(page.getByText('No brand on this one yet — it will use plain colors.')).toBeVisible()
 
     // ── Make it: intercepted, body must match the saved draft ──
     const sent: any[] = []
     await page.route('**/api/generate-video', async (route) => { sent.push(jsonBody(route.request())); await route.fulfill({ json: { success: true } }) })
+    await page.getByText('More options', { exact: true }).click()
     await page.getByRole('radiogroup', { name: 'The voice' }).getByRole('radio', { name: /James/ }).click()
     await makeBtn.click()
     await page.waitForURL(new RegExp(`/create/generating\\?id=${videoId}&style=slides$`))
@@ -119,7 +119,7 @@ test('a document becomes a story, gets its look and price, and is discarded from
     await page.goto('/dashboard')
     const row = page.getByRole('table', { name: 'Your projects' }).getByRole('row').filter({ has: page.locator(`a[href*="${videoId}"]`) })
     await expect(row).toHaveCount(1)
-    await expect(row.getByRole('cell').nth(3)).toHaveText(/^Draft · step [1-4] of 4$/)
+    await expect(row.getByRole('cell').nth(3)).toHaveText(/^Draft · step [1-3] of 3$/)
     page.once('dialog', (d) => d.accept())
     await row.getByRole('button', { name: 'Discard' }).click()
     await expect(row).toHaveCount(0)

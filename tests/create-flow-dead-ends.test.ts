@@ -363,11 +363,11 @@ describe('the create flow says Brand, Library and New', () => {
 
 describe('the help article describes the screens as they are', () => {
   const help = read('app/(dashboard)/help/creating-videos/page.tsx')
-  it('four steps, the length on step 2, Duplicate, and no screens that are gone', () => {
-    for (const t of ['What it’s about', 'Check the story (free)', 'Make it yours', 'Send it', 'Rewrite at this length', 'Change the length', 'Duplicate', 'Skip — no brand on this one']) {
+  it('three steps, the length on step 2, Duplicate, and no screens that are gone', () => {
+    for (const t of ['Your content', 'The story (free)', 'The look', 'After you press Make it', 'Rewrite at this length', 'Change the length', 'Duplicate', 'Skip — no brand on this one']) {
       expect(help, t).toContain(t)
     }
-    for (const gone of ['Voice &amp; Length', 'Choose the presenter', 'Approve the brief', 'Generate with', '<strong style={INK}>Nova</strong>']) {
+    for (const gone of ['What it’s about', 'Make it yours', 'Your video so far', 'Voice &amp; Length', 'Choose the presenter', 'Approve the brief', 'Generate with', '<strong style={INK}>Nova</strong>']) {
       expect(help, gone).not.toContain(gone)
     }
   })

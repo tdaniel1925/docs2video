@@ -73,7 +73,7 @@ describe('price-quote helper = the charge', () => {
 
 const SCREEN_FILES = [
   'app/(dashboard)/create/theme/page.tsx',
-  'app/(dashboard)/create/_components/make/PricePanel.tsx',
+  'app/(dashboard)/create/_components/workspace/BottomBar.tsx',
   'app/(dashboard)/create/_components/make/Pickers.tsx',
   'app/(dashboard)/create/_components/make/usePriceQuote.ts',
   'app/(dashboard)/create/_components/make/looks.ts',

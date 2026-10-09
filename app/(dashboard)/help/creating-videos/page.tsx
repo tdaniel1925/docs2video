@@ -7,10 +7,10 @@ import { CREDIT_COSTS } from '../../../_lib/credits'
 
 const n = (x: number) => x.toLocaleString('en-US')
 
-// Walks through the create flow exactly as the screens show it — the four
-// steps on the step bar: What it's about → Check the story → Make it yours →
-// Send it. Rewritten for the 4-step flow 2026-10-06 (the old 9-step guide
-// described screens that no longer exist).
+// Walks through the create flow exactly as the screens show it — the three
+// steps at the top of the screen: Your content → The story → The look, then
+// what happens after Make it. Rewritten for the 3-step flow 2026-10-09 (the
+// owner-approved sketch: one wide column, one bottom bar per step).
 
 const STEP_CIRCLE = {
   width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
@@ -27,7 +27,7 @@ const INK: React.CSSProperties = { color: 'var(--ink)' }
 const LINK: React.CSSProperties = { color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }
 const P: React.CSSProperties = { marginBottom: 10 }
 
-function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+function Step({ n, title, children }: { n: number | string; title: string; children: React.ReactNode }) {
   return (
     <div style={CARD}>
       <div style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'center', marginBottom: 16 }}>
@@ -55,55 +55,51 @@ export default function CreatingVideosPage() {
         <div>
           <h1>Creating explainer videos</h1>
           <p>
-            Four steps, from your document to a link you can send. The step bar (on the left, or at the top on a phone)
-            shows which step you are on. Your work is saved as you go, and nothing is charged until you press{' '}
-            <strong>Make it</strong> on step 3.
+            Three steps, from your document to a video you can send: <strong>Your content</strong>, <strong>The story</strong> and{' '}
+            <strong>The look</strong>. The steps are shown at the top of the screen (just the numbers on a phone) — press a step you&rsquo;ve
+            done to go back to it. Each step ends in one bar at the bottom of the screen: the price on the left, the one button that moves
+            you on, on the right. Your work is saved as you go, and nothing is charged until you press <strong>Make it</strong> on step 3.
           </p>
         </div>
       </div>
 
-      <Step n={1} title="What it’s about">
+      <Step n={1} title="Your content">
         <p style={P}>
-          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar — or one of the tiles under Create on Home (<strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong> or <strong style={INK}>From an idea</strong>), which opens this screen with that choice already made. The screen asks <strong style={INK}>What&rsquo;s this about?</strong> — three questions.
+          Click <strong style={INK}>{NAMES.newButton}</strong> in the top bar — or one of the tiles under Create on Home (<strong style={INK}>From a document</strong>, <strong style={INK}>From a website</strong>,{' '}
+          <strong style={INK}>From an idea</strong> or <strong style={INK}>Paste your text</strong>). The screen opens on that choice: for a document it
+          says <strong style={INK}>Add your document.</strong> with a big box to drop your file in (or click it to choose one).
         </p>
         <p style={P}>
-          <strong style={INK}>Who is it for?</strong> — Search your clients and pick one, click <strong style={INK}>+ New client</strong> to add one,
-          or choose <strong style={INK}>No client — general</strong>. A client&rsquo;s name appears on the video cover and on the share page
-          (&ldquo;Prepared for [Client]&rdquo;).
+          <strong style={INK}>A document</strong> — up to 5 files: PDF, Word (DOCX), PowerPoint (PPTX), text (TXT), CSV or Excel (XLSX). Each file
+          shows in a row under the box; press × to take one off. With more than one file we read them all and compare them (each extra file
+          adds to the price, which you see on step 3 before anything is charged).
         </p>
         <p style={P}>
-          <strong style={INK}>What should it get them to do?</strong> — Type the goal in your own words, for example &ldquo;Explain our services to potential clients&rdquo;.
+          To use something else, press <strong style={INK}>Use a website</strong> (type the address — just <em>yourcompany.com</em> is fine, no need
+          for https://), <strong style={INK}>Paste text</strong> (notes, an email or an article — at least 50 characters) or{' '}
+          <strong style={INK}>Describe an idea</strong> (a sentence about what you want; the AI writes the content).
         </p>
         <p style={P}>
-          <strong style={INK}>Where should the content come from?</strong> — Pick one:
-        </p>
-        <p style={P}>
-          <strong style={INK}>Website URL</strong> — type a web address (just <em>yourcompany.com</em> is fine — no need for https://) and the AI reads the page.{' '}
-          <strong style={INK}>Upload file</strong> — up to 5 files: PDF, Word (DOCX), PowerPoint (PPTX), text (TXT), CSV or Excel (XLSX).{' '}
-          <strong style={INK}>Paste text</strong> — notes, an email or an article (at least 50 characters).{' '}
-          <strong style={INK}>AI writes it</strong> — the AI writes the content from your goal.
+          Two answers are optional. <strong style={INK}>For</strong> — press one of your recent clients, <strong style={INK}>+ New</strong> to add a client,
+          or <strong style={INK}>Find</strong> to search the rest (press a picked client again to make it general). A client&rsquo;s name appears on the
+          video cover and on the share page (&ldquo;Prepared for [Client]&rdquo;). <strong style={INK}>Goal</strong> — what it should get them to do,
+          for example &ldquo;Book a review call&rdquo;.
         </p>
         <p>
-          Click <strong style={INK}>Read it and plan the story &rarr;</strong>. If something is still missing, the button can&rsquo;t be pressed
-          and the line under it says what — click <strong style={INK}>Show me</strong> to jump straight to it. While it reads you see each real
-          stage (uploading, reading, saving, finding the one point) get a tick as it finishes.
-        </p>
-        <p style={P}>
-          Next comes <strong style={INK}>Here&rsquo;s what we read</strong>: a short summary (<strong style={INK}>What it says</strong>),{' '}
-          <strong style={INK}>The one point</strong> the story is built around, and <strong style={INK}>The numbers we&rsquo;ll use</strong> — these go
-          into the story exactly as written, so fix any that are wrong or <strong style={INK}>Remove</strong> one you don&rsquo;t want. Then click{' '}
-          <strong style={INK}>Looks right — write the story &rarr;</strong>. <strong style={INK}>&larr; Change what I gave you</strong> takes you back.
-        </p>
-        <p>
-          On every step, <strong style={INK}>Your video so far</strong> sits beside the page (under it on a phone, tap to open): who it&rsquo;s for,
-          the source, the one point, what you&rsquo;re making, the look, the voice, the length and the price once it&rsquo;s known.
+          The bar at the bottom says <strong style={INK}>Free</strong> — nothing is charged yet. Press <strong style={INK}>Read it &rarr;</strong>. If
+          something is still missing, the button can&rsquo;t be pressed and the line under it says what — click <strong style={INK}>Show me</strong> to jump
+          straight to it. While it reads you see each real stage (uploading, reading, saving, finding the one point) get a tick as it finishes,
+          then step 2 opens.
         </p>
       </Step>
 
-      <Step n={2} title="Check the story (free)">
+      <Step n={2} title="The story (free)">
         <p style={P}>
-          The screen says <strong style={INK}>Here&rsquo;s the story.</strong> At the top is <strong style={INK}>The one point</strong> — the main
-          message the AI took from your source — with the numbers it will show. Click <strong style={INK}>What it covers</strong> to see the full list.
+          The screen says <strong style={INK}>Here&rsquo;s the story.</strong> The big card at the top is <strong style={INK}>The one point</strong> — the main
+          message the AI took from your content. Under it, the numbers it will use sit in big tiles, exactly as they&rsquo;ll be said. Click into
+          the point or a number to fix it, or press × on a tile to remove that number. <strong style={INK}>What it covers</strong> shows a short
+          summary and the full list. If you change the point or a number after the story is written, it offers{' '}
+          <strong style={INK}>Rewrite the story with it</strong> (free) or <strong style={INK}>Undo my changes</strong>.
         </p>
         <p style={P}>
           If the AI is unsure about something, it asks <strong style={INK}>A couple of quick questions first</strong>. Answer them and click{' '}
@@ -111,83 +107,79 @@ export default function CreatingVideosPage() {
           Writing the story takes about a minute.
         </p>
         <p style={P}>
-          <strong style={INK}>Length</strong> — pick <strong style={INK}>Short</strong> (under 1 minute), <strong style={INK}>Standard</strong> (2–5 minutes)
+          The scenes show as cards in two columns — &ldquo;6 scenes · about 3 minutes&rdquo; — starting with the <strong style={INK}>Opening</strong> and ending
+          with the <strong style={INK}>Closing</strong>. Press <strong style={INK}>Edit</strong> on a scene to change its title or the words the voice says;
+          inside it, <strong style={INK}>More — words on screen, ask AI, preview</strong> changes the numbers and points on the slide, offers{' '}
+          <strong style={INK}>✨ Edit with AI</strong> for that one scene, and a <strong style={INK}>Preview slide</strong>. Drag a card to move a scene (the
+          opening and closing stay put).
+        </p>
+        <p style={P}>
+          <strong style={INK}>Length</strong> — beside the scene count: <strong style={INK}>Short</strong> (under 1 minute), <strong style={INK}>Standard</strong> (2–5 minutes)
           or <strong style={INK}>Detailed</strong> (5–15 minutes). A longer video costs more credits ({n(CREDIT_COSTS.videoQuick)}, {n(CREDIT_COSTS.videoStandard)} or {n(CREDIT_COSTS.videoDetailed)}); you see the exact
           price on step 3. Pick a length before the story is written and it is written at that length. If the story is already written,
           picking a new length shows <strong style={INK}>Rewrite at this length</strong> (free — your story is rewritten as the new length)
           and <strong style={INK}>Keep</strong> (nothing changes). You can&rsquo;t go on to step 3 until you choose one of the two.
         </p>
         <p style={P}>
-          The story appears as scenes: an <strong style={INK}>Opening</strong>, the main scenes and a <strong style={INK}>Closing</strong>. Change any
-          scene&rsquo;s title or the words the voice says, and drag scenes to reorder them (the opening and closing stay put). Click{' '}
-          <strong style={INK}>More — words on screen, ask AI, preview</strong> to change the numbers and points on the slide, use{' '}
-          <strong style={INK}>✨ Edit with AI</strong> on that one scene, or see a <strong style={INK}>Preview slide</strong>.
-        </p>
-        <p style={P}>
-          For bigger changes, use <strong style={INK}>Change it by asking</strong> on the right: type what you want (for example
-          &ldquo;add a scene about pricing&rdquo;) or tap <strong style={INK}>Make it shorter</strong> or <strong style={INK}>Simpler words</strong>.
-          It rewrites the whole story; <strong style={INK}>Undo that change</strong> puts it back. <strong style={INK}>Write it again from the start</strong>{' '}
-          writes a brand-new story.
+          For bigger changes, type under <strong style={INK}>Ask for a change</strong> (for example &ldquo;add a scene about pricing&rdquo; or
+          &ldquo;make it shorter&rdquo;) and press <strong style={INK}>Change</strong>. It rewrites the whole story; <strong style={INK}>Undo that change</strong> puts it
+          back. <strong style={INK}>Write it again from the start</strong> writes a brand-new story.
         </p>
         <p style={P}>
           <strong style={INK}>Your draft is saved as you go.</strong> Once it has a story, an unfinished draft is kept for <strong style={INK}>14 days</strong>{' '}
           after your last change (a draft without a story is kept for 24 hours). Pick it up again from Home.
         </p>
         <p>
-          When it reads right, click <strong style={INK}>Looks right — pick the look &rarr;</strong>.
+          When it reads right, press <strong style={INK}>Pick a look &rarr;</strong> in the bar at the bottom.
         </p>
       </Step>
 
-      <Step n={3} title="Make it yours">
+      <Step n={3} title="The look">
         <p style={P}>
-          <strong style={INK}>Your brand</strong> — the top line says which brand is used (&ldquo;Using [name]&rsquo;s logo and colors&rdquo;). Click{' '}
+          The screen says <strong style={INK}>Pick a look.</strong> For a video the looks are <strong style={INK}>Slide Deck</strong> (marked{' '}
+          <strong style={INK}>BEST</strong>, and picked for you), <strong style={INK}>Aurora</strong>, <strong style={INK}>Cinematic</strong>,{' '}
+          <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong> and <strong style={INK}>Infographic</strong>. Press a card to pick it;{' '}
+          <strong style={INK}>See examples</strong> shows more of it. Presentations have their own color sets.
+        </p>
+        <p style={P}>
+          One line under the looks sums up the rest, for example &ldquo;Sarah · music off · standard&rdquo;. Press <strong style={INK}>Change</strong> (or open{' '}
+          <strong style={INK}>More options</strong>) for:
+        </p>
+        <p style={P}>
+          <strong style={INK}>Voice</strong> — press ▶ to hear a sample, then click a voice. The first one, <strong style={INK}>Sarah</strong>, a warm
+          female voice, is chosen for you. <strong style={INK}>Music</strong> — soft background music for a video (same price).{' '}
+          <strong style={INK}>Make</strong> — a <strong style={INK}>Video</strong> or an interactive <strong style={INK}>Presentation</strong> (they click through
+          at their own pace, with narration); each shows its price. Docs2Video no longer makes silent slide decks; a presentation&rsquo;s slides
+          still download as PDF or PowerPoint. <strong style={INK}>Length</strong> — the length your story was written at;{' '}
+          <strong style={INK}>Change the length</strong> takes you straight to the length choice on step 2. <strong style={INK}>Photos</strong> — the
+          Slide Deck look can <strong style={INK}>Add photo backgrounds</strong> (same price, a few minutes longer). <strong style={INK}>For your client</strong> —{' '}
+          <strong style={INK}>A note to your client</strong> (shown on the share page, up to 400 characters) and, if your source was a PDF,{' '}
+          <strong style={INK}>Let them download the original PDF</strong>. <strong style={INK}>Price</strong> — the lines that make up the price.
+        </p>
+        <p style={P}>
+          <strong style={INK}>Your brand</strong> — the brand line says which brand is used (&ldquo;Using [name]&rsquo;s logo and colors&rdquo;). Click{' '}
           <strong style={INK}>Change</strong> to open the brand step, where you can pick a saved brand, set up a person or company, or click{' '}
           <strong style={INK}>Skip — no brand on this one</strong>. See the{' '}
-          <Link href="/help/brands" style={LINK}>Brands</Link> guide.
+          <Link href="/help/brands" style={LINK}>Brands</Link> guide. <strong style={INK}>No brand yet?</strong> On your first project{' '}
+          <strong style={INK}>Add your brand</strong> opens right there on the page (any other time, click <strong style={INK}>Add your brand</strong> on the
+          brand line). Type your name or company, and either click <strong style={INK}>Fill in from it</strong> next to your website — it reads your
+          colours and the logo on your site — or click <strong style={INK}>Upload your logo</strong> and pick your two colours. Click{' '}
+          <strong style={INK}>Save my brand</strong>: this project uses it, and so does every new one. Only your real logo is used — we never draw
+          one; with no logo your name shows as text. <strong style={INK}>Not now</strong> closes it; <strong style={INK}>More brand options</strong> adds a
+          photo and contact details.
         </p>
         <p style={P}>
-          <strong style={INK}>No brand yet?</strong> On your first project <strong style={INK}>Add your brand</strong> opens right there on the page
-          (any other time, click <strong style={INK}>Add your brand</strong> on the brand line). Type your name or company, and either click{' '}
-          <strong style={INK}>Fill in from it</strong> next to your website — it reads your colours and the logo on your site — or click{' '}
-          <strong style={INK}>Upload your logo</strong> and pick your two colours. Click <strong style={INK}>Save my brand</strong>: this project uses it, and
-          so does every new one. Only your real logo is used — we never draw one; with no logo your name shows as text.{' '}
-          <strong style={INK}>Not now</strong> closes it; <strong style={INK}>More brand options</strong> adds a photo and contact details.
-        </p>
-        <p style={P}>
-          <strong style={INK}>What do you want to send?</strong> — a <strong style={INK}>Narrated video</strong> or an{' '}
-          <strong style={INK}>Interactive presentation</strong> (they click through at their own pace, with narration). Each shows its price.
-          Docs2Video no longer makes silent slide decks; a presentation&rsquo;s slides still download as PDF or PowerPoint.
-        </p>
-        <p style={P}>
-          <strong style={INK}>The look</strong> — for a video: <strong style={INK}>Slide Deck</strong> (recommended), <strong style={INK}>Aurora</strong>,{' '}
-          <strong style={INK}>Cinematic</strong>, <strong style={INK}>Editorial</strong>, <strong style={INK}>Explainer</strong> or{' '}
-          <strong style={INK}>Infographic</strong>, each with sample pictures. Slide Deck can also <strong style={INK}>Add photo backgrounds</strong>{' '}
-          (same price, a few minutes longer). Presentations have their own color sets.
-        </p>
-        <p style={P}>
-          <strong style={INK}>The voice</strong> — press ▶ to hear a sample, then click a voice. The first one, <strong style={INK}>Sarah</strong>, a warm
-          female voice, is chosen for you. For a video you can turn on <strong style={INK}>Background music</strong> (same price).
-        </p>
-        <p style={P}>
-          <strong style={INK}>Length</strong> — shows the length your story was written at. To change it, click{' '}
-          <strong style={INK}>Change the length</strong>; it takes you straight to the length choice on step 2.
-        </p>
-        <p style={P}>
-          <strong style={INK}>For your client</strong> (optional) — write <strong style={INK}>A note to your client</strong> (shown on the share page,
-          up to 400 characters) and, if your source was a PDF, turn on <strong style={INK}>Let them download the original PDF</strong>.
-        </p>
-        <p style={P}>
-          <strong style={INK}>See it before you pay</strong> — just above the button, click <strong style={INK}>See a free preview</strong>. You see the
-          first scene in the look you picked and hear a few seconds of the voice. It is free, you get a few a day, and it needs no card.
+          <strong style={INK}>See it before you pay</strong> — press <strong style={INK}>Free preview</strong> in the bar at the bottom. You see the first scene in
+          the look you picked and hear a few seconds of the voice. It is free, you get a few a day, and it needs no card.
         </p>
         <p>
-          <strong style={INK}>The price</strong> panel shows the total and your credit balance. Click <strong style={INK}>Make it — [credits]</strong>.
-          If the price changed since the page loaded, it tells you and waits for you to press again. If you haven&rsquo;t added a card yet, the
-          panel says so: Make it opens <strong style={INK}>Add your payment method</strong>, and once your card is saved you come straight back here.
+          The bar shows the price and how many credits you&rsquo;ll have left. Press <strong style={INK}>Make it</strong>. If the price changed since
+          the page loaded, it tells you and waits for you to press again. If you haven&rsquo;t added a card yet, the bar says so: Make it opens{' '}
+          <strong style={INK}>Add your payment method</strong>, and once your card is saved you come straight back here.
         </p>
       </Step>
 
-      <Step n={4} title="Send it">
+      <Step n="✓" title="After you press Make it">
         <p style={P}>
           A progress screen lists the real stages — writing the script, recording the voice, drawing the scenes, putting it together — with a
           tick as each one finishes and what is happening right now (for example &ldquo;Drawing scene 3 of 6&rdquo;). Most videos take{' '}

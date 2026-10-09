@@ -9,6 +9,7 @@
  */
 import { displayProgress } from '../../../_lib/video-progress'
 import { KIND_NAMES, kindOfOutput } from '../../../_lib/names'
+import { STEPS } from '../../create/_components/workspace/steps'
 
 export type VideoRow = {
   id: string
@@ -78,7 +79,7 @@ function whenCap(iso: string, now: number): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-// ── Drafts: where to pick up, and which of the 4 steps that is ──────────────
+// ── Drafts: where to pick up, and which of the 3 steps that is ──────────────
 
 /**
  * Where a draft resumes. The saved step number is what the wizard writes into
@@ -89,7 +90,7 @@ function whenCap(iso: string, now: number): string {
 export function resumeUrl(videoId: string, step: unknown): string {
   switch (Number(step)) {
     // 2 and 3 were saved by the old brand/voice pages, which came after the
-    // brief; in the 4-step flow the story is the next thing to do.
+    // brief; in the 3-step flow the story is the next thing to do.
     case 2:
     case 3:
     case 4:
@@ -98,7 +99,7 @@ export function resumeUrl(videoId: string, step: unknown): string {
   }
 }
 
-/** Which of the four steps in the create step bar that page belongs to. */
+/** Which of the three steps (focus header, steps.ts) that page belongs to. */
 export function wizardStep(url: string): number {
   const path = url.split('?')[0]
   if (path === '/create/brief' || path === '/create/script') return 2
@@ -120,7 +121,7 @@ export function projectStatus(
 ): ProjectStatus {
   if (v.status === 'draft') {
     const step = wizardStep(resumeUrl(v.id, v.draft_data?.step))
-    return { label: `Draft · step ${step} of 4`, tone: 'draft' }
+    return { label: `Draft · step ${step} of ${STEPS.length}`, tone: 'draft' }
   }
   if (v.status === 'pending' || v.status === 'processing') {
     return { label: `Making… ${displayProgress(v.progress_pct)}%`, tone: 'making' }

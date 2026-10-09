@@ -149,7 +149,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '👤',
     content: [
       'Signing up asks for your name, email and a password — **no card**. You land on **Home** with a note: **Try it before you add a card.**',
-      'Make your first project straight away. On step 3 (**Make it yours**) press **See a free preview** to see the first scene and hear the voice (free, a few a day), and fill in **Add your brand** — your name, logo and colours, or **Fill in from it** to read them from your website.',
+      'Make your first project straight away. On step 3 (**The look**) press **Free preview** to see the first scene and hear the voice (free, a few a day), and fill in **Add your brand** — your name, logo and colours, or **Fill in from it** to read them from your website.',
       'You add a card only when you press **Make it** on a real video or presentation: **Add your payment method** opens, then brings you back. Saving the card starts your free credits; nothing is charged until they run out.',
       'The optional Setup Wizard has 5 quick steps (you can press **Skip for now** on any of them):',
       '**1 — Profile:** Your name, company, phone, and role. This is your identity on the share page ("prepared by").',
@@ -167,7 +167,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '📊',
     content: [
       `The top bar has four words: **${NAMES.newButton}**, **${NAMES.library}**, **${NAMES.clients}** and **${NAMES.brands}**. The logo takes you Home. On the right are **${NAMES.howToUse}**, your credits and your initial, which opens the account menu: your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center and Sign out.`,
-      `**While you make something** — the top bar steps aside for a quieter one: **Home** on the left (your draft is saved as you go and waits on Home), the four step numbers in the middle, and **${NAMES.howToUse}** and your credits on the right. On a phone, the **?** button holds ${NAMES.howToUse} and the help assistant.`,
+      `**While you make something** — the top bar steps aside for a quieter one: **Home** on the left (your draft is saved as you go and waits on Home), the three steps in the middle (a step you have done takes you back to it), and **${NAMES.howToUse}** and your credits on the right. On a phone, the **?** button holds ${NAMES.howToUse} and the help assistant.`,
       `**Credits** — Your balance is the gold box in the top bar. It turns amber when fewer than ${n(CREDIT_COSTS.videoStandard)} are left (one standard video). Every creation spends credits (see Pricing). Click it (**+ Top Up**) to buy more.`,
       '**Create** — Home opens with six small tiles: **From a document**, **From a website**, **From an idea**, **Paste your text**, **A commercial** and **Your brand**. Each one opens the first step with that choice already made.',
       `**${NAMES.newButton}** — Starts any new project too: a narrated video or an interactive presentation. Commercials start from **A commercial** or the link under the first step.`,
@@ -211,9 +211,9 @@ const ARTICLES: HelpArticle[] = [
     icon: '🖱️',
     content: [
       'An interactive presentation is a narrated, click-through presentation your client explores at their own pace, on its own share page.',
-      `**1.** Click **${NAMES.newButton}**, say who it\'s for and what it should get them to do, and add your content.`,
-      '**2.** Check the story — the same as a video — then press **Looks right — pick the look**.',
-      '**3.** Under **What do you want to send?** choose **Interactive presentation**, then pick one of six looks: Heritage, Warm Editorial, Corporate Bold, Midnight, Fresh Mint or Certificate.',
+      `**1.** Click **${NAMES.newButton}** and add your content — a document, a website, pasted text or an idea. Who it\'s for and the goal are optional.`,
+      '**2.** Check the story — the same as a video — then press **Pick a look →**.',
+      '**3.** Open **More options** and under **Make** choose **Presentation**, then pick one of six looks: Heritage, Warm Editorial, Corporate Bold, Midnight, Fresh Mint or Certificate.',
       `**4.** Press **Make it**. When it\'s ready, open it from your ${NAMES.library} to send it, or change it with **Ask for a change**.`,
       `It costs ${n(CREDIT_COSTS.interactive)} credits. Want a video file too? On the finished presentation\'s page, press **Download** and choose **Export video** (${n(CREDIT_COSTS.videoExport)} credits).`,
     ],
@@ -224,11 +224,11 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎬',
     content: [
-      `Start from **${NAMES.newButton}** (top bar). There are four steps, and the bar on the left shows which one you\'re on. Nothing is charged until you press **Make it** on step 3.`,
-      '**1 — What\'s this about?** Pick a client (or **No client — general**), say what it should get them to do, and choose where the content comes from: **Website URL**, **Upload file** (up to 5: PDF, Word, PowerPoint, text, CSV or Excel), **Paste text**, or **AI writes it**. When you name a client, their name appears on the cover and share page ("Prepared for [Client]").',
-      '**2 — Check the story.** Read the one point and the scenes. Choose the **Length** (Short, Standard or Detailed), edit any scene, or type a change under **Change it by asking**. This step is free.',
-      `**3 — Make it yours.** Check **${NAMES.brand}**, choose **Narrated video**, pick the look (see "Video styles explained") and the voice (**Sarah** by default; press play to hear any voice), and add background music if you like. Optionally add a note to your client, then press **Make it**.`,
-      `**4 — Send it.** It finishes in the background and lands in your ${NAMES.library}. Its page opens with **Ready to send**: what\'s left, a picture of their page, and Send. Below that are **Ask for a change** and **Who watched**; at the top, **Download** and **More**.`,
+      `Start from **${NAMES.newButton}** (top bar). There are three steps, shown at the top of the screen. Each step ends in one bar at the bottom: the price on the left, the button that moves you on at the right. Nothing is charged until you press **Make it** on step 3.`,
+      '**1 — Your content.** It opens on what you picked on Home: drop your document in the big box (up to 5: PDF, Word, PowerPoint, text, CSV or Excel), or press **Use a website**, **Paste text** or **Describe an idea**. Optional: **For** (a client — their name appears on the cover and share page, "Prepared for [Client]") and **Goal**. Press **Read it →**.',
+      '**2 — The story.** Check the one point and the numbers (fix or remove any), then the scenes — press **Edit** on one to change it. Choose the length (Short, Standard or Detailed), or type a change under **Ask for a change**. This step is free. Press **Pick a look →**.',
+      `**3 — The look.** Pick a look card (see "Video styles explained"). One line shows the voice (**Sarah** by default), music and length — press **Change** to open **More options** for the voice (press play to hear any), music, a note to your client and more. Check **${NAMES.brand}** on the brand line, press **Free preview** if you like, then **Make it**.`,
+      `**After Make it.** It finishes in the background and lands in your ${NAMES.library}. Its page opens with **Ready to send**: what\'s left, a picture of their page, and Send. Below that are **Ask for a change** and **Who watched**; at the top, **Download** and **More**.`,
     ],
   },
   {
@@ -237,7 +237,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎨',
     content: [
-      'On the **Make it yours** step you choose how your explainer looks. Every look — Slide Deck included — uses the voice and background music you picked and your story exactly as you edited it. Only the visuals differ:',
+      'On step 3, **The look**, you choose how your explainer looks. Every look — Slide Deck included — uses the voice and background music you picked and your story exactly as you edited it. Only the visuals differ:',
       '• **Slide Deck** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Speaks your edited script. Takes about 10 minutes.',
       '• **Aurora** — modern motion graphics: one flowing branded backdrop, kinetic type, no stock imagery.',
       '• **Cinematic** — film-style imagery with kinetic text and motion. Best for story-led, emotive videos.',
@@ -470,9 +470,9 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '✏️',
     content: [
-      'Yes. On step 2, **Check the story**, every scene is editable: change the words directly, or open **More — words on screen, ask AI, preview** for the slide headline, stats, an AI edit and **Preview slide**.',
+      'Yes. On step 2, **The story**, every scene is editable: press **Edit** to change the words, or open **More — words on screen, ask AI, preview** for the slide headline, stats, an AI edit and **Preview slide**.',
       'Drag scenes to reorder them (the opening and closing stay in place).',
-      'To make a big change — like "add a slide about pricing" — type it under **Change it by asking** on the right. You can **Undo that change**.',
+      'To make a big change — like "add a slide about pricing" — type it under **Ask for a change** below the scenes. You can **Undo that change**.',
       'After it is made, use **Ask for a change** on its page — see **Changing a finished project**.',
     ],
   },
@@ -482,7 +482,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎙️',
     content: [
-      'On step 3, **Make it yours**, press play next to any voice under **The voice** to hear it, then click the voice to choose it.',
+      'On step 3, **The look**, press **Change** (or open **More options**), then press play next to any voice to hear it and click the voice to choose it.',
       'The default is **Sarah**, a warm female voice. Voices range from warm and conversational to professional and authoritative.',
       'Pick your voice before you generate. To change it afterwards, the video has to be made again.',
     ],
@@ -494,8 +494,8 @@ const ARTICLES: HelpArticle[] = [
     icon: '🏷️',
     content: [
       `Your logo lives in a **Company brand**. Click **${NAMES.brands}** in the top bar, then create or edit a brand and upload a PNG or SVG logo.`,
-      'You can also add your brand right on the **Make it yours** step while making a video: **Add your brand** opens on the page (on your first project it opens by itself). Upload your logo, or press **Fill in from it** to take the logo and colours from your website, then **Save my brand**. Only your real logo is ever used — we never draw one; with no logo your name shows as text.',
-      'When making a video, the brand shows at the top of **Make it yours** — press **Change** to pick another. The logo appears on the cover, the closing slide and the share page. See the **Brands & personalization** guide for details.',
+      'You can also add your brand right on step 3, **The look**, while making a video: **Add your brand** opens on the page (on your first project it opens by itself). Upload your logo, or press **Fill in from it** to take the logo and colours from your website, then **Save my brand**. Only your real logo is ever used — we never draw one; with no logo your name shows as text.',
+      'When making a video, the brand shows on the brand line of step 3, **The look** — press **Change** to pick another. The logo appears on the cover, the closing slide and the share page. See the **Brands & personalization** guide for details.',
     ],
   },
   {

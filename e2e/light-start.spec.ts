@@ -5,12 +5,12 @@ import { SHOTS, collectConsoleErrors, expectNoBlockedCalls, guardRealWorld, json
 /*
  * OVERHAUL PHASE 5 — the light start.
  *  - Step 3 for an account with no card: the free preview is there, the
- *    price panel says a card comes at Make it, and "Add your brand" opens in
+ *    bottom bar says a card comes at Make it, and "Add your brand" opens in
  *    place for a first project (website fill + logo, both mocked — nothing is
  *    saved).
  *  - The help assistant knows the screen: its suggestions and the page it
  *    sends change with the screen (the answer is mocked — no paid AI call).
- *  - Phones: help lives in the ☰ menu; the pinned button sits above the
+ *  - Phones: help lives in the ☰ menu; the bottom bar sits above the
  *    cookie notice.
  * The signup itself is NOT run here: it would create a real account.
  */
@@ -36,7 +36,7 @@ async function openCardlessStep3(page: Page, draftOver: Record<string, unknown> 
     ? r.fulfill({ json: { remainingToday: 3, limit: 3 } })
     : r.fulfill({ json: { imageUrl: '/style-samples/slides-data.png', audioUrl: null, remainingToday: 2, voiceNote: null, lookNote: null } }))
   await page.goto(`/create/theme?id=${FAKE_ID}`)
-  await expect(page.getByRole('heading', { name: 'Make it yours.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Pick a look.' })).toBeVisible()
 }
 
 test.describe('step 3 without a card', () => {
@@ -44,11 +44,11 @@ test.describe('step 3 without a card', () => {
 
   test('the free preview works and the card is only asked for at Make it', async ({ page }) => {
     await openCardlessStep3(page)
-    const panel = page.getByRole('complementary', { name: 'The price' })
+    const panel = page.getByRole('region', { name: 'The price' })
     await expect(panel).toContainText('Add a card to start your free trial.')
     await expect(panel).toContainText('The free preview doesn’t need one.')
-    await page.getByRole('button', { name: /See a free preview/ }).click()
-    await expect(page.locator('img[src="/style-samples/slides-data.png"]').first()).toBeVisible()
+    await panel.getByRole('button', { name: 'Free preview' }).click()
+    await expect(page.getByRole('region', { name: 'Free preview' }).locator('img[src="/style-samples/slides-data.png"]')).toBeVisible()
   })
 
   test('a first project opens "Add your brand" in place; the website fills colours and the real logo', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('help knows the screen', () => {
 
     await openCardlessStep3(page)
     await page.getByRole('button', { name: 'Help', exact: true }).click()
-    await expect(help).toContainText('On this screen: Step 3 — Make it yours')
+    await expect(help).toContainText('On this screen: Step 3 — The look')
     await expect(help.getByRole('button', { name: 'How do I add my logo?' })).toBeVisible()
     await help.getByRole('textbox').fill('Which look is best?')
     await help.getByRole('button', { name: 'Send' }).click()

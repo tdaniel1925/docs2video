@@ -79,16 +79,16 @@ export default function SharingVideosPage() {
             <strong style={INK}>Welcome banner</strong> — If you named a client when you made the video, the page greets them: &ldquo;Hi [Client] — prepared for you by [You].&rdquo;
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>A note from you</strong> — If you wrote <strong style={INK}>A note to your client</strong> on step 3 (Make it yours), it shows above the video as &ldquo;A note from [You].&rdquo;
+            <strong style={INK}>A note from you</strong> — If you wrote <strong style={INK}>A note to your client</strong> on step 3 (The look), it shows above the video as &ldquo;A note from [You].&rdquo;
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>The video</strong> — A player with play/pause, volume and full screen.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Your details</strong> — Your name, photo, company and contact information, taken from the brand you picked on step 3 (Make it yours).
+            <strong style={INK}>Your details</strong> — Your name, photo, company and contact information, taken from the brand you picked on step 3 (The look).
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Download Original PDF</strong> — Only if you turned on <strong style={INK}>Let them download the original PDF</strong> on step 3 (Make it yours). This is the only download on the page; your client cannot download the video, slides or PowerPoint.
+            <strong style={INK}>Download Original PDF</strong> — Only if you turned on <strong style={INK}>Let them download the original PDF</strong> on step 3 (The look). This is the only download on the page; your client cannot download the video, slides or PowerPoint.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>Book a Call</strong> and <strong style={INK}>Make a Payment</strong> — These buttons appear when you have added a booking link (Calendly, Cal.com or Google Calendar) or a payment link. Set them up in <strong style={INK}>Settings &gt; Email &amp; sending</strong> (account menu, top-right). The link must be a full web address starting with <em>https://</em>, or the button won&rsquo;t appear. For Google Calendar, paste the link of a Google <strong style={INK}>booking page</strong> (an &ldquo;Appointment schedule&rdquo;) — Google Calendar can&rsquo;t be connected directly.

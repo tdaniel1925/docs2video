@@ -134,12 +134,13 @@ describe('the focus header while making something', () => {
     for (const p of ['/dashboard', '/videos', '/creator', '/videos/abc']) expect(isFocusPath(p), p).toBe(false)
   })
 
-  it('step 3: Home, the four step numbers with step 3 current, How to use — no Library/Clients/Brands', () => {
+  it('step 3: Home, the three steps with step 3 current, How to use — no Library/Clients/Brands', () => {
     pathname = '/create/theme'
     const html = renderToStaticMarkup(h(Header, { profile, brand: DOCS2VIDEO, lowCreditsAt: 1000 }))
     expect(html).toContain('data-testid="focus-header"')
     expect(html).toMatch(/href="\/dashboard"[^>]*>.*Home/)
-    for (const w of ['What it’s about', 'The story', 'Make it yours', 'Send it']) expect(html).toContain(w)
+    for (const w of ['Your content', 'The story', 'The look']) expect(html).toContain(w)
+    for (const w of ['What it’s about', 'Make it yours', 'Send it']) expect(html).not.toContain(w)
     expect(html).toMatch(/aria-current="step"[^>]*>.*?<span class="kit-focusbar-num"[^>]*>3</)
     expect(html).toContain('How to use')
     expect(html).not.toContain('href="/videos"')

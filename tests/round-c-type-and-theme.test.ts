@@ -106,7 +106,7 @@ function lowPairs(t: Record<string, string>): string[] {
 describe('round C — one type scale', () => {
   it('the scale is defined once, with a line height per size, plus kit classes and Tailwind names', () => {
     const root = tokens(blockAfter(':root'))
-    const want = { caption: '12px', small: '13px', ui: '14px', body: '15px', lead: '18px', h3: '22px', h2: '28px', h1: '34px' }
+    const want = { caption: '12px', small: '13px', ui: '14px', body: '15px', lead: '18px', h3: '22px', h2: '28px', h1: '34px', big: '24px', display: '48px' }
     for (const [name, px] of Object.entries(want)) {
       expect(root[`--fs-${name}`], name).toBe(px)
       expect(root[`--lh-${name}`], name).toMatch(/^1(\.\d+)?$/)
@@ -131,7 +131,7 @@ describe('round C — one type scale', () => {
       if (NOT_SCREENS.some((x) => x.test(r))) continue
       for (const h of handSetSizes(readFileSync(f, 'utf8'))) if (!ALLOWED.has(`${r}: ${h}`)) hits.push(`${r}: ${h}`)
     }
-    expect(hits, 'use var(--fs-caption|small|ui|body|lead|h3|h2|h1) — see globals.css TYPE SCALE').toEqual([])
+    expect(hits, 'use var(--fs-caption|small|ui|body|lead|h3|h2|h1|big|display) — see globals.css TYPE SCALE').toEqual([])
   })
 })
 

@@ -258,7 +258,7 @@ export default function AddBrandPiece({
       {message ? <Note tone={message.tone}>{message.text}</Note> : null}
 
       <div className={s.actions}>
-        <Button onClick={save} disabled={!!busy || !name.trim()} disabledReason={!name.trim() ? 'Type your name or company first.' : undefined}>
+        <Button variant="secondary" onClick={save} disabled={!!busy || !name.trim()} disabledReason={!name.trim() ? 'Type your name or company first.' : undefined}>
           {busy === 'save' ? 'Saving…' : 'Save my brand'}
         </Button>
         <Button variant="quiet" onClick={onClose} disabled={busy === 'save'}>Not now</Button>
