@@ -15,7 +15,7 @@
 export const STEPS = [
   { label: 'Your content', paths: ['/create'] },
   { label: 'The story', paths: ['/create/brief', '/create/script'] },
-  { label: 'The look', paths: ['/create/theme', '/create/brand', '/create/voice'] },
+  { label: 'The look', paths: ['/create/theme', '/create/look', '/create/brand', '/create/voice'] },
 ] as const
 
 /** Pages that come after the three steps (all three show as done). */

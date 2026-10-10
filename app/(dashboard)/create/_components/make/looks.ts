@@ -3,7 +3,10 @@
 // presentation, and "Heritage" can't style a video. The Make screen shows the
 // set that fits the chosen output.
 
-export type VideoLookId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic' | 'drawn'
+export type VideoLookId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic' | 'drawn' | 'custom'
+
+/** The step-3 card that opens the look screen (/create/look) — not a look itself. */
+export const CREATE_LOOK_CARD = 'create-look'
 
 import { NAMES } from '../../../../_lib/names'
 
@@ -23,7 +26,7 @@ export const VIDEO_LOOKS: { id: VideoLookId; name: string; short: string; taglin
 export const VIDEO_SAMPLE_KINDS = ['cover', 'data', 'closing'] as const
 
 export function isVideoLook(v: unknown): v is VideoLookId {
-  return VIDEO_LOOKS.some((l) => l.id === v)
+  return v === 'custom' || VIDEO_LOOKS.some((l) => l.id === v)
 }
 
 /** Presentation / slide-deck looks — color sets in the presentation builder
@@ -57,7 +60,7 @@ export type LookCard = {
   short: string
   tagline: string
   /** A picture (video looks) or a mini slide drawn from three colours (presentations). */
-  thumb: { kind: 'img'; src: string } | { kind: 'swatch'; swatch: [string, string, string] }
+  thumb: { kind: 'img'; src: string } | { kind: 'swatch'; swatch: [string, string, string]; title?: string }
   recommended?: boolean
   tag?: string
   /** Sample pictures shown under the cards when this look is picked. */
@@ -79,12 +82,29 @@ const KIT_CARD: Partial<Record<VideoLookId, { kitLook: string; name?: string; sh
   explainer: { kitLook: 'bright', name: 'Bright', short: 'Bright, friendly colours', tagline: 'Warm cream with coral, teal and gold — friendly and energetic, great for how-it-works.' },
 }
 
-export function lookCards(output: string, opts: { kit?: boolean } = {}): LookCard[] {
+/** The look made on the look screen, as step 3 shows it (colours only — pure data). */
+export type YourLook = { name?: string; colors: { bg: string; glow: string; accent: string; text: string } }
+
+export function lookCards(output: string, opts: { kit?: boolean; yourLook?: YourLook | null } = {}): LookCard[] {
   if (output === 'interactive' || output === 'deck') {
     return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0 }))
   }
   if (opts.kit) {
-    return VIDEO_LOOKS.filter((l) => l.id === 'drawn' || KIT_CARD[l.id]).map((l) => {
+    // THE LOOK SCREEN (look wizard): "Your look" comes FIRST when the brand or
+    // this project has one; "Create your own look" sits next to the ready looks.
+    const yours: LookCard[] = opts.yourLook ? [{
+      id: 'custom', name: 'Your look',
+      short: opts.yourLook.name && !/^(your look|custom)$/i.test(opts.yourLook.name) ? opts.yourLook.name : 'Your colours, fonts and feel',
+      tagline: 'Your own look, made on the look screen. Change it any time — videos already made keep theirs.',
+      thumb: { kind: 'swatch', swatch: [opts.yourLook.colors.bg, opts.yourLook.colors.text, opts.yourLook.colors.accent], title: 'Your look' },
+    }] : []
+    const create: LookCard = {
+      id: CREATE_LOOK_CARD, name: opts.yourLook ? 'Change your look' : 'Create your own look',
+      short: 'Match your brand, a picture or a website',
+      tagline: 'Opens the look screen: start from your brand, something you like, or a ready style.',
+      thumb: { kind: 'swatch', swatch: ['#f4f1ec', '#0b2545', '#2f6b3a'], title: '+ Your own' },
+    }
+    const ready = VIDEO_LOOKS.filter((l) => l.id === 'drawn' || KIT_CARD[l.id]).map((l): LookCard => {
       const k = KIT_CARD[l.id]
       const pic = k ? `kit-${k.kitLook}` : l.id
       return {
@@ -95,6 +115,9 @@ export function lookCards(output: string, opts: { kit?: boolean } = {}): LookCar
         samples: VIDEO_SAMPLE_KINDS.map((s) => `/style-samples/${pic}-${s}.png`),
       }
     })
+    const drawnAt = ready.findIndex((c) => c.id === 'drawn')
+    const withCreate = drawnAt >= 0 ? [...ready.slice(0, drawnAt), create, ...ready.slice(drawnAt)] : [...ready, create]
+    return [...yours, ...withCreate]
   }
   return VIDEO_LOOKS.map((l) => ({
     id: l.id,

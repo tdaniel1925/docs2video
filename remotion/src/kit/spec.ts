@@ -24,6 +24,20 @@ export type Feel = 'calm' | 'premium' | 'energetic'
 export type BackgroundStyle = 'gradient' | 'glow' | 'solid' | 'paper'
 export type Corners = 'square' | 'soft'
 export type LogoMode = 'auto' | 'plate' | 'text'
+/**
+ * Music under the voice. 'match' follows the feel (FEEL[feel].music); the
+ * others pick one of the bundled beds; 'none' = no music at all. A track the
+ * user uploaded, or AI music they asked for, still wins over all of these.
+ */
+export type MusicPick = 'match' | 'piano' | 'pulse' | 'bright' | 'none'
+export const MUSIC_PICKS: { id: MusicPick; name: string; bed?: string }[] = [
+  { id: 'match', name: 'Match the feel' },
+  { id: 'piano', name: 'Gentle piano', bed: 'music/bed-warm-128.wav' },
+  { id: 'pulse', name: 'Soft pulse', bed: 'music/bed-corporate-128.wav' },
+  { id: 'bright', name: 'Upbeat', bed: 'music/bed-uplifting-128.wav' },
+  { id: 'none', name: 'No music' },
+]
+export const isMusicPick = (v: unknown): v is MusicPick => typeof v === 'string' && MUSIC_PICKS.some((m) => m.id === v)
 
 /**
  * FREE FONTS ONLY. Every one is a Google font shipped through
@@ -110,6 +124,8 @@ export type Look = {
   headWeight?: number
   /** Uppercase short labels ("eyebrows"). Default true. */
   upperLabels?: boolean
+  /** Music under the voice (default 'match' = the feel's bed). */
+  music?: MusicPick
 }
 
 export const KIT_LOOKS: Record<'animated-slides' | 'editorial' | 'bright', Look> = {
@@ -228,11 +244,21 @@ export function guardLook(input: Look): GuardResult {
   const accent = normHex(input.colors.accent, '#d8b25a')
   let text = normHex(input.colors.text, isDark(bg) ? '#f4f1ec' : '#1c1f26')
   if (contrast(text, bg) < 4.5) {
-    const fixed = readable(text, bg, 4.5)
+    // When we have to fix it, fix it properly: aim for 7:1 (comfortable), not just the 4.5:1 minimum.
+    const fixed = readable(text, bg, 7)
     fixes.push(`We ${isDark(bg) ? 'lightened' : 'darkened'} the text so it stays readable on this background.`)
     text = fixed
   }
   const dark = isDark(bg)
+  // The second colour fills big parts of the page (glow pools, the gradient's
+  // far end), so words sit on it too. If the words can't be read on it, the
+  // second colour moves toward the page until they can — and that is said.
+  let glow2 = glow
+  if (contrast(text, glow2) < 4.5) {
+    for (let t = 0.1; t <= 1.0001 && contrast(text, glow2) < 4.5; t += 0.1) glow2 = mix(glow, bg, t)
+    if (contrast(text, glow2) < 4.5) glow2 = bg
+    fixes.push('We softened the second colour so words stay readable on top of it.')
+  }
   const muted = readable(mix(text, bg, 0.32), bg, 4.5)
   const accentInk = readable(accent, bg, 4.5)
   const accentBig = readable(accent, bg, 3)
@@ -244,7 +270,7 @@ export function guardLook(input: Look): GuardResult {
   while (series.length < 6) series.push(mix(accentBig, bg, 0.25 + series.length * 0.1))
   const look: Look = {
     ...input,
-    colors: { bg, glow, accent, text },
+    colors: { bg, glow: glow2, accent, text },
     headFont: isFontId(input.headFont) ? input.headFont : 'montserrat',
     bodyFont: isFontId(input.bodyFont) ? input.bodyFont : 'inter',
     background: (['gradient', 'glow', 'solid', 'paper'] as const).includes(input.background) ? input.background : 'glow',
@@ -254,7 +280,7 @@ export function guardLook(input: Look): GuardResult {
   }
   // Max corner radius 10px (house rule).
   const radius = look.corners === 'square' ? 2 : 10
-  return { look, tokens: { bg, glow, accent, text, muted, accentInk, accentBig, onAccent, surface, surfaceLine, series, radius, dark }, fixes }
+  return { look, tokens: { bg, glow: glow2, accent, text, muted, accentInk, accentBig, onAccent, surface, surfaceLine, series, radius, dark }, fixes }
 }
 
 /**
@@ -302,7 +328,23 @@ export function sanitizeLook(raw: unknown, fallbackId: keyof typeof KIT_LOOKS = 
     logoMode: (['auto', 'plate', 'text'] as const).includes(r.logoMode) ? r.logoMode : preset.logoMode,
     series: Array.isArray(r.series) ? r.series.slice(0, 5).map((s: unknown) => normHex(s, preset.colors.accent)) : preset.series,
     headWeight: typeof r.headWeight === 'number' && r.headWeight >= 300 && r.headWeight <= 900 ? r.headWeight : preset.headWeight,
+    ...(typeof r.upperLabels === 'boolean' ? { upperLabels: r.upperLabels } : {}),
+    ...(isMusicPick(r.music) ? { music: r.music } : {}),
   }
+}
+
+/**
+ * The music file a plan plays. The user's own track or AI music (a per-video
+ * file the render service names in plan.audio.music) always wins; otherwise
+ * the look's pick; 'match' (or nothing) = the feel's bed. null = no music.
+ */
+export function musicFileFor(look: Pick<Look, 'feel' | 'music'>, planMusic?: string | null): string | null {
+  const own = typeof planMusic === 'string' && planMusic && !planMusic.startsWith('music/') ? planMusic : null
+  if (own) return own
+  if (look.music === 'none') return null
+  const pick = MUSIC_PICKS.find((m) => m.id === look.music)
+  if (pick?.bed) return pick.bed
+  return (FEEL[look.feel] ?? FEEL.premium).music
 }
 
 /** Feel → motion speed (1 = premium) and the bundled music bed. */

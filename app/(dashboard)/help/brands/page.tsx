@@ -52,6 +52,9 @@ export default function BrandsHelpPage() {
           <p style={{ marginTop: 10 }}>
             Only your real logo is ever used — we never draw one. With no logo, your name shows as text.
           </p>
+          <p style={{ marginTop: 10 }}>
+            <strong style={{ color: 'var(--ink)' }}>Video look</strong> — press <strong style={{ color: 'var(--ink)' }}>Video look</strong> on a brand to choose the colours, fonts and feel of that brand&apos;s videos (from the brand, a picture or website you like, or a ready style). It&apos;s saved on the brand and your next videos start from it. See <Link href="/help/video-look" style={{ color: 'var(--link)' }}>Your video look</Link>.
+          </p>
         </div>
       </div>
 

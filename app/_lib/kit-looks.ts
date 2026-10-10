@@ -2,13 +2,13 @@
 // the free preview): which step-3 look card becomes which scene-kit look when
 // KIT_ENGINE is on. No imports, safe anywhere.
 
-export type KitLookId = 'animated-slides' | 'editorial' | 'bright' | 'brand'
+export type KitLookId = 'animated-slides' | 'editorial' | 'bright' | 'brand' | 'custom'
 
 /** Step-3 card → kit look. Cards not listed (Drawn slides) keep their own engine. */
-export const KIT_LOOK_FOR_CARD: Record<string, KitLookId> = { slides: 'animated-slides', editorial: 'editorial', explainer: 'bright' }
+export const KIT_LOOK_FOR_CARD: Record<string, KitLookId> = { slides: 'animated-slides', editorial: 'editorial', explainer: 'bright', custom: 'custom' }
 
 /** Kit look → the card shown as picked when a kit draft is reopened. */
-export const CARD_FOR_KIT_LOOK: Record<string, string> = { 'animated-slides': 'slides', editorial: 'editorial', bright: 'explainer', brand: 'slides' }
+export const CARD_FOR_KIT_LOOK: Record<string, string> = { 'animated-slides': 'slides', editorial: 'editorial', bright: 'explainer', brand: 'slides', custom: 'custom' }
 
 /** Looks retired from step 3 while the kit engine is on (old videos still render). */
 export const RETIRED_WITH_KIT = ['aurora', 'cinematic', 'infographic'] as const

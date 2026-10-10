@@ -155,6 +155,11 @@ export default function CreatingVideosPage() {
           The free preview shows one scene in the look you picked; the finished video picks the best scene for every part.
         </p>
         <p style={P}>
+          <strong style={INK}>Your own look</strong> (with the new scene engine): press <strong style={INK}>Create your own look</strong> to match your
+          brand, a picture, a PDF or a website you like — colours, fonts, feel and logo on one screen, with a live preview of your own scenes.
+          After that, <strong style={INK}>Your look</strong> is the first card. See <Link href="/help/video-look" style={{ color: 'var(--link)' }}>Your video look</Link>.
+        </p>
+        <p style={P}>
           <strong style={INK}>Drawn slides</strong> — the AI draws every slide as one finished picture, with the headline, a few short points and your
           numbers drawn right in. When you pick it, a <strong style={INK}>Drawing style</strong> line appears under the cards with three choices, each with a
           small sample: <strong style={INK}>3D infographic</strong> (glossy 3D objects and cards — picked for you), <strong style={INK}>Illustrated</strong>{' '}

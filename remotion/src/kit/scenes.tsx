@@ -382,7 +382,7 @@ const LineArea: React.FC<{ scene: ChartScene; from: number; to: number; top: num
         return (
           <React.Fragment key={i}>
             <div style={{ position: 'absolute', left: Math.min(W - w, Math.max(0, x(i) - w / 2)), top: y(p.value) - 78, width: w, opacity: reached ? 1 : 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}><div style={{ background: rgba(t.bg, 0.86), borderRadius: t.radius, padding: '2px 12px', maxWidth: w }}><Fit max={i === hi ? 50 : 38} min={22} lines={1} sizeFor={formatFigure(figOf(scene, p.value))} style={{ fontFamily: head, fontWeight: 800, color: i === hi ? t.accentInk : t.text, textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap', width: Math.min(w - 24, 40 + formatFigure(figOf(scene, p.value)).length * (i === hi ? 30 : 23)) }}>{formatFigure(figOf(scene, p.value))}</Fit></div></div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}><div style={{ background: rgba(t.bg, 0.86), borderRadius: t.radius, padding: '6px 12px', maxWidth: w }}><Fit max={i === hi ? 50 : 38} min={22} lines={1} sizeFor={formatFigure(figOf(scene, p.value))} style={{ fontFamily: head, fontWeight: 800, color: i === hi ? t.accentInk : t.text, textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap', width: Math.min(w - 24, 40 + formatFigure(figOf(scene, p.value)).length * (i === hi ? 30 : 23)) }}>{formatFigure(figOf(scene, p.value))}</Fit></div></div>
             </div>
             <div style={{ position: 'absolute', left: Math.min(W - w, Math.max(0, x(i) - w / 2)), top: plotTop + plotH + 20, width: w }}>
               <Fit max={30} min={20} lines={2} style={{ fontFamily: body, fontWeight: 600, color: t.muted, textAlign: 'center', lineHeight: 1.22 }}>{p.label}</Fit>

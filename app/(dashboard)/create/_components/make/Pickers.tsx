@@ -42,7 +42,7 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
             {l.thumb.kind === 'img'
               // eslint-disable-next-line @next/next/no-img-element -- a sample picture, shown as is
               ? <img className="cf-look-thumb" src={l.thumb.src} alt="" loading="lazy" />
-              : <Swatch swatch={l.thumb.swatch} />}
+              : <Swatch swatch={l.thumb.swatch} title={l.thumb.title} />}
             <span className="cf-look-cap">
               <span className="cf-look-name">
                 {l.name}
@@ -80,12 +80,12 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
 }
 
 /** A mini slide drawn from a presentation look's own three colours. */
-function Swatch({ swatch }: { swatch: [string, string, string] }) {
+function Swatch({ swatch, title = 'Your title' }: { swatch: [string, string, string]; title?: string }) {
   const [paper, ink, accent] = swatch
   return (
     <span className="cf-look-swatch" style={{ background: paper }}>
       <span className="cf-look-swatch-bar" style={{ background: accent }} />
-      <span className="cf-look-swatch-title" style={{ color: ink }}>Your title<span style={{ color: accent }}>.</span></span>
+      <span className="cf-look-swatch-title" style={{ color: ink }}>{title}<span style={{ color: accent }}>.</span></span>
     </span>
   )
 }

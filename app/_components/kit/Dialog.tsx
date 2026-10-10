@@ -41,14 +41,21 @@ function OpenDialog({ onClose, title, sub, children, footer, closeLabel = 'Close
   useEffect(() => {
     const d = ref.current
     if (!d) return
-    const handle = () => onCloseRef.current()
+    const handle = () => {
+      // The browser sends 'close' a moment AFTER close(). When React runs this
+      // effect twice (development's strict mode: set up, clean up, set up),
+      // the clean-up's close arrives at the NEW listener and used to shut the
+      // dialog the instant it opened. A close we made ourselves is ignored.
+      if (d.dataset.selfClose) { delete d.dataset.selfClose; return }
+      onCloseRef.current()
+    }
     d.addEventListener('close', handle)
     if (!d.open) d.showModal()
     return () => {
       d.removeEventListener('close', handle)
       // Closed by the parent (e.g. a new screen): close properly first so the
       // browser hands focus back to the button that opened it.
-      if (d.open) d.close()
+      if (d.open) { d.dataset.selfClose = '1'; d.close() }
     }
   }, [])
 

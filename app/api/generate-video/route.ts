@@ -33,7 +33,7 @@ import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
 import { getBrand } from '../../_lib/brand-server'
 import { isRetiredOutput, RETIRED_MESSAGE } from '../../_lib/videos-only'
-import { buildDrawnSlides, drawStyleOf, DRAWN_LOOK_ID } from '../../_lib/drawn-slides'
+import { buildDrawnSlides, drawStyleOf, DRAWN_LOOK_ID, drawnLookFrom } from '../../_lib/drawn-slides'
 import { assembleKitPlan, kitEngineOn, kitLogoAssets, planKitVideoCached, plannerBeats, resolveKitLook } from '../../_lib/kit-engine'
 import type { PlannerInput } from '../../_lib/kit-planner'
 import { storyTooBigMessage } from '../../_lib/length-limits'
@@ -1135,6 +1135,8 @@ export async function POST(request: Request) {
           scrub: complianceScrubberFor(policyData, (policyData as any)?.classification?.documentType, industry),
           videoTitle,
           recipient,
+          // The look made on the look screen (its colours + feel), when this video has one.
+          look: drawnLookFrom(draft.kitLookCustom),
         })
       : null
 
@@ -1216,9 +1218,13 @@ export async function POST(request: Request) {
             hasPresenter: !!presenter?.photo, contact: kitContact, videoId,
           }
           const planned = await planKitVideoCached(plannerInput, draft.kitPlanCache)
+          // "Your look" read from the brand (no copy on the draft yet): keep a
+          // COPY on this video, so editing the brand's look later never changes it.
+          const kitLookNow = (body as any).kitLook ?? draft.kitLook
+          const snapshotLook = kitLookNow === 'custom' && !(draft.kitLookCustom && typeof draft.kitLookCustom === 'object')
           // Keep the plan on the draft: a retry of the same story reuses it for $0.
-          if (!planned.reused) {
-            await admin.from('videos').update({ draft_data: { ...draft, kitPlanCache: planned.cache } }).eq('id', videoId).then(() => {}, () => {})
+          if (!planned.reused || snapshotLook) {
+            await admin.from('videos').update({ draft_data: { ...draft, kitPlanCache: planned.cache, ...(snapshotLook ? { kitLook: 'custom', kitLookCustom: look } : {}) } }).eq('id', videoId).then(() => {}, () => {})
           }
           const kitPlan = assembleKitPlan({
             title: videoTitle, scenes: planned.result.scenes, look,

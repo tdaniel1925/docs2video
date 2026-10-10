@@ -21,7 +21,7 @@ import { VOICE_OPTIONS } from '../../../_lib/types'
 import type { MakeOutput } from '../../../_lib/price-quote'
 import { LookPicker, OutputPicker, VoicePicker } from '../_components/make/Pickers'
 import { usePriceQuote, formatCredits } from '../_components/make/usePriceQuote'
-import { isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, type VideoLookId } from '../_components/make/looks'
+import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, type VideoLookId, type YourLook } from '../_components/make/looks'
 // The same list the story step chooses from — one set of names for both.
 import { LENGTHS, LENGTH_ANCHOR } from '../_components/story/lengths'
 import BottomBar from '../_components/workspace/BottomBar'
@@ -35,7 +35,11 @@ import { DEFAULT_DRAW_STYLE, DRAW_STYLES, isDrawStyle, type DrawStyleId } from '
 import { cardForDraft, previewLookFor, RETIRED_WITH_KIT, styleForCard } from '../../../_lib/kit-looks'
 
 type Draft = Record<string, any>
-type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null }
+type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null; brand_guide_data?: Record<string, unknown> | null }
+
+/** A saved look (the look screen) as step 3 needs it: the whole settings object, copied at Make time. */
+type FullLook = YourLook & Record<string, unknown>
+const asLook = (v: unknown): FullLook | null => (v && typeof v === 'object' && !Array.isArray(v) && (v as YourLook).colors && typeof (v as YourLook).colors === 'object' ? v as FullLook : null)
 
 const DEFAULT_VOICE = VOICE_OPTIONS[0].id // Sarah (nova) — CLAUDE.md rule 5
 
@@ -67,20 +71,25 @@ function MakeItYours() {
   // "Add your brand" inside the project (light start). Opens by itself when
   // the person has no brand at all yet — their first project.
   const [addingBrand, setAddingBrand] = useState(false)
+  // "Your look": this project's own copy (draft.kitLookCustom), else the brand's saved look.
+  const [yourLook, setYourLook] = useState<FullLook | null>(null)
 
   const [output, setOutput] = useState<MakeOutput>('video')
   const [videoLook, setVideoLook] = useState<VideoLookId>(RECOMMENDED_VIDEO_LOOK)
   // Is the new scene engine on? (env KIT_ENGINE=on, asked once.) Off = the old looks, unchanged.
   const [kitOn, setKitOn] = useState(false)
+  const [kitKnown, setKitKnown] = useState(false)
   useEffect(() => {
     let alive = true
-    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setKitOn(!!j?.on) }).catch(() => {})
+    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setKitOn(!!j?.on) }).catch(() => {}).finally(() => { if (alive) setKitKnown(true) })
     return () => { alive = false }
   }, [])
   // With the kit on, Aurora / Cinematic / Infographic are no longer offered.
   useEffect(() => {
     if (kitOn && (RETIRED_WITH_KIT as readonly string[]).includes(videoLook)) setVideoLook(RECOMMENDED_VIDEO_LOOK)
-  }, [kitOn, videoLook])
+    // "Your look" is a scene-kit look: with the kit off it isn't offered.
+    if (kitKnown && !kitOn && videoLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
+  }, [kitOn, kitKnown, videoLook])
   const chosenStyle = styleForCard(videoLook, kitOn)
   const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
   const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
@@ -129,7 +138,7 @@ function MakeItYours() {
         // default brand on the person's profile. Whatever is shown here is
         // saved to the draft and sent, so both make routes use the same one.
         const supabase = createClient()
-        const cols = 'id, name, logo_url, primary_color, secondary_color, accent_color'
+        const cols = 'id, name, logo_url, primary_color, secondary_color, accent_color, brand_guide_data'
         let found: BrandInfo | null = null
         if (typeof d.brandId === 'string' && d.brandId) {
           const { data } = await supabase.from('brands').select(cols).eq('id', d.brandId).maybeSingle()
@@ -147,6 +156,12 @@ function MakeItYours() {
         }
         // Loading ends only now, so Make can never run before the brand is known.
         if (alive) {
+          const own = d.kitLook === 'custom' ? asLook(d.kitLookCustom) : null
+          const mine = own ?? asLook(found?.brand_guide_data?.video_look)
+          setYourLook(mine)
+          // "Your look" is picked by default when the brand has one and nothing else was chosen yet.
+          if (mine && (d.kitLook === 'custom' || !d.videoStyle)) setVideoLook('custom')
+          else if (!mine && d.kitLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
           setBrand(found)
           setAddingBrand(!found && d.brandId === undefined)
           setLoading(false)
@@ -203,6 +218,8 @@ function MakeItYours() {
             videoStyle: chosenStyle.videoStyle,
             // The scene kit's look ('animated-slides' | 'editorial' | 'bright'), when the kit engine is on.
             ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
+            // "Your look": a COPY goes on this video now, so editing the look later never changes it.
+            ...(chosenStyle.kitLook === 'custom' && yourLook ? { kitLookCustom: yourLook } : {}),
             // Drawn slides only: its drawing style (3D infographic / Illustrated / Classic).
             ...(videoLook === 'drawn' ? { drawStyle } : {}),
             presentationTemplate: presLook,
@@ -386,7 +403,8 @@ function MakeItYours() {
     </Note>
   ) : null
 
-  const cards = lookCards(output, { kit: kitOn })
+  const cards = lookCards(output, { kit: kitOn, yourLook: kitOn ? yourLook : null })
+  const openLookScreen = () => router.push(`/create/look?id=${encodeURIComponent(videoId)}`)
 
   return (
     <div className="cf-page">
@@ -397,11 +415,15 @@ function MakeItYours() {
         value={isPres ? presLook : videoLook}
         onChange={(id) => {
           if (isPres) { if (isPresLook(id)) setPresLook(id) }
+          else if (id === CREATE_LOOK_CARD) openLookScreen()
           else if (isVideoLook(id)) setVideoLook(id)
         }}
         onZoom={setLightbox}
         note={timeNote}
       >
+        {isVideo && videoLook === 'custom' && yourLook ? (
+          <p className="cf-hint"><button type="button" className="cf-link" onClick={openLookScreen}>Change this look</button></p>
+        ) : null}
         {isVideo && videoLook === 'drawn' ? (
           <div className="cf-row cf-draw-styles">
             <span className="cf-row-name">Drawing style</span>
@@ -419,6 +441,12 @@ function MakeItYours() {
       </LookPicker>
 
       <FirstScenePreview ref={previewRef} preview={preview} />
+      {/* After the first free preview: offer the look screen (it can match their brand). */}
+      {kitOn && isVideo && preview.result && !preview.busy && videoLook !== 'custom' ? (
+        <Note tone="info" action={<button type="button" className="cf-link" onClick={openLookScreen}>Make it match</button>}>
+          Make it match your brand? Pick your colours, fonts and feel — the preview plays your own scenes.
+        </Note>
+      ) : null}
 
       {/* Everything else, in one line. "Change" opens More options. */}
       <div className="cf-card cf-quick">

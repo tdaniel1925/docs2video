@@ -127,7 +127,7 @@ export type StillEngine = 'directed' | 'v3' | 'editorial' | 'html' | 'drawn' | '
 
 export const VIDEO_PREVIEW_LOOKS = ['slides', 'aurora', 'cinematic', 'infographic', 'editorial', 'explainer', 'drawn',
   // the scene kit (KIT_ENGINE=on): "kit:<look>" — kit-looks.ts previewLookFor
-  'kit:animated-slides', 'kit:editorial', 'kit:bright', 'kit:brand'] as const
+  'kit:animated-slides', 'kit:editorial', 'kit:bright', 'kit:brand', 'kit:custom'] as const
 
 /** The real renderer for each look (null = no preview for that output). */
 export function stillEngineFor(output: string, look: string): StillEngine | null {

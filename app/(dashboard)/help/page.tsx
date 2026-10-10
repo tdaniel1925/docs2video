@@ -115,6 +115,12 @@ const GUIDES: HelpGuide[] = [
     icon: '🎨',
   },
   {
+    href: '/help/video-look',
+    title: 'Your video look',
+    description: 'Make videos look like your brand, a picture, a PDF or a website you like: colours, fonts, feel and logo on one screen, with a live preview of your own scenes.',
+    icon: '🖌️',
+  },
+  {
     href: '/help/library',
     title: NAMES.library,
     description: 'Picture cards for everything you’ve made: what “Ready to send”, “Making…” and “Didn’t finish” mean, the Send button, search, cards or list, and deleting safely.',

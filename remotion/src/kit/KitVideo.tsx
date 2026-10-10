@@ -8,7 +8,7 @@ import { setAssetBase, staticFile } from '../lib/asset'
 import { MusicBed } from '../lib/musicbed'
 import { explainerMusicDuck, type VoWindow } from '../lib/audio'
 import {
-  cueFrame, defaultMood, FEEL, KIT_FPS, KIT_H, KIT_LOOKS, KIT_W, kitTimeline, sanitizeLook, VO_LEAD,
+  cueFrame, defaultMood, KIT_FPS, KIT_H, KIT_LOOKS, KIT_W, kitTimeline, musicFileFor, sanitizeLook, VO_LEAD,
   type KitPlan, type KitScene, type KitTimeline, type Mood,
 } from './spec'
 import { KitBackground, KitChrome, KitThemeProvider } from './theme'
@@ -65,8 +65,9 @@ export const kitMetadata: CalculateMetadataFunction<KitVideoProps> = async ({ pr
   }))
   const timeline = kitTimeline(scenes, look.feel)
   let musicFrames = 0
-  const music = plan.audio?.music || FEEL[look.feel].music
-  try { musicFrames = Math.round((await getAudioDurationInSeconds(staticFile(music))) * KIT_FPS) } catch { /* MusicBed loops by itself */ }
+  // The look's music pick (or the feel's bed); the user's own / AI track wins. null = none.
+  const music = musicFileFor(look, plan.audio?.music)
+  if (music) try { musicFrames = Math.round((await getAudioDurationInSeconds(staticFile(music))) * KIT_FPS) } catch { /* MusicBed loops by itself */ }
   return { ...base, durationInFrames: timeline.total, props: { ...props, assetBase, plan: { ...plan, look, scenes }, timeline, musicFrames } }
 }
 
@@ -126,7 +127,7 @@ export const KitVideo: React.FC<KitVideoProps> = ({ plan, assetBase, still = fal
   // MUSIC ducks under exactly the voice windows (0.20 between lines, 0.08 under).
   const voWin: VoWindow[] = scenes.map((_, i) => ({ start: starts[i] + VO_LEAD, end: starts[i] + VO_LEAD + Math.max(1, voFrames[i]) })).filter((w) => w.end > w.start + 1)
   const duck = explainerMusicDuck(voWin, total)
-  const music = plan.audio?.music || FEEL[look.feel].music
+  const music = musicFileFor(look, plan.audio?.music)
   const sfxMode = plan.audio?.sfx ?? (plan.regulated ? 'quiet' : 'standard')
   const sfxVol = (look.feel === 'energetic' ? 0.3 : look.feel === 'calm' ? 0.18 : 0.24) * (sfxMode === 'quiet' ? 0.6 : 1)
 
@@ -171,7 +172,7 @@ export const KitVideo: React.FC<KitVideoProps> = ({ plan, assetBase, still = fal
 
         {!still && (
           <>
-            <MusicBed src={music} musicFrames={musicFrames} volume={duck} />
+            {music ? <MusicBed src={music} musicFrames={musicFrames} volume={duck} /> : null}
             {scenes.map((s, i) => (s.vo ? (
               <Sequence key={`vo-${i}`} from={starts[i] + VO_LEAD} durationInFrames={Math.max(1, Math.min(total - starts[i] - VO_LEAD, voFrames[i] + 30 || durations[i]))}>
                 <Audio src={staticFile(s.vo)} />

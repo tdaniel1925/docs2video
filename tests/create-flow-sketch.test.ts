@@ -167,7 +167,8 @@ describe('step 3: looks from one list, one settings line, More options', () => {
     expect(lookCards('interactive').map((c) => c.id)).toEqual(PRES_LOOKS.map((l) => l.id))
     const page = code(read(STEP_FILES.look))
     // (with the scene engine on, the same list is asked for its kit set)
-    expect(page).toMatch(/const cards = lookCards\(output(, \{ kit: kitOn \})?\)/)
+    // (and, with the look screen, "Your look" when the brand or project has one)
+    expect(page).toMatch(/const cards = lookCards\(output(, \{ kit: kitOn(, yourLook: kitOn \? yourLook : null)? \})?\)/)
     // No look named in the screen itself.
     for (const l of VIDEO_LOOKS) expect(page, l.name).not.toContain(`'${l.name}'`)
   })

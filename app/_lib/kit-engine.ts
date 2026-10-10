@@ -31,9 +31,19 @@ export { KIT_LOOK_FOR_CARD, CARD_FOR_KIT_LOOK } from './kit-looks'
 /** The look a kit video is made in: a saved custom look, the brand's own, or a ready look. */
 export function resolveKitLook(o: { kitLook?: unknown; kitLookCustom?: unknown; brand?: Brand | null }): Look {
   let look: Look
-  if (o.kitLookCustom && typeof o.kitLookCustom === 'object') {
-    const id = (o.kitLookCustom as { id?: unknown }).id
-    look = sanitizeLook(o.kitLookCustom, typeof id === 'string' && id in KIT_LOOKS ? id as keyof typeof KIT_LOOKS : 'animated-slides')
+  const asLook = (raw: unknown): Look => {
+    const id = (raw as { id?: unknown }).id
+    return sanitizeLook(raw, typeof id === 'string' && id in KIT_LOOKS ? id as keyof typeof KIT_LOOKS : 'animated-slides')
+  }
+  const custom = o.kitLookCustom && typeof o.kitLookCustom === 'object' ? o.kitLookCustom : null
+  // "Your look" (the look screen): the copy saved on THIS video's draft wins —
+  // so editing the brand's look later never changes a video already set up —
+  // else the look saved on the brand, else one made from the brand's colours.
+  // A ready look picked on step 3 (kitLook = its id) is never overridden by an
+  // older custom copy still sitting on the draft.
+  const brandSaved = savedBrandLook(o.brand)
+  if (o.kitLook === 'custom' || (o.kitLook === undefined && custom)) {
+    look = custom ? asLook(custom) : brandSaved ? asLook(brandSaved) : brandLook(o.brand ?? null)
   } else if (o.kitLook === 'brand') {
     look = brandLook(o.brand ?? null)
   } else if (isKitLookId(o.kitLook) && o.kitLook !== 'brand') {
@@ -44,6 +54,13 @@ export function resolveKitLook(o: { kitLook?: unknown; kitLookCustom?: unknown; 
   // A logo the brand says needs a card (unknown colours) always gets one.
   if (o.brand?.logo_chip && look.logoMode === 'auto') look = { ...look, logoMode: 'plate' }
   return look
+}
+
+/** The video look saved on a brand by the look screen (brand_guide_data.video_look), or null. */
+export function savedBrandLook(brand: Brand | null | undefined): Record<string, unknown> | null {
+  const g = (brand?.brand_guide_data ?? null) as Record<string, unknown> | null
+  const v = g && typeof g === 'object' ? g.video_look : null
+  return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null
 }
 
 /** The agent's real logo files, for the render service to download. */

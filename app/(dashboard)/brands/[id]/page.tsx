@@ -370,6 +370,10 @@ export default function EditBrandPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <h2 style={{ marginBottom: 0 }}>Edit {brand.name}</h2>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            {/* The look screen for this brand: its videos start from this look. */}
+            <Link href={`/brands/${params.id}/look`} className="btn btn-mint" style={{ fontSize: 'var(--fs-small)' }} data-testid="brand-video-look">
+              Video look
+            </Link>
             <Link href={`/brands/${params.id}/guide`} className="btn btn-soft" style={{ fontSize: 'var(--fs-small)' }}>
               View Brand Guide
             </Link>

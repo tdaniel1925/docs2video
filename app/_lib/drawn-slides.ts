@@ -165,12 +165,43 @@ export function drawnSlideText(
 
 // ── The picture prompt ─────────────────────────────────────────────────────
 
+/** What Drawn slides take from a video look: its colours and its feel. */
+export type DrawnLook = { colors: { bg: string; glow: string; accent: string; text: string }; feel?: string }
+
+const FEEL_WORDS: Record<string, string> = {
+  calm: 'calm and unhurried — soft shapes, lots of breathing room',
+  premium: 'premium and polished — refined, restrained, confident',
+  energetic: 'energetic and bright — bold shapes, lively but tidy',
+}
+
+/** The look's colours and feel as drawing instructions (colours only — never codes on the slide). */
+export function drawnLookPalette(look: DrawnLook): string {
+  const hex = (v: unknown, d: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d)
+  const c = look.colors || ({} as DrawnLook['colors'])
+  const feel = FEEL_WORDS[String(look.feel)] ?? FEEL_WORDS.premium
+  return `COLOUR PALETTE: background ${hex(c.bg, '#0b1424')}, second colour ${hex(c.glow, '#1d3358')}, ONE accent ${hex(c.accent, '#d8b25a')} for the key number and highlights, words in ${hex(c.text, '#f4f1ec')}. Use these colours only — never write the colour codes on the slide. FEEL: ${feel}.`
+}
+
+/** A draft's saved look (kitLookCustom) as Drawn slides reads it, or null. */
+export function drawnLookFrom(raw: unknown): DrawnLook | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as { colors?: Record<string, unknown>; feel?: unknown }
+  const c = r.colors
+  if (!c || typeof c !== 'object') return null
+  const hex = (v: unknown) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : null)
+  const bg = hex(c.bg), accent = hex(c.accent)
+  if (!bg || !accent) return null
+  return { colors: { bg, glow: hex(c.glow) ?? bg, accent, text: hex(c.text) ?? '#f4f1ec' }, feel: typeof r.feel === 'string' ? r.feel : undefined }
+}
+
 export function drawnSlidePrompt(args: {
   style: DrawStyleId
   text: DrawnSlideText
   colors: { primary: string; secondary: string }
   /** e.g. "slide 3 of 10" — keeps the model aware it is part of a set. */
   position?: { index: number; total: number }
+  /** The video look made on the look screen (its colours + feel), when there is one. */
+  look?: DrawnLook | null
 }): string {
   const style = DRAW_STYLES.find((s) => s.id === args.style) ?? DRAW_STYLES[0]
   const t = args.text
@@ -187,7 +218,7 @@ export function drawnSlidePrompt(args: {
   return [
     `A 16:9 presentation slide, ${kind}${args.position ? ` (slide ${args.position.index} of ${args.position.total} in one matching set)` : ''}.`,
     `STYLE: ${style.prompt}`,
-    `COLOUR PALETTE: primary ${args.colors.primary}, secondary ${args.colors.secondary}, plus white and soft neutrals. These are colours only — never write the colour codes on the slide.`,
+    args.look ? drawnLookPalette(args.look) : `COLOUR PALETTE: primary ${args.colors.primary}, secondary ${args.colors.secondary}, plus white and soft neutrals. These are colours only — never write the colour codes on the slide.`,
     `TEXT ON THE SLIDE — draw EXACTLY these words and nothing else:\n${lines.join('\n')}`,
     'Spell every word exactly as written, letter for letter. Copy every number exactly, keeping its $ sign, commas and decimal point. Large, clean, highly legible sans-serif type with strong contrast.',
     'Do NOT add any other words: no extra titles, labels, captions, page numbers, dates, legends, watermarks or placeholder text. Do NOT draw any logo, brand mark, company name, product name, phone number, email address or website.',
@@ -205,6 +236,7 @@ export function buildDrawnSlides(args: {
   scrub?: ((s: string) => string) | null
   videoTitle?: string
   recipient?: string | null
+  look?: DrawnLook | null
 }): { style: DrawStyleId; texts: DrawnSlideText[]; prompts: string[] } {
   const style = drawStyleOf(args.style)
   const texts: DrawnSlideText[] = [
@@ -213,6 +245,6 @@ export function buildDrawnSlides(args: {
     drawnSlideText(args.closing, 'closing', { scrub: args.scrub }),
   ]
   const total = texts.length
-  const prompts = texts.map((text, i) => drawnSlidePrompt({ style, text, colors: args.colors, position: { index: i + 1, total } }))
+  const prompts = texts.map((text, i) => drawnSlidePrompt({ style, text, colors: args.colors, position: { index: i + 1, total }, look: args.look }))
   return { style, texts, prompts }
 }

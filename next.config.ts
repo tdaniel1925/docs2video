@@ -2,6 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['ffmpeg-static'],
+  // THE LOOK SCREEN plays the real scene kit (remotion/src/kit) in the browser
+  // with @remotion/player. The kit's files sit next to remotion/node_modules,
+  // which can hold its OWN copy of `remotion` — two copies of it in one page
+  // break its shared state (the player and the scenes stop seeing each
+  // other). Point every browser import at the app's single copy (the same
+  // version, 4.0.290). React needs nothing: Next gives every file its own.
+  turbopack: {
+    resolveAlias: {
+      remotion: { browser: './node_modules/remotion' },
+    },
+  },
   outputFileTracingExcludes: {
     '*': ['node_modules/ffmpeg-static/**'],
   },

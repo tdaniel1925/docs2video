@@ -284,6 +284,10 @@ export default function BrandsPage() {
                   </button>
                 )}
                 {brand !== g.lead && <div className="brand-copy-note">A copy of {g.lead.name}</div>}
+                {/* The look screen for this brand (colours, fonts, feel of its videos). */}
+                <Link href={`/brands/${brand.id}/look`} className="brand-look-link" data-testid="brand-look-link">
+                  {(brand.brand_guide_data as { video_look?: unknown } | null)?.video_look ? 'Video look ✓' : 'Video look'}
+                </Link>
               </div>
             )))}
           </div>

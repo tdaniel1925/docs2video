@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '../_lib/supabase/server'
+import { keepVideoLook } from '../_lib/look-wizard'
 
 /** Profile (Person | Company) fields shared by create + update. */
 function profileFields(formData: FormData) {
@@ -106,6 +107,10 @@ export async function updateBrand(formData: FormData) {
     try { return JSON.parse(val) } catch { return fallback }
   }
 
+  // The video look lives in the same guide-data box but is saved by the look
+  // screen, never by this form: keep the one stored now (look-wizard.ts).
+  const { data: stored } = await supabase.from('brands').select('brand_guide_data').eq('id', id).eq('user_id', user.id).maybeSingle()
+
   const { error } = await supabase
     .from('brands')
     .update({
@@ -131,7 +136,7 @@ export async function updateBrand(formData: FormData) {
       content_themes: parseJson('content_themes', []),
       competitor_notes: (formData.get('competitor_notes') as string) || null,
       social_links: parseJson('social_links', {}),
-      brand_guide_data: parseJson('brand_guide_data', null),
+      brand_guide_data: keepVideoLook(parseJson('brand_guide_data', null), stored?.brand_guide_data),
       is_default: formData.get('is_default') === 'true',
       ...profileFields(formData),
     })

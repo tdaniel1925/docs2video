@@ -27,7 +27,7 @@ import {
   type PreviewScene, type StillEngine,
 } from './first-scene-preview'
 import { stillCacheKey } from './first-scene-preview-keys'
-import { drawnSlidePrompt, drawnSlideText, drawStyleOf } from './drawn-slides'
+import { drawnLookFrom, drawnSlidePrompt, drawnSlideText, drawStyleOf } from './drawn-slides'
 import { drawSlide } from './slide-engine'
 import { drawChecked, expectedFromPrompt } from './slide-spellcheck'
 import { assembleKitPlan, kitLogoAssets, plannerBeats, resolveKitLook } from './kit-engine'
@@ -138,6 +138,8 @@ export function buildPreviewPlan(o: {
       prompt: drawnSlidePrompt({
         style, text,
         colors: { primary: brand?.primary_color || '#1B365D', secondary: brand?.secondary_color || '#4A90D9' },
+        // The look made on the look screen (colours + feel), when the draft has one.
+        look: drawnLookFrom(o.draft.kitLookCustom),
       }),
     }
   } else if (engine === 'directed') {

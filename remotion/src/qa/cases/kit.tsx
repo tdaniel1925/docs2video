@@ -69,6 +69,11 @@ function kitCase(name: string, p: KitPlan): QACase {
 }
 
 const looks = Object.values(KIT_LOOKS)
+const userLooks: Look[] = [
+  { ...KIT_LOOKS.editorial, id: 'pale-on-pale', colors: { bg: '#f4f1ec', glow: '#efeae2', accent: '#f1e7c8', text: '#ece7df' }, headFont: 'dm-serif', bodyFont: 'merriweather', headWeight: 400, background: 'paper' },
+  { ...KIT_LOOKS.bright, id: 'neon', colors: { bg: '#000000', glow: '#ff00ff', accent: '#39ff14', text: '#ffffff' }, headFont: 'archivo', bodyFont: 'work-sans', headWeight: 800, background: 'gradient', feel: 'energetic' },
+  { ...KIT_LOOKS['animated-slides'], id: 'black-on-black', colors: { bg: '#000000', glow: '#050505', accent: '#0a0a0a', text: '#020202' }, headFont: 'playfair', bodyFont: 'lora', headWeight: 700, background: 'solid', corners: 'square' },
+]
 export const cases: QACase[] = [
   ...looks.map((l) => kitCase(`${l.id}-normal`, plan(l, withLogo, normal(), 'The Rivera Family'))),
   ...looks.map((l) => kitCase(`${l.id}-long`, plan(l, nameOnly, long(), 'The Extraordinarily Long Family Name Household Trust of Springfield'))),
@@ -76,4 +81,7 @@ export const cases: QACase[] = [
   // logo modes: a white card always / the name as words
   kitCase('plate-logo', plan({ ...KIT_LOOKS['animated-slides'], logoMode: 'plate' }, withLogo, normal().slice(0, 3), 'The Rivera Family')),
   kitCase('text-logo', plan({ ...KIT_LOOKS.editorial, logoMode: 'text' }, withLogo, normal().slice(0, 3), 'The Rivera Family')),
+  // USER LOOKS from the look screen, at their worst: unreadable colours (the
+  // contrast guard must fix them) in the widest / tallest free fonts.
+  ...userLooks.map((l) => kitCase(`user-${l.id}`, plan(l, l.id === 'neon' ? anyLogo : withLogo, long(), 'The Extraordinarily Long Family Name Household Trust of Springfield'))),
 ]

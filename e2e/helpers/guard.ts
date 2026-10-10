@@ -51,6 +51,8 @@ export const REAL_WORLD_ENDPOINTS: RegExp[] = [
   /\/api\/help-chat/,
   /\/api\/brands\/logo/,
   /\/api\/brand-from-url/,
+  // The look screen's "Something I like" is an AI read (cheap, but real).
+  /\/api\/look\/reference/,
 ]
 
 /** Only these methods are blocked on these paths (reads stay real). */
@@ -63,6 +65,8 @@ export const REAL_WORLD_METHODS: { re: RegExp; methods: string[] }[] = [
   { re: /^\/rest\/v1\/profiles$/, methods: ['PATCH', 'POST', 'DELETE'] },
   { re: /^\/rest\/v1\/brands$/, methods: ['DELETE'] },
   { re: /^\/api\/quotes$/, methods: ['POST', 'PUT', 'DELETE'] },
+  // Saving a look writes the brand and the draft.
+  { re: /^\/api\/look$/, methods: ['POST', 'PUT'] },
 ]
 
 /** Viewer tracking: answered OK without reaching the database, so test
