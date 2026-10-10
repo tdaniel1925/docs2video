@@ -335,6 +335,14 @@ describe('wiring: step 3, preview, render service', () => {
     expect(stillEngineFor('video', 'kit:bright')).toBe('kit')
     expect(stillEngineFor('video', 'slides')).toBe('directed')
   })
+  it('step 3 waits for the engine answer before showing cards or allowing Make', () => {
+    // A slow /api/kit-engine answer must never let Make send the old engine's
+    // style (or show Aurora for a moment) while the kit is on.
+    const src = fs.readFileSync(path.join(ROOT, 'app/(dashboard)/create/theme/page.tsx'), 'utf8')
+    expect(src).toMatch(/if \(loading \|\| !kitKnown\) \{/)
+    // a failed answer still ends the wait (kit off), so the page never hangs
+    expect(src).toMatch(/\.finally\(\(\) => \{ if \(alive\) setKitKnown\(true\) \}\)/)
+  })
   it('the free preview still is the first content scene, settled', () => {
     const plan = { look: KIT_LOOKS.bright, scenes: GOOD }
     const j = kitJs.previewKitJob({ plan })

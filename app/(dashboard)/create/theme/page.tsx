@@ -342,7 +342,10 @@ function MakeItYours() {
     window.setTimeout(() => moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
-  if (loading) {
+  // Wait for the engine answer too: until it comes, the cards (and what Make
+  // would send) could be the old engine's — a slow answer must never start a
+  // video on the wrong engine. A failed answer counts as known (kit off).
+  if (loading || !kitKnown) {
     return (
       <div className="cf-page">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>

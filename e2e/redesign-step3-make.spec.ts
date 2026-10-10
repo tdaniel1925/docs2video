@@ -54,6 +54,22 @@ const more = async (page: Page) => {
   if (!(await fold.evaluate((d) => (d as HTMLDetailsElement).open))) await page.getByText('More options', { exact: true }).click()
   return fold
 }
+/**
+ * Is the new scene engine on (KIT_ENGINE=on on the server under test)? Asked
+ * of the server itself, the same question step 3 asks — so these tests check
+ * whichever look cards are really shown. On: Animated slides / Editorial /
+ * Bright / Create your own look / Drawn slides, saving videoStyle 'kit' + a
+ * kit look. Off: the old seven looks.
+ */
+let kitOnCache: boolean | null = null
+async function kitEngine(page: Page): Promise<boolean> {
+  if (kitOnCache === null) {
+    const r = await page.request.get('/api/kit-engine')
+    expect(r.ok(), '/api/kit-engine answers').toBeTruthy()
+    kitOnCache = !!(await r.json()).on
+  }
+  return kitOnCache
+}
 const make = (page: Page, name: 'Video' | 'Presentation') => page.getByRole('radiogroup', { name: 'Make' }).getByRole('radio', { name: new RegExp(`^${name}`) })
 
 test.beforeEach(async ({ page }) => {
@@ -69,7 +85,12 @@ test.beforeEach(async ({ page }) => {
 })
 test.afterEach(() => {
   expectNoBlockedCalls(guard)
-  expect(consoleErrors, 'console errors on the make screen').toEqual([])
+  // The card page's Stripe script throws (an uncaught page error, which the
+  // console filter above can't see) when a local .env.local has no publishable
+  // key. Production has NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY set, so only that
+  // one local-only message is let through.
+  const real = consoleErrors.filter((e) => !/^pageerror: Expected publishable key to be of type string, got type undefined/.test(e))
+  expect(real, 'console errors on the make screen').toEqual([])
 })
 
 test.describe('Step 3 — the price is always the server’s', () => {
@@ -197,14 +218,48 @@ test.describe('Step 3 — choices', () => {
 
   test('look cards: pictures load, BEST on the recommended one, pick a look, examples open larger', async ({ page }) => {
     await open(page)
+    const kit = await kitEngine(page)
     const looks = page.getByRole('radiogroup', { name: 'The look' }).getByRole('radio')
-    await expect(looks).toHaveCount(7)
     // Every thumbnail is a real picture (none broken).
     await page.waitForFunction(() => [...document.querySelectorAll('[role=radiogroup][aria-label="The look"] img')].every((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0), null, { timeout: 15000 })
     await expect(look(page, 'Animated slides')).toHaveAttribute('aria-checked', 'true')
     await expect(look(page, 'Animated slides')).toContainText('BEST')
     await expect(page.getByRole('radiogroup', { name: 'The look' }).getByText('BEST')).toHaveCount(1)
     const fold = await more(page)
+
+    if (kit) {
+      // The scene kit: the three ready looks, "Create your own look", Drawn slides.
+      // (No brand look yet, so no "Your look" card.)
+      await expect(looks).toHaveCount(5)
+      await expect(looks.nth(0)).toContainText('Animated slides')
+      await expect(looks.nth(1)).toContainText('Editorial')
+      await expect(looks.nth(2)).toContainText('Bright')
+      await expect(looks.nth(3)).toContainText('Create your own look')
+      await expect(looks.nth(4)).toContainText('Drawn slides')
+      for (const gone of ['Aurora', 'Cinematic', 'Infographic', 'Explainer']) await expect(look(page, gone)).toHaveCount(0)
+      // Kit pictures come from the kit itself.
+      await expect(look(page, 'Animated slides').locator('img')).toHaveAttribute('src', '/style-samples/kit-animated-slides-cover.png')
+      // Photo backgrounds belong to the old Animated slides engine only.
+      await expect(fold.getByText('Add photo backgrounds')).toHaveCount(0)
+      await expect(page.getByText('Usually 5–10 minutes.', { exact: false })).toBeVisible()
+
+      await look(page, 'Editorial').click()
+      await expect(look(page, 'Editorial')).toHaveAttribute('aria-checked', 'true')
+      await expect(look(page, 'Animated slides')).toHaveAttribute('aria-checked', 'false')
+      await expect(page.getByText(/Editorial\. Cream paper, a serif headline/)).toBeVisible()
+      await expect(page.getByText('Usually 5–10 minutes.', { exact: false })).toBeVisible()
+
+      await page.getByText('See examples of Editorial').click()
+      await page.getByRole('button', { name: 'Enlarge Editorial data sample' }).click()
+      const big = page.locator('img[alt="Sample"]')
+      await expect(big).toHaveAttribute('src', '/style-samples/kit-editorial-data.png')
+      await expect.poll(() => big.evaluate((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0)).toBe(true)
+      await big.click()
+      await expect(big).toHaveCount(0)
+      return
+    }
+
+    await expect(looks).toHaveCount(7)
     await expect(fold.getByText('Add photo backgrounds')).toBeVisible()
 
     await look(page, 'Aurora').click()
@@ -289,13 +344,15 @@ test.describe('Step 3 — choices', () => {
       return r.fulfill({ json: { imageUrl: '/style-samples/slides-data.png', audioUrl: null, remainingToday: 2, voiceNote: null, lookNote: null } })
     })
     await open(page)
-    await look(page, 'Aurora').click()
+    const kit = await kitEngine(page)
+    // Engine on: the kit look's preview ("kit:editorial", drawn by KitVideo).
+    await look(page, kit ? 'Editorial' : 'Aurora').click()
     await bar(page).getByRole('button', { name: 'Free preview' }).click()
     const shown = page.getByRole('region', { name: 'Free preview' })
     await expect(shown.getByRole('img', { name: /Preview of your first scene/ })).toBeVisible()
-    expect(asked).toEqual([{ videoId: FAKE_ID, output: 'video', look: 'aurora', voiceId: 'nova' }])
+    expect(asked).toEqual([{ videoId: FAKE_ID, output: 'video', look: kit ? 'kit:editorial' : 'aurora', voiceId: 'nova' }])
     // A different look afterwards offers "Preview again".
-    await look(page, 'Cinematic').click()
+    await look(page, kit ? 'Bright' : 'Cinematic').click()
     await expect(bar(page).getByRole('button', { name: 'Preview again' })).toBeVisible()
   })
 })
@@ -304,7 +361,10 @@ test.describe('Step 3 — Make it', () => {
   test('saves every choice, re-checks the price, then starts the video with exactly those choices', async ({ page }) => {
     await mockBrands(page, [BRAND])
     const { draft, quotes } = await open(page, { brandId: undefined, sourcePdfPath: 'u/doc.pdf', sourcePdfName: 'plan.pdf' })
-    await look(page, 'Explainer').click()
+    const kit = await kitEngine(page)
+    // The same card: "Explainer" with the old engine, "Bright" (kit look 'bright') with the kit.
+    await look(page, kit ? 'Bright' : 'Explainer').click()
+    const style = kit ? { videoStyle: 'kit', kitLook: 'bright' } : { videoStyle: 'explainer' }
     await more(page)
     await page.getByRole('radiogroup', { name: 'The voice' }).getByRole('radio', { name: /Emily/ }).click()
     await page.getByRole('radiogroup', { name: 'Background music' }).getByRole('radio', { name: /^On/ }).click()
@@ -321,15 +381,16 @@ test.describe('Step 3 — Make it', () => {
     expect(draft.patches[0]).toEqual({
       videoId: FAKE_ID,
       updates: {
-        outputType: 'video', voiceId: 'shimmer', aiMusic: true, videoStyle: 'explainer',
+        outputType: 'video', voiceId: 'shimmer', aiMusic: true, ...style,
         presentationTemplate: 'heritage', slidePhotos: false, brandId: BRAND.id,
         allowSourceDownload: true, agentNote: 'Hi Jordan — here is your plan.',
       },
     })
     expect(quotes.calls - before, 'the price is read again before charging').toBe(1)
     expect(gen).toHaveLength(1)
+    if (!kit) expect(gen[0].kitLook).toBeUndefined()
     expect(gen[0]).toMatchObject({
-      videoId: FAKE_ID, outputType: 'video', videoStyle: 'explainer', voiceId: 'shimmer', aiMusic: true,
+      videoId: FAKE_ID, outputType: 'video', ...style, voiceId: 'shimmer', aiMusic: true,
       brandId: BRAND.id, slidePhotos: false, allowSourceDownload: true, agentNote: 'Hi Jordan — here is your plan.',
       recipientName: 'Jordan', detailLevel: 'standard', sourcePdfPath: 'u/doc.pdf', sourcePdfName: 'plan.pdf',
       purpose: 'Explain the family plan', narrationStyle: 'solo',
@@ -340,8 +401,24 @@ test.describe('Step 3 — Make it', () => {
 
   test('the defaults go out as the defaults (Animated slides, Sarah, no music, no note)', async ({ page }) => {
     const { draft } = await open(page)
+    const kit = await kitEngine(page)
     const gen: any[] = []
     await page.route('**/api/generate-video', async (route) => { gen.push(jsonBody(route.request())); await route.fulfill({ json: { success: true } }) })
+    if (kit) {
+      // Nothing touched: Animated slides as the kit's 'animated-slides' look.
+      await makeBtn(page).click()
+      await expect(page).toHaveURL(/style=slides$/)
+      expect(draft.patches[0].updates).toEqual({
+        outputType: 'video', voiceId: 'nova', aiMusic: false, videoStyle: 'kit', kitLook: 'animated-slides',
+        presentationTemplate: 'heritage', slidePhotos: false, allowSourceDownload: false,
+      })
+      expect(gen[0]).toMatchObject({ voiceId: 'nova', aiMusic: false, videoStyle: 'kit', kitLook: 'animated-slides', slidePhotos: false })
+      expect(gen[0].drawStyle).toBeUndefined()
+      expect(gen[0].brandId).toBeUndefined()
+      expect(gen[0].agentNote).toBeUndefined()
+      expect(gen[0].musicPrompt).toBeUndefined()
+      return
+    }
     await more(page)
     await page.getByText('Add photo backgrounds').click()
     await makeBtn(page).click()
@@ -358,6 +435,7 @@ test.describe('Step 3 — Make it', () => {
 
   test('Drawn slides: NEW card, drawing-style chips only when picked, the style is saved and sent', async ({ page }) => {
     const { draft } = await open(page)
+    const kit = await kitEngine(page)
     const card = look(page, 'Drawn slides')
     await expect(card).toContainText('NEW')
     const styles = page.getByRole('radiogroup', { name: 'Drawing style' })
@@ -369,7 +447,7 @@ test.describe('Step 3 — Make it', () => {
     await styles.getByRole('radio', { name: /Classic/ }).click()
     await expect(styles.getByRole('radio', { name: /Classic/ })).toHaveAttribute('aria-checked', 'true')
     // Another look hides the chips again.
-    await look(page, 'Aurora').click()
+    await look(page, kit ? 'Editorial' : 'Aurora').click()
     await expect(styles).toHaveCount(0)
     await card.click()
 
@@ -377,8 +455,11 @@ test.describe('Step 3 — Make it', () => {
     await page.route('**/api/generate-video', async (route) => { gen.push(jsonBody(route.request())); await route.fulfill({ json: { success: true } }) })
     await makeBtn(page).click()
     await expect(page).toHaveURL(/style=drawn$/)
+    // Drawn slides keep their own engine with the kit on too — never a kit look.
     expect(draft.patches[0].updates).toMatchObject({ videoStyle: 'drawn', drawStyle: 'classic' })
+    expect(draft.patches[0].updates.kitLook).toBeUndefined()
     expect(gen[0]).toMatchObject({ videoStyle: 'drawn', drawStyle: 'classic' })
+    expect(gen[0].kitLook).toBeUndefined()
   })
 
   test('a double-click starts only one job', async ({ page }) => {
