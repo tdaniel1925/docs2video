@@ -4,6 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # The Remotion packages must all be on the SAME version as the renderer
+    # (remotion/ folder, Lambda site, ECS image). Bumping @remotion/player
+    # alone broke the build (useRemotionEnvironment missing). Upgrade them
+    # together by hand, then redeploy the Lambda site + ECS.
+    ignore:
+      - dependency-name: "remotion"
+      - dependency-name: "@remotion/*"
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
