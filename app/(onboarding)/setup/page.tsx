@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import { SLIDE_STYLES, VOICE_OPTIONS } from '../../_lib/types'
 import type { Profile } from '../../_lib/types'
-import { SELLABLE_PLAN_TIERS, getPlan } from '../../_lib/pricing'
+import { SELLABLE_PLAN_TIERS, getPlan, type SellablePlanTier } from '../../_lib/pricing'
+import InlineCheckout from '../../_components/billing/InlineCheckout'
 
 // The plans a new subscriber can actually buy (Starter is retired).
 const MODAL_PLANS = SELLABLE_PLAN_TIERS.map(t => getPlan(t))
@@ -66,7 +67,8 @@ export default function SetupPage() {
   const [expandedStyle, setExpandedStyle] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showPlansModal, setShowPlansModal] = useState(false)
-  const [subscribing, setSubscribing] = useState(false)
+  // The plan being paid for in the in-app checkout (2026-10-14 — no Stripe page).
+  const [subscribing, setSubscribing] = useState<SellablePlanTier | null>(null)
 
   const [error, setError] = useState<string | null>(null)
 
@@ -848,27 +850,11 @@ export default function SetupPage() {
                 {MODAL_PLANS.map(p => p.tier).map((plan) => (
                   <div key={plan} style={{ padding: '4px 16px', textAlign: 'center' }}>
                     <button
-                      disabled={subscribing}
-                      onClick={async () => {
-                        setSubscribing(true)
-                        try {
-                          const res = await fetch('/api/stripe/checkout', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ planId: plan }),
-                          })
-                          const data = await res.json()
-                          if (data.url) window.location.href = data.url
-                          else throw new Error(data.error || 'Failed')
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : 'Failed to start checkout')
-                        }
-                        setSubscribing(false)
-                      }}
+                      onClick={() => { setError(null); setSubscribing(plan as SellablePlanTier) }}
                       className={plan === 'pro' ? 'btn btn-primary btn-sm' : 'btn btn-soft btn-sm'}
                       style={{ width: '100%', fontSize: 12 }}
                     >
-                      {subscribing ? '...' : 'Subscribe'}
+                      Subscribe
                     </button>
                   </div>
                 ))}
@@ -883,6 +869,12 @@ export default function SetupPage() {
           </div>
         </div>
       )}
+
+      <InlineCheckout
+        purchase={subscribing ? { kind: 'plan', plan: subscribing } : null}
+        onClose={() => setSubscribing(null)}
+        onPaid={() => setShowPlansModal(false)}
+      />
 
       {error && (
         <div style={{ marginTop: 16, borderRadius: 10, background: 'var(--error-bg)', padding: '10px 16px', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>

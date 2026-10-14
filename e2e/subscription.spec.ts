@@ -15,13 +15,16 @@ const REAL_STRIPE = process.env.E2E_ALLOW_STRIPE_SESSIONS === '1'
 test.describe('Subscription — purchase', () => {
   test.beforeEach(async ({ page }) => { await loginAsTestUser(page) })
 
-  test('POST /api/subscribe returns a Stripe Checkout URL for a valid tier', async ({ page }) => {
+  test('POST /api/subscribe returns an in-app payment form (never a Stripe page) for a valid tier', async ({ page }) => {
     test.skip(!REAL_STRIPE, 'creates a real Stripe Checkout session — set E2E_ALLOW_STRIPE_SESSIONS=1')
     const res = await page.request.post('/api/subscribe', { data: { tier: 'pro' } })
-    // 200 with a checkout URL, or 500 only if price IDs aren't configured in this env
+    // 200 with a client secret, 409 when a plan is already on, 500 only if prices aren't set
     if (res.ok()) {
       const body = await res.json()
-      expect(body.url).toMatch(/^https:\/\/(checkout\.stripe\.com|.*stripe)/)
+      expect(body.clientSecret).toMatch(/^cs_/)
+      expect(body.url).toBeUndefined()
+    } else if (res.status() === 409) {
+      expect((await res.json()).code).toMatch(/change_in_place|already_on_plan|fix_payment|contact_support/)
     } else {
       expect([500]).toContain(res.status())
       const body = await res.json()
@@ -34,12 +37,12 @@ test.describe('Subscription — purchase', () => {
     expect(res.status()).toBe(400)
   })
 
-  test('POST /api/credits/buy returns a checkout URL for a valid pack', async ({ page }) => {
+  test('POST /api/credits/buy returns an in-app payment form for a valid pack', async ({ page }) => {
     test.skip(!REAL_STRIPE, 'creates a real Stripe Checkout session — set E2E_ALLOW_STRIPE_SESSIONS=1')
     const res = await page.request.post('/api/credits/buy', { data: { pack: 'starter' } })
     if (res.ok()) {
       const body = await res.json()
-      expect(body.url).toMatch(/stripe/)
+      expect(body.clientSecret).toMatch(/^cs_/)
     } else {
       // 500 only if credit-pack price env is unset
       expect([402, 500]).toContain(res.status())
@@ -65,24 +68,16 @@ test.describe('Subscription — management (Settings UI)', () => {
 
   test('subscription tab exposes a billing action (manage / upgrade / top-up)', async ({ page }) => {
     // Depending on the account's billing state the UI shows different controls —
-    // "Manage billing" (existing customer), an upgrade/subscribe/choose CTA, or a
-    // "Top Up" credits action. Any ONE of them means the billing UI rendered.
-    const billingControl = page.getByRole('button', { name: /manage billing|upgrade|choose|subscribe|top ?up|change plan/i })
-      .or(page.getByRole('link', { name: /manage billing|upgrade|choose|subscribe|top ?up|change plan/i }))
+    // A subscribe / switch / cancel / add-card / buy action. Any ONE of them
+    // means the in-app billing UI rendered.
+    const billingControl = page.getByRole('button', { name: /subscribe|switch to|cancel plan|add a card|buy credits|top ?up/i })
     await expect(billingControl.first()).toBeVisible({ timeout: 10000 })
   })
 
-  test('POST /api/stripe/portal returns a URL or a clear "no subscription" error', async ({ page }) => {
-    test.skip(!REAL_STRIPE, 'may create a real Stripe billing-portal session — set E2E_ALLOW_STRIPE_SESSIONS=1')
+  test('the retired portal route only points back to in-app Billing (no Stripe call)', async ({ page }) => {
     const res = await page.request.post('/api/stripe/portal')
-    if (res.ok()) {
-      const body = await res.json()
-      expect(body.url).toMatch(/stripe/)
-    } else {
-      expect(res.status()).toBe(400)
-      const body = await res.json()
-      expect(body.error).toMatch(/no active subscription/i)
-    }
+    expect(res.ok()).toBe(true)
+    expect(await res.json()).toEqual({ url: '/settings?tab=billing', retired: true })
   })
 })
 

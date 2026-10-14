@@ -24,6 +24,7 @@ export const CRON_MAX_GAP_HOURS: Record<string, number> = {
   'referral-prompt': 26,
   'cleanup-drafts': 26,
   'daily-digest': 26,
+  'annual-reviews': 26,
   'weekly-report': 24 * 7 + 2,    // weekly
 }
 

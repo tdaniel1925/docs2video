@@ -23,11 +23,81 @@ type DialogProps = {
   children: ReactNode
   footer?: ReactNode
   closeLabel?: string
+  /**
+   * PAYMENT pop-ups only: `false` keeps the rest of the page clickable. A
+   * modal <dialog> makes everything outside it inert and sits in the browser's
+   * top layer — and Stripe opens the bank's security check (3D Secure) and
+   * wallet windows OUTSIDE our pop-up, so they were frozen behind it. A
+   * non-modal one sits on its own dimmed layer (above the top bar) instead;
+   * Escape and a click on the dim still close it, and focus still starts
+   * inside and goes back to the button that opened it.
+   */
+  modal?: boolean
+  /** Wider box (payment forms). */
+  wide?: boolean
 }
 
 export default function Dialog(props: DialogProps) {
   if (!props.open) return null
-  return <OpenDialog {...props} />
+  return props.modal === false ? <FreeDialog {...props} /> : <OpenDialog {...props} />
+}
+
+function DialogHead({ titleId, subId, title, sub, closeLabel, onClose }: {
+  titleId: string; subId: string; title: ReactNode; sub?: ReactNode; closeLabel: string; onClose: () => void
+}) {
+  return (
+    <div className="kit-dialog-head">
+      <div>
+        <h2 id={titleId} className="kit-dialog-title">{title}</h2>
+        {sub != null && <p id={subId} className="kit-dialog-sub">{sub}</p>}
+      </div>
+      <button type="button" className="kit-icon-btn" onClick={onClose} aria-label={closeLabel}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+function FreeDialog({ onClose, title, sub, children, footer, closeLabel = 'Close', wide }: DialogProps) {
+  const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
+  const subId = useId()
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    const d = ref.current
+    // Focus the first thing inside (the close button at worst).
+    const first = d?.querySelector<HTMLElement>('input, select, textarea, button:not(.kit-icon-btn), [href]') ?? d?.querySelector<HTMLElement>('button')
+    first?.focus()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      if (opener && document.contains(opener)) opener.focus()
+    }
+  }, [])
+
+  return (
+    <div className="kit-dialog-layer" onMouseDown={(e) => { if (e.target === e.currentTarget) onCloseRef.current() }}>
+      <dialog
+        ref={ref}
+        open
+        aria-modal="true"
+        className={`kit-dialog kit-dialog--free${wide ? ' kit-dialog--wide' : ''}`}
+        aria-labelledby={titleId}
+        aria-describedby={sub ? subId : undefined}
+      >
+        <DialogHead titleId={titleId} subId={subId} title={title} sub={sub} closeLabel={closeLabel} onClose={() => onCloseRef.current()} />
+        <div className="kit-dialog-body">{children}</div>
+        {footer != null && <div className="kit-dialog-foot">{footer}</div>}
+      </dialog>
+    </div>
+  )
 }
 
 function OpenDialog({ onClose, title, sub, children, footer, closeLabel = 'Close' }: DialogProps) {

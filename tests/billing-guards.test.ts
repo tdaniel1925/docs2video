@@ -53,13 +53,13 @@ describe('decidePlanChange — never a second subscription (C3)', () => {
       .toEqual({ kind: 'checkout_replacing_trial', trialSubscriptionId: 't' })
   })
 
-  it('payment trouble or several live plans → billing portal, never a new subscription', () => {
+  it('payment trouble or several live plans → fix it first, never a new subscription', () => {
     for (const s of ['past_due', 'unpaid', 'incomplete']) {
       expect(billing.decidePlanChange([sub('a', s, 'price_pro')], 'business', 'price_business'))
-        .toEqual({ kind: 'portal', reason: 'payment_issue' })
+        .toEqual({ kind: 'fix_first', reason: 'payment_issue' })
     }
     expect(billing.decidePlanChange([sub('a', 'active', 'price_pro'), sub('b', 'active', 'price_business')], 'enterprise', 'price_enterprise'))
-      .toEqual({ kind: 'portal', reason: 'multiple' })
+      .toEqual({ kind: 'fix_first', reason: 'multiple' })
   })
 
   it('ignores the AI Social add-on subscription entirely', () => {

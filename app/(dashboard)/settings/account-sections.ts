@@ -41,7 +41,7 @@ export function accountItems(opts: { showVideoFeatures: boolean; hasSocial: bool
 /**
  * Old ?tab= words (and a few spoken ones) → today's section. Every link the
  * app, emails and Stripe ever sent into Settings is listed here:
- *   ?tab=subscription  (billing portal return, plan change, credit buys)
+ *   ?tab=subscription  (old billing-portal / checkout returns; in-app billing uses ?tab=billing)
  *   ?tab=integrations  (email connect, Stripe connect, "What's left" chips)
  *   ?tab=social        (AI Social add-on and its sign-in callback)
  */

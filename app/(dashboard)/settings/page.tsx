@@ -15,6 +15,7 @@ import { cleanWebLink } from '../../_lib/url-validate'
 import { tidyUrlInput } from '../../_lib/normalize-url'
 import { Button, EmptyState, Note } from '../../_components/kit'
 import ViewAlertsSetting from '../activity/ViewAlertsSetting'
+import HotClientAlerts from './HotClientAlerts'
 import ApiKeysSection from './ApiKeysSection'
 import { ThemeChoice } from '../../_components/theme'
 import BillingSection from './BillingSection'
@@ -153,7 +154,8 @@ export default function SettingsPage() {
       setStripeMessage('Stripe is connected.')
       setTimeout(() => setStripeMessage(null), 5000)
     }
-    // Back from an in-place plan change (no second subscription is created).
+    // Old link from before in-app billing (2026-10-14): an in-place plan change
+    // used to come back here. No second subscription is ever created.
     // The new plan shows once Stripe confirms it, usually within seconds.
     if (searchParams.get('plan_changed')) {
       notify(`Your plan is changing to ${searchParams.get('plan_changed')}. It updates here within a few seconds.`, 'success')
@@ -793,6 +795,7 @@ export default function SettingsPage() {
           </div>
 
           {/* View alerts — the same setting as Activity → Notifications. */}
+          <HotClientAlerts />
           <ViewAlertsSetting />
         </div>
       )}

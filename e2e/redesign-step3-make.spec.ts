@@ -480,7 +480,7 @@ test.describe('Step 3 — Make it', () => {
     await expect(page).toHaveURL(new RegExp('/create/theme'))
   })
 
-  test('not enough credits opens the top-up with the numbers, and Buy goes to Stripe checkout', async ({ page }) => {
+  test('not enough credits opens the top-up with the numbers, and Buy opens the in-app payment', async ({ page }) => {
     await open(page)
     await page.route('**/api/generate-video', (route) => route.fulfill({ status: 402, json: { code: 'insufficient_credits', error: 'You need 240 credits but only have 100.', needed: 240, balance: 100 } }))
     await makeBtn(page).click()
@@ -489,10 +489,12 @@ test.describe('Step 3 — Make it', () => {
     await expect(bar(page).getByRole('alert')).toContainText('You need 240 credits but only have 100.')
 
     const buys: any[] = []
-    await page.route('**/api/credits/buy', async (route) => { buys.push(jsonBody(route.request())); await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_e2e' } }) })
-    await page.route('https://checkout.stripe.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<h1>Stripe checkout (mocked)</h1>' }))
+    await page.route('**/api/credits/buy', async (route) => { buys.push(jsonBody(route.request())); await route.fulfill({ status: 500, json: { error: 'Mocked: payment form unavailable.' } }) })
+    const before = page.url()
     await page.getByRole('button', { name: /^Buy / }).first().click()
-    await expect(page).toHaveURL(/checkout\.stripe\.com/)
+    // In-app payment (2026-10-14): the pop-up opens here; the page stays.
+    await expect(page.getByRole('dialog').getByText('Mocked: payment form unavailable.')).toBeVisible()
+    expect(page.url()).toBe(before)
     expect(buys).toHaveLength(1)
     expect(typeof buys[0].pack).toBe('string')
   })

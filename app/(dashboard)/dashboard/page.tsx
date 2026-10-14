@@ -9,8 +9,10 @@ import { planLabel } from '../../_lib/names'
 import { Button, Card, Chip, EmptyState, Note, kitButtonClass, type ChipTone } from '../../_components/kit'
 import Greeting from './_home/Greeting'
 import { loadHomeData, type ProjectRow } from './_home/load'
+import { loadHomeExtras } from './_home/load-extras'
+import ReviewsBox from '../../_components/answers-reviews/ReviewsBox'
 import { discardDraft, dismissFinished } from './_home/actions'
-import type { ActionCard, Tone } from './_home/derive'
+import { peopleCount, type ActionCard, type Tone } from './_home/derive'
 import { DiscardButton } from './_home/DiscardButton'
 import { START_CARDS, type StartCard } from './_home/start-cards'
 import s from './_home/home.module.css'
@@ -42,14 +44,17 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, balance, home] = await Promise.all([
+  const [{ data: profile }, balance, home, extras] = await Promise.all([
     supabase.from('profiles')
       .select('full_name, subscription_status, referred_by, card_on_file, is_admin, is_beta')
       .eq('id', user.id)
       .single(),
     getBalance(user.id),
     loadHomeData(user.id),
+    // Client questions waiting on an answer + annual reviews coming up.
+    loadHomeExtras(user.id),
   ])
+  const cards = [...extras, ...home.cards]
 
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] || null
   const status = (profile?.subscription_status ?? '').toLowerCase()
@@ -67,7 +72,7 @@ export default async function HomePage() {
   // refuses to spend them before that), so say so instead of "N left".
   const cardless = spendBlockReason(profile) === 'card_required'
 
-  const need = home.peopleNeedingYou
+  const need = peopleCount(cards)
   const subline = !home.hasAnyProject
     ? 'Let’s make your first project.'
     : need > 0
@@ -86,9 +91,9 @@ export default async function HomePage() {
           tone="warn"
           className={s.banner}
           title="Your last payment didn’t go through."
-          action={<Button href="/settings?tab=billing" size="sm">Update card</Button>}
+          action={<Button href="/settings?tab=billing&fix=card" size="sm">Update card</Button>}
         >
-          Update your card so nothing stops.
+          Update your card so nothing stops — we’ll pay the bill right away, without leaving the app.
         </Note>
       )}
       {/* FINISHED WHILE YOU WERE AWAY — projects that finished since they
@@ -159,11 +164,11 @@ export default async function HomePage() {
       </section>
 
       {/* 2. TODAY'S CLIENTS — who clicked to book, who watched, who hasn't opened */}
-      {home.cards.length > 0 && (
+      {cards.length > 0 && (
         <section className={s.section} aria-labelledby="home-today">
           <h2 id="home-today" className="kit-label">Today’s clients</h2>
           <div className={s.cards}>
-            {home.cards.map(c => <ActionCardView key={c.key} card={c} />)}
+            {cards.map(c => <ActionCardView key={c.key} card={c} />)}
           </div>
         </section>
       )}
@@ -192,6 +197,7 @@ export default async function HomePage() {
                 {plan} · <Link href="/settings?tab=billing">Billing &amp; credits</Link>
               </p>
             </Card>
+            <ReviewsBox />
           </aside>
         </div>
       )}

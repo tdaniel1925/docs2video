@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Link2, Mail, Send, UserRoundPlus } from 'lucide-react'
 import type { Video } from '../../../../_lib/types'
 import SharePreview from './SharePreview'
+import SendByText, { SendTabs, useTextStatus } from './SendByText'
 import SendSwitch from './SendSwitch'
 import WhatsLeft from './WhatsLeft'
 import {
@@ -139,6 +140,11 @@ export default function ReadyToSend({
       .catch(() => { if (!cancelled) setClient({ name: fallbackName, email: fallbackEmail, fromStep1: false }) })
     return () => { cancelled = true }
   }, [clientId, v.recipient_name, quote?.client_name, quote?.client_email])
+
+  // ── Email | Text. The Text tab shows only once texting is set up on the
+  // server (its tables exist); otherwise this panel is email-only as before.
+  const [channel, setChannel] = useState<'email' | 'text'>('email')
+  const textInfo = useTextStatus(video.id)
 
   // "Send to someone else" replaces the client on file for this send only.
   const [someoneElse, setSomeoneElse] = useState(false)
@@ -368,9 +374,11 @@ export default function ReadyToSend({
         <aside className="rts-panel">
           <WhatsLeft items={left} />
 
-          {/* WHO */}
-          <div className="rts-eyebrow">Send to</div>
-          {client === null ? (
+          {textInfo?.available && <SendTabs channel={channel} onChange={(k) => { setChannel(k); setSendError(''); setSentTo('') }} />}
+
+          {/* WHO (email) — the Text tab asks for a mobile number further down */}
+          {channel === 'email' && <div className="rts-eyebrow">Send to</div>}
+          {channel === 'text' ? null : client === null ? (
             <div className="rts-row-hint">Loading…</div>
           ) : !askForAddress ? (
             <div style={{ marginBottom: 16 }}>
@@ -525,7 +533,15 @@ export default function ReadyToSend({
             )}
           </div>
 
+          {/* SEND BY TEXT */}
+          {channel === 'text' && textInfo && (
+            <SendByText videoId={video.id} initial={textInfo} clientName={client?.name || v.recipient_name || ''} clientId={clientId}
+              note={note} thing={thing} insurance={insurance} posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 480)}
+              beforeSend={() => saveNote(note)} onSent={onSent} />
+          )}
+
           {/* SEND */}
+          {channel === 'email' && <>
           {sendError && <div role="alert" className="rts-error" style={{ marginTop: 14 }}>{sendError}</div>}
           {sentTo && (
             <div role="status" className="rts-sent">
@@ -541,8 +557,9 @@ export default function ReadyToSend({
           >
             <span className="rts-icon-link"><Send size={16} />{sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}</span>
           </button>
+          </>}
           <div className="rts-row-hint rts-from">
-            {mailbox === null ? ''
+            {channel === 'text' || mailbox === null ? ''
               : mailbox.has
                 ? <>Sends from your own email{mailbox.address ? ` (${mailbox.address})` : ''}. We tell you when they open it and when they watch.</>
                 : <>Sends from Docs2Video’s address, and replies come to you. <Link href={SETTINGS_INTEGRATIONS}>Connect your email</Link> to send from it.</>}

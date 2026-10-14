@@ -121,6 +121,24 @@ const GUIDES: HelpGuide[] = [
     icon: '🖌️',
   },
   {
+    href: '/help/texting',
+    title: 'Texting and alerts',
+    description: 'Get a text or email the moment a client finishes your video, comes back, opens the PDF or presses Book a call — and send videos to clients by text.',
+    icon: '💬',
+  },
+  {
+    href: '/help/client-questions',
+    title: 'Client questions',
+    description: 'A client asks under your video, we draft an answer from their own document with where it came from — you Approve, Edit, Call instead or say Not now. Nothing is sent without you. Free.',
+    icon: '🙋',
+  },
+  {
+    href: '/help/annual-reviews',
+    title: 'Annual reviews',
+    description: 'Add a policy date, get "Review due in 30 days", prepare a "Your year in review" video (last year vs this year), pick the day it goes out, and track it in the Reviews box.',
+    icon: '📅',
+  },
+  {
     href: '/help/library',
     title: NAMES.library,
     description: 'Picture cards for everything you’ve made: what “Ready to send”, “Making…” and “Didn’t finish” mean, the Send button, search, cards or list, and deleting safely.',
@@ -580,7 +598,7 @@ const ARTICLES: HelpArticle[] = [
     icon: '⬆️',
     content: [
       'Go to **Settings > Billing & credits**. Three boxes at the top show your plan, your credits and what you used this period, with the plans and credit packs below.',
-      'Click **Subscribe to [Plan]** (or **Switch to [Plan]** if you already have one). To see invoices, update your card, or cancel, click **Manage billing & invoices**.',
+      'Click **Subscribe to [Plan]** and pay in the window that opens — you never leave Docs2Video. Already on a plan? **Switch to [Plan]** shows what you pay today before anything is charged. **Cancel plan**, **Payment methods** (add, default, remove a card), **Invoices and receipts** (with PDFs) and **Billing details** are all on the same page.',
       `Available plans (credits/month): **${FREE_PLAN_NAME}** (${n(TIER_CREDITS.free)} to start), **Pro** (${planPrice('pro')} — ${n(TIER_CREDITS.pro)}), **Business** (${planPrice('business')} — ${n(TIER_CREDITS.business)}), **Enterprise** (${planPrice('enterprise')} — ${n(TIER_CREDITS.enterprise)}). Buy top-up packs anytime (from ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits); they never expire.`,
     ],
   },

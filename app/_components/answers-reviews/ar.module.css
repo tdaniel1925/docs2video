@@ -1,0 +1,138 @@
+/* Client questions + annual reviews — layout only. Parts come from the kit
+   (app/kit.css); colours only from the names in globals.css (so dark mode
+   just works). Corners never exceed 10px. */
+
+.page { max-width: 880px; }
+.back { display: inline-block; margin-bottom: 14px; font-size: var(--fs-small); color: var(--ink-light); text-decoration: none; }
+.back:hover { color: var(--ink); }
+.title { margin: 0; font-size: var(--fs-h2); font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1.2; }
+.lead { margin: 6px 0 22px; font-size: var(--fs-body); color: var(--ink-soft); line-height: 1.55; }
+.label { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-light); }
+.stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.spread { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.muted { color: var(--ink-light); font-size: var(--fs-small); }
+.small { font-size: var(--fs-small); color: var(--ink-soft); line-height: 1.5; margin: 0; }
+
+/* The question, as the client typed it. */
+.quote {
+  margin: 0;
+  padding: 14px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 10px 10px 0;
+  font-size: var(--fs-lead);
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.who { margin: 8px 0 0; font-size: var(--fs-small); color: var(--ink-light); }
+
+.box {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 140px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  resize: vertical;
+}
+.box:focus { outline: 2px solid var(--link); outline-offset: 1px; }
+.draftText { margin: 0; font-size: var(--fs-body); line-height: 1.65; color: var(--ink); white-space: pre-wrap; }
+
+/* Where the answer came from. */
+.cites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.cite { padding: 10px 12px; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-soft); }
+.citeLabel { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: var(--fs-small); font-weight: 700; color: var(--ink); }
+.citeQuote { margin: 0; font-size: var(--fs-small); line-height: 1.55; color: var(--ink-soft); font-style: italic; overflow-wrap: anywhere; }
+
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-ui); color: var(--ink-soft); cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--ink); }
+
+/* Audit trail */
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.log li { display: flex; gap: var(--space-3); font-size: var(--fs-small); color: var(--ink-soft); }
+.log time { flex: 0 0 auto; min-width: 128px; color: var(--ink-light); }
+
+/* Lists */
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 12px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-card);
+  text-decoration: none;
+  color: inherit;
+}
+a.item:hover { border-color: var(--ink); }
+.itemIcon { flex: 0 0 auto; display: flex; color: var(--ink-light); }
+.itemBody { flex: 1; min-width: 0; }
+.itemTitle { margin: 0; font-size: var(--fs-body); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemSub { margin: 2px 0 0; font-size: var(--fs-small); color: var(--ink-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Reviews box (Home) */
+.counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin: 10px 0 12px; }
+.count { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface); }
+.count b { font-size: var(--fs-lead); color: var(--ink); line-height: 1.2; }
+.count span { font-size: var(--fs-caption); color: var(--ink-soft); }
+@media (max-width: 380px) { .counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.boxTitle { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
+
+/* Prepare review */
+.choice {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  cursor: pointer;
+}
+.choice:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.choice input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--ink); flex: 0 0 auto; }
+.choiceTitle { margin: 0; font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
+.choiceText { margin: 2px 0 0; font-size: var(--fs-small); color: var(--ink-soft); line-height: 1.5; }
+.drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  width: 100%; box-sizing: border-box;
+  padding: 22px 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--ink-soft);
+  font: inherit; font-size: var(--fs-ui);
+  cursor: pointer;
+  text-align: center;
+}
+.drop strong { color: var(--ink); font-size: var(--fs-body); }
+.input {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--ink);
+  font: inherit; font-size: var(--fs-body);
+}
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > span { font-size: var(--fs-small); font-weight: 700; color: var(--ink); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.steps { margin: 0; padding-left: 20px; font-size: var(--fs-ui); color: var(--ink-soft); line-height: 1.7; }
+.steps .done { color: var(--ink); }
+
+/* Clients list: the little review line under a name. */
+.due { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.dueLink { font-size: var(--fs-small); font-weight: 700; color: var(--link); text-decoration: none; }
+.dueLink:hover { text-decoration: underline; }
+
+.boxRow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.boxRow > span { flex: 1; min-width: 0; }

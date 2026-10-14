@@ -251,7 +251,9 @@ describe('who watched — per share, from what the share page sends', () => {
     expect(deviceLabel(null)).toBe('Unknown device')
   })
   it('the email link carries its id, and the share page passes it on with every event', () => {
-    expect(read('app/api/send-video-email/route.ts')).toContain('`${shareUrl}?s=${sentEmailId}`')
+    // The send route's email lives in share-send.ts (shared with scheduled review sends).
+    expect(read('app/api/send-video-email/route.ts')).toContain('sendShareEmail(')
+    expect(read('app/_lib/share-send.ts')).toContain('`${shareUrl}?s=${sentEmailId}`')
     const watch = read('app/(public)/watch/[id]/page.tsx')
     expect(watch).toContain("searchParams.get('s')")
     expect(watch).toMatch(/share: shareTag/)

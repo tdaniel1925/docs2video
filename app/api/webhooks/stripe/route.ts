@@ -117,9 +117,23 @@ export async function POST(request: Request) {
 
   try {
     switch (event.type) {
-      /* ─── One-time project payment completed ─── */
-      case 'checkout.session.completed': {
+      /* ─── A delayed payment method (bank debit etc.) failed after checkout ─── */
+      case 'checkout.session.async_payment_failed': {
         const session = event.data.object as Stripe.Checkout.Session
+        console.warn(`[webhook] async payment FAILED for checkout ${session.id} (${session.metadata?.type ?? '?'}, user ${session.metadata?.supabase_user_id ?? '?'}) — nothing was granted`)
+        break
+      }
+
+      /* ─── Checkout paid (in-app Payment Element or Apex embedded) ───
+       * `completed` arrives when the buyer finishes; for a delayed payment
+       * method it can still be UNPAID then, and `async_payment_succeeded`
+       * follows once the money clears. Both run the same code: every grant
+       * below is gated on payment_status and keyed per session, so the second
+       * of the two can never grant again. */
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
+        const session = event.data.object as Stripe.Checkout.Session
+        const sessionPaid = session.payment_status === 'paid' || session.payment_status === 'no_payment_required'
         let userId = session.metadata?.supabase_user_id
 
         // Apex Path-B on-site checkout. A buyer with NO Docs2Video account yet
@@ -236,6 +250,12 @@ export async function POST(request: Request) {
         // prod, so this only ever errored. No checkout sets project_payment now.)
 
         if (session.metadata?.type === 'credit_pack') {
+          // Not paid yet (delayed payment method): async_payment_succeeded
+          // grants it later. Never credits for money that hasn't arrived.
+          if (!sessionPaid) {
+            console.log(`[webhook] credit pack ${session.id} completed with payment_status=${session.payment_status} — waiting for the payment`)
+            break
+          }
           const credits = parseInt(session.metadata.credits || '0', 10)
           // Checkout sets `pack`; older code read `pack_name` (audit L6). Accept
           // either so the ledger description names the actual pack.
@@ -263,6 +283,10 @@ export async function POST(request: Request) {
         // AI Social add-on ($50/mo) — flip the entitlement flag. Posting only;
         // generation still uses the user's normal credits.
         if (session.metadata?.type === 'social_addon') {
+          if (!sessionPaid) {
+            console.log(`[webhook] social add-on ${session.id} completed with payment_status=${session.payment_status} — waiting for the payment`)
+            break
+          }
           await supabase.from('profiles').update({ social_addon_active: true }).eq('id', userId)
           console.log(`[webhook] Social add-on activated for user ${userId}`)
           break
@@ -271,7 +295,7 @@ export async function POST(request: Request) {
         if (session.metadata?.type === 'subscription') {
           // Only a PAID checkout starts a plan. An unpaid session must never
           // grant paid features or credits.
-          if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
+          if (!sessionPaid) {
             console.warn(`[webhook] Subscription checkout ${session.id} completed with payment_status=${session.payment_status} — not granting until paid`)
             break
           }

@@ -42,6 +42,7 @@ describe('sent_emails columns', () => {
   it('no writer or reader uses the non-existent recipient / sent_at columns', () => {
     for (const f of [
       'app/api/send-video-email/route.ts',
+      'app/_lib/share-send.ts',
       'app/api/email-track/route.ts',
       'app/api/cron/follow-ups/route.ts',
     ]) {

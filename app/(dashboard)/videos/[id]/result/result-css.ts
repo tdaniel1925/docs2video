@@ -87,6 +87,7 @@ export const RESULT_CSS = `
 @media (max-width: 640px) { .res-viewer { grid-template-columns: minmax(0, 1fr); } }
 .res-viewer-who { min-width: 0; overflow-wrap: anywhere; }
 .res-viewer-far { font-size: var(--fs-ui); color: var(--ink); margin-top: 4px; }
+.res-reply { white-space: pre-wrap; word-break: break-word; font-style: italic; }
 .res-qbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-1); height: 10px; max-width: 260px; }
 .res-q { border-radius: 3px; background: var(--border); }
 .res-q.on { background: var(--accent-ink); }

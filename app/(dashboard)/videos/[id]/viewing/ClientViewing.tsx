@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { MessageSquareReply } from 'lucide-react'
 import type { ViewerSummary, ViewingSummary } from '../../../../_lib/viewing'
+import { formatPhone } from '../../../../_lib/texting'
+
+type Reply = { id: string; from: string; body: string; at: string; shareId: string | null }
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
@@ -43,7 +47,7 @@ function Clicks({ v }: { v: ViewerSummary }) {
  * its setting instead of adding another.
  */
 export default function ClientViewing({ videoId, isDeck, refreshKey }: { videoId: string; isDeck: boolean; refreshKey: number }) {
-  const [data, setData] = useState<ViewingSummary | null>(null)
+  const [data, setData] = useState<(ViewingSummary & { replies?: Reply[] }) | null>(null)
   const [totals, setTotals] = useState<{ views: number; plays: number } | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -78,7 +82,7 @@ export default function ClientViewing({ videoId, isDeck, refreshKey }: { videoId
         {isDeck
           ? 'Presentations report when they’re opened and clicked into — not how far someone went.'
           : 'How far each person got, in quarters. Your own visits don’t count.'}
-        {' '}We email you when a client opens it — <Link href="/activity#view-alerts">change when</Link>.
+        {' '}We email you when a client opens it — <Link href="/activity#view-alerts">change when</Link>. Want a text when they’re ready to talk? <Link href="/settings?tab=email#hot-alerts">Turn on client alerts</Link>.
       </p>
 
       {failed && <p className="res-hint">Couldn’t load who watched just now. Refresh the page to try again.</p>}
@@ -90,10 +94,12 @@ export default function ClientViewing({ videoId, isDeck, refreshKey }: { videoId
           {data.shares.map((s) => (
             <li key={s.id} className="res-viewer">
               <div className="res-viewer-who">
-                <strong>{s.name || s.to}</strong>
-                {s.name && <span className="res-hint"> {s.to}</span>}
+                <strong>{s.name || (s.channel === 'text' ? formatPhone(s.to) : s.to)}</strong>
+                {s.name && <span className="res-hint"> {s.channel === 'text' ? formatPhone(s.to) : s.to}</span>}
                 <div className="res-hint">
-                  Emailed {when(s.sentAt)} · {s.emailOpenedAt ? `email opened ${when(s.emailOpenedAt)}` : 'email not opened yet'}
+                  {s.channel === 'text'
+                    ? `Texted ${when(s.sentAt)}`
+                    : `Emailed ${when(s.sentAt)} · ${s.emailOpenedAt ? `email opened ${when(s.emailOpenedAt)}` : 'email not opened yet'}`}
                 </div>
               </div>
               {s.viewer ? (
@@ -103,11 +109,34 @@ export default function ClientViewing({ videoId, isDeck, refreshKey }: { videoId
                   <Clicks v={s.viewer} />
                 </div>
               ) : (
-                <div className="res-viewer-how res-hint">Hasn’t opened the page from this email yet.</div>
+                <div className="res-viewer-how res-hint">Hasn’t opened the page from this {s.channel === 'text' ? 'text' : 'email'} yet.</div>
               )}
             </li>
           ))}
         </ul>
+      )}
+
+      {data && (data.replies?.length ?? 0) > 0 && (
+        <>
+          <div className="rts-eyebrow res-gap">Text replies</div>
+          <ul className="res-viewers" aria-label="Text replies">
+            {data.replies!.map((r) => {
+              const share = data.shares.find((s) => s.id === r.shareId)
+              return (
+                <li key={r.id} className="res-viewer">
+                  <div className="res-viewer-who">
+                    <strong className="rts-icon-link"><MessageSquareReply size={16} aria-hidden="true" />{share?.name || formatPhone(r.from)}</strong>
+                    <div className="res-hint">Replied {when(r.at)}{share?.name ? ` · ${formatPhone(r.from)}` : ''}</div>
+                  </div>
+                  <div className="res-viewer-how">
+                    <div className="res-viewer-far res-reply">“{r.body}”</div>
+                    <a className="res-hint" href={`tel:${r.from}`}>Call back</a>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </>
       )}
 
       {data && data.others.length > 0 && (

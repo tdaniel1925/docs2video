@@ -255,6 +255,22 @@ export async function POST(request: Request) {
       }
     }
 
+    // HOT-CLIENT ALERTS (Settings → Email & sending → "Tell me when a client
+    // is ready"): finished it, came back, opened the PDF, pressed Book a
+    // call. The owner's own views already returned above; isOwner is passed
+    // as false on purpose and checked again inside.
+    if (['view', 'complete', 'progress', 'download', 'booking_click', 'book_meeting'].includes(eventType)) {
+      try {
+        const { handleHotEvent } = await import('../../_lib/texting-core')
+        await handleHotEvent(supabase, {
+          videoId, ownerId: video.user_id, eventType, metadata: (metadata ?? null) as Record<string, unknown> | null,
+          viewerIp, isOwner: false,
+        })
+      } catch (hotErr) {
+        console.error('[track-view] hot alert error:', hotErr)
+      }
+    }
+
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
     console.error('[track-view] Error:', err)

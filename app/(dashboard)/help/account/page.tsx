@@ -145,51 +145,136 @@ export default function AccountHelpPage() {
         </div>
       </div>
 
-      {/* Billing */}
+      {/* Billing — everything happens inside Docs2Video (2026-10-14): you
+          pay, change plan, cancel, manage cards and download receipts here;
+          no Stripe page opens. */}
       <div style={CARD}>
         <h2 style={H2}>Billing &amp; credits</h2>
         <div style={BODY}>
           <p style={{ marginBottom: 10 }}>
-            All billing is handled securely by Stripe. The page opens with three boxes:
+            Everything about paying happens right here in Docs2Video — you never get sent to another website. Payments are processed securely by Stripe; your card details go straight to Stripe, never to us. The page opens with three boxes:
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Current plan</strong> — Your plan&rsquo;s name and price, and the date it renews (the same name shows under your name in the account menu). <strong style={INK}>Manage billing &amp; invoices</strong> opens Stripe to update your card or download receipts.
+            <strong style={INK}>Current plan</strong> — Your plan&rsquo;s name and price, and <strong style={INK}>Next charge</strong>: how much you&rsquo;ll pay and when (the same name shows under your name in the account menu). <strong style={INK}>Cancel plan</strong> is here too.
           </p>
           <p style={{ marginBottom: 10 }}>
-            <strong style={INK}>Credits available</strong> — Your balance, with a bar showing how much of this month&rsquo;s credits is left, plus any credits from packs. <strong style={INK}>Buy credits</strong> opens the top-up window.
+            <strong style={INK}>Credits available</strong> — Your balance, with a bar showing how much of this month&rsquo;s credits is left, plus any credits from packs. <strong style={INK}>Buy credits</strong> takes you to the packs.
           </p>
           <p style={{ marginBottom: 10 }}>
             <strong style={INK}>This period</strong> — How many credits you&rsquo;ve used since your period started.
           </p>
-          <p style={{ marginBottom: 10 }}>
-            Below them: <strong style={INK}>Plans</strong> — {PLAN_LIST}; <strong style={INK}>Credit packs</strong> you can buy anytime: {packsSentence()} (they never expire); and <strong style={INK}>Invoices and receipts</strong>, with <strong style={INK}>See invoices</strong> and, on a paid plan, <strong style={INK}>Cancel subscription</strong>.
-          </p>
           <p>
-            <strong style={INK}>Cancelling</strong> — You can cancel anytime. Your plan stays active until the end of the period you paid for. Bought top-up credits stay in your account.
+            Below them: <strong style={INK}>Plans</strong> — {PLAN_LIST}; <strong style={INK}>Credit packs</strong> you can buy anytime: {packsSentence()} (they never expire); <strong style={INK}>Payment methods</strong>; <strong style={INK}>Invoices and receipts</strong>; and <strong style={INK}>Billing details</strong>.
           </p>
         </div>
       </div>
 
-      {/* Subscription Plans */}
+      <div style={CARD}>
+        <h2 style={H2}>Paying for a plan, a credit pack or AI Social</h2>
+        <div style={BODY}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
+            <div style={NUM}>1</div>
+            <div>
+              <strong style={INK}>Press the button.</strong> <strong style={INK}>Subscribe to [Plan]</strong> under Plans, <strong style={INK}>Buy</strong> next to a credit pack (or <strong style={INK}>+ Top up</strong> in the top bar), or <strong style={INK}>Add AI Social</strong>. A payment window opens on top of the page.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
+            <div style={NUM}>2</div>
+            <div>
+              <strong style={INK}>Check what you&rsquo;re buying.</strong> The top shows the name, the price and <strong style={INK}>Today</strong> — what you pay now. Have a promo code for a plan (like WELCOME50)? Type it in <strong style={INK}>Promo code</strong> and press <strong style={INK}>Apply</strong>; the discount shows straight away. A code from our email is already applied.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
+            <div style={NUM}>3</div>
+            <div>
+              <strong style={INK}>Enter your card</strong> — or pick a card you saved before, or Apple Pay / Google Pay if your device has them. Some banks then show a short security check (a code or a tap in your banking app); it opens right there.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+            <div style={NUM}>4</div>
+            <div>
+              <strong style={INK}>Press Pay.</strong> You see <strong style={INK}>Payment received</strong> for a few seconds, then <strong style={INK}>You&rsquo;re all set</strong> once your plan or credits are on your account. If the card is declined you see why, and nothing is charged — try another card.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div style={CARD}>
         <h2 style={H2}>Changing your plan</h2>
         <div style={BODY}>
           <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>1</div>
             <div>
-              <strong style={INK}>Go to Settings → Billing &amp; credits.</strong> Scroll to <strong style={INK}>Plans</strong>.
+              <strong style={INK}>Go to Settings → Billing &amp; credits.</strong> Under <strong style={INK}>Plans</strong>, press <strong style={INK}>Switch to [Plan]</strong>.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
             <div style={NUM}>2</div>
             <div>
-              <strong style={INK}>Pick the plan you want.</strong> Click <strong style={INK}>Subscribe to [Plan]</strong>, or <strong style={INK}>Switch to [Plan]</strong> if you already have one.
+              <strong style={INK}>See the price first.</strong> The window shows your plan now and the new one. Going up: <strong style={INK}>You pay today</strong> is just the difference for the rest of this month, and the extra credits arrive straight away. Going down: <strong style={INK}>Nothing to pay today</strong> — the lower price starts at your next renewal and you keep this month&rsquo;s credits.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <div style={NUM}>3</div>
             <div>
-              <strong style={INK}>Pay on the secure Stripe page.</strong> When you&rsquo;re done you come back to your dashboard with the new plan&rsquo;s credits.
+              <strong style={INK}>Press Upgrade — pay $… (or Switch to [Plan]).</strong> Your saved card is used. When it&rsquo;s done you see <strong style={INK}>You&rsquo;re on [Plan]</strong>. Changed your mind? Press <strong style={INK}>Keep [your plan]</strong> and nothing changes.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={CARD} id="cancel">
+        <h2 style={H2}>Cancelling (and changing your mind)</h2>
+        <div style={BODY}>
+          <p style={{ marginBottom: 10 }}>
+            Press <strong style={INK}>Cancel plan</strong> (or <strong style={INK}>Downgrade</strong> on Pay As You Go). Tell us why if you like — it&rsquo;s optional — then press <strong style={INK}>Cancel plan</strong>. You keep your plan and credits until the end of the period you paid for; after that you move to Pay As You Go and aren&rsquo;t charged again. Credits from packs stay.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            Until that date the box says <strong style={INK}>Ends [date]</strong> with a <strong style={INK}>Keep my plan</strong> button — press it and your plan carries on as if nothing happened.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            Still on your free trial? The button reads <strong style={INK}>Turn off the automatic plan</strong>: nothing is charged when your free credits run out, and you keep the credits you have.
+          </p>
+          <p>
+            The AI Social add-on has its own <strong style={INK}>Cancel add-on</strong> / <strong style={INK}>Keep AI Social</strong> buttons and never touches your main plan.
+          </p>
+        </div>
+      </div>
+
+      <div style={CARD} id="cards">
+        <h2 style={H2}>Cards, invoices and billing details</h2>
+        <div style={BODY}>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Payment methods</strong> — your saved cards. <strong style={INK}>Add a card</strong> opens a card form right on the page (nothing is charged for saving it); tick <strong style={INK}>Use this card for future bills</strong> to make it the one we charge. <strong style={INK}>Make default</strong> switches which card is charged; <strong style={INK}>Remove</strong> asks first. You can&rsquo;t remove your only card while a plan or free trial uses it — add another first.
+          </p>
+          <p style={{ marginBottom: 10 }}>
+            <strong style={INK}>Invoices and receipts</strong> — every payment with its date, amount and status (<strong style={INK}>Paid</strong> or <strong style={INK}>Due</strong>). <strong style={INK}>PDF</strong> opens the receipt to save or print.
+          </p>
+          <p>
+            <strong style={INK}>Billing details</strong> — the name or company, email and address printed on your invoices. Receipts go to that email. Press <strong style={INK}>Save details</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div style={CARD} id="payment-failed">
+        <h2 style={H2}>If a payment doesn&rsquo;t go through</h2>
+        <div style={BODY}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
+            <div style={NUM}>1</div>
+            <div>
+              <strong style={INK}>You&rsquo;ll see a red note</strong> on your Home page and in Billing: &ldquo;Your last payment didn&rsquo;t go through.&rdquo; New videos are paused until it&rsquo;s paid.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
+            <div style={NUM}>2</div>
+            <div>
+              <strong style={INK}>Press Update card</strong> and enter a card (or press <strong style={INK}>Pay now with [your card]</strong> to try your saved card again).
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+            <div style={NUM}>3</div>
+            <div>
+              <strong style={INK}>That&rsquo;s it.</strong> We pay the late bill with that card straight away and you see &ldquo;the late bill is paid&rdquo;. Your account unlocks within a few seconds.
             </div>
           </div>
         </div>

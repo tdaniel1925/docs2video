@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { CREDIT_PACKS, packPrice } from '../_lib/credit-packs'
+import { CREDIT_PACKS, packPrice, type CreditPackKey } from '../_lib/credit-packs'
+import InlineCheckout from './billing/InlineCheckout'
 
 interface BuyCreditsModalProps {
   open: boolean
@@ -16,36 +17,26 @@ interface BuyCreditsModalProps {
 // or describes them (it was typed here, in Settings and on the pricing page).
 const PACKS = CREDIT_PACKS.map(p => ({ ...p, price: packPrice(p), highlight: p.bestValue }))
 
+/**
+ * THE TOP-UP WINDOW. Pick a pack, then pay for it right here: the window
+ * hands over to the in-app checkout (InlineCheckout — Stripe's Payment
+ * Element in our own pop-up, 2026-10-14). Nobody is sent to a Stripe page.
+ * An account with no card yet is told to add one first (the server answers
+ * code 'card_required'; the checkout shows "Add a card").
+ */
 export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyCreditsModalProps) {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  // LIGHT START: an account with no card is sent to add one first (the server
-  // answers code 'card_required') — credits it bought couldn't be spent yet.
-  const [needsCard, setNeedsCard] = useState(false)
+  const [chosen, setChosen] = useState<CreditPackKey | null>(null)
 
   if (!open) return null
 
-  async function buy(pack: string) {
-    setError(null)
-    setLoading(pack)
-    try {
-      const res = await fetch('/api/credits/buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.url && /^https?:\/\//.test(data.url)) {
-        window.location.href = data.url
-      } else {
-        setError(data.error || 'Could not start checkout. Please try again.')
-        setNeedsCard(data.code === 'card_required')
-        setLoading(null)
-      }
-    } catch {
-      setError('Network error — please check your connection and try again.')
-      setLoading(null)
-    }
+  if (chosen) {
+    return (
+      <InlineCheckout
+        purchase={{ kind: 'pack', pack: chosen }}
+        onClose={() => { setChosen(null); onClose() }}
+        onPaid={() => window.dispatchEvent(new Event('d2v:credits-changed'))}
+      />
+    )
   }
 
   const blocked = typeof needed === 'number'
@@ -60,6 +51,9 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="buy-credits-title"
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--bg-card)', borderRadius: 10, padding: '36px 32px',
@@ -67,7 +61,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
         }}
       >
-        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+        <h2 id="buy-credits-title" style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
           {blocked ? 'You need more credits' : 'Buy credits'}
         </h2>
         <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24 }}>
@@ -75,22 +69,6 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
             ? `This needs ${needed?.toLocaleString()} credits${typeof balance === 'number' ? `, and you have ${balance.toLocaleString()}` : ''}. Top up below — credits never expire and are used after your monthly allotment.`
             : 'Top up your balance. Credits never expire and are used after your monthly allotment runs out.'}
         </p>
-
-        {error && (
-          <div role="alert" style={{
-            padding: '10px 14px', borderRadius: 8, marginBottom: 16,
-            background: 'var(--error-bg)', border: '1.5px solid var(--error-border)',
-            color: 'var(--error-text)', fontSize: 'var(--fs-small)', fontWeight: 600, lineHeight: 1.4,
-          }}>
-            {error}
-            {needsCard && (
-              <>
-                {' '}
-                <a href={`/setup-payment?next=${encodeURIComponent(window.location.pathname + window.location.search)}`} style={{ color: 'var(--link)', textDecoration: 'underline' }}>Add a card</a>
-              </>
-            )}
-          </div>
-        )}
 
         {PACKS.map(p => (
           <div key={p.key} style={{
@@ -108,17 +86,15 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
               {p.credits.toLocaleString()} credits
             </p>
             <button
-              onClick={() => buy(p.key)}
-              disabled={loading === p.key}
+              onClick={() => setChosen(p.key)}
               style={{
                 width: '100%', padding: '10px', borderRadius: 8, border: 'none',
                 background: p.highlight ? 'var(--accent)' : 'var(--ink)',
                 color: p.highlight ? 'var(--ink)' : 'var(--on-ink)',
                 fontSize: 'var(--fs-ui)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                opacity: loading === p.key ? 0.6 : 1,
               }}
             >
-              {loading === p.key ? 'Redirecting…' : `Buy ${p.name} pack`}
+              {`Buy ${p.name} pack`}
             </button>
           </div>
         ))}
@@ -132,7 +108,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', lineHeight: 1.5,
           marginTop: 16, textAlign: 'center',
         }}>
-          Payments are handled securely by Stripe. <strong>Docs2Video</strong> is the name
+          You pay right here, securely through Stripe. <strong>Docs2Video</strong> is the name
           that appears on your card statement and receipt.
         </p>
 

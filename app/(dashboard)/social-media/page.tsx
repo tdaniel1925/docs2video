@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import type { Brand } from '../../_lib/types'
+import InlineCheckout from '../../_components/billing/InlineCheckout'
 
 type SocialTab = 'brand' | 'create' | 'content'
 
@@ -32,6 +33,7 @@ export default function SocialMediaPage() {
   const [hasProfile, setHasProfile] = useState(false)
   const [addonActive, setAddonActive] = useState(false)
   const [addonLoading, setAddonLoading] = useState(false)
+  const [addonPaid, setAddonPaid] = useState(false)
   const [brandSaving, setBrandSaving] = useState(false)
   const [brandSaved, setBrandSaved] = useState(false)
 
@@ -164,15 +166,9 @@ export default function SocialMediaPage() {
     )
   }
 
-  async function subscribeToAddon() {
+  // Paid right here in the in-app checkout (2026-10-14) — no Stripe page.
+  function subscribeToAddon() {
     setAddonLoading(true)
-    try {
-      const res = await fetch('/api/social-addon/checkout', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) { window.location.href = data.url; return }
-      alert(data.error || 'Could not start checkout')
-    } catch { alert('Could not start checkout') }
-    setAddonLoading(false)
   }
 
   async function generateCaptions() {
@@ -293,9 +289,14 @@ export default function SocialMediaPage() {
             <li>Each post costs 25 credits per platform (e.g. 3 platforms = 75 credits)</li>
           </ul>
         </div>
-        <button onClick={subscribeToAddon} disabled={addonLoading} className="btn btn-primary btn-lg">
-          {addonLoading ? 'Starting checkout…' : 'Add AI Social — $50/mo'}
+        <button onClick={subscribeToAddon} className="btn btn-primary btn-lg">
+          Add AI Social — $50/mo
         </button>
+        <InlineCheckout
+          purchase={addonLoading ? { kind: 'social' } : null}
+          onClose={() => { setAddonLoading(false); if (addonPaid) setAddonActive(true) }}
+          onPaid={() => setAddonPaid(true)}
+        />
       </div>
     )
   }

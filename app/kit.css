@@ -268,6 +268,18 @@
 .kit-dialog[open] { display: flex; flex-direction: column; }
 /* ::backdrop doesn't reliably see the colour names, so a plain dimmer. */
 .kit-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+/* Payment pop-ups (Dialog modal={false}): not in the top layer, so the bank's
+   security check and wallet sheets Stripe opens can sit above them. Own dim
+   layer above the sticky top bar (z 200) and below Stripe's (max int). */
+.kit-dialog-layer {
+  position: fixed; inset: 0; z-index: 1100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.45);
+  overflow-y: auto;
+}
+.kit-dialog--free { position: relative; inset: auto; max-height: calc(100dvh - 32px); }
+.kit-dialog--wide { width: min(620px, calc(100vw - 32px)); }
 .kit-dialog-head {
   display: flex;
   align-items: flex-start;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { cleanAnniversary, saveAnniversary } from '../../_lib/annual-review-db'
 
 export const maxDuration = 30
 
@@ -119,6 +120,14 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error('[clients POST]', error)
     return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
+  }
+
+  // The policy date (annual reviews), saved on its own so a missing column
+  // (migration not run yet) never stops the client being added.
+  const anniv = cleanAnniversary(body)
+  if (anniv?.ok) {
+    const r = await saveAnniversary(admin, user.id, client.id, anniv.patch)
+    if (r.ok) Object.assign(client, anniv.patch)
   }
 
   // Log client_created activity

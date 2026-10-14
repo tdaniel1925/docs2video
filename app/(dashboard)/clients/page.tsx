@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { CLIENT_STATUSES, statusTone, statusWords } from './client-status'
+import ReviewDueLine, { useReviewsState } from '../../_components/answers-reviews/ReviewDueLine'
 
 interface Client {
   id: string
@@ -19,6 +20,9 @@ interface Client {
   last_activity_at: string | null
   created_at: string
   recent_activity_count: number
+  /** Policy anniversary (annual reviews) — only once its migration has run. */
+  anniversary_date?: string | null
+  anniversary_confirmed?: boolean | null
 }
 
 const STATUS_OPTIONS = ['all', ...CLIENT_STATUSES] as const
@@ -47,6 +51,9 @@ export default function ClientsPage() {
   const [newCompany, setNewCompany] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newIndustry, setNewIndustry] = useState('')
+  const [newAnniv, setNewAnniv] = useState('')
+  // Annual reviews (hidden until switched on).
+  const reviews = useReviewsState()
 
   const loadClients = useCallback(async () => {
     try {
@@ -86,6 +93,7 @@ export default function ClientsPage() {
           company: newCompany || undefined,
           phone: newPhone || undefined,
           industry: newIndustry || undefined,
+          ...(newAnniv ? { anniversary_date: newAnniv, anniversary_tz: Intl.DateTimeFormat().resolvedOptions().timeZone } : {}),
         }),
       })
       const data = await res.json()
@@ -98,6 +106,7 @@ export default function ClientsPage() {
         setNewCompany('')
         setNewPhone('')
         setNewIndustry('')
+        setNewAnniv('')
         setShowAddForm(false)
         loadClients()
       }
@@ -220,6 +229,13 @@ export default function ClientsPage() {
                 <label className="input-label">Industry</label>
                 <input className="input" value={newIndustry} onChange={e => setNewIndustry(e.target.value)} placeholder="e.g. Insurance, Real Estate" />
               </div>
+              {reviews?.available && (
+                <div className="form-group">
+                  <label className="input-label" htmlFor="new-anniv">Policy date <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
+                  <input id="new-anniv" className="input" type="date" value={newAnniv} onChange={e => setNewAnniv(e.target.value)} />
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>The day their policy started. We remind you a month before each anniversary.</span>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 12 }}>
               <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
@@ -320,6 +336,7 @@ export default function ClientsPage() {
                 <div style={{ minWidth: 0 }}>
                   <Link href={`/clients/${client.id}`} className="cl-card-name">{client.name}</Link>
                   {client.company && <div className="cl-card-sub">{client.company}</div>}
+                  <ReviewDueLine client={client} reviews={reviews} />
                 </div>
                 <StatusChip status={client.status} />
               </div>
@@ -367,6 +384,7 @@ export default function ClientsPage() {
                         {client.company && (
                           <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2 }}>{client.company}</div>
                         )}
+                        <ReviewDueLine client={client} reviews={reviews} />
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 'var(--fs-ui)' }}>
                         {client.email ?? '--'}

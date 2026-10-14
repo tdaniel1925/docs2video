@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   if (action === 'blocked') {
     return NextResponse.json({
       error: profile.subscription_status === 'past_due'
-        ? 'Your last payment did not go through. Please update your card from Manage billing in Settings.'
+        ? 'Your last payment did not go through. Please use Update card in Settings → Billing.'
         : 'This account cannot start a trial. Please contact support.',
     }, { status: 409 })
   }
@@ -100,6 +100,12 @@ export async function POST(request: Request) {
   let fingerprint: string | null = null
   try {
     const pm = await stripe.paymentMethods.retrieve(paymentMethodId)
+    // The form offers whatever Stripe allows (cards, Apple Pay, Google Pay,
+    // Link …). Apple/Google Pay save a real card; anything without a card
+    // has no fingerprint, so it can't start a free trial.
+    if (pm.type && pm.type !== 'card') {
+      return NextResponse.json({ error: 'The free trial needs a debit or credit card (Apple Pay and Google Pay work too). Please use a card.', code: 'card_only' }, { status: 400 })
+    }
     fingerprint = pm.card?.fingerprint ?? null
   } catch (err) {
     console.error('[confirm-card] could not read the card fingerprint:', err instanceof Error ? err.message : err)

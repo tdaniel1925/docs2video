@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import type Stripe from 'stripe'
 import { createClient } from '../../../_lib/supabase/server'
+import { createAdminClient } from '../../../_lib/supabase/admin'
 import { getStripe } from '../../../_lib/stripe'
 import { getAffiliateByCode } from '../../../_lib/affiliate'
 import { isCardless } from '../../../_lib/cardless-prep'
+import { safeReturnOrigin } from '../../../_lib/billing'
+import { ensureStripeCustomer, inlineSessionBase } from '../../../_lib/stripe-customer'
 export const maxDuration = 30
 
 const CREDIT_PACKS: Record<string, { credits: number; priceEnv: string }> = {
@@ -12,6 +16,15 @@ const CREDIT_PACKS: Record<string, { credits: number; priceEnv: string }> = {
   studio: { credits: 18000, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_18000' },
 }
 
+/**
+ * POST /api/credits/buy  { pack }
+ * Opens an IN-APP payment for a credit pack (2026-10-14): returns the client
+ * secret of a Checkout Session in ui_mode 'elements', which the top-up pop-up
+ * pays with Stripe's Payment Element — the buyer never leaves the app.
+ * Credits are still granted ONLY by the webhook / reconcile cron / the
+ * pop-up's status check, all with the same per-session key `pack:{sessionId}`,
+ * so they can never be granted twice.
+ */
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -24,79 +37,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Add a card first — it starts your free trial. Then you can top up any time.', code: 'card_required' }, { status: 402 })
   }
 
-  const { pack } = await request.json() as { pack: string }
-  const packInfo = CREDIT_PACKS[pack]
-  if (!packInfo) return NextResponse.json({ error: 'Invalid pack' }, { status: 400 })
+  const { pack } = (await request.json().catch(() => ({}))) as { pack?: string }
+  const packInfo = pack ? CREDIT_PACKS[pack] : undefined
+  if (!pack || !packInfo) return NextResponse.json({ error: 'Invalid pack' }, { status: 400 })
 
   // Trim stray whitespace/newlines that can sneak into env values (a trailing
-  // "\n" in the price id breaks the Stripe line item; in the site URL it makes
-  // success_url an invalid URL → "Not a valid URL" on redirect).
+  // "\n" in the price id breaks the Stripe line item).
   const priceId = (process.env[packInfo.priceEnv] || '').trim()
   if (!priceId) return NextResponse.json({ error: 'Credit packs not configured yet' }, { status: 500 })
 
-  // COME BACK TO THE SITE YOU LEFT FROM. This used NEXT_PUBLIC_SITE_URL, which
-  // is docs2video.com — so a Text2Art customer who bought credits was dropped
-  // on a different company's website immediately after paying. The subscription
-  // and billing-portal routes already keyed off the request origin; this one
-  // did not, and there is now more than one front door.
-  //
-  // Only our own hosts are honoured. `origin` is attacker-controllable, and an
-  // open redirect on a payment success page is a phishing gift.
-  const ALLOWED = ['https://docs2video.com', 'https://www.docs2video.com', 'https://text2art.app', 'https://www.text2art.app']
-  const origin = (request.headers.get('origin') || '').trim().replace(/\/+$/, '')
-  const siteUrl = ALLOWED.includes(origin)
-    ? origin
-    : (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').trim().replace(/\/+$/, '')
+  // Only our own hosts (plus localhost in development) — see safeReturnOrigin.
+  const origin = safeReturnOrigin(request)
 
   try {
     const stripe = getStripe()
+    const customerId = await ensureStripeCustomer(createAdminClient(), stripe, { id: user.id, email: user.email })
 
-    // Get or create Stripe customer
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('stripe_customer_id')
-      .eq('id', user.id)
-      .single()
-
-    let customerId = profile?.stripe_customer_id
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email!,
-        metadata: { supabase_user_id: user.id },
-      })
-      // Only claim the slot if still empty; a parallel request may have won.
-      const { data: claimed } = await supabase
-        .from('profiles')
-        .update({ stripe_customer_id: customer.id })
-        .eq('id', user.id)
-        .is('stripe_customer_id', null)
-        .select('stripe_customer_id')
-      if (claimed && claimed.length > 0) {
-        customerId = customer.id
-      } else {
-        const { data: refreshed } = await supabase
-          .from('profiles')
-          .select('stripe_customer_id')
-          .eq('id', user.id)
-          .single()
-        customerId = refreshed?.stripe_customer_id || customer.id
-      }
+    const metadata = {
+      type: 'credit_pack',
+      pack,
+      credits: String(packInfo.credits),
+      // Webhook reads supabase_user_id — without it, credits are never granted
+      supabase_user_id: user.id,
+      user_id: user.id,
     }
-
-    const sessionParams = {
+    const sessionParams: Record<string, unknown> = {
+      ...inlineSessionBase(origin),
       customer: customerId,
-      mode: 'payment' as const,
+      mode: 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${siteUrl}/settings?credits=success`,
-      cancel_url: `${siteUrl}/pricing`,
-      metadata: {
-        type: 'credit_pack',
-        pack,
-        credits: String(packInfo.credits),
-        // Webhook reads supabase_user_id — without it, credits are never granted
-        supabase_user_id: user.id,
-        user_id: user.id,
-      },
+      metadata,
+      // A receipt (invoice + PDF) for the pack, so it shows in Settings →
+      // Billing → Invoices and receipts like every plan payment does.
+      invoice_creation: { enabled: true, invoice_data: { metadata: { type: 'credit_pack', pack } } },
     }
 
     // Affiliate attribution: auto-apply the referrer's Stripe promo code if the
@@ -112,41 +85,24 @@ export async function POST(request: Request) {
       if (refCode) {
         const affiliate = await getAffiliateByCode(refCode)
         if (affiliate && affiliate.status === 'active' && affiliate.user_id !== user.id && affiliate.stripe_promo_code_id) {
-          (sessionParams as any).discounts = [{ promotion_code: affiliate.stripe_promo_code_id }]
+          sessionParams.discounts = [{ promotion_code: affiliate.stripe_promo_code_id }]
         }
       }
     } catch (e) {
       console.warn('[credits/buy] referral cookie handling failed (non-fatal):', e)
     }
 
-    let session
-    try {
-      session = await stripe.checkout.sessions.create(sessionParams)
-    } catch (err) {
-      // Self-heal stale customer IDs: replace the dead reference and retry
-      if (err instanceof Error && err.message.includes('No such customer')) {
-        console.warn(`[credits/buy] Stale stripe_customer_id for user ${user.id} — recreating`)
-        const customer = await stripe.customers.create({
-          email: user.email!,
-          metadata: { supabase_user_id: user.id },
-        })
-        await supabase.from('profiles').update({ stripe_customer_id: customer.id }).eq('id', user.id)
-        session = await stripe.checkout.sessions.create({ ...sessionParams, customer: customer.id })
-      } else {
-        throw err
-      }
+    const session = await stripe.checkout.sessions.create(sessionParams as unknown as Stripe.Checkout.SessionCreateParams)
+    if (!session.client_secret) {
+      console.error('[credits/buy] Stripe returned no client secret')
+      return NextResponse.json({ error: 'The payment form could not be opened. Please try again.' }, { status: 502 })
     }
-
-    if (!session.url || !/^https?:\/\//.test(session.url)) {
-      console.error('[credits/buy] Stripe returned no valid checkout url')
-      return NextResponse.json({ error: 'Checkout could not be started. Please try again.' }, { status: 502 })
-    }
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ clientSecret: session.client_secret, sessionId: session.id })
   } catch (err) {
     // Raw Stripe detail stays in the log; the user gets a plain sentence.
     console.error('[credits/buy] Error:', err)
     return NextResponse.json({
-      error: 'We could not start checkout just now. Please try again in a minute.',
+      error: 'We could not open the payment form just now. Please try again in a minute.',
     }, { status: 500 })
   }
 }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '../../_lib/supabase/client'
-import { PLANS, getUserTier, type PlanTier } from '../../_lib/pricing'
+import { PLANS, getUserTier, isSellablePlan, SOCIAL_ADDON_MONTHLY_CENTS, type PlanTier } from '../../_lib/pricing'
+import InlineCheckout, { type Purchase } from '../../_components/billing/InlineCheckout'
 // Every price and credit amount on this page comes from these three files.
 import { CREDIT_COSTS } from '../../_lib/credits'
 import { CREDIT_PACKS, SMALLEST_PACK, packPrice } from '../../_lib/credit-packs'
@@ -13,6 +14,9 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [promo, setPromo] = useState<string | null>(null)
+  // The in-app checkout (2026-10-14): plans and the add-on are paid in a
+  // pop-up on this page — nobody is sent to a Stripe page.
+  const [purchase, setPurchase] = useState<Purchase | null>(null)
 
   useEffect(() => {
     // A promo code arriving from the upgrade email (?promo=WELCOME50) is carried
@@ -31,42 +35,36 @@ export default function PricingPage() {
     })
   }, [])
 
-  async function handleSubscribe(tier: PlanTier) {
-    if (tier === 'free') return
-    setLoading(tier)
+  function handleSubscribe(tier: PlanTier) {
+    if (!isSellablePlan(tier)) return
     setError(null)
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: tier, ...(promo ? { promo } : {}) }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to start checkout')
-      if (data.url) window.location.href = data.url
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-      setLoading(null)
-    }
+    // A current subscriber gets the in-app plan change (price preview first)
+    // inside the same pop-up; everyone else pays for the new plan there.
+    setPurchase({ kind: 'plan', plan: tier, ...(promo ? { promo } : {}) })
   }
 
-  async function handleManage() {
+  function handleManage() {
+    // Plan, cards, invoices and cancel all live in Settings → Billing now.
     setLoading('manage')
-    try {
-      const res = await fetch('/api/stripe/portal', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else { setError('Could not open billing portal'); setLoading(null) }
-    } catch { setError('Could not open billing portal'); setLoading(null) }
+    window.location.href = '/settings?tab=billing'
   }
 
-  async function handleAddon() {
-    setLoading('addon')
-    try {
-      const res = await fetch('/api/social-addon/checkout', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else { setError(data.error || 'Could not start checkout'); setLoading(null) }
-    } catch { setError('Could not start checkout'); setLoading(null) }
+  function handleAddon() {
+    setError(null)
+    setPurchase({ kind: 'social' })
+  }
+
+  function refreshPlan() {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('subscription_status, social_addon_active').eq('id', user.id).single().then(({ data }) => {
+        if (data) {
+          setCurrentTier(getUserTier((data as any).subscription_status))
+          setAddonActive(!!(data as any).social_addon_active)
+        }
+      })
+    })
   }
 
   // Starter ($29) is retired — keep its definition for back-compat but hide it.
@@ -85,7 +83,7 @@ export default function PricingPage() {
 
       {promo && (
         <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
-          🎉 Your <strong>{promo}</strong> discount will be applied automatically at checkout.
+          🎉 Your <strong>{promo}</strong> discount is applied automatically when you subscribe.
         </div>
       )}
 
@@ -123,7 +121,7 @@ export default function PricingPage() {
               features={plan.features}
               cta={isCurrent
                 ? { label: loading === 'manage' ? 'Loading…' : 'Manage plan', onClick: handleManage, disabled: loading === 'manage', variant: 'soft' }
-                : { label: loading === plan.tier ? 'Loading…' : currentTier !== 'free' ? 'Switch plan' : 'Subscribe', onClick: () => handleSubscribe(plan.tier), disabled: loading === plan.tier, variant: isPopular ? 'dark' : 'mint' }}
+                : { label: currentTier !== 'free' ? 'Switch plan' : 'Subscribe', onClick: () => handleSubscribe(plan.tier), variant: isPopular ? 'dark' : 'mint' }}
             />
           )
         })}
@@ -142,12 +140,12 @@ export default function PricingPage() {
           </p>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 30, fontWeight: 800 }}>$50<span style={{ fontSize: 14, fontWeight: 500, opacity: 0.7 }}>/mo</span></div>
+          <div style={{ fontSize: 30, fontWeight: 800 }}>${SOCIAL_ADDON_MONTHLY_CENTS / 100}<span style={{ fontSize: 14, fontWeight: 500, opacity: 0.7 }}>/mo</span></div>
           {addonActive ? (
             <div style={{ marginTop: 8, fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>✓ Active</div>
           ) : (
-            <button onClick={handleAddon} disabled={loading === 'addon'} style={{ marginTop: 10, padding: '11px 22px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-              {loading === 'addon' ? 'Starting…' : 'Add AI Social'}
+            <button onClick={handleAddon} style={{ marginTop: 10, padding: '11px 22px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              Add AI Social
             </button>
           )}
         </div>
@@ -157,6 +155,8 @@ export default function PricingPage() {
         All plans cancel anytime · billed monthly · plan credits reset each cycle ·
         top-up packs for everyone: {CREDIT_PACKS.map(p => `${p.credits.toLocaleString('en-US')} credits ${packPrice(p)}`).join(' · ')} (never expire).
       </p>
+
+      <InlineCheckout purchase={purchase} onClose={() => { setPurchase(null); refreshPlan() }} onPaid={refreshPlan} />
     </div>
   )
 }

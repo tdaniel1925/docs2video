@@ -82,6 +82,14 @@ export const CREDIT_COSTS = {
   'brand-deck': 400,         // 4 AI reference slides
   'social-post-image': 100,  // per campaign post graphic
   'email-signature': 50,     // template HTML, no AI — the smallest charge
+  // One text to a CLIENT from the send panel (app/_lib/texting-core.ts). A US
+  // text with a picture (MMS) costs ~2–3c at Twilio incl. carrier fees; a
+  // plain text ~1c. 50 credits ≈ 16–20c — covers the picture text with room
+  // for long messages, and keeps the cheapest price on the list at 50 (so
+  // MIN_ACTION_COST and the trial-ending rule don't move). Refunded when
+  // Twilio refuses it or the carrier reports it undelivered. Alerts and
+  // verify codes to the AGENT are free.
+  'client-text': 50,
 } as const
 
 // Pre-existing paying customers locked at the OLD (pre-2x) rates. They keep the

@@ -54,7 +54,7 @@ async function preview(userId: string, plan: string) {
     checkout: 'No live subscription — the customer has to pay at checkout themselves.',
     checkout_replacing_trial: 'They are on a free trial — the customer has to choose the plan themselves.',
     already_on_plan: 'Stripe already bills this plan.',
-    portal: 'A late payment or more than one subscription — fix it on the Stripe customer page.',
+    fix_first: 'A late payment or more than one subscription — fix it on the Stripe customer page.',
     update_in_place: '',
   }
   const price = PLANS.find((p) => p.tier === plan)?.monthlyPrice

@@ -52,10 +52,14 @@ function KitHeader({ profile, brand, lowCreditsAt }: { profile: Profile; brand: 
 function useCredits(): number | null {
   const [credits, setCredits] = useState<number | null>(null)
   useEffect(() => {
-    fetch('/api/credits/balance')
+    const load = () => fetch('/api/credits/balance')
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d && typeof d.balance === 'number') setCredits(d.balance) })
       .catch(() => {})
+    load()
+    // An in-app purchase (top-up, plan) says so, and the chip catches up.
+    window.addEventListener('d2v:credits-changed', load)
+    return () => window.removeEventListener('d2v:credits-changed', load)
   }, [])
   return credits
 }

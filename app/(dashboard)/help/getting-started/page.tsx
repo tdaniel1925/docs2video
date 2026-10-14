@@ -100,7 +100,7 @@ export default function GettingStartedPage() {
             <strong style={INK}>Save your card.</strong> Click the button to save it and continue. Your {FREE_CREDITS} free credits start right away, and you are back where you pressed Make it.
           </Row>
           <p style={{ marginTop: 16 }}>
-            To change your card later, open <strong style={INK}>Settings</strong> from the account menu (click your name, top-right), choose <strong style={INK}>Billing &amp; credits</strong>, and click <strong style={INK}>Manage billing &amp; invoices</strong>.
+            To change your card later, open <strong style={INK}>Settings</strong> from the account menu (click your name, top-right), choose <strong style={INK}>Billing &amp; credits</strong>, and use <strong style={INK}>Payment methods</strong> — <strong style={INK}>Add a card</strong>, <strong style={INK}>Make default</strong> or <strong style={INK}>Remove</strong>. It all happens on that page.
           </p>
         </div>
       </div>

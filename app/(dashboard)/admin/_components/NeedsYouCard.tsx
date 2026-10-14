@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, BellRing, CheckCircle2, ChevronRight, CreditCard, Hourglass, Users, Wallet, Cpu } from 'lucide-react'
+import { AlertTriangle, BellRing, CheckCircle2, ChevronRight, CreditCard, Hourglass, Users, Wallet, Cpu, MessageSquareWarning } from 'lucide-react'
 import { Chip } from '../../../_components/kit'
 import type { NeedsYou, NeedSection } from '../../../_lib/admin/needs-you'
 import { ReviewButtons } from './VideoActions'
@@ -15,7 +15,7 @@ import { ReviewButtons } from './VideoActions'
  */
 const ICONS: Record<NeedSection['key'], typeof AlertTriangle> = {
   failed: AlertTriangle, review: Hourglass, payments: CreditCard, past_due: CreditCard,
-  slipping: Users, payouts: Wallet, providers: Cpu,
+  slipping: Users, payouts: Wallet, providers: Cpu, texting: MessageSquareWarning,
 }
 
 const when = (d?: string | null) => d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null

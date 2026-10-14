@@ -85,7 +85,7 @@ export async function POST() {
       if (!msg.includes('No such customer')) { // a dead test-mode customer can't bill anyone
         console.error(`[account/delete] could not cancel subscriptions for user ${userId} — NOT deleting:`, msg)
         return NextResponse.json({
-          error: 'We could not cancel your subscription, so your account was not deleted. Please try again, or cancel from Manage billing first.',
+          error: 'We could not cancel your subscription, so your account was not deleted. Please try again, or cancel your plan in Settings → Billing first.',
         }, { status: 502 })
       }
     }

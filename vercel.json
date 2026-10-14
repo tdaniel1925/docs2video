@@ -36,6 +36,14 @@
     {
       "path": "/api/cron/reconcile-credit-packs",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/cron/annual-reviews",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/hot-alerts",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

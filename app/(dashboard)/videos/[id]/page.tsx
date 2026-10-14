@@ -38,6 +38,7 @@ import OlderEditor, { type OlderEditorState } from './change/OlderEditor'
 import { addChange, type ChangeEntry } from './change/change-log'
 import FixScene, { type FixApplied, type FixStart } from './FixScene'
 import ClientViewing from './viewing/ClientViewing'
+import QuestionList from '../../../_components/answers-reviews/QuestionList'
 import MoreForThis, { type ExtrasTab } from './extras/MoreForThis'
 import type { FollowUpPlan } from './extras/FollowUpSection'
 
@@ -279,6 +280,11 @@ export default function VideoDetailPage() {
               }}
             />
           )}
+
+          {/* Questions clients asked under this video (hidden when none). */}
+          <div style={{ margin: '28px 0' }}>
+            <QuestionList videoId={video.id} compact />
+          </div>
 
           <ClientViewing videoId={video.id} isDeck={deck} refreshKey={viewingKey} />
 

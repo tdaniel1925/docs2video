@@ -74,7 +74,9 @@ describe('Home', () => {
   })
 
   it('keeps the today’s-clients cards and This month', () => {
-    expect(home).toMatch(/home\.cards\.map/)
+    // The activity cards, with question + annual-review cards in front (load-extras.ts).
+    expect(home).toMatch(/const cards = \[\.\.\.extras, \.\.\.home\.cards\]/)
+    expect(home).toMatch(/cards\.map\(c => <ActionCardView/)
     expect(home).toMatch(/This month/)
     for (const label of ['Emails sent', 'Projects watched', 'Clicked to book a call', 'Credits left']) expect(home).toContain(label)
   })

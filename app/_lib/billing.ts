@@ -17,9 +17,10 @@ import { PLANS, getUserTier, type PlanTier, type SellablePlanTier } from './pric
  *  - An ACTIVE subscription is changed in place (new price, same subscription).
  *  - A TRIALING subscription (our card-on-file trial) may go through Checkout;
  *    the webhook cancels the trial the moment the new paid subscription starts.
- *  - past_due / unpaid / incomplete, or more than one live subscription → the
- *    billing portal, where the user can fix their card or cancel. Never a new
- *    subscription on top.
+ *  - past_due / unpaid / incomplete, or more than one live subscription →
+ *    'fix_first': the user fixes their card in Settings → Billing (in the app;
+ *    the Stripe billing portal is retired) or support untangles the duplicate.
+ *    Never a new subscription on top.
  */
 
 /** Stripe statuses that can still bill (or already billed) the customer. */
@@ -63,8 +64,9 @@ export type PlanChangeDecision =
   | { kind: 'update_in_place'; subscriptionId: string; itemId: string; currentTier: PlanTier | null; direction: 'upgrade' | 'downgrade' }
   | { kind: 'already_on_plan' }
   /** Payment trouble, several live subscriptions, or a shape we don't
-   *  recognise — send them to the Stripe billing portal. */
-  | { kind: 'portal'; reason: 'payment_issue' | 'multiple' | 'unrecognized' }
+   *  recognise — nothing is bought; the card is fixed first (in-app Billing)
+   *  or support untangles the duplicate. */
+  | { kind: 'fix_first'; reason: 'payment_issue' | 'multiple' | 'unrecognized' }
 
 /**
  * Pure decision for "the user asked for plan X". `subs` = the customer's live
@@ -73,14 +75,14 @@ export type PlanChangeDecision =
 export function decidePlanChange(subs: SubLike[], targetTier: SellablePlanTier, targetPriceId: string): PlanChangeDecision {
   const live = liveMainSubscriptions(subs)
   if (live.length === 0) return { kind: 'checkout' }
-  if (live.length > 1) return { kind: 'portal', reason: 'multiple' }
+  if (live.length > 1) return { kind: 'fix_first', reason: 'multiple' }
 
   const sub = live[0]
   if (sub.status === 'trialing') return { kind: 'checkout_replacing_trial', trialSubscriptionId: sub.id }
-  if (sub.status !== 'active') return { kind: 'portal', reason: 'payment_issue' }
+  if (sub.status !== 'active') return { kind: 'fix_first', reason: 'payment_issue' }
 
   const items = sub.items?.data ?? []
-  if (items.length !== 1 || !items[0]?.id) return { kind: 'portal', reason: 'unrecognized' }
+  if (items.length !== 1 || !items[0]?.id) return { kind: 'fix_first', reason: 'unrecognized' }
   const currentPrice = items[0].price?.id ?? null
   if (currentPrice && currentPrice === targetPriceId) return { kind: 'already_on_plan' }
 
@@ -96,6 +98,19 @@ export function decidePlanChange(subs: SubLike[], targetTier: SellablePlanTier, 
  *    credits without paying for them. The webhook adds the credit difference.
  *  - Downgrade: no proration — the cheaper price starts at the next renewal
  *    and the user keeps this cycle's credits (they already paid for them).
+ *
+ * Who is paying decides only HOW a card problem is handled (same proration):
+ *  - default — admin "Change it in Stripe", nobody at the keyboard:
+ *    error_if_incomplete. A decline OR a bank security check refuses it.
+ *  - `customerPresent` upgrade — the customer pressed Confirm in Settings →
+ *    Billing: pending_if_incomplete. The new price only takes effect once the
+ *    difference is PAID, so the customer can pass their bank's security check
+ *    (3D Secure) right in the app. Stripe allows only price/proration fields
+ *    on a pending update, so no metadata/cancel flag here — the webhook reads
+ *    the tier from the price, and the in-app flow refuses a plan change while
+ *    a cancellation is scheduled (resume first).
+ *  - `prorationDate` pins the proration to the moment the customer saw the
+ *    preview, so they pay exactly the amount they were shown.
  */
 export async function changePlanInPlace(
   stripe: Stripe,
@@ -103,10 +118,23 @@ export async function changePlanInPlace(
   targetTier: SellablePlanTier,
   targetPriceId: string,
   userId: string,
+  opts: { customerPresent?: boolean; prorationDate?: number } = {},
 ): Promise<Stripe.Subscription> {
+  const upgrade = decision.direction === 'upgrade'
+  const items = [{ id: decision.itemId, price: targetPriceId }]
+  const proration = upgrade
+    ? { proration_behavior: 'always_invoice' as const, ...(opts.prorationDate ? { proration_date: opts.prorationDate } : {}) }
+    : { proration_behavior: 'none' as const }
+  if (opts.customerPresent && upgrade) {
+    return stripe.subscriptions.update(decision.subscriptionId, {
+      items,
+      ...proration,
+      payment_behavior: 'pending_if_incomplete',
+    })
+  }
   return stripe.subscriptions.update(decision.subscriptionId, {
-    items: [{ id: decision.itemId, price: targetPriceId }],
-    proration_behavior: decision.direction === 'upgrade' ? 'always_invoice' : 'none',
+    items,
+    ...proration,
     payment_behavior: 'error_if_incomplete',
     cancel_at_period_end: false,
     metadata: { supabase_user_id: userId, tier: targetTier },
@@ -190,9 +218,9 @@ export function autoPromoId(code: string | null | undefined): string | undefined
 export function planChangeErrorMessage(err: unknown): string {
   const e = err as { type?: string; code?: string } | null
   if (e?.type === 'StripeCardError' || e?.code === 'card_declined') {
-    return 'Your card was declined, so your plan was not changed. Please update your card in Billing and try again.'
+    return 'Your card was declined, so your plan was not changed. Add or choose another card under Payment methods, then try again.'
   }
-  return 'We could not change your plan just now. Please try again, or use Manage billing.'
+  return 'We could not change your plan just now. Please try again in a minute.'
 }
 
 const idOf = (v: unknown): string | null =>
@@ -225,7 +253,8 @@ export { idOf as stripeId }
 /**
  * What saving a card may do for this account (audit C2). Pure so it's tested.
  *  - 'blocked': past_due or banned — saving a card must NOT lift the block
- *    (a failed payment is fixed in the billing portal, not by a new card here)
+ *    (a failed payment is fixed by paying the open bill: Settings → Billing →
+ *    Update card, which retries it in the app)
  *  - 'keep_paid_plan': already paying — just note the card; never reset a
  *    Pro/Business/Enterprise customer back to 'trial'
  *  - 'start_trial': free/trial/new account — card on file starts the trial

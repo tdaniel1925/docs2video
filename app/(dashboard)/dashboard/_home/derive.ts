@@ -176,7 +176,8 @@ export function recipientName(
 
 export type ActionCard = {
   key: string
-  kind: 'watched' | 'booked' | 'not_opened'
+  /** question / review: added by load-extras.ts (client questions, annual reviews). */
+  kind: 'watched' | 'booked' | 'not_opened' | 'question' | 'review'
   eyebrow: string
   /** Who — shown in bold. */
   who: string
@@ -292,7 +293,7 @@ export function buildActionCards(opts: {
 
   // Bookings first, then who watched, then who hasn't opened — newest first
   // inside each group.
-  const rank = { booked: 0, watched: 1, not_opened: 2 } as const
+  const rank: Record<ActionCard['kind'], number> = { question: 0, review: 0, booked: 0, watched: 1, not_opened: 2 }
   cards.sort((a, b) => rank[a.kind] - rank[b.kind] || b.at.localeCompare(a.at))
   return cards.slice(0, opts.max ?? 4)
 }

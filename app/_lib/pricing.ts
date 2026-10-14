@@ -151,6 +151,9 @@ export function isSellablePlan(tier: string | null | undefined): tier is Sellabl
   return !!tier && (SELLABLE_PLAN_TIERS as readonly string[]).includes(tier)
 }
 
+/** The AI Social add-on — a separate monthly subscription (STRIPE_PRICE_ADDON_SOCIAL). */
+export const SOCIAL_ADDON_MONTHLY_CENTS = 5000
+
 export interface ProjectPrice {
   type: string
   label: string

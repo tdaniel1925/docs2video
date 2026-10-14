@@ -35,11 +35,6 @@ async function mockProfileSave(page: Page, status = 204) {
   return saves
 }
 
-async function mockStripeRedirect(page: Page) {
-  await page.route('https://checkout.stripe.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<h1>Stripe (mocked)</h1>' }))
-  await page.route('https://billing.stripe.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<h1>Stripe billing (mocked)</h1>' }))
-}
-
 test('the menu moves between Profile, Billing & credits, Brand kit and Email & sending', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Your details' })).toBeVisible()
   await expect(tab(page, 'Profile')).toHaveAttribute('aria-current', 'page')
@@ -211,43 +206,53 @@ test('API keys: Generate shows the new key once, Copy and Done work, Revoke asks
   expect(calls).toContain('DELETE')
 })
 
-test('Billing: Buy credits opens the packs and a pack goes to Stripe checkout', async ({ page }) => {
-  await mockStripeRedirect(page)
+/** In-app billing (2026-10-14): payments open a pop-up on this page; nothing
+ *  may send the browser to a Stripe page. */
+function noStripePages(page: Page) {
+  const left: string[] = []
+  page.on('framenavigated', (f) => { if (f === page.mainFrame() && /stripe\.com/.test(f.url())) left.push(f.url()) })
+  return left
+}
+
+test('Billing: a pack opens the in-app payment pop-up (no Stripe page)', async ({ page }) => {
+  const left = noStripePages(page)
   const buys: any[] = []
-  await page.route('**/api/credits/buy', async (route) => { buys.push(jsonBody(route.request())); await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_e2e' } }) })
+  await page.route('**/api/credits/buy', async (route) => { buys.push(jsonBody(route.request())); await route.fulfill({ status: 500, json: { error: 'Mocked: payment form unavailable.' } }) })
   await tab(page, 'Billing & credits').click()
-  await page.getByRole('button', { name: 'Buy credits' }).click()
-  await expect(page.getByRole('heading', { name: 'Buy credits' })).toBeVisible()
-  await page.getByRole('button', { name: 'Close' }).click()
-  await expect(page.getByRole('heading', { name: 'Buy credits' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Buy credits' }).click()
-  await page.getByRole('button', { name: /^Buy / }).nth(1).click()
-  await expect(page).toHaveURL(/checkout\.stripe\.com/)
-  expect(buys).toHaveLength(1)
+  await page.getByRole('button', { name: 'Buy the Power pack' }).click()
+  const dlg = page.getByRole('dialog')
+  await expect(dlg.getByRole('heading', { name: 'Power credit pack' })).toBeVisible()
+  await expect(dlg.getByText('Mocked: payment form unavailable.')).toBeVisible()
+  expect(buys).toEqual([{ pack: 'power' }])
+  await dlg.getByRole('button', { name: 'Close' }).last().click()
+  await expect(dlg).toHaveCount(0)
+  expect(left).toEqual([])
+  expect(new URL(page.url()).pathname).toBe('/settings')
 })
 
-test('Billing: a plan button starts checkout for that plan (or opens billing for the current one)', async ({ page }) => {
-  await mockStripeRedirect(page)
+test('Billing: a plan button opens the in-app checkout for that plan', async ({ page }) => {
+  const left = noStripePages(page)
   const subs: any[] = []
-  await page.route('**/api/subscribe', async (route) => { subs.push(jsonBody(route.request())); await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_plan' } }) })
-  await page.route('**/api/stripe/portal', (route) => route.fulfill({ json: { url: 'https://billing.stripe.com/p/session/test_e2e' } }))
+  await page.route('**/api/stripe/checkout', async (route) => { subs.push(jsonBody(route.request())); await route.fulfill({ status: 500, json: { error: 'Mocked: checkout unavailable.' } }) })
+  await page.route('**/api/billing/manage', (route) => route.request().method() === 'POST' ? route.fulfill({ status: 500, json: { error: 'Mocked: preview unavailable.' } }) : route.fallback())
   await tab(page, 'Billing & credits').click()
   const planBtn = page.getByRole('button', { name: /^(Subscribe to|Switch to) (Pro|Business|Enterprise)$/ }).first()
   const label = (await planBtn.textContent())!.trim()
   await planBtn.click()
-  await expect(page).toHaveURL(/checkout\.stripe\.com/)
-  expect(subs).toHaveLength(1)
-  expect(String(subs[0].tier).toLowerCase()).toBe(label.split(' ').pop()!.toLowerCase())
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('dialog').getByText(/Mocked: (checkout|preview) unavailable\./)).toBeVisible()
+  if (label.startsWith('Subscribe')) expect(String(subs[0]?.planId)).toBe(label.split(' ').pop()!.toLowerCase())
+  expect(left).toEqual([])
 })
 
-test('Billing: billing portal buttons open Stripe billing', async ({ page }) => {
-  await mockStripeRedirect(page)
-  await page.route('**/api/stripe/portal', (route) => route.fulfill({ json: { url: 'https://billing.stripe.com/p/session/test_e2e' } }))
+test('Billing: no button opens the old Stripe billing portal', async ({ page }) => {
+  const portal: string[] = []
+  await page.route('**/api/stripe/portal', (route) => { portal.push('called'); return route.fulfill({ json: { url: '/settings?tab=billing' } }) })
   await tab(page, 'Billing & credits').click()
-  const portal = page.getByRole('button', { name: /Manage billing|Cancel subscription/ }).first()
-  test.skip(!(await portal.count()), 'this account has no Stripe customer, so there is no billing portal button')
-  await portal.click()
-  await expect(page).toHaveURL(/billing\.stripe\.com/)
+  await expect(page.getByRole('heading', { name: 'Payment methods' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Invoices and receipts' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Manage billing/ })).toHaveCount(0)
+  expect(portal).toEqual([])
 })
 
 test('Delete account (bottom of Profile) asks twice; saying no to either sends nothing', async ({ page }) => {

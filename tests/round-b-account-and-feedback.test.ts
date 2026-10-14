@@ -74,7 +74,9 @@ describe('old Settings links open the right section', () => {
       }
     }
     walk(path.join(ROOT, 'app'))
-    expect([...found]).toEqual(expect.arrayContaining(['subscription', 'integrations', 'social']))
+    // (In-app billing, 2026-10-14: the app's own links say ?tab=billing; the
+    // old ?tab=subscription word still works — next test — for old emails.)
+    expect([...found]).toEqual(expect.arrayContaining(['billing', 'social']))
     for (const tab of found) {
       const s = sectionFromParams(params(`tab=${tab}`), D2V)
       if (tab !== 'profile') expect(s, `?tab=${tab}`).not.toBe('profile')
@@ -86,8 +88,11 @@ describe('old Settings links open the right section', () => {
     expect(broken('tab=subscription')).not.toBe(sectionFromParams(params('tab=subscription'), D2V))
   })
 
-  it('the Stripe billing-portal return and the add-on returns still use those words', () => {
-    expect(read('app/api/stripe/portal/route.ts')).toContain('/settings?tab=subscription')
+  it('the retired billing-portal route sends an old open tab to the in-app Billing page (no Stripe call)', () => {
+    const portal = read('app/api/stripe/portal/route.ts')
+    expect(portal).toContain('/settings?tab=billing')
+    expect(portal).not.toMatch(/billingPortal|getStripe|stripe./)
+    expect(sectionFromParams(params('tab=subscription'), D2V)).toBe('billing')
   })
 })
 
@@ -155,11 +160,14 @@ describe('Billing & credits', () => {
     expect(creditBar(null, 'free')).toEqual({ left: 0, of: TIER_CREDITS.free, pct: 0 })
   })
 
-  it('uses the same routes as before (no new way to pay) and the summary route only reads', () => {
+  it('pays and manages everything in the app (no Stripe page), and the summary route only reads', () => {
     const billing = read('app/(dashboard)/settings/BillingSection.tsx')
-    expect(billing).toContain("fetch('/api/stripe/portal', { method: 'POST' })")
-    expect(billing).toContain("fetch('/api/subscribe', {")
-    expect(billing).toContain('<BuyCreditsModal')
+    // In-app billing (2026-10-14): checkout pop-up + /api/billing/manage, never
+    // the portal and never a jump to a Stripe address.
+    expect(billing).toContain('<InlineCheckout')
+    expect(billing).toContain("fetch('/api/billing/manage'")
+    expect(billing).not.toContain('/api/stripe/portal')
+    expect(billing).not.toMatch(/window.location.hrefs*=s*data.url/)
     expect(billing).toMatch(/from '..\/..\/_lib\/pricing'/)
     expect(billing).toMatch(/from '..\/..\/_lib\/credit-packs'/)
     const summary = read('app/api/billing/summary/route.ts')
@@ -176,7 +184,9 @@ describe('Billing & credits', () => {
     expect(at('>This period<')).toBeGreaterThan(at('>Credits available<'))
     expect(at('>Plans<')).toBeGreaterThan(at('>This period<'))
     expect(at('>Credit packs<')).toBeGreaterThan(at('>Plans<'))
-    expect(at('>Invoices and receipts<')).toBeGreaterThan(at('>Credit packs<'))
+    expect(at('>Payment methods<')).toBeGreaterThan(at('>Credit packs<'))
+    expect(at('>Invoices and receipts<')).toBeGreaterThan(at('>Payment methods<'))
+    expect(at('>Billing details<')).toBeGreaterThan(at('>Invoices and receipts<'))
   })
 })
 

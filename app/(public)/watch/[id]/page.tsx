@@ -788,6 +788,21 @@ export default function PublicWatchPage() {
   const [askSending, setAskSending] = useState(false)
   const [askSent, setAskSent] = useState(false)
   const [askError, setAskError] = useState('')
+  // Spam guards (the server checks both): a field people never see, and how
+  // long the form was open before Send.
+  const [askTrap, setAskTrap] = useState('')
+  const askOpenedAt = useRef(0)
+  useEffect(() => { if (askOpen) askOpenedAt.current = Date.now() }, [askOpen])
+  // Answers the agent APPROVED (never an AI draft) — shown under the video.
+  const [answers, setAnswers] = useState<{ id: string; question: string; answer: string; answeredAt: string | null; from: string[] }[]>([])
+  useEffect(() => {
+    const vid = params.id as string
+    if (!vid) return
+    fetch(`/api/watch/${vid}/answers`)
+      .then((r) => (r.ok ? r.json() : { answers: [] }))
+      .then((j) => setAnswers(Array.isArray(j?.answers) ? j.answers : []))
+      .catch(() => {})
+  }, [params.id])
 
   // Lead capture state
   const [showLeadCapture, setShowLeadCapture] = useState(false)
@@ -909,7 +924,7 @@ export default function PublicWatchPage() {
     try {
       const r = await fetch(`/api/watch/${video.id}/ask`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q, fromEmail: askEmail.trim(), fromName: askName.trim() }),
+        body: JSON.stringify({ question: q, fromEmail: askEmail.trim(), fromName: askName.trim(), website: askTrap, elapsedMs: Date.now() - askOpenedAt.current }),
       })
       const data = await r.json().catch(() => ({}))
       if (!r.ok) { setAskError(data?.error || 'Could not send your question. Please try again.'); return }
@@ -1590,6 +1605,29 @@ export default function PublicWatchPage() {
       </div>
 
       {/* ============================================================ */}
+      {/*  QUESTIONS & ANSWERS — only answers the agent approved          */}
+      {/* ============================================================ */}
+      {answers.length > 0 && (
+        <div className="wp-center wp-section" data-testid="watch-answers">
+          <div className="wp-card">
+            <div className="wp-section-label">Your questions, answered</div>
+            {answers.map((a) => (
+              <div key={a.id} style={{ padding: '14px 0', borderTop: '1px solid var(--border-light)' }}>
+                <p style={{ margin: '0 0 6px', fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)' }}>{a.question}</p>
+                <p style={{ margin: 0, fontSize: 'var(--fs-body)', lineHeight: 1.6, color: 'var(--ink-soft)', whiteSpace: 'pre-wrap' }}>{a.answer}</p>
+                <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
+                  Answered by {agentShort || 'your agent'}{a.from.length ? ` · from your document: ${a.from.map((f) => f.replace(/^Document section /, '')).join(', ')}` : ''}
+                </p>
+              </div>
+            ))}
+            <p style={{ margin: '10px 0 0', fontSize: 'var(--fs-caption)', lineHeight: 1.5, color: 'var(--ink-light)' }}>
+              Answers explain what your document says. They are not a promise of coverage or of any result, and not legal, tax or financial advice.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
       {/*  BELOW MAIN — Contact card                                    */}
       {/* ============================================================ */}
       {agent && (
@@ -1876,16 +1914,16 @@ export default function PublicWatchPage() {
             {askSent ? (
               <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
                 <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 'var(--fs-h2)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
-                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 800, marginBottom: 4 }}>Question sent</div>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 800, marginBottom: 4 }}>Your agent will reply shortly</div>
                 <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 16px' }}>
-                  We emailed it to the presenter{askEmail.trim() ? ' — they can reply to you directly' : ''}. Thanks!
+                  Thanks for asking. {askEmail.trim() ? 'We’ll email you their answer, and it will show on this page too.' : 'Their answer will show on this page.'}
                 </p>
                 <button onClick={() => setAskOpen(false)} style={{ background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--fs-ui)' }}>Done</button>
               </div>
             ) : (
               <>
                 <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                  Type your question and we&rsquo;ll email it straight to the person who made this. Add your email if you&rsquo;d like a reply.
+                  Type your question and we&rsquo;ll pass it to {agentShort || 'the person who made this'}. Add your email if you&rsquo;d like the answer emailed to you.
                 </p>
                 <textarea
                   value={askQuestion}
@@ -1907,6 +1945,17 @@ export default function PublicWatchPage() {
                   onChange={(e) => setAskName(e.target.value)}
                   placeholder="Your name (optional)"
                   style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', marginBottom: 12 }}
+                />
+                {/* Honeypot: hidden from people and screen readers; bots fill it. */}
+                <input
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  value={askTrap}
+                  onChange={(e) => setAskTrap(e.target.value)}
+                  style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
                 />
                 {askError && (
                   <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 'var(--fs-small)', marginBottom: 12 }}>{askError}</div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { statusTone, statusWords } from '../client-status'
+import PolicyDateCard from '../../../_components/answers-reviews/PolicyDateCard'
 
 interface Client {
   id: string
@@ -400,6 +401,9 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Policy date + this year's annual review (hidden until switched on). */}
+      <PolicyDateCard clientId={clientId} />
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 20, borderBottom: '1px solid var(--border-light)', paddingBottom: 0 }}>

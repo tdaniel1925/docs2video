@@ -37,6 +37,9 @@ export const REAL_WORLD_ENDPOINTS: RegExp[] = [
   /\/api\/generate-logo-kit/,
   /\/api\/pre-generate-audio/,
   /\/api\/sms/,
+  // Texting: a client text costs credits and reaches a real phone; a verify
+  // code texts a real phone too.
+  /\/api\/texting\/(send|verify)/,
   /\/api\/presentation-export/,
   /\/api\/translate-presentation/,
   /\/api\/generate-social-post/,
@@ -67,6 +70,11 @@ export const REAL_WORLD_METHODS: { re: RegExp; methods: string[] }[] = [
   { re: /^\/api\/quotes$/, methods: ['POST', 'PUT', 'DELETE'] },
   // Saving a look writes the brand and the draft.
   { re: /^\/api\/look$/, methods: ['POST', 'PUT'] },
+  // Saving hot-client alert settings writes the real account.
+  { re: /^\/api\/texting\/settings$/, methods: ['PUT'] },
+  // In-app billing (2026-10-14): change plan, cancel, cards, details all POST
+  // here and reach Stripe. Reading the billing page (GET) stays real.
+  { re: /^\/api\/billing\/manage$/, methods: ['POST'] },
 ]
 
 /** Viewer tracking: answered OK without reaching the database, so test

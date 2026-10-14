@@ -18,6 +18,9 @@ export interface FakeDb {
   failOn: Record<string, { op?: 'select' | 'insert' | 'update' | 'upsert' | 'delete'; error: { message: string; code?: string } } | undefined>
   rpc: Record<string, (args: any) => { data: any; error: any }>
   storageRemoved: string[]
+  /** Opt-in: give inserted rows an `id` (and created_at) when they have none,
+   *  like Postgres defaults do. Off by default so older tests are unchanged. */
+  autoId?: boolean
 }
 
 export function makeDb(tables: Record<string, Row[]> = {}): FakeDb {
@@ -83,6 +86,7 @@ export function fakeClient(db: FakeDb) {
     let limitN: number | null = null
     let countMode = false
     let onConflict: string | null = null
+    let ignoreDuplicates = false
 
     const run = (mode: 'many' | 'single' | 'maybe') => {
       const fail = db.failOn[table]
@@ -94,24 +98,35 @@ export function fakeClient(db: FakeDb) {
           const pk = p.fingerprint !== undefined ? 'fingerprint' : p.event_id !== undefined ? 'event_id' : null
           if (pk && rows.some((r) => r[pk] === p[pk])) return { data: null, error: { message: 'duplicate key', code: '23505' }, count: null }
         }
-        for (const p of list) rows.push({ ...p })
+        const added = list.map((p: Row) => (db.autoId && p.id === undefined ? { id: globalThis.crypto.randomUUID(), created_at: new Date().toISOString(), ...p } : { ...p }))
+        for (const p of added) rows.push(p)
         db.log.push(`insert ${table}`)
-        return { data: wantRows ? list : null, error: null, count: null }
+        const out = added.map((r: Row) => ({ ...r }))
+        // Older tests saw the payload list back (autoId off): kept as it was.
+        if (!db.autoId) return { data: wantRows ? list : null, error: null, count: null }
+        return { data: wantRows ? (mode === 'many' ? out : out[0]) : null, error: null, count: null }
       }
       if (op === 'upsert') {
-        const key = onConflict || 'id'
+        const keys = (onConflict || 'id').split(',').map((k) => k.trim())
         const list = Array.isArray(payload) ? payload : [payload]
+        const touched: Row[] = []
         for (const p of list) {
-          const hit = rows.find((r) => r[key] === p[key])
-          if (hit) Object.assign(hit, p); else rows.push({ ...p })
+          const hit = rows.find((r) => keys.every((k) => r[k] === p[k]))
+          if (hit) { if (!ignoreDuplicates) Object.assign(hit, p); touched.push(hit) }
+          else {
+            const row = db.autoId && p.id === undefined ? { id: globalThis.crypto.randomUUID(), ...p } : { ...p }
+            rows.push(row); touched.push(row)
+          }
         }
         db.log.push(`upsert ${table}`)
-        return { data: null, error: null, count: null }
+        if (!db.autoId) return { data: null, error: null, count: null }
+        return { data: wantRows ? (mode === 'many' ? touched.map((r) => ({ ...r })) : { ...touched[0] }) : null, error: null, count: null }
       }
       let matched = rows.filter((r) => filters.every((f) => f(r)))
       if (op === 'update') {
         for (const r of matched) Object.assign(r, payload)
         db.log.push(`update ${table} (${matched.length})`)
+        if (db.autoId && wantRows && mode !== 'many') return { data: matched[0] ? { ...matched[0] } : null, error: matched[0] || mode === 'maybe' ? null : { message: 'no rows', code: 'PGRST116' }, count: null }
         return { data: wantRows ? matched.map((r) => ({ ...r })) : null, error: null, count: null }
       }
       if (op === 'delete') {
@@ -130,7 +145,7 @@ export function fakeClient(db: FakeDb) {
       select: (_cols?: string, opts?: { count?: string; head?: boolean }) => { if (op !== 'select') wantRows = true; if (opts?.count) countMode = true; return q },
       insert: (p: any) => { op = 'insert'; payload = p; return q },
       update: (p: any) => { op = 'update'; payload = p; return q },
-      upsert: (p: any, o?: { onConflict?: string }) => { op = 'upsert'; payload = p; onConflict = o?.onConflict ?? null; return q },
+      upsert: (p: any, o?: { onConflict?: string; ignoreDuplicates?: boolean }) => { op = 'upsert'; payload = p; onConflict = o?.onConflict ?? null; ignoreDuplicates = !!o?.ignoreDuplicates; return q },
       delete: () => { op = 'delete'; return q },
       eq: (c: string, v: any) => { filters.push((r) => cmp('eq', getPath(r, c), v)); return q },
       neq: (c: string, v: any) => { filters.push((r) => cmp('neq', getPath(r, c), v)); return q },

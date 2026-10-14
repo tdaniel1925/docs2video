@@ -30,9 +30,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   // that column, every email sent about this video is a share email anyway —
   // the follow-up emails are filed under their own rows elsewhere.
   let shares: ShareRow[] = []
+  // Texts sent from the Text tab are recorded the same way (email_type
+  // 'text', the phone number in to_email), so they show here too.
   const typed = await admin.from('sent_emails')
-    .select('id, to_email, to_name, created_at, opened_at')
-    .eq('video_id', id).eq('email_type', 'share')
+    .select('id, to_email, to_name, created_at, opened_at, email_type')
+    .eq('video_id', id).in('email_type', ['share', 'text'])
     .order('created_at', { ascending: false }).limit(20)
   if (!typed.error) {
     shares = (typed.data ?? []) as ShareRow[]
@@ -54,5 +56,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ ...summarizeViewing([], shares), available: false })
   }
 
-  return NextResponse.json({ ...summarizeViewing((events ?? []) as ViewEvent[], shares), available: true })
+  return NextResponse.json({ ...summarizeViewing((events ?? []) as ViewEvent[], shares), replies: await readReplies(admin, id), available: true })
+}
+
+/** Text replies from clients about this video (text_messages, migration
+ *  20261010). Missing table → none. */
+async function readReplies(admin: ReturnType<typeof createAdminClient>, videoId: string) {
+  const { data, error } = await admin.from('text_messages')
+    .select('id, phone, body, created_at, sent_email_id')
+    .eq('video_id', videoId).eq('direction', 'in').eq('kind', 'reply')
+    .order('created_at', { ascending: false }).limit(20)
+  if (error || !data) return []
+  return (data as { id: string; phone: string; body: string | null; created_at: string; sent_email_id: string | null }[])
+    .map((r) => ({ id: r.id, from: r.phone, body: r.body ?? '', at: r.created_at, shareId: r.sent_email_id }))
 }

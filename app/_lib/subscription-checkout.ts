@@ -4,20 +4,26 @@ import { getStripe, SUBSCRIPTION_PRICES } from './stripe'
 import { createAdminClient } from './supabase/admin'
 import { getAffiliateByCode } from './affiliate'
 import { isSellablePlan, getPlan } from './pricing'
-import {
-  listLiveMainSubscriptions, decidePlanChange, changePlanInPlace,
-  autoPromoId, planChangeErrorMessage,
-} from './billing'
+import { listLiveMainSubscriptions, decidePlanChange, autoPromoId } from './billing'
+import { ensureStripeCustomer, inlineSessionBase } from './stripe-customer'
 
 /**
- * The ONE way a signed-in user starts or changes a subscription. Both
- * /api/stripe/checkout (pricing page, upgrade modal, onboarding) and
- * /api/subscribe (settings page) call this, so the "never a second
- * subscription" rule (audit C3) can't be skipped by picking the other door.
+ * The ONE way a signed-in user starts a subscription. Both /api/stripe/checkout
+ * (pricing page, upgrade window, onboarding, Settings → Billing) and
+ * /api/subscribe call this, so the "never a second subscription" rule (audit
+ * C3) can't be skipped by picking the other door.
  *
- * Returns a JSON body + status. A body with `url` is always safe for the
- * browser to navigate to: Stripe Checkout, the Stripe billing portal, or our
- * own settings page after an in-place plan change.
+ * INLINE (2026-10-14): nobody is sent to a Stripe page any more. The answer is
+ * either
+ *  - { clientSecret, sessionId } — an in-app Checkout Session (ui_mode
+ *    'elements'); the browser shows Stripe's Payment Element in our own
+ *    pop-up and pays there. Fulfilment is still the webhook
+ *    (checkout.session.completed, gated on payment_status), unchanged.
+ *  - { code: 'change_in_place' } (409) — they already pay for a plan: the
+ *    browser shows the in-app "change plan" preview (/api/billing/manage),
+ *    which changes the SAME subscription with a proration preview first.
+ *  - { code: 'fix_payment' | 'contact_support' } (409) — a late payment or
+ *    duplicate plans: nothing is sold until that's fixed.
  */
 export async function startSubscription(opts: {
   userId: string
@@ -39,76 +45,34 @@ export async function startSubscription(opts: {
   }
 
   const admin = createAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', userId)
-    .single()
-
   const stripe = getStripe()
-  let customerId: string | null = profile?.stripe_customer_id ?? null
   let replacesTrial: string | null = null
 
   try {
+    const customerId = await ensureStripeCustomer(admin, stripe, { id: userId, email })
+
     // ── Already subscribed? Change the plan instead of adding a subscription.
-    if (customerId) {
-      let subs: Stripe.Subscription[] = []
-      try {
-        subs = await listLiveMainSubscriptions(stripe, customerId)
-      } catch (err) {
-        // Self-heal stale customer ids (e.g. test-mode leftovers): forget the
-        // dead reference so Checkout creates a fresh customer.
-        if (err instanceof Error && err.message.includes('No such customer')) {
-          console.warn(`[subscription] Stale stripe_customer_id for user ${userId} — clearing`)
-          await admin.from('profiles').update({ stripe_customer_id: null }).eq('id', userId)
-          customerId = null
-        } else {
-          throw err
-        }
-      }
-
-      if (customerId) {
-        const decision = decidePlanChange(subs, planId, priceId)
-        switch (decision.kind) {
-          case 'already_on_plan':
-            return { status: 409, body: { error: `You're already on the ${getPlan(planId).label} plan.` } }
-
-          case 'portal': {
-            console.warn(`[subscription] user ${userId} sent to billing portal instead of a new subscription (${decision.reason})`)
-            const portal = await stripe.billingPortal.sessions.create({
-              customer: customerId,
-              return_url: `${origin}/settings?tab=subscription`,
-            })
-            return { status: 200, body: { url: portal.url, portal: true, reason: decision.reason } }
-          }
-
-          case 'update_in_place': {
-            try {
-              await changePlanInPlace(stripe, decision, planId, priceId, userId)
-            } catch (err) {
-              console.error(`[subscription] in-place plan change failed for user ${userId}:`, err instanceof Error ? err.message : err)
-              return { status: 402, body: { error: planChangeErrorMessage(err) } }
-            }
-            // The customer.subscription.updated webhook moves the profile to
-            // the new tier and adds the credit difference on an upgrade.
-            console.log(`[subscription] user ${userId} ${decision.direction}d ${decision.currentTier ?? '?'} → ${planId} in place (${decision.subscriptionId})`)
-            return {
-              status: 200,
-              body: { url: `${origin}/settings?tab=subscription&plan_changed=${planId}`, switched: true, direction: decision.direction },
-            }
-          }
-
-          case 'checkout_replacing_trial':
-            replacesTrial = decision.trialSubscriptionId
-            break
-
-          case 'checkout':
-            break
-        }
-      }
+    const subs: Stripe.Subscription[] = await listLiveMainSubscriptions(stripe, customerId)
+    const decision = decidePlanChange(subs, planId, priceId)
+    switch (decision.kind) {
+      case 'already_on_plan':
+        return { status: 409, body: { error: `You're already on the ${getPlan(planId).label} plan.`, code: 'already_on_plan' } }
+      case 'update_in_place':
+        // The in-app plan-change step shows what they pay today first.
+        return { status: 409, body: { code: 'change_in_place', plan: planId, direction: decision.direction } }
+      case 'fix_first':
+        console.warn(`[subscription] user ${userId} asked for ${planId} but must fix billing first (${decision.reason})`)
+        return decision.reason === 'payment_issue'
+          ? { status: 409, body: { code: 'fix_payment', error: 'Your last payment didn’t go through. Update your card first — then you can change your plan.' } }
+          : { status: 409, body: { code: 'contact_support', error: 'Your account needs a quick check before the plan can change. Please contact support and we’ll sort it out.' } }
+      case 'checkout_replacing_trial':
+        replacesTrial = decision.trialSubscriptionId
+        break
+      case 'checkout':
+        break
     }
 
-    // ── New subscription through Stripe Checkout.
+    // ── New subscription, paid inside the app.
     const metadata: Record<string, string> = {
       supabase_user_id: userId,
       type: 'subscription',
@@ -118,11 +82,10 @@ export async function startSubscription(opts: {
       ...(replacesTrial ? { replaces_subscription: replacesTrial } : {}),
     }
     const sessionParams: Record<string, unknown> = {
+      ...inlineSessionBase(origin),
       mode: 'subscription',
-      payment_method_types: ['card'],
+      customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard?subscribed=${planId}`,
-      cancel_url: `${origin}/settings?tab=subscription`,
       metadata,
       subscription_data: { metadata: { supabase_user_id: userId, tier: planId } },
     }
@@ -147,14 +110,12 @@ export async function startSubscription(opts: {
     }
     if (!appliedDiscount) {
       // A marketing promo from the upgrade email (?promo=CODE) auto-applies if
-      // it's on the allowlist; otherwise the buyer may type a code at Stripe.
+      // it's on the allowlist; otherwise the buyer may type a code in the
+      // pop-up (the Payment Element form applies it with applyPromotionCode).
       const promoId = autoPromoId(opts.promo)
       if (promoId) sessionParams.discounts = [{ promotion_code: promoId }]
       else sessionParams.allow_promotion_codes = true
     }
-
-    if (customerId) sessionParams.customer = customerId
-    else if (email) sessionParams.customer_email = email
 
     const create = () => stripe.checkout.sessions.create(sessionParams as unknown as Stripe.Checkout.SessionCreateParams)
     let session: Stripe.Checkout.Session
@@ -162,15 +123,9 @@ export async function startSubscription(opts: {
       session = await create()
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('No such customer') && sessionParams.customer) {
-        console.warn(`[subscription] Stale stripe_customer_id for user ${userId} — clearing and retrying`)
-        await admin.from('profiles').update({ stripe_customer_id: null }).eq('id', userId)
-        delete sessionParams.customer
-        if (email) sessionParams.customer_email = email
-        session = await create()
-      } else if (/promotion.?code|coupon/i.test(msg) && sessionParams.discounts) {
+      if (/promotion.?code|coupon/i.test(msg) && sessionParams.discounts) {
         // A bad/expired promo must not block the purchase — let them in
-        // without it (they can still type a code at Stripe).
+        // without it (they can still type a code in the pop-up).
         console.warn(`[subscription] promo could not be applied for user ${userId} — retrying without it: ${msg}`)
         delete sessionParams.discounts
         sessionParams.allow_promotion_codes = true
@@ -180,11 +135,14 @@ export async function startSubscription(opts: {
       }
     }
 
-    if (!session.url) throw new Error('Stripe returned no checkout url')
-    return { status: 200, body: { url: session.url } }
+    if (!session.client_secret) throw new Error('Stripe returned no client secret')
+    return {
+      status: 200,
+      body: { clientSecret: session.client_secret, sessionId: session.id, promoCodes: sessionParams.allow_promotion_codes === true },
+    }
   } catch (err) {
     // The raw Stripe error goes to the log, never to the user.
     console.error(`[subscription] could not start ${planId} for user ${userId}:`, err instanceof Error ? err.message : err)
-    return { status: 500, body: { error: 'We could not start checkout just now. Please try again in a minute.' } }
+    return { status: 500, body: { error: 'We could not open the payment form just now. Please try again in a minute.' } }
   }
 }

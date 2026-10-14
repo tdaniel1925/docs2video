@@ -31,6 +31,8 @@ export interface ShareRow {
   to_name?: string | null
   created_at: string
   opened_at?: string | null
+  /** 'text' for a share sent by text message (to_email holds the phone). */
+  email_type?: string | null
 }
 
 export const QUARTERS = [25, 50, 75, 100] as const
@@ -56,6 +58,8 @@ export interface ShareSummary {
   name: string | null
   sentAt: string
   emailOpenedAt: string | null
+  /** How it was sent. Texts have no "opened" signal. */
+  channel: 'email' | 'text'
   viewer: ViewerSummary | null
 }
 
@@ -161,6 +165,7 @@ export function summarizeViewing(events: ViewEvent[], shares: ShareRow[]): Viewi
         name: s.to_name ?? null,
         sentAt: s.created_at,
         emailOpenedAt: s.opened_at ?? null,
+        channel: s.email_type === 'text' ? 'text' as const : 'email' as const,
         viewer: byShare.has(s.id) ? summarize(byShare.get(s.id)!) : null,
       })),
     others,

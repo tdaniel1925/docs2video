@@ -29,7 +29,7 @@ export interface NeedItem {
 }
 
 export interface NeedSection {
-  key: 'failed' | 'review' | 'payments' | 'past_due' | 'slipping' | 'payouts' | 'providers'
+  key: 'failed' | 'review' | 'payments' | 'past_due' | 'slipping' | 'payouts' | 'providers' | 'texting'
   title: string
   /** Shown when the list is empty / why it couldn't be read. */
   note?: string
@@ -172,12 +172,49 @@ export async function loadNeedsYou(): Promise<NeedsYou> {
   if (ready.cents > 0) payoutItems.push({ id: 'ready', title: `${fmtMoney(ready.cents)} past the 30-day hold`, detail: 'Ready to approve (no refund came in).', href: '/admin/affiliates' })
   sections.push({ key: 'payouts', title: 'Affiliate payouts', tone: 'warn', href: '/admin/affiliates', items: payoutItems })
 
-  // 7. AI providers
+  // 7. Texting (Twilio): sends Twilio refused or the carrier didn't deliver
+  //    (texting-core.ts records them with endpoint 'twilio'), the missing
+  //    migration (endpoint 'texting'), and whether the number may text clients.
+  sections.push(await textingSection(db, twoWeeksAgo))
+
+  // 8. AI providers
   sections.push({ key: 'providers', title: 'AI services', tone: 'info', href: '/admin/system', items: await providerItems(checkRes.data?.[0] ?? null) })
 
   const total = sections.filter((s) => s.key !== 'providers').reduce((n, s) => n + s.items.length, 0)
     + sections.find((s) => s.key === 'providers')!.items.filter((i) => i.id.endsWith(':low') || i.id.endsWith(':down')).length
   return { at: new Date().toISOString(), total, sections }
+}
+
+async function textingSection(db: ReturnType<typeof createAdminClient>, since: string): Promise<NeedSection> {
+  const items: NeedItem[] = []
+  let note: string | undefined
+  const { data, error } = await db.from('error_logs').select('id, message, detail, count, last_seen, user_id, endpoint')
+    .in('endpoint', ['twilio', 'texting']).eq('resolved', false).gte('last_seen', since)
+    .order('last_seen', { ascending: false }).limit(20)
+  if (error) note = 'Could not read the error log just now.'
+  for (const e of data ?? []) {
+    items.push({
+      id: e.id, title: e.message,
+      detail: `${e.count > 1 ? `${e.count} times · ` : ''}${(e.detail || '').split('\n')[0].slice(0, 160) || 'See the log.'}`,
+      when: e.last_seen, href: e.user_id ? `/admin/users/${e.user_id}` : '/admin/logs',
+    })
+  }
+  try {
+    const { checkTextingHealth } = await import('../twilio-rest')
+    const h = await checkTextingHealth()
+    if (!h.clientTexts) {
+      items.unshift({
+        id: `texting:${h.state}`,
+        title: h.state === 'account_inactive' ? 'Twilio account is not active — no texts can go out'
+          : h.state === 'not_configured' ? 'Twilio keys are missing'
+          : h.state === 'pending' ? 'Texting clients is waiting for carrier approval'
+          : 'Texting clients is off until the number is registered',
+        detail: h.detail,
+        href: 'https://console.twilio.com/us1/develop/sms/regulatory-compliance/a2p-10dlc-overview',
+      })
+    }
+  } catch { /* the error rows above still show */ }
+  return { key: 'texting', title: 'Texting (Twilio)', tone: 'warn', href: '/admin/logs', note, items }
 }
 
 function score(detail: string) {

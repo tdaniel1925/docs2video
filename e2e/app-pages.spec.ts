@@ -358,37 +358,38 @@ test.describe('Library (/videos)', () => {
 /* ── Plans & pricing ────────────────────────────────────────────────────── */
 
 test.describe('Plans & pricing (/pricing)', () => {
-  test('each plan button starts checkout for that plan; an error is shown word for word', async ({ page }) => {
+  test('each plan button opens the in-app checkout for that plan; an error is shown word for word', async ({ page }) => {
     await stripeLands(page)
     const bodies: any[] = []
-    let fail = true
     await page.route('**/api/stripe/checkout', async (r) => {
       bodies.push(jsonBody(r.request()))
-      if (fail) return r.fulfill({ status: 500, json: { error: 'Checkout is not available right now.' } })
-      await r.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_plan' } })
+      return r.fulfill({ status: 500, json: { error: 'Checkout is not available right now.' } })
     })
-    await page.route('**/api/stripe/portal', (r) => r.fulfill({ json: { url: 'https://billing.stripe.com/p/session/test' } }))
     await page.goto('/pricing')
     await expect(page.getByRole('heading', { name: 'Simple, credit-based pricing' })).toBeVisible()
     const buy = page.getByRole('button', { name: /^(Subscribe|Switch plan)$/ })
-    const n = await buy.count()
-    expect(n).toBeGreaterThan(0)
+    expect(await buy.count()).toBeGreaterThan(0)
     await buy.first().click()
-    await expect(page.getByText('Checkout is not available right now.')).toBeVisible()
-    fail = false
-    await page.reload()
+    const dlg = page.getByRole('dialog')
+    await expect(dlg.getByText('Checkout is not available right now.')).toBeVisible()
+    await expect(page).toHaveURL(/\/pricing/)
+    await dlg.getByRole('button', { name: 'Close' }).last().click()
     await buy.first().click()
-    await expect(page).toHaveURL(/checkout\.stripe\.com/)
+    await expect(dlg.getByText('Checkout is not available right now.')).toBeVisible()
     expect(bodies.map((b) => b.planId).filter(Boolean).length).toBe(2)
   })
 
-  test('the AI Social add-on button starts its own checkout', async ({ page }) => {
+  test('the AI Social add-on button opens its own in-app checkout', async ({ page }) => {
     await stripeLands(page)
-    await page.route('**/api/social-addon/checkout', (r) => r.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_addon' } }))
+    const calls: string[] = []
+    await page.route('**/api/social-addon/checkout', (r) => { calls.push('addon'); return r.fulfill({ status: 500, json: { error: 'Mocked add-on checkout.' } }) })
     await page.goto('/pricing')
     const addon = page.getByRole('button', { name: /add-on|AI Social|Add it|Get/i }).last()
+    test.skip(!(await addon.isVisible()), 'the add-on is already active on this account')
     await addon.click()
-    await expect(page).toHaveURL(/checkout\.stripe\.com/)
+    await expect(page.getByRole('dialog').getByText('Mocked add-on checkout.')).toBeVisible()
+    await expect(page).toHaveURL(/\/pricing/)
+    expect(calls).toEqual(['addon'])
   })
 
   test('signed out, /pricing shows the public plans page', async ({ browser }) => {
