@@ -5,6 +5,7 @@ import { textingReady, hasConsent, isOptedOut } from '../../../_lib/texting-core
 import { checkTextingHealth } from '../../../_lib/twilio-rest'
 import { normalizePhone } from '../../../_lib/texting'
 import { CREDIT_COSTS } from '../../../_lib/credits'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -16,6 +17,7 @@ export const maxDuration = 20
  * number: did they already agree, did they reply STOP.
  */
 export async function GET(request: Request) {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })

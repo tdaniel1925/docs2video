@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { MessageSquareReply } from 'lucide-react'
 import type { ViewerSummary, ViewingSummary } from '../../../../_lib/viewing'
 import { formatPhone } from '../../../../_lib/texting'
+import { TEXTING_ON } from '../../../../_lib/texting-switch'
 
 type Reply = { id: string; from: string; body: string; at: string; shareId: string | null }
 
@@ -82,7 +83,7 @@ export default function ClientViewing({ videoId, isDeck, refreshKey }: { videoId
         {isDeck
           ? 'Presentations report when they’re opened and clicked into — not how far someone went.'
           : 'How far each person got, in quarters. Your own visits don’t count.'}
-        {' '}We email you when a client opens it — <Link href="/activity#view-alerts">change when</Link>. Want a text when they’re ready to talk? <Link href="/settings?tab=email#hot-alerts">Turn on client alerts</Link>.
+        {' '}We email you when a client opens it — <Link href="/activity#view-alerts">change when</Link>.{TEXTING_ON && <> Want a text when they’re ready to talk? <Link href="/settings?tab=email#hot-alerts">Turn on client alerts</Link>.</>}
       </p>
 
       {failed && <p className="res-hint">Couldn’t load who watched just now. Refresh the page to try again.</p>}

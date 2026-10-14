@@ -4,6 +4,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { textingReady, getAlertSettings, saveAlertSettings } from '../../../_lib/texting-core'
 import { checkTextingHealth } from '../../../_lib/twilio-rest'
 import { formatPhone } from '../../../_lib/texting'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -17,6 +18,7 @@ export const maxDuration = 20
  * saves nothing.
  */
 export async function GET() {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -33,6 +35,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })

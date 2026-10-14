@@ -121,12 +121,6 @@ const GUIDES: HelpGuide[] = [
     icon: '🖌️',
   },
   {
-    href: '/help/texting',
-    title: 'Texting and alerts',
-    description: 'Get a text or email the moment a client finishes your video, comes back, opens the PDF or presses Book a call — and send videos to clients by text.',
-    icon: '💬',
-  },
-  {
     href: '/help/client-questions',
     title: 'Client questions',
     description: 'A client asks under your video, we draft an answer from their own document with where it came from — you Approve, Edit, Call instead or say Not now. Nothing is sent without you. Free.',

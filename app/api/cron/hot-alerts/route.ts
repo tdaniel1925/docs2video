@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { sendQueuedAlerts } from '../../../_lib/texting-core'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -12,6 +13,7 @@ export const maxDuration = 60
  * migration has run.
  */
 export async function GET(request: Request) {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   if (!verifyCronAuth(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const r = await sendQueuedAlerts(createAdminClient())
   return NextResponse.json({ ok: true, ...r })

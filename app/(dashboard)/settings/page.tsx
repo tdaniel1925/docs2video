@@ -21,6 +21,7 @@ import { ThemeChoice } from '../../_components/theme'
 import BillingSection from './BillingSection'
 import { sectionFromParams, type SectionId } from './account-sections'
 import s from './settings.module.css'
+import { TEXTING_ON } from '../../_lib/texting-switch'
 
 // Plain-language text for the ?email_error= codes the connect flows return.
 function emailErrorText(code: string): string {
@@ -795,7 +796,7 @@ export default function SettingsPage() {
           </div>
 
           {/* View alerts — the same setting as Activity → Notifications. */}
-          <HotClientAlerts />
+          {TEXTING_ON && <HotClientAlerts />}
           <ViewAlertsSetting />
         </div>
       )}

@@ -3,6 +3,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { validateTwilioSignature } from '../../../_lib/twilio-rest'
 import { handleInbound, textingReady } from '../../../_lib/texting-core'
 import { siteUrl } from '../../../_lib/site-url'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -20,6 +21,7 @@ const EMPTY = () => new NextResponse('<Response/>', { headers: { 'Content-Type':
  * Always answers an empty reply — we never auto-text back.
  */
 export async function POST(request: Request) {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   const raw = await request.text()
   const params = Object.fromEntries(new URLSearchParams(raw)) as Record<string, string>
   const url = `${siteUrl()}/api/webhooks/twilio`

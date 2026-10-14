@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { CREDIT_COSTS } from '../../../_lib/credits'
 import { CLIENT_TEXT_DAILY_CAP, ALERT_TEXT_DAILY_CAP } from '../../../_lib/texting'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 // TEXTING AND ALERTS — hot-client alerts (Settings → Email & sending) and
 // Send by text (the Text tab on a finished project's send panel). Written from
@@ -17,6 +18,8 @@ const B = ({ children }: { children: ReactNode }) => <strong style={{ color: 'va
 const price = CREDIT_COSTS['client-text'].toLocaleString('en-US')
 
 export default function TextingHelpPage() {
+  // Switched off for now (texting-switch.ts): say so instead of describing screens that are hidden.
+  if (!TEXTING_ON) return <div style={{ padding: 32 }}><h1>Texting is switched off for now</h1><p>Send videos by email or copy the link. You still get an email when a client watches. <Link href="/help">Back to help</Link></p></div>
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>

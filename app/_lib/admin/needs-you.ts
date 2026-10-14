@@ -5,6 +5,7 @@ import { failReason, reviewReason } from './fail-reason'
 import { isTestAccount } from './money'
 import { loadMoneySnapshot, testEmails } from './money-server'
 import { PAYMENT_ERROR_ENDPOINTS } from './payment-alerts'
+import { TEXTING_ON } from '../texting-switch'
 
 /**
  * "WHAT NEEDS YOU" — the short list of things the owner has to look at,
@@ -175,7 +176,7 @@ export async function loadNeedsYou(): Promise<NeedsYou> {
   // 7. Texting (Twilio): sends Twilio refused or the carrier didn't deliver
   //    (texting-core.ts records them with endpoint 'twilio'), the missing
   //    migration (endpoint 'texting'), and whether the number may text clients.
-  sections.push(await textingSection(db, twoWeeksAgo))
+  if (TEXTING_ON) sections.push(await textingSection(db, twoWeeksAgo))
 
   // 8. AI providers
   sections.push({ key: 'providers', title: 'AI services', tone: 'info', href: '/admin/system', items: await providerItems(checkRes.data?.[0] ?? null) })

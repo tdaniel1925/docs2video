@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { textingReady, sendVerifyCode, checkVerifyCode } from '../../../_lib/texting-core'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -12,6 +13,7 @@ export const maxDuration = 20
  * Free (no credits). At most 5 codes an hour, 5 guesses a code, 10 minutes.
  */
 export async function POST(request: Request) {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })

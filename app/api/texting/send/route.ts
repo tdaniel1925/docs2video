@@ -3,6 +3,7 @@ import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { checkRateLimit } from '../../../_lib/rate-limit'
 import { textingReady, sendClientText } from '../../../_lib/texting-core'
+import { TEXTING_ON } from '../../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -13,6 +14,7 @@ export const maxDuration = 30
  * if Twilio refuses it). All the rules are in sendClientText.
  */
 export async function POST(request: Request) {
+  if (!TEXTING_ON) return NextResponse.json({ error: 'Texting is switched off' }, { status: 404 })
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })

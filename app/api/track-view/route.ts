@@ -6,6 +6,7 @@ import { checkRateLimit } from '../../_lib/rate-limit'
 import { sendVideoViewedEmail, sendVideoViewedSms, buildVideoViewedHtml, type ViewDetails } from '../../_lib/notifications'
 import { normalizePref, shouldSendViewAlert, COOLDOWN_HOURS } from '../../_lib/view-alerts'
 import type { EmailConnection } from '../../_lib/types'
+import { TEXTING_ON } from '../../_lib/texting-switch'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -259,7 +260,7 @@ export async function POST(request: Request) {
     // is ready"): finished it, came back, opened the PDF, pressed Book a
     // call. The owner's own views already returned above; isOwner is passed
     // as false on purpose and checked again inside.
-    if (['view', 'complete', 'progress', 'download', 'booking_click', 'book_meeting'].includes(eventType)) {
+    if (TEXTING_ON && ['view', 'complete', 'progress', 'download', 'booking_click', 'book_meeting'].includes(eventType)) {
       try {
         const { handleHotEvent } = await import('../../_lib/texting-core')
         await handleHotEvent(supabase, {
