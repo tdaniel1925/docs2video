@@ -2,7 +2,8 @@ import { test, expect, type Page } from '@playwright/test'
 import { NO_AUTH } from './helpers/auth'
 import { PLANS, SELLABLE_PLAN_TIERS } from '../app/_lib/pricing'
 
-// The marketing home page. Public: start signed out.
+// The marketing front page (approved design "Home-after", 2026-10-14).
+// Public: start signed out.
 test.use({ storageState: NO_AUTH })
 
 // Collect console errors and failed same-origin requests for a page.
@@ -24,84 +25,119 @@ test.describe('Marketing home page', () => {
     await expect(h1).toHaveCount(1)
     await expect(h1).toContainText('Long document in')
     await expect(h1).toContainText('Short video out')
-    await expect(page.locator('.mk-hero a[href="/signup"]')).toBeVisible()
-    await expect(page.locator('.mk-hero a[href="#share"]')).toBeVisible()
+    await expect(page.locator('.hp-hero a[href="/signup"]')).toBeVisible()
+    await expect(page.locator('.hp-hero a[href="#share"]')).toBeVisible()
+    // The finished-video cover is the one picture loaded eagerly.
+    await expect(page.locator('.hp-cover img')).toHaveAttribute('src', /kit-animated-slides-cover/)
+    await expect(page.locator('.hp-hero')).toContainText('Watched 92%')
+    await expect(page.locator('.hp-hero')).toContainText('The Riveras opened your video.')
     expect(problems).toEqual([])
   })
 
   test('header links point at real sections and pages', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    const nav = page.locator('.mk-nav')
-    for (const id of ['how', 'share', 'industries', 'pricing', 'compare']) {
-      await expect(nav.locator(`a[href="/#${id}"]`)).toBeVisible()
+    const nav = page.locator('.hp-nav')
+    for (const id of ['how', 'share', 'industries', 'pricing']) {
+      await expect(nav.locator(`a[href="#${id}"]`)).toBeVisible()
       await expect(page.locator(`#${id}`)).toHaveCount(1)
     }
-    await expect(page.locator('.mk-header a[href="/login"]')).toBeVisible()
-    await expect(page.locator('.mk-header a[href="/signup"]')).toBeVisible()
-    await nav.locator('a[href="/#pricing"]').click()
+    await expect(page.locator('.hp-header a[href="/login"]')).toBeVisible()
+    await expect(page.locator('.hp-header a[href="/signup"]')).toBeVisible()
+    await nav.locator('a[href="#pricing"]').click()
     await expect(page).toHaveURL(/#pricing$/)
   })
 
   test('phone menu opens and lists the sections', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 })
     await page.goto('/')
-    const btn = page.locator('.mk-menu-btn')
+    const btn = page.locator('.hp-menu-btn')
     await expect(btn).toBeVisible()
     await expect(btn).toHaveAttribute('aria-expanded', 'false')
     await btn.click()
     await expect(btn).toHaveAttribute('aria-expanded', 'true')
-    await expect(page.locator('#mk-menu-panel a[href="/#how"]')).toBeVisible()
+    await expect(page.locator('#hp-menu-panel a[href="#how"]')).toBeVisible()
+    await expect(page.locator('#hp-menu-panel a[href="/blog"]')).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.locator('#mk-menu-panel')).toHaveCount(0)
+    await expect(page.locator('#hp-menu-panel')).toHaveCount(0)
   })
 
-  test('three steps and three outputs', async ({ page }) => {
+  test('three steps, two ways to share, and the four current looks', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('#how .mk-step')).toHaveCount(3)
-    await expect(page.locator('.mk-output')).toHaveCount(3)
+    await expect(page.locator('#how .hp-step')).toHaveCount(3)
+    await expect(page.locator('.hp-two-item')).toHaveCount(2)
+    await expect(page.locator('.hp-two-item').nth(1)).toContainText('PDF or PowerPoint')
+    await expect(page.locator('#looks figcaption')).toHaveText(['Animated slides', 'Editorial', 'Bright', 'Drawn slides'])
+    // Retired looks never come back on the front page.
+    const text = (await page.locator('main').textContent()) ?? ''
+    for (const old of ['Aurora', 'Cinematic', 'Infographic']) expect(text, old).not.toContain(old)
   })
 
-  test('industry switcher changes the example', async ({ page }) => {
+  test('industry block links to the industry pages and shows real fine print', async ({ page }) => {
     await page.goto('/')
-    const tabs = page.locator('.mk-ind-tab')
-    await expect(tabs).toHaveCount(6)
-    await expect(tabs.first()).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.locator('.mk-ind-copy h3')).toHaveText('Insurance')
-    await tabs.filter({ hasText: 'Mortgage' }).click()
-    await expect(tabs.filter({ hasText: 'Mortgage' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.locator('.mk-ind-copy h3')).toHaveText('Mortgage')
-    await expect(page.locator('.mk-ind-copy a[href="/for/mortgage"]')).toBeVisible()
+    for (const href of ['/for/insurance', '/for/financial-services', '/for/mortgage', '/for/real-estate', '/for/legal']) {
+      await expect(page.locator(`#industries .hp-chip[href="${href}"]`)).toBeVisible()
+    }
+    await expect(page.locator('#industries')).toContainText('Non-guaranteed values are subject to change')
+    await expect(page.locator('#industries')).toContainText('Schedule a review of your coverage today.')
   })
 
   test('pricing shows the plans on sale at the prices in pricing.ts', async ({ page }) => {
     await page.goto('/')
-    const cards = page.locator('#pricing .mk-tier')
+    const cards = page.locator('#pricing .hp-tier')
     const onSale = PLANS.filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
     await expect(cards).toHaveCount(1 + onSale.length)
     await expect(cards.nth(0)).toContainText('$0')
     for (const [i, p] of onSale.entries()) {
       await expect(cards.nth(i + 1)).toContainText(p.label)
       await expect(cards.nth(i + 1)).toContainText(`$${p.monthlyPrice / 100}`)
-      await expect(cards.nth(i + 1)).toContainText(p.monthlyCredits.toLocaleString('en-US'))
+      await expect(cards.nth(i + 1)).toContainText(`About ${p.approxStandardVideos} videos a month`)
     }
     // Starter ($29) is retired and must not be offered.
     await expect(page.locator('#pricing')).not.toContainText('$29')
-    await expect(page.locator('#pricing .mk-tier-pop')).toContainText('Pro')
+    await expect(page.locator('#pricing .hp-tier-pop')).toContainText('Pro')
+    await expect(page.locator('#pricing a[href="/pricing"]')).toBeVisible()
   })
 
   test('claims removed in the audit stay removed', async ({ page }) => {
     await page.goto('/')
     const text = (await page.locator('main').textContent())?.toLowerCase() ?? ''
-    for (const banned of ['chatbot', 'password-protected', 'print-ready', 'soc 2', '$5 each', 'extra videos']) {
+    for (const banned of ['chatbot', 'password-protected', 'print-ready', 'soc 2', '$5 each', 'extra videos', 'most popular']) {
       expect(text, banned).not.toContain(banned)
     }
   })
 
-  test('compare table and FAQ are there', async ({ page }) => {
+  test('four questions, no comparison table', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('#compare tbody tr')).toHaveCount(5)
-    await expect(page.locator('#faq .mk-faq-item')).toHaveCount(4)
+    await expect(page.locator('#faq .hp-faq-item')).toHaveCount(4)
+    await expect(page.locator('#compare')).toHaveCount(0)
+    await expect(page.locator('main table')).toHaveCount(0)
+  })
+
+  test('cookie notice does not cover the hero buttons on first view', async ({ page }) => {
+    await page.addInitScript(() => { try { localStorage.removeItem('cookie_consent') } catch { /* fine */ } })
+    for (const [width, height] of [[1440, 900], [375, 812], [375, 667]] as const) {
+      await page.setViewportSize({ width, height })
+      await page.goto('/')
+      const notice = page.locator('.hp-cookie')
+      await expect(notice).toBeVisible()
+      const n = (await notice.boundingBox())!
+      for (const a of await page.locator('.hp-hero a').all()) {
+        const b = (await a.boundingBox())!
+        const overlaps = b.x < n.x + n.width && n.x < b.x + b.width && b.y < n.y + n.height && n.y < b.y + b.height
+        expect(overlaps, `${width}x${height}: ${await a.textContent()}`).toBe(false)
+      }
+    }
+  })
+
+  test('footer keeps the links to every public page', async ({ page }) => {
+    await page.goto('/')
+    const footer = page.locator('.hp-footer')
+    for (const href of ['/pricing', '/signup', '/login', '/blog', '/contact', '/terms', '/privacy', '/cookies',
+      '/for/insurance', '/for/financial-services', '/for/real-estate', '/for/mortgage', '/for/healthcare', '/for/legal',
+      '/for/consulting', '/for/education']) {
+      await expect(footer.locator(`a[href="${href}"]`), href).toHaveCount(1)
+    }
   })
 
   test('JSON-LD is valid JSON', async ({ page }) => {
@@ -142,6 +178,8 @@ test.describe('Marketing home page', () => {
     await page.goto('/for/insurance')
     await expect(page.locator('.mk-header a[href="/"]').first()).toBeVisible()
     await expect(page.locator('.mk-footer')).toBeVisible()
+    // The shared header no longer points at the removed comparison table.
+    await expect(page.locator('.mk-header a[href="/#compare"]')).toHaveCount(0)
     expect(problems).toEqual([])
   })
 })

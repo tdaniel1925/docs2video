@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
+import { useBrand } from './BrandProvider'
 
 /**
  * Pages a CLIENT opens from a share link. They never log in, so there is no
@@ -12,11 +13,23 @@ export function isClientSharePage(pathname: string | null | undefined): boolean 
   return /^\/watch(\/|$)/.test(pathname ?? '')
 }
 
+/**
+ * The Docs2Video front page (light, ink + cobalt). The notice there is a small
+ * card in the bottom-left corner (a slim one-line bar on a phone) in the
+ * page's own colours, so it never sits on the hero's buttons on first view
+ * (front page rebuild 2026-10-14). Exported for the guard test.
+ */
+export function isFrontPage(pathname: string | null | undefined, brandId: string): boolean {
+  return pathname === '/' && brandId !== 'text2art'
+}
+
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
   const bar = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const hidden = isClientSharePage(pathname)
+  const brand = useBrand()
+  const front = isFrontPage(pathname, brand.id)
 
   useEffect(() => {
     if (hidden) { setVisible(false); return }
@@ -54,6 +67,15 @@ export default function CookieBanner() {
   }
 
   if (!visible) return null
+
+  if (front) {
+    return (
+      <div ref={bar} className="hp-cookie" role="region" aria-label="Cookie notice">
+        <span>We only use essential cookies, to keep you logged in.</span>
+        <button type="button" onClick={accept}>Got it</button>
+      </div>
+    )
+  }
 
   return (
     <div ref={bar} style={{

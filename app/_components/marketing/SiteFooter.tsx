@@ -29,7 +29,7 @@ export default function SiteFooter() {
           <h2>Product</h2>
           <ul>
             <li><a href="/#how">How it works</a></li>
-            <li><a href="/#share">Share page</a></li>
+            <li><a href="/#share">The client page</a></li>
             <li><Link href="/pricing">Pricing</Link></li>
             <li><Link href="/signup">Start free</Link></li>
             <li><Link href="/login">Log in</Link></li>

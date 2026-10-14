@@ -6,10 +6,9 @@ import MarketingMenu from './MarketingMenu'
 // home page ("/#how"), so they work from any page they appear on.
 export const MARKETING_NAV = [
   { href: '/#how', label: 'How it works' },
-  { href: '/#share', label: 'Share page' },
+  { href: '/#share', label: 'The client page' },
   { href: '/#industries', label: 'Industries' },
   { href: '/#pricing', label: 'Pricing' },
-  { href: '/#compare', label: 'Compare' },
   { href: '/blog', label: 'Blog' },
 ] as const
 

@@ -1,120 +1,112 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import SiteHeader from './SiteHeader'
-import SiteFooter from './SiteFooter'
-import IndustrySwitcher, { type IndustryCard } from './IndustrySwitcher'
+import { Schibsted_Grotesk, JetBrains_Mono } from 'next/font/google'
+import HomeMenu from './HomeMenu'
 import { PLANS, SELLABLE_PLAN_TIERS } from '../../_lib/pricing'
-import { CREDIT_COSTS } from '../../_lib/credits'
 import { INDUSTRIES, type IndustryId } from '../../_lib/industries'
-import { VIDEO_LOOKS, PRES_LOOKS } from '../../(dashboard)/create/_components/make/looks'
+import './home.css'
 
 /*
- * The Docs2Video marketing home page (light, cream + mint).
+ * The Docs2Video public front page (approved design "Home-after", 2026-10-14).
+ * Light only: white and pale grey grounds, ink, one cobalt accent. Everything is
+ * scoped under .hp (styles in ./home.css) and the two fonts are loaded here,
+ * so the app's own fonts and colours are untouched.
  *
  * TRUTH RULES for this page — every line must be true of the product today:
- *   - Prices, credits and "about N videos" come from PLANS (pricing.ts).
- *     Starter is retired, so only Free + SELLABLE_PLAN_TIERS are shown.
- *   - Industry wording, disclaimers and closing asks come from INDUSTRIES.
- *   - The style names come from the Make step's own look lists.
- *   - Pictures are real sample frames from /public/style-samples, chosen
- *     because they carry only fictional names (ACME, EPOCH). Never use a
- *     frame showing a real carrier, product or company.
+ *   - Prices and "about N videos" come from PLANS (pricing.ts). Starter is
+ *     retired, so only Free + SELLABLE_PLAN_TIERS are shown.
+ *   - Industry wording, fine print and the closing ask come from INDUSTRIES.
+ *   - The four looks are the ones step 3 offers today (scene kit): Animated
+ *     slides, Editorial, Bright, Drawn slides. Pictures are their real sample
+ *     frames from /public/style-samples, which carry only made-up names
+ *     ("Your Agency", the Rivera family) — never a real carrier or company.
+ *   - No popularity claims: the Pro badge says "Recommended" (the design's
+ *     popularity badge is banned by tests/no-false-claims.test.ts).
  */
 
-// ── Industries shown in the switcher (the rest are listed by name) ──────────
-const SWITCHER: { id: IndustryId; name: string; sample: string; href: string }[] = [
-  { id: 'insurance', name: 'Insurance', sample: 'Your coverage, explained', href: '/for/insurance' },
-  { id: 'financial', name: 'Financial', sample: 'Where your portfolio stands', href: '/for/financial-services' },
-  { id: 'real_estate', name: 'Real Estate', sample: 'Inside 14 Maple Court', href: '/for/real-estate' },
-  { id: 'mortgage', name: 'Mortgage', sample: 'Your loan estimate, line by line', href: '/for/mortgage' },
-  { id: 'healthcare', name: 'Healthcare', sample: 'Your care plan, step by step', href: '/for/healthcare' },
-  { id: 'legal', name: 'Legal', sample: 'Your agreement in plain English', href: '/for/legal' },
+const sans = Schibsted_Grotesk({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--hp-sans', display: 'swap' })
+const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '700'], variable: '--hp-mono', display: 'swap', preload: false })
+
+// ── Industries ──────────────────────────────────────────────────────────────
+const ALL_INDUSTRIES = (Object.keys(INDUSTRIES) as IndustryId[]).filter((id) => id !== 'general')
+const MADE_FOR = ['Insurance', 'Financial advice', 'Mortgage', 'Real estate', 'Healthcare', 'Legal']
+const MORE_INDUSTRIES = Math.max(0, ALL_INDUSTRIES.length - MADE_FOR.length)
+
+const INDUSTRY_CHIPS = [
+  { label: 'Insurance', href: '/for/insurance' },
+  { label: 'Financial', href: '/for/financial-services' },
+  { label: 'Mortgage', href: '/for/mortgage' },
+  { label: 'Real estate', href: '/for/real-estate' },
+  { label: 'Legal', href: '/for/legal' },
 ]
 
-const INDUSTRY_COUNT = (Object.keys(INDUSTRIES) as IndustryId[]).filter((id) => id !== 'general').length
-
-function industryCards(): IndustryCard[] {
-  return SWITCHER.map((s) => {
-    const c = INDUSTRIES[s.id]
-    return {
-      id: s.id,
-      name: s.name,
-      terms: c.terminology.use.slice(0, 6),
-      fine: c.disclaimerRequired && c.disclaimerText ? c.disclaimerText : null,
-      ask: c.ctaText,
-      sample: s.sample,
-      href: s.href,
-    }
-  })
-}
-
-function moreIndustries(): string[] {
-  const shown = new Set<string>(SWITCHER.map((s) => s.id))
-  return (Object.keys(INDUSTRIES) as IndustryId[])
-    .filter((id) => id !== 'general' && !shown.has(id))
-    .map((id) => INDUSTRIES[id].label)
-}
-
-// ── Style gallery: real sample frames of the video looks ────────────────────
-// Only frames with fictional names. The "slides" look's samples show a real
-// product, and some cover/closing frames show real people or policy names,
-// so those are left out on purpose.
-const GALLERY: { look: string; kind: 'cover' | 'data' | 'closing' }[] = [
-  { look: 'editorial', kind: 'cover' }, { look: 'infographic', kind: 'cover' }, { look: 'explainer', kind: 'cover' }, { look: 'cinematic', kind: 'data' },
-  { look: 'editorial', kind: 'data' }, { look: 'infographic', kind: 'data' }, { look: 'explainer', kind: 'data' }, { look: 'aurora', kind: 'data' },
-]
-const lookName = (id: string) => VIDEO_LOOKS.find((l) => l.id === id)?.name ?? id
+const INSURANCE = INDUSTRIES.insurance
+const INSURANCE_TERMS = INSURANCE.terminology.use
+  .filter((t) => ['policyholder', 'coverage', 'cash value growth', 'guaranteed values', 'illustrated values'].includes(t))
+  .join(' · ')
 
 // ── Pricing (from pricing.ts) ───────────────────────────────────────────────
+const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
+const TOP_UP_LINE = FREE_PLAN.features.find((f) => f.startsWith('Top up')) ?? ''
+
 function pricingCards() {
-  const free = PLANS.find((p) => p.tier === 'free')!
+  const free = FREE_PLAN
   const paid = PLANS.filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
   return [
     {
       // One name for the free plan everywhere: pricing.ts's label (audit 2026-10-09).
       key: 'free', name: free.label, price: '$0', per: '', popular: false,
-      credits: `${free.monthlyCredits.toLocaleString('en-US')} credits to start`,
       videos: `About ${free.approxStandardVideos} videos to try`,
       cta: 'Start free',
     },
     ...paid.map((p) => ({
       key: p.tier, name: p.label, price: `$${p.monthlyPrice / 100}`, per: '/mo', popular: p.tier === 'pro',
-      credits: `${p.monthlyCredits.toLocaleString('en-US')} credits a month`,
       videos: `About ${p.approxStandardVideos} videos a month`,
       cta: `Choose ${p.label}`,
     })),
   ]
 }
-const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
-const TOP_UP_LINE = PLANS.find((p) => p.tier === 'free')?.features.find((f) => f.startsWith('Top up')) ?? ''
 
 // ── Copy ────────────────────────────────────────────────────────────────────
-const STEPS = [
-  { n: '1', t: 'Drop in the document', d: 'A PDF, Word file, PowerPoint or website — or describe the topic. It reads the whole thing and finds the points that matter.' },
-  { n: '2', t: 'Pick a style and a voice', d: 'Choose a look and a narrator. Add your logo and your client’s name for a personal cover and greeting.' },
-  { n: '3', t: 'Send it and follow up', d: 'Share one link. Hear when they open it, and let them book a call or pay your quote from the same page.' },
+const LOOKS = [
+  { name: 'Animated slides', src: '/style-samples/kit-animated-slides-data.png', alt: 'Animated slides look: a big gold $500,000 on a deep navy background' },
+  { name: 'Editorial', src: '/style-samples/kit-editorial-cover.png', alt: 'Editorial look: a calm cream cover with a serif headline and the agent’s photo' },
+  { name: 'Bright', src: '/style-samples/kit-bright-data.png', alt: 'Bright look: a big orange number on a light, colourful background' },
+  { name: 'Drawn slides', src: '/style-samples/drawn-3d.png', alt: 'Drawn slides look: glossy 3D cards showing coverage, monthly premium and age' },
 ]
 
-const SHARE_FEATURES = [
-  { t: 'The video', d: 'Plays in any browser, on any phone or laptop. No app and no login for your client.' },
+const CLOSE_POINTS = [
+  { t: 'Plays anywhere', d: 'Any browser, any phone or laptop. No app and no login for your client.' },
   { t: 'A booking button', d: 'Add your Calendly, Cal.com or Google Calendar link and they get a big “Book a call” button.' },
-  { t: 'Quotes & payments', d: 'Attach a line-item quote and your own payment link. They see the total and a Pay button.' },
-  { t: 'Know when they watch', d: 'Get an alert when your video is opened, and follow up while it’s fresh.' },
-]
-
-const COMPARE = [
-  { need: 'Starts from your document', a: 'No — you present it', b: 'Needs a script', us: 'Yes' },
-  { need: 'You don’t have to be on camera', a: 'You are', b: 'An avatar is', us: 'Narrated slides' },
-  { need: 'Knows your industry’s wording', a: 'Only what you say', b: 'Generic', us: `Yes, ${INDUSTRY_COUNT} industries` },
-  { need: 'Booking and payment beside it', a: 'Not built in', b: 'Not built in', us: 'Yes' },
-  { need: 'Slides and a PDF from the same work', a: 'Not built in', b: 'Not built in', us: 'Yes' },
+  { t: 'Quotes and payments', d: 'Attach a line-item quote and your own payment link. They see the total and a Pay button.' },
+  { t: 'Know when they watch', d: 'An alert the moment they open it, and how far they got. Follow up while it’s fresh.' },
 ]
 
 const FAQ = [
   { q: 'Do I need to record anything?', a: 'No. A natural AI voice narrates the video. You never have to be on camera.' },
-  { q: 'Will it get my numbers right?', a: 'It uses the figures in your document as written, and you can read the script and change it before anything is made.' },
-  { q: 'Can I put my own branding on it?', a: 'Yes — your real logo (never an AI-drawn one), your colors, and your client’s name on the cover.' },
+  { q: 'Will it get my numbers right?', a: 'It uses the figures in your document as written, and you read the script and change it before anything is made.' },
+  { q: 'Can I put my own branding on it?', a: 'Yes. Your real logo, your colours, and your client’s name on the cover.' },
   { q: 'What does my client need?', a: 'Just the link. It plays in any browser, on any phone.' },
+]
+
+// Section links: ids kept from the old page (#how, #share, #industries,
+// #pricing) so links already shared or bookmarked still land.
+export const HOME_NAV = [
+  { href: '#how', label: 'How it works' },
+  { href: '#share', label: 'The client page' },
+  { href: '#industries', label: 'Industries' },
+  { href: '#pricing', label: 'Pricing' },
+] as const
+
+const FOOTER_INDUSTRIES = [
+  { href: '/for/insurance', label: 'Insurance' },
+  { href: '/for/financial-services', label: 'Financial services' },
+  { href: '/for/real-estate', label: 'Real estate' },
+  { href: '/for/mortgage', label: 'Mortgage' },
+  { href: '/for/healthcare', label: 'Healthcare' },
+  { href: '/for/legal', label: 'Legal' },
+  { href: '/for/consulting', label: 'Consulting' },
+  { href: '/for/education', label: 'Education' },
 ]
 
 function jsonLd() {
@@ -143,263 +135,278 @@ function jsonLd() {
   ]
 }
 
-function Serif({ children }: { children: React.ReactNode }) {
-  return <em className="mk-serif">{children}</em>
+function Mark() {
+  return (
+    <span className="hp-mark" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M8 5v14l11-7z" /></svg>
+    </span>
+  )
 }
 
 export default function Docs2VideoHome() {
   const tiers = pricingCards()
-  const heritage = PRES_LOOKS[0]
 
   return (
-    <div className="mk">
+    <div className={`hp ${sans.variable} ${mono.variable}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd()) }} />
-      <a href="#main" className="mk-skip">Skip to content</a>
-      <SiteHeader />
+      <a href="#main" className="hp-skip">Skip to content</a>
+
+      {/* ───── Header ───── */}
+      <header className="hp-header">
+        <div className="hp-header-in">
+          <Link href="/" className="hp-brand" aria-label="Docs2Video home">
+            <Mark />
+            <span>Docs2Video</span>
+          </Link>
+          <nav className="hp-nav" aria-label="Main">
+            {HOME_NAV.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}
+          </nav>
+          <Link href="/login" className="hp-login">Log in</Link>
+          <Link href="/signup" className="hp-btn hp-btn-ink hp-btn-sm">Start free</Link>
+          <HomeMenu links={HOME_NAV.map((l) => ({ href: l.href, label: l.label }))} />
+        </div>
+      </header>
 
       <main id="main">
-        {/* ───── Hero: long document in, short video out ───── */}
-        <section className="mk-hero" aria-labelledby="mk-hero-title">
-          <div className="mk-chip">Proposals &middot; policies &middot; reports &middot; plans</div>
-          <h1 id="mk-hero-title" className="mk-h1">Long document in. <Serif>Short video out.</Serif></h1>
-          <p className="mk-lede">The thing your client should read, turned into the thing they will actually watch — narrated, branded, and sent on a page where they can book a call and say yes.</p>
-          <div className="mk-cta-row">
-            <Link href="/signup" className="mk-btn mk-btn-navy mk-btn-lg">Start free — about {FREE_PLAN.approxStandardVideos} videos on us</Link>
-            <a href="#share" className="mk-btn mk-btn-ghost mk-btn-lg">See the share page</a>
-          </div>
-          <div className="mk-small">PDF &middot; Word &middot; PowerPoint &middot; a website &middot; or just the topic</div>
+        {/* ───── Hero ───── */}
+        <section className="hp-hero" aria-labelledby="hp-hero-title">
+          <div className="hp-hero-in">
+            <div className="hp-hero-copy">
+              <span className="hp-tag">Proposals · policies · reports · plans</span>
+              <h1 id="hp-hero-title" className="hp-h1"><span className="hp-line">Long document in.</span> <span className="hp-line hp-blue">Short video out.</span></h1>
+              <p className="hp-lede">The thing your client should read, turned into the thing they will actually watch. Narrated, branded, and sent on a page where they can book a call and say yes.</p>
+              <div className="hp-cta-row">
+                <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Start free · {FREE_PLAN.approxStandardVideos} videos on us</Link>
+                <a href="#share" className="hp-btn hp-btn-line hp-btn-lg"><span aria-hidden="true">▶</span> See what your client gets</a>
+              </div>
+              <p className="hp-note">No card needed for the free preview · PDF, Word, PowerPoint, a website, or just the topic</p>
+            </div>
 
-          <div className="mk-hero-visual">
-            <div className="mk-doc" aria-hidden="true">
-              <div className="mk-doc-name">Your-document.pdf</div>
-              <div className="mk-doc-page">page 1 of 38</div>
-              <span style={{ width: '92%' }} /><span style={{ width: '86%' }} /><span style={{ width: '95%' }} /><span style={{ width: '70%' }} />
-              <div className="mk-doc-boxes"><i /><i /><i /></div>
-              <span style={{ width: '88%' }} /><span style={{ width: '93%' }} /><span style={{ width: '60%' }} />
+            <div className="hp-hero-art">
+              <div className="hp-cover">
+                <Image
+                  src="/style-samples/kit-animated-slides-cover.png"
+                  alt="A finished video cover: Your Family’s Protection Plan, prepared for the Rivera family, with the agent’s photo"
+                  width={960} height={540} priority
+                  sizes="(max-width: 1000px) calc(100vw - 58px), 556px"
+                />
+                <div className="hp-cover-meta">
+                  <span className="hp-avatar" aria-hidden="true">JA</span>
+                  <div className="hp-cover-text"><b>Your Family’s Protection Plan</b><span>From a 38-page illustration · 3 minutes</span></div>
+                  <span className="hp-watched">Watched 92%</span>
+                </div>
+              </div>
+              <div className="hp-alert" aria-label="Example alert">
+                <span className="hp-dot" aria-hidden="true" />
+                <span><b>The Riveras opened your video.</b> Good time to call.</span>
+              </div>
             </div>
-            <div className="mk-hero-arrow" aria-hidden="true">
-              <svg width="64" height="24" viewBox="0 0 64 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h58M50 3l10 9-10 9" /></svg>
-              <span>Docs2Video</span>
-            </div>
-            <figure className="mk-frame">
-              <Image
-                src="/style-samples/cinematic-data.png"
-                alt="A frame from a sample explainer video: a narrated slide listing a policy's key numbers"
-                width={1920} height={1080} preload sizes="(max-width: 768px) 100vw, 640px"
-              />
-              <div className="mk-frame-bar" aria-hidden="true"><div style={{ width: '45%' }} /></div>
-            </figure>
           </div>
         </section>
 
-        {/* ───── One document in, three ways out ───── */}
-        <section className="mk-wrap" aria-labelledby="mk-outputs-title">
-          <div className="mk-outputs">
-            <div className="mk-outputs-head">
-              <div className="mk-eyebrow">One document in</div>
-              <h2 id="mk-outputs-title" className="mk-h3big">Three ways <Serif>out</Serif></h2>
-            </div>
-            <div className="mk-output">
-              <Image src="/style-samples/aurora-data.png" alt="A frame from a narrated video in the Aurora look" width={1920} height={1080} sizes="(max-width: 768px) 100vw, 300px" />
-              <h3>A narrated video</h3>
-              <p>A natural voice walks your client through it — branded, with your logo, a few minutes long.</p>
-            </div>
-            <div className="mk-output">
-              <div className="mk-output-pic mk-clickthrough">
-                <Image src="/style-samples/explainer-data.png" alt="A slide from an interactive presentation" width={1920} height={1080} sizes="(max-width: 768px) 100vw, 300px" />
-                <span className="mk-clickthrough-nav" aria-hidden="true"><b>&lsaquo;</b> 3 / 9 <b>&rsaquo;</b></span>
-              </div>
-              <h3>An interactive presentation</h3>
-              <p>They click through at their own pace, with narration.</p>
-            </div>
-            <div className="mk-output">
-              <div
-                className="mk-output-pic mk-deck"
-                role="img"
-                aria-label={`A presentation slide in the ${heritage.name} color set`}
-                style={{ '--d-bg': heritage.swatch[0], '--d-ink': heritage.swatch[1], '--d-acc': heritage.swatch[2] } as React.CSSProperties}
-              >
-                <span className="mk-deck-eyebrow">Summary</span>
-                <span className="mk-deck-title">What this plan does for you</span>
-                <span className="mk-deck-rule" />
-                <span className="mk-deck-cols"><i /><i /><i /></span>
-              </div>
-              <h3>Its slides, for the meeting</h3>
-              <p>Download a presentation&rsquo;s slides as a PDF or PowerPoint to take into the room.</p>
-            </div>
+        {/* ───── Made for ───── */}
+        <section className="hp-madefor" aria-label="Made for">
+          <div className="hp-madefor-in">
+            <b>Made for</b>
+            {MADE_FOR.map((m) => <span key={m}>{m}</span>)}
+            {MORE_INDUSTRIES > 0 && <span>+ {MORE_INDUSTRIES} more industries</span>}
           </div>
         </section>
 
         {/* ───── How it works ───── */}
-        <section id="how" className="mk-section mk-wrap" aria-labelledby="mk-how-title">
-          <div className="mk-center-head">
-            <h2 id="mk-how-title" className="mk-h2">Upload. Pick a style. <Serif>Send.</Serif></h2>
-            <p className="mk-sub">No design skills, no recording, no editing timeline.</p>
-          </div>
-          <ol className="mk-steps">
-            {STEPS.map((s) => (
-              <li key={s.n} className="mk-card mk-step">
-                <span className="mk-step-n" aria-hidden="true">{s.n}</span>
-                <h3>{s.t}</h3>
-                <p>{s.d}</p>
-              </li>
-            ))}
+        <section id="how" className="hp-sec hp-wrap" aria-labelledby="hp-how-title">
+          <h2 id="hp-how-title" className="hp-h2">Upload. Pick a look. Send.</h2>
+          <p className="hp-sub">No design skills, no recording, no editing timeline.</p>
+          <ol className="hp-steps">
+            <li className="hp-step">
+              <div className="hp-mini hp-mini-drop" aria-hidden="true"><b>illustration.pdf</b> · 38 pages</div>
+              <span className="hp-num" aria-hidden="true">01</span>
+              <h3>Drop in the document</h3>
+              <p>A PDF, Word file, PowerPoint or website, or describe the topic. It reads the whole thing and finds the points that matter.</p>
+            </li>
+            <li className="hp-step">
+              <div className="hp-mini hp-mini-story" aria-hidden="true"><b>Your family keeps its home if the worst happens.</b><span>6 scenes · about 3 minutes</span></div>
+              <span className="hp-num" aria-hidden="true">02</span>
+              <h3>Check the story, pick a look</h3>
+              <p>Read it like a script and change anything in plain words. Choose a look and a narrator. Your logo and your client’s name go on the cover.</p>
+            </li>
+            <li className="hp-step">
+              <div className="hp-mini hp-mini-send" aria-hidden="true"><span>docs2video.com/watch/rivera</span><b>Send</b></div>
+              <span className="hp-num" aria-hidden="true">03</span>
+              <h3>Send it and follow up</h3>
+              <p>Share one link by email or text. Hear when they open it, and let them book a call or pay your quote from the same page.</p>
+            </li>
           </ol>
         </section>
 
-        {/* ───── Industries (interactive) ───── */}
-        <section id="industries" className="mk-section mk-wrap" aria-labelledby="mk-ind-title">
-          <div className="mk-left-head">
-            <div className="mk-eyebrow">It knows your field</div>
-            <h2 id="mk-ind-title" className="mk-h2">Speaks your industry. <Serif>Minds your compliance.</Serif></h2>
+        {/* ───── Two ways to share ───── */}
+        <section className="hp-sec-s hp-wrap" aria-labelledby="hp-two-title">
+          <h2 id="hp-two-title" className="hp-h2 hp-mb">One document. Two ways to share it.</h2>
+          <div className="hp-two">
+            <div className="hp-two-item">
+              <Image src="/style-samples/kit-animated-slides-data.png" alt="A video scene showing $500,000 paid to your family" width={960} height={540} sizes="(max-width: 940px) calc(100vw - 48px), 566px" />
+              <h3>A narrated video</h3>
+              <p>A natural voice walks your client through it. Branded with your real logo, a few minutes long.</p>
+            </div>
+            <div className="hp-two-item">
+              <Image src="/style-samples/kit-editorial-cover.png" alt="An interactive presentation cover in a calm editorial style" width={960} height={540} sizes="(max-width: 940px) calc(100vw - 48px), 566px" className="hp-bordered" />
+              <h3>An interactive presentation</h3>
+              <p>They click through at their own pace, with narration. Its slides download as a PDF or PowerPoint for the meeting.</p>
+            </div>
           </div>
-          <IndustrySwitcher items={industryCards()} more={moreIndustries()} />
         </section>
 
-        {/* ───── The share page ───── */}
-        <section id="share" className="mk-wrap mk-section-tight" aria-labelledby="mk-share-title">
-          <div className="mk-share">
-            <div className="mk-share-head">
-              <h2 id="mk-share-title" className="mk-h2 mk-on-navy">Not just a video. <Serif>A page that closes.</Serif></h2>
-              <Link href="/signup" className="mk-btn mk-btn-mint">Make your first one free</Link>
-            </div>
-            <div className="mk-share-grid">
-              <div className="mk-share-mock-wrap">
-                <div className="mk-browser" role="img" aria-label="Example client share page: a personal greeting, the video, and buttons to book a call, review a quote and download the original document">
-                  <div className="mk-browser-bar" aria-hidden="true">
-                    <i /><i /><i />
-                    <span>docs2video.com/watch/&hellip;</span>
-                  </div>
-                  <div className="mk-browser-body" aria-hidden="true">
-                    <div className="mk-sp-from">
-                      <span className="mk-avatar">JH</span>
-                      <div>
-                        <div className="mk-sp-title">Prepared for the Chen family</div>
-                        <div className="mk-sp-meta">From Jordan Hayes &middot; your coverage, explained in 3 minutes</div>
-                      </div>
-                    </div>
-                    <div className="mk-sp-video">
-                      <Image src="/style-samples/editorial-cover.png" alt="" width={1920} height={1080} sizes="(max-width: 768px) 90vw, 600px" />
-                      <span className="mk-play"><svg width="22" height="22" viewBox="0 0 24 24" fill="var(--ink)"><path d="M7 5l12 7-12 7z" /></svg></span>
-                      <span className="mk-frame-bar"><span style={{ width: '38%' }} /></span>
-                    </div>
-                    <div className="mk-sp-actions">
-                      <div><b>Book a call</b><span>Your booking link</span></div>
-                      <div><b>Review the quote</b><span>Total and a Pay button</span></div>
-                      <div><b>Your document</b><span>The original, to keep</span></div>
-                    </div>
-                  </div>
+        {/* ───── The client page ───── */}
+        <section id="share" className="hp-band-wrap" aria-labelledby="hp-share-title">
+          <div className="hp-band">
+            <div className="hp-page" role="img" aria-label="Example client page: a personal greeting, the video, and buttons to book a call, review a quote and get the original document">
+              <div className="hp-page-bar" aria-hidden="true">docs2video.com/watch/chen</div>
+              <div className="hp-page-body" aria-hidden="true">
+                <div className="hp-page-from">
+                  <span className="hp-avatar">JA</span>
+                  <div><b>Prepared for the Chen family</b><span>From Jordan Avery · your coverage in 3 minutes</span></div>
                 </div>
-                <div className="mk-toast" aria-hidden="true">
-                  <span className="mk-dot" />
-                  <div><b>The Chens opened your video</b><span>You get an alert the moment they do</span></div>
+                <Image src="/style-samples/kit-animated-slides-cover.png" alt="" width={960} height={540} sizes="(max-width: 940px) calc(100vw - 120px), 520px" />
+                <div className="hp-page-actions">
+                  <span className="hp-pa-main">Book a call</span>
+                  <span>Review the quote</span>
+                  <span>Your document</span>
                 </div>
               </div>
-              <ul className="mk-share-features">
-                {SHARE_FEATURES.map((f) => (
-                  <li key={f.t}>
-                    <h3>{f.t}</h3>
-                    <p>{f.d}</p>
-                  </li>
+            </div>
+            <div className="hp-band-copy">
+              <h2 id="hp-share-title" className="hp-h2 hp-on-dark">Not just a video.<br /><span className="hp-soft-blue">A page that closes.</span></h2>
+              <ul className="hp-points">
+                {CLOSE_POINTS.map((p) => (
+                  <li key={p.t}><b>{p.t}</b><p>{p.d}</p></li>
                 ))}
               </ul>
+              <Link href="/signup" className="hp-btn hp-btn-white">Make your first one free</Link>
             </div>
           </div>
         </section>
 
-        {/* ───── Styles ───── */}
-        <section id="styles" className="mk-section mk-wrap" aria-labelledby="mk-styles-title">
-          <div className="mk-split-head">
-            <h2 id="mk-styles-title" className="mk-h2">Pick a style. <Serif>Or match your brand.</Serif></h2>
-            <p className="mk-small">{VIDEO_LOOKS.length} video looks and {PRES_LOOKS.length} presentation color sets. Your real logo, never an AI-drawn one.</p>
+        {/* ───── Looks ───── */}
+        <section id="looks" className="hp-sec hp-wrap" aria-labelledby="hp-looks-title">
+          <div className="hp-split">
+            <h2 id="hp-looks-title" className="hp-h2">Pick a look. Or make your own.</h2>
+            <p>Start from your brand, a picture you like, or a ready style. Your real logo, never an AI-drawn one.</p>
           </div>
-          <ul className="mk-gallery">
-            {GALLERY.map((g) => (
-              <li key={`${g.look}-${g.kind}`}>
-                <Image
-                  src={`/style-samples/${g.look}-${g.kind}.png`}
-                  alt={`${lookName(g.look)} look, ${g.kind === 'data' ? 'a numbers' : `a ${g.kind}`} slide`}
-                  width={1920} height={1080}
-                  sizes="(max-width: 600px) 50vw, (max-width: 1024px) 33vw, 300px"
-                />
-                <span>{lookName(g.look)}</span>
+          <ul className="hp-looks">
+            {LOOKS.map((l) => (
+              <li key={l.name}>
+                <figure>
+                  <Image src={l.src} alt={l.alt} width={960} height={540} sizes="(max-width: 600px) calc(100vw - 48px), (max-width: 1140px) 45vw, 277px" className={l.name === 'Editorial' ? 'hp-bordered' : undefined} />
+                  <figcaption>{l.name}</figcaption>
+                </figure>
               </li>
             ))}
           </ul>
         </section>
 
-        {/* ───── Pricing ───── */}
-        <section id="pricing" className="mk-section mk-wrap" aria-labelledby="mk-pricing-title">
-          <div className="mk-center-head">
-            <h2 id="mk-pricing-title" className="mk-h2">Start free. <Serif>Grow when it works.</Serif></h2>
-            <p className="mk-sub">Every plan runs on credits — a standard video uses about {CREDIT_COSTS.video.toLocaleString('en-US')}. {TOP_UP_LINE}. Cancel anytime.</p>
+        {/* ───── Industries / compliance ───── */}
+        <section id="industries" className="hp-sec hp-wrap" aria-labelledby="hp-ind-title">
+          <div className="hp-ind">
+            <div className="hp-ind-copy">
+              <h2 id="hp-ind-title" className="hp-h2 hp-h2-sm">Speaks your industry.<br />Minds your compliance.</h2>
+              <p>It uses your field’s words, adds the right fine print, and ends with a clear next step. It never names a carrier or product it shouldn’t.</p>
+              <div className="hp-chips">
+                {INDUSTRY_CHIPS.map((c, i) => (
+                  <Link key={c.href} href={c.href} className={i === 0 ? 'hp-chip hp-chip-on' : 'hp-chip'}>{c.label}</Link>
+                ))}
+              </div>
+              <Link href="/for/insurance" className="hp-textlink">More for insurance →</Link>
+            </div>
+            <div className="hp-ind-card">
+              <div><span className="hp-label">Knows the language</span><p>{INSURANCE_TERMS}</p></div>
+              {INSURANCE.disclaimerText && (
+                <div><span className="hp-label">Adds the fine print</span><p className="hp-fine">{INSURANCE.disclaimerText}</p></div>
+              )}
+              <div><span className="hp-label">Ends with a clear ask</span><p className="hp-ask">“{INSURANCE.ctaText}”</p></div>
+            </div>
           </div>
-          <div className="mk-tiers">
+        </section>
+
+        {/* ───── Pricing ───── */}
+        <section id="pricing" className="hp-sec hp-wrap" aria-labelledby="hp-pricing-title">
+          <h2 id="hp-pricing-title" className="hp-h2">Start free. Grow when it works.</h2>
+          <p className="hp-sub">{TOP_UP_LINE ? `${TOP_UP_LINE}. ` : ''}Cancel any time.</p>
+          <div className="hp-tiers">
             {tiers.map((t) => (
-              <div key={t.key} className={`mk-card mk-tier${t.popular ? ' mk-tier-pop' : ''}`}>
-                {t.popular && <span className="mk-tier-badge">Recommended</span>}
-                <h3>{t.name}</h3>
-                <div className="mk-tier-price"><span>{t.price}</span>{t.per && <small>{t.per}</small>}</div>
-                <div className="mk-tier-videos">{t.videos}</div>
-                <div className="mk-tier-credits">{t.credits}</div>
-                <Link href="/signup" className={`mk-btn ${t.popular ? 'mk-btn-navy' : 'mk-btn-soft'}`}>{t.cta}</Link>
+              <div key={t.key} className={`hp-tier${t.popular ? ' hp-tier-pop' : ''}`}>
+                {t.popular && <span className="hp-tier-badge">Recommended</span>}
+                <b>{t.name}</b>
+                <span className="hp-price">{t.price}{t.per && <small>{t.per}</small>}</span>
+                <span className="hp-tier-videos">{t.videos}</span>
+                <Link href="/signup" className={`hp-btn ${t.popular ? 'hp-btn-blue' : 'hp-btn-line'}`}>{t.cta}</Link>
               </div>
             ))}
           </div>
-          <p className="mk-center mk-small"><Link href="/pricing" className="mk-textlink">Compare every plan in detail &rarr;</Link></p>
+          <p className="hp-more"><Link href="/pricing" className="hp-textlink">Compare every plan in detail →</Link></p>
         </section>
 
-        {/* ───── Compare ───── */}
-        <section id="compare" className="mk-section mk-wrap" aria-labelledby="mk-compare-title">
-          <h2 id="mk-compare-title" className="mk-h2 mk-center">Docs2Video vs. <Serif>the usual way</Serif></h2>
-          <div className="mk-table-wrap">
-            <table className="mk-table">
-              <thead>
-                <tr>
-                  <td />
-                  <th scope="col">Record it yourself<small>screen and webcam tools</small></th>
-                  <th scope="col">AI avatar video<small>script to presenter</small></th>
-                  <th scope="col" className="mk-us">Docs2Video</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARE.map((r) => (
-                  <tr key={r.need}>
-                    <th scope="row">{r.need}</th>
-                    <td data-label="Record it yourself">{r.a}</td>
-                    <td data-label="AI avatar video">{r.b}</td>
-                    <td data-label="Docs2Video" className="mk-us">{r.us}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* ───── Questions ───── */}
+        <section id="faq" className="hp-sec hp-wrap hp-faq" aria-labelledby="hp-faq-title">
+          <h2 id="hp-faq-title" className="hp-h2">Questions</h2>
+          <div className="hp-faq-list">
+            {FAQ.map((f) => (
+              <div key={f.q} className="hp-faq-item">
+                <h3>{f.q}</h3>
+                <p>{f.a}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* ───── FAQ ───── */}
-        <section id="faq" className="mk-section mk-faq" aria-labelledby="mk-faq-title">
-          <h2 id="mk-faq-title" className="mk-h2 mk-center">Questions</h2>
-          {FAQ.map((f) => (
-            <div key={f.q} className="mk-card mk-faq-item">
-              <h3>{f.q}</h3>
-              <p>{f.a}</p>
-            </div>
-          ))}
-        </section>
-
         {/* ───── Final CTA ───── */}
-        <section className="mk-wrap" aria-labelledby="mk-final-title">
-          <div className="mk-final">
+        <section className="hp-final-wrap" aria-labelledby="hp-final-title">
+          <div className="hp-final">
             <div>
-              <h2 id="mk-final-title" className="mk-h2">Send something they’ll <Serif>actually watch.</Serif></h2>
-              <p>{FREE_PLAN.monthlyCredits.toLocaleString('en-US')} free credits — about {FREE_PLAN.approxStandardVideos} videos — on us.</p>
+              <h2 id="hp-final-title" className="hp-h2 hp-on-dark">Send something they’ll actually watch.</h2>
+              <p>{FREE_PLAN.monthlyCredits.toLocaleString('en-US')} free credits, about {FREE_PLAN.approxStandardVideos} videos, on us.</p>
             </div>
-            <Link href="/signup" className="mk-btn mk-btn-navy mk-btn-lg">Start free</Link>
+            <Link href="/signup" className="hp-btn hp-btn-white hp-btn-lg">Start free</Link>
           </div>
         </section>
       </main>
 
-      <SiteFooter />
+      {/* ───── Footer ───── */}
+      <footer className="hp-footer">
+        <div className="hp-footer-in">
+          <div className="hp-footer-brand">
+            <Link href="/" className="hp-brand" aria-label="Docs2Video home"><Mark /><span>Docs2Video</span></Link>
+            <p>Turn the document your client should read into a short video they will watch.</p>
+            <a href="mailto:support@docs2video.com">support@docs2video.com</a>
+          </div>
+          <div className="hp-footer-col">
+            <h2>Product</h2>
+            <ul>
+              <li><a href="#how">How it works</a></li>
+              <li><a href="#share">The client page</a></li>
+              <li><Link href="/pricing">Pricing</Link></li>
+              <li><Link href="/signup">Start free</Link></li>
+              <li><Link href="/login">Log in</Link></li>
+            </ul>
+          </div>
+          <div className="hp-footer-col">
+            <h2>Industries</h2>
+            <ul>
+              {FOOTER_INDUSTRIES.map((l) => <li key={l.href}><Link href={l.href}>{l.label}</Link></li>)}
+            </ul>
+          </div>
+          <div className="hp-footer-col">
+            <h2>Company</h2>
+            <ul>
+              <li><Link href="/blog">Blog</Link></li>
+              <li><Link href="/contact">Contact</Link></li>
+              <li><Link href="/terms">Terms</Link></li>
+              <li><Link href="/privacy">Privacy</Link></li>
+              <li><Link href="/cookies">Cookies</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="hp-footer-bottom">© {new Date().getFullYear()} Docs2Video. All rights reserved.</div>
+      </footer>
     </div>
   )
 }
