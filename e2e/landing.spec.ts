@@ -23,7 +23,7 @@ test.describe('Marketing home page', () => {
     await page.goto('/')
     const h1 = page.locator('h1')
     await expect(h1).toHaveCount(1)
-    await expect(h1).toContainText('Long document in')
+    await expect(h1).toContainText('Illustration in')
     await expect(h1).toContainText('Short video out')
     await expect(page.locator('.hp-hero a[href="/signup"]')).toBeVisible()
     await expect(page.locator('.hp-hero a[href="#share"]')).toBeVisible()

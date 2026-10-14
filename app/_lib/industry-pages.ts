@@ -37,13 +37,13 @@ export interface IndustryPageCopy {
 export const INDUSTRY_PAGES: Record<string, IndustryPageCopy> = {
   insurance: {
     slug: 'insurance',
-    name: 'Insurance',
-    audience: 'insurance professionals',
+    name: 'Life Insurance & Annuities',
+    audience: 'life insurance and annuity agents',
     industryId: 'insurance',
-    metaTitle: 'Docs2Video for Insurance | Policy Illustrations, Explained on Video',
-    metaDescription: 'Insurance agents: turn long policy illustrations into short, branded, narrated videos your clients can watch on any phone — sent on a page where they can book a call.',
-    heroTitle: ['Insurance agents: send the illustration as a video ', 'they will watch'],
-    heroSub: 'Docs2Video turns a dense policy illustration into a short, branded, narrated video — easy to watch, and easy to share with a spouse before a decision.',
+    metaTitle: 'Docs2Video for Life & Annuity Agents | Illustrations Explained on Video',
+    metaDescription: 'Life insurance and annuity agents: turn long illustrations and annuity contracts into short, branded, narrated videos your clients can watch on any phone — sent on a page where they can book a call.',
+    heroTitle: ['Life and annuity agents: send the illustration as a video ', 'they will watch'],
+    heroSub: 'Docs2Video turns a dense life illustration or annuity contract into a short, branded, narrated video — easy to watch, and easy to share with a spouse before a decision.',
     doc: 'policy illustration',
     reader: 'client',
     problems: [

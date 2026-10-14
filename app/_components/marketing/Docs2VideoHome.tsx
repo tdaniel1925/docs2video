@@ -29,11 +29,15 @@ const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '700'], variab
 
 // ── Industries ──────────────────────────────────────────────────────────────
 const ALL_INDUSTRIES = (Object.keys(INDUSTRIES) as IndustryId[]).filter((id) => id !== 'general')
-const MADE_FOR = ['Insurance', 'Financial advice', 'Mortgage', 'Real estate', 'Healthcare', 'Legal']
-const MORE_INDUSTRIES = Math.max(0, ALL_INDUSTRIES.length - MADE_FOR.length)
+// Aimed at life insurance and annuity agents (2026-10-14), open to anyone.
+// "Built for" names their documents; "Also works for" shows other fields the
+// product has its own wording for. +N counts the rest of INDUSTRIES.
+const BUILT_FOR = ['Life insurance', 'Annuities', 'Policy reviews']
+const ALSO_FOR = ['Financial advice', 'Mortgage', 'Real estate', 'Legal']
+const MORE_INDUSTRIES = Math.max(0, ALL_INDUSTRIES.length - 1 - ALSO_FOR.length)
 
 const INDUSTRY_CHIPS = [
-  { label: 'Insurance', href: '/for/insurance' },
+  { label: 'Life & annuities', href: '/for/insurance' },
   { label: 'Financial', href: '/for/financial-services' },
   { label: 'Mortgage', href: '/for/mortgage' },
   { label: 'Real estate', href: '/for/real-estate' },
@@ -42,7 +46,7 @@ const INDUSTRY_CHIPS = [
 
 const INSURANCE = INDUSTRIES.insurance
 const INSURANCE_TERMS = INSURANCE.terminology.use
-  .filter((t) => ['policyholder', 'coverage', 'cash value growth', 'guaranteed values', 'illustrated values'].includes(t))
+  .filter((t) => ['policyholder', 'death benefit', 'cash value growth', 'guaranteed values', 'illustrated values'].includes(t))
   .join(' · ')
 
 // ── Pricing (from pricing.ts) ───────────────────────────────────────────────
@@ -83,6 +87,8 @@ const CLOSE_POINTS = [
 ]
 
 const FAQ = [
+  { q: 'Is it only for insurance agents?', a: 'No. It’s built with life insurance and annuity agents in mind, but anyone with a document to explain can use it: advisors, lenders, real estate agents, lawyers, coaches and more. It adjusts its words for your field.' },
+  { q: 'Does it work with annuity contracts?', a: 'Yes. It recognises annuity contracts as well as life illustrations, and explains values, surrender charges and payout options in plain words.' },
   { q: 'Do I need to record anything?', a: 'No. A natural AI voice narrates the video. You never have to be on camera.' },
   { q: 'Will it get my numbers right?', a: 'It uses the figures in your document as written, and you read the script and change it before anything is made.' },
   { q: 'Can I put my own branding on it?', a: 'Yes. Your real logo, your colours, and your client’s name on the cover.' },
@@ -94,12 +100,12 @@ const FAQ = [
 export const HOME_NAV = [
   { href: '#how', label: 'How it works' },
   { href: '#share', label: 'The client page' },
-  { href: '#industries', label: 'Industries' },
+  { href: '#industries', label: 'Who it’s for' },
   { href: '#pricing', label: 'Pricing' },
 ] as const
 
 const FOOTER_INDUSTRIES = [
-  { href: '/for/insurance', label: 'Insurance' },
+  { href: '/for/insurance', label: 'Life & annuities' },
   { href: '/for/financial-services', label: 'Financial services' },
   { href: '/for/real-estate', label: 'Real estate' },
   { href: '/for/mortgage', label: 'Mortgage' },
@@ -124,7 +130,7 @@ function jsonLd() {
       url: 'https://docs2video.com',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
-      description: 'Turn a long document into a short narrated video, sent on a branded page where your client can book a call and pay.',
+      description: 'Built for life insurance and annuity agents, open to anyone: turn an illustration, annuity contract or any long document into a short narrated video, sent on a branded page where your client can book a call and pay.',
       offers,
     },
     {
@@ -172,14 +178,15 @@ export default function Docs2VideoHome() {
         <section className="hp-hero" aria-labelledby="hp-hero-title">
           <div className="hp-hero-in">
             <div className="hp-hero-copy">
-              <span className="hp-tag">Proposals · policies · reports · plans</span>
-              <h1 id="hp-hero-title" className="hp-h1"><span className="hp-line">Long document in.</span> <span className="hp-line hp-blue">Short video out.</span></h1>
-              <p className="hp-lede">The thing your client should read, turned into the thing they will actually watch. Narrated, branded, and sent on a page where they can book a call and say yes.</p>
+              <span className="hp-tag">Built for life insurance &amp; annuity agents</span>
+              <h1 id="hp-hero-title" className="hp-h1"><span className="hp-line">Illustration in.</span> <span className="hp-line hp-blue">Short video out.</span></h1>
+              <p className="hp-lede">Life illustrations, annuity contracts and policy reviews, turned into a short video your client will actually watch. Narrated, branded, careful with compliance, and sent on a page where they can book a call and say yes.</p>
               <div className="hp-cta-row">
                 <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Start free · {FREE_PLAN.approxStandardVideos} videos on us</Link>
                 <a href="#share" className="hp-btn hp-btn-line hp-btn-lg"><span aria-hidden="true">▶</span> See what your client gets</a>
               </div>
               <p className="hp-note">No card needed for the free preview · PDF, Word, PowerPoint, a website, or just the topic</p>
+              <p className="hp-note hp-anyone"><b>Not an agent?</b> Anyone can use it. It works with any document, in any field.</p>
             </div>
 
             <div className="hp-hero-art">
@@ -205,11 +212,13 @@ export default function Docs2VideoHome() {
         </section>
 
         {/* ───── Made for ───── */}
-        <section className="hp-madefor" aria-label="Made for">
+        <section className="hp-madefor" aria-label="Who it’s for">
           <div className="hp-madefor-in">
-            <b>Made for</b>
-            {MADE_FOR.map((m) => <span key={m}>{m}</span>)}
-            {MORE_INDUSTRIES > 0 && <span>+ {MORE_INDUSTRIES} more industries</span>}
+            <b>Built for</b>
+            {BUILT_FOR.map((m) => <span key={m}>{m}</span>)}
+            <b className="hp-madefor-also">Also works for</b>
+            {ALSO_FOR.map((m) => <span key={m}>{m}</span>)}
+            {MORE_INDUSTRIES > 0 && <span>+ {MORE_INDUSTRIES} more</span>}
           </div>
         </section>
 
@@ -222,7 +231,7 @@ export default function Docs2VideoHome() {
               <div className="hp-mini hp-mini-drop" aria-hidden="true"><b>illustration.pdf</b> · 38 pages</div>
               <span className="hp-num" aria-hidden="true">01</span>
               <h3>Drop in the document</h3>
-              <p>A PDF, Word file, PowerPoint or website, or describe the topic. It reads the whole thing and finds the points that matter.</p>
+              <p>A life illustration, annuity contract or policy review. Or any PDF, Word file, PowerPoint or website, or just describe the topic. It reads the whole thing and finds the points that matter.</p>
             </li>
             <li className="hp-step">
               <div className="hp-mini hp-mini-story" aria-hidden="true"><b>Your family keeps its home if the worst happens.</b><span>6 scenes · about 3 minutes</span></div>
@@ -308,14 +317,15 @@ export default function Docs2VideoHome() {
         <section id="industries" className="hp-sec hp-wrap" aria-labelledby="hp-ind-title">
           <div className="hp-ind">
             <div className="hp-ind-copy">
-              <h2 id="hp-ind-title" className="hp-h2 hp-h2-sm">Speaks your industry.<br />Minds your compliance.</h2>
-              <p>It uses your field’s words, adds the right fine print, and ends with a clear next step. It never names a carrier or product it shouldn’t.</p>
+              <h2 id="hp-ind-title" className="hp-h2 hp-h2-sm">Speaks life and annuities.<br />Minds your compliance.</h2>
+              <p>Made around the documents life and annuity agents send every week. It explains guaranteed and illustrated values in plain words, adds the fine print, never names a carrier or product, and ends with a clear next step.</p>
+              <p><b>Not in insurance?</b> Anyone can use it. It switches to your field’s words:</p>
               <div className="hp-chips">
                 {INDUSTRY_CHIPS.map((c, i) => (
                   <Link key={c.href} href={c.href} className={i === 0 ? 'hp-chip hp-chip-on' : 'hp-chip'}>{c.label}</Link>
                 ))}
               </div>
-              <Link href="/for/insurance" className="hp-textlink">More for insurance →</Link>
+              <Link href="/for/insurance" className="hp-textlink">More for life &amp; annuity agents →</Link>
             </div>
             <div className="hp-ind-card">
               <div><span className="hp-label">Knows the language</span><p>{INSURANCE_TERMS}</p></div>
@@ -375,7 +385,7 @@ export default function Docs2VideoHome() {
         <div className="hp-footer-in">
           <div className="hp-footer-brand">
             <Link href="/" className="hp-brand" aria-label="Docs2Video home"><Mark /><span>Docs2Video</span></Link>
-            <p>Turn the document your client should read into a short video they will watch.</p>
+            <p>Made for life insurance and annuity agents. Open to anyone with a document to explain.</p>
             <a href="mailto:support@docs2video.com">support@docs2video.com</a>
           </div>
           <div className="hp-footer-col">

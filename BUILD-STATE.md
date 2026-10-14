@@ -5,6 +5,13 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-10-14 — Aimed at life insurance & annuity agents, open to anyone (deployed)
+
+- Front page (Docs2VideoHome.tsx): hero tag "Built for life insurance & annuity agents", headline "Illustration in. Short video out.", "Not an agent? Anyone can use it" line, "Built for / Also works for" strip, industries block retitled "Speaks life and annuities", 2 new FAQs (only for agents? / annuity contracts?), footer blurb, nav "Who it's for".
+- Site title + description (brand.ts) and /for/insurance copy (industry-pages.ts) now name life & annuity agents.
+- Everything from the 2026-10-14 sections below is LIVE (pushed 3e55d5e). AI answers + annual reviews stay off until supabase/migrations/20261010_client_questions_and_reviews.sql is run (tables absent in prod as of 2026-10-14). Texting is off (NEXT_PUBLIC_TEXTING unset).
+- Live check 2026-10-14: 26 public links all 200/redirect; account pages redirect to login; account APIs return 401 (no crashes).
+
 ## 2026-10-14 — AI answers the agent approves + Annual review autopilot (not deployed; migration first)
 
 - **MIGRATION FIRST (by hand, Supabase SQL editor):** `supabase/migrations/20261010_client_questions_and_reviews.sql` — tables `client_questions`, `client_question_events` (append-only audit log, trigger refuses edits/deletes), `client_reviews` (unique client + anniversary), and `clients.anniversary_date / anniversary_source / anniversary_confirmed / anniversary_tz`. Until it runs everything fails safe: "Ask a question" emails the agent exactly as before, the new screens say "not switched on yet" or hide, the cron does nothing, and `app/_lib/feature-tables.ts` emails the owner once per 10 min per server to run it.

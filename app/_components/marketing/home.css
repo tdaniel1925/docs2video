@@ -109,6 +109,9 @@
 .hp-madefor { border-bottom: 1px solid var(--hp-line); }
 .hp-madefor-in { max-width: calc(var(--hp-max) + 48px); margin: 0 auto; padding: 22px 24px; display: flex; gap: 10px 26px; flex-wrap: wrap; align-items: center; color: var(--hp-text3); font-size: 15px; }
 .hp-madefor-in b { font-weight: 700; color: var(--hp-ink); }
+.hp-madefor-in .hp-madefor-also { margin-left: 18px; font-weight: 600; }
+.hp-anyone { margin-top: 6px; }
+.hp-anyone b { color: var(--hp-ink); font-weight: 700; }
 
 /* Steps */
 .hp-steps { display: flex; flex-wrap: wrap; gap: 16px; }

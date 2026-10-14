@@ -77,9 +77,9 @@ export const DOCS2VIDEO: Brand = {
   name: 'Docs2Video',
   domain: 'docs2video.com',
   tagline: 'Turn a long document into a short narrated video',
-  title: 'Docs2Video — Turn Long Documents Into Short Narrated Videos',
+  title: 'Docs2Video — Life Insurance & Annuity Illustrations as Short Videos',
   description:
-    'Upload a PDF, paste text, or describe an idea. Get a branded narrated video on a shareable client page where your client can book a call.',
+    'Built for life insurance and annuity agents, open to anyone. Turn an illustration, annuity contract or any document into a branded narrated video on a client page where they can book a call.',
   logoSrc: '/logo-big.png',
   iconSrc: '/favicon.png',
   ogImage: '/og-docs2video.png',
