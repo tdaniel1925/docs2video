@@ -872,6 +872,44 @@ app.post('/extract-document', authCheck, async (req, res) => {
        * pages become images with nothing new installed — and Gemini reads text
        * off an image perfectly well. It is already loaded a few lines below.
        */
+      /**
+       * FIRST: hand Gemini the whole PDF. It reads scanned PDFs natively, and
+       * this is what rescued a 6-page scanned illustration (4 JPEG pages + 2
+       * fax-encoded pages) that the page-image path below returned empty on,
+       * six times in a row, for a paying customer (2026-10-14). The page-image
+       * path stays as the fallback. Every empty answer now logs WHY (finish
+       * reason), because the old path failed silently.
+       */
+      const ocrPrompt = 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
+        + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
+        + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
+        + 'not comment, and do not add anything that is not on the page. Output the text only.'
+      const readAnswer = (r) => (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
+      if (text.trim().length < 40) {
+        try {
+          const pdfBytes = await readFile(pdfPath)
+          if (pdfBytes.length < 18 * 1024 * 1024) {
+            console.log('[extract-document] no text layer — reading the whole PDF with Gemini')
+            const { GoogleGenAI } = require('@google/genai')
+            const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
+            for (let attempt = 1; attempt <= 2 && text.trim().length < 40; attempt++) {
+              const r = await vision.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [{ role: 'user', parts: [{ text: ocrPrompt }, { inlineData: { mimeType: 'application/pdf', data: pdfBytes.toString('base64') } }] }],
+              })
+              const read = readAnswer(r)
+              if (read) {
+                text = read.slice(0, 60000)
+                console.log(`[extract-document] read ${text.length} characters from the whole PDF`)
+              } else {
+                console.error(`[extract-document] whole-PDF read came back empty (attempt ${attempt}): finish=${r.candidates?.[0]?.finishReason} block=${JSON.stringify(r.promptFeedback || {})}`)
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[extract-document] whole-PDF read failed:', e.message?.slice(0, 200))
+        }
+      }
       if (text.trim().length < 40) {
         console.log('[extract-document] no text layer — reading the pages as images')
         try {
@@ -888,12 +926,7 @@ app.post('/extract-document', authCheck, async (req, res) => {
           if (pages.length) {
             const { GoogleGenAI } = require('@google/genai')
             const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
-            const parts = [{
-              text: 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
-                + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
-                + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
-                + 'not comment, and do not add anything that is not on the page. Output the text only.',
-            }]
+            const parts = [{ text: ocrPrompt }]
             for (const p of pages) {
               parts.push({ inlineData: { mimeType: 'image/png', data: (await readFile(join(workDir, p))).toString('base64') } })
             }
@@ -901,10 +934,12 @@ app.post('/extract-document', authCheck, async (req, res) => {
               model: 'gemini-2.5-flash',
               contents: [{ role: 'user', parts }],
             })
-            const read = (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
+            const read = readAnswer(r)
             if (read) {
               text = read.slice(0, 60000)
               console.log(`[extract-document] read ${text.length} characters off ${pages.length} page image(s)`)
+            } else {
+              console.error(`[extract-document] page-image read came back empty: finish=${r.candidates?.[0]?.finishReason} block=${JSON.stringify(r.promptFeedback || {})}`)
             }
           }
         } catch (e) {
