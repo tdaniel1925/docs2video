@@ -5,7 +5,7 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
-## 2026-10-15 — Document upload/reading audit (code done; render service + site deploy pending)
+## 2026-10-15 — Document upload/reading audit (DEPLOYED: ECS image sha256:7e162f0f…, site 4895e8c; live-tested 13 file kinds)
 
 Found by sending real files to the live service:
 - **Word/Excel uploads always failed** — render image had only libreoffice-impress. Dockerfile now adds libreoffice-writer + libreoffice-calc.
