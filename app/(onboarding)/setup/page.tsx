@@ -1,5 +1,6 @@
 'use client'
 
+import { shrinkImageForUpload } from '../../_lib/shrink-image'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -168,7 +169,7 @@ export default function SetupPage() {
     }
     setPhotoUploading(type)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', await shrinkImageForUpload(file, 1200))
     formData.append('type', type)
     try {
       const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
@@ -195,7 +196,7 @@ export default function SetupPage() {
     }
     setLogoUploading(true)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', await shrinkImageForUpload(file, 1200))
     try {
       const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
       const raw = await res.text()
@@ -579,7 +580,7 @@ export default function SetupPage() {
                   ) : (
                     <span style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Upload Logo</span>
                   )}
-                  <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" style={{ display: 'none' }}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }} />
                 </label>
               )}

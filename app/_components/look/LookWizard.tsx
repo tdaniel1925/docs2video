@@ -14,6 +14,7 @@
 // the brand) and from Brands (/brands/[id]/look, "Save look" → the brand).
 // =============================================================================
 
+import { shrinkImageForUpload } from '../../_lib/shrink-image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -167,10 +168,18 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
     }
   }
 
-  function onFile(f: File | null | undefined) {
+  async function onFile(f: File | null | undefined) {
     if (!f) return
+    // The file goes in the request body, which Vercel stops at ~4.5 MB: shrink
+    // a big photo first, and say plainly when a PDF is too big (it used to fall
+    // back to the brand look with "we couldn't read that one").
+    const file = f.type.startsWith('image/') ? await shrinkImageForUpload(f, 2000) : f
+    if (file.size > 4_000_000) {
+      brandFallback('That file is over 4 MB. Try a screenshot of the page you like instead — we started from your brand for now.')
+      return
+    }
     const fd = new FormData()
-    fd.append('file', f)
+    fd.append('file', file)
     const thumb = f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined
     void readReference(fd, f.name, thumb)
   }
@@ -354,7 +363,7 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
                   {refState.status === 'done' ? <span className={s.reading}>Read in {refState.seconds} second{refState.seconds === 1 ? '' : 's'} ✓</span> : null}
                 </div>
                 <button type="button" className="cf-chip" onClick={() => fileInput.current?.click()}>Choose a file</button>
-                <input ref={fileInput} type="file" accept="image/*,application/pdf,.pdf" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = '' }} data-testid="reference-file" />
+                <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = '' }} data-testid="reference-file" />
               </div>
               <form className={s.urlRow} onSubmit={(e) => { e.preventDefault(); if (urlText.trim()) void readReference({ url: urlText.trim() }, urlText.trim()) }}>
                 <input className="cf-input" type="text" inputMode="url" placeholder="…or paste a website address" value={urlText} onChange={(e) => setUrlText(e.target.value)} aria-label="A website you like" />

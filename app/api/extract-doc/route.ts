@@ -82,23 +82,31 @@ export async function POST(request: Request) {
 
     const base64 = buffer.toString('base64')
 
-    // Forward to render service with one retry (the box may be momentarily busy).
+    // Forward to the render service, inside ONE time budget that ends before
+    // Vercel's 300s cap — two 260s tries used to overrun it, and the user got a
+    // bare 504 page instead of a message. Retry only a FAST failure (the box
+    // was busy or restarting): a 422 means the file itself can't be read, and a
+    // slow failure has already spent the budget on picture-reading.
+    const startedAt = Date.now()
+    const BUDGET_MS = 285_000
     const forward = async () => fetch(`${VIDEO_ASSEMBLY_URL}/extract-document`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
       body: JSON.stringify({ fileBase64: base64, fileName, purpose, mimeType }),
-      signal: AbortSignal.timeout(260000),
+      signal: AbortSignal.timeout(Math.max(5_000, BUDGET_MS - (Date.now() - startedAt))),
     })
+    const canRetry = () => Date.now() - startedAt < 60_000
 
     let vpsRes: Response
     try {
       vpsRes = await forward()
-      if (!vpsRes.ok && vpsRes.status >= 500) {
+      if ([500, 502, 503, 504].includes(vpsRes.status) && canRetry()) {
         await new Promise(r => setTimeout(r, 1500))
-        vpsRes = await forward() // one retry on a server error
+        vpsRes = await forward() // one retry on a quick server error
       }
     } catch (e) {
-      // network/timeout — one retry
+      if (!canRetry()) throw e
+      // quick network failure — one retry
       await new Promise(r => setTimeout(r, 1500))
       vpsRes = await forward()
     }

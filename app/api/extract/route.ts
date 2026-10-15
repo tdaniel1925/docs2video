@@ -256,10 +256,13 @@ Include: overview, key points, benefits, relevant statistics or examples, and a 
         purpose: purposeField || undefined,
         mimeType: file.type || 'application/pdf',
       }),
+      // Leave room for the reply inside this route's own time limit.
+      signal: AbortSignal.timeout(Math.max(10_000, (maxDuration - 20) * 1000)),
     })
 
     if (!vpsRes.ok) {
       const err = await vpsRes.json().catch(() => ({ error: 'render service extraction failed' }))
+      logError('extract-file', new Error(`render service extraction ${vpsRes.status}: ${err.error}`), { userId: user.id, fileName: file.name })
       return NextResponse.json({ error: err.error || 'Document extraction failed' }, { status: vpsRes.status })
     }
 

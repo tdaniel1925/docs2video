@@ -7,10 +7,14 @@
 # image, unthrottled, and needs no credentials.
 FROM public.ecr.aws/docker/library/node:20-slim
 
-# Install FFmpeg, LibreOffice, poppler-utils (for PDF conversion)
+# Install FFmpeg, LibreOffice, poppler-utils (for PDF conversion).
+# Writer + Calc are required: without them every .docx/.doc/.xlsx upload
+# converted to nothing and failed (found 2026-10-15 — only PowerPoint read).
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libreoffice-impress \
+    libreoffice-writer \
+    libreoffice-calc \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 

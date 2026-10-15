@@ -1,5 +1,6 @@
 'use client'
 
+import { shrinkImageForUpload } from '../../_lib/shrink-image'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -282,36 +283,10 @@ export default function SettingsPage() {
     setTimeout(() => setSuccess(false), 3000)
   }
 
-  // Compress image client-side before upload (resize to max dimension)
-  async function compressImage(file: File, maxDim: number): Promise<File> {
-    return new Promise((resolve) => {
-      // Skip non-image or small files
-      if (!file.type.startsWith('image/') || file.size < 500_000) { resolve(file); return }
-      const img = new Image()
-      img.onload = () => {
-        // Only resize if larger than maxDim
-        if (img.width <= maxDim && img.height <= maxDim) { resolve(file); return }
-        const canvas = document.createElement('canvas')
-        const scale = Math.min(maxDim / img.width, maxDim / img.height)
-        canvas.width = Math.round(img.width * scale)
-        canvas.height = Math.round(img.height * scale)
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
-          } else { resolve(file) }
-        }, 'image/jpeg', 0.9)
-      }
-      img.onerror = () => resolve(file)
-      img.src = URL.createObjectURL(file)
-    })
-  }
-
   async function handlePhotoUpload(file: File, type: string) {
     setPhotoUploading(type)
     try {
-      const compressed = await compressImage(file, 1200)
+      const compressed = await shrinkImageForUpload(file, 1200)
       const formData = new FormData()
       formData.append('file', compressed)
       formData.append('type', type)
@@ -336,7 +311,7 @@ export default function SettingsPage() {
   async function handleLogoUpload(file: File) {
     setLogoUploading(true)
     try {
-      const compressed = await compressImage(file, 800)
+      const compressed = await shrinkImageForUpload(file, 1200)
       const formData = new FormData()
       formData.append('file', compressed)
       const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
@@ -594,7 +569,7 @@ export default function SettingsPage() {
                   <div className={s.brandActions}>
                     <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer' }}>
                       {logoUploading ? 'Uploading…' : 'Change logo'}
-                      <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" style={{ display: 'none' }}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f) }} />
                     </label>
                     <Button href={`/brands/${brand.id}`} variant="secondary" size="sm">Edit colors</Button>

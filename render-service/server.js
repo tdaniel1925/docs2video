@@ -809,6 +809,154 @@ app.post('/convert', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// READ A DOCUMENT'S TEXT — one reader for every path that takes a file
+// (/extract-document for the create flow, readDocText for slide videos).
+//
+// Audit 2026-10-15 ("make sure we don't have any more document reading or
+// uploading issues"). What this fixes, all found by sending real files to the
+// live service:
+//   - Word and Excel files ALWAYS failed: the image only had LibreOffice's
+//     Impress part, so .docx/.doc/.xlsx/.xls converted to nothing and the user
+//     saw "Could not read text from this document". (Dockerfile now installs
+//     Writer + Calc; a missing PDF after conversion is now a clear message.)
+//   - A PDF with a typed cover and scanned pages lost the scanned pages: the
+//     picture-reading only ran when the WHOLE file had under 40 characters. It
+//     now runs whenever there is little text per page, and the longer read wins.
+//   - A scanned PDF over ~14 MB was skipped by the whole-PDF read (Gemini's
+//     inline limit is ~20 MB after base64). Large files now go through the
+//     Gemini Files API.
+//   - Photos of a document (jpg/png/webp/heic) are read directly.
+//   - Excel CSV exports in Windows-1252 came out garbled; now decoded right.
+//   - Password-protected PDFs say so instead of a generic failure.
+// Errors the user must act on are DocReadError -> HTTP 422, so the app does
+// not retry them (a retry re-ran the slow picture-reading for nothing).
+// ============================================================
+class DocReadError extends Error {}
+
+const OCR_PROMPT = 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
+  + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
+  + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
+  + 'not comment, and do not add anything that is not on the page. Output the text only.'
+const IMAGE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif' }
+const OFFICE_TYPES = new Set(['doc', 'docx', 'rtf', 'odt', 'ppt', 'pptx', 'odp', 'xls', 'xlsx', 'ods'])
+const INLINE_MAX = 14 * 1024 * 1024 // raw bytes; base64 makes it ~19 MB, under Gemini's ~20 MB request cap
+
+function decodeTextFile(buf) {
+  const utf8 = buf.toString('utf-8')
+  // Lots of U+FFFD means it was not UTF-8 — almost always a Windows-1252
+  // export from Excel. latin1 is the right bytes for everything but a few
+  // punctuation marks, which is far better than garbage.
+  const bad = (utf8.match(/�/g) || []).length
+  return bad > 2 && bad > utf8.length / 500 ? buf.toString('latin1') : utf8.replace(/^﻿/, '')
+}
+
+const run = (cmd, args, timeout) => new Promise((resolve, reject) =>
+  execFile(cmd, args, { timeout }, (err, stdout, stderr) => err ? reject(Object.assign(err, { stderr: String(stderr || '') })) : resolve(String(stdout || ''))))
+
+async function pdfPageCount(pdfPath) {
+  try { const m = (await run('pdfinfo', [pdfPath], 20000)).match(/^Pages:\s+(\d+)/m); return m ? Number(m[1]) : 0 } catch { return 0 }
+}
+
+async function geminiRead(parts, tag, what) {
+  const { GoogleGenAI } = require('@google/genai')
+  const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
+  const r = await vision.models.generateContent({ model: 'gemini-2.5-flash', contents: [{ role: 'user', parts: [{ text: OCR_PROMPT }, ...parts] }] })
+  const read = (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
+  if (read) console.log(`[${tag}] read ${read.length} characters from ${what}`)
+  else console.error(`[${tag}] ${what} read came back empty: finish=${r.candidates?.[0]?.finishReason} block=${JSON.stringify(r.promptFeedback || {})}`)
+  return read
+}
+
+/** Read text off a file Gemini can see directly (a PDF or a photo), inline or via the Files API. */
+async function geminiReadFile(path, mimeType, tag, what) {
+  const bytes = await readFile(path)
+  if (bytes.length <= INLINE_MAX) return geminiRead([{ inlineData: { mimeType, data: bytes.toString('base64') } }], tag, what)
+  const { GoogleGenAI } = require('@google/genai')
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 300000 } })
+  const up = await ai.files.upload({ file: path, config: { mimeType } })
+  try {
+    let f = up
+    for (let i = 0; i < 30 && f.state === 'PROCESSING'; i++) { await new Promise(r => setTimeout(r, 2000)); f = await ai.files.get({ name: up.name }) }
+    return await geminiRead([{ fileData: { fileUri: f.uri, mimeType } }], tag, `${what} (uploaded, ${(bytes.length / 1e6).toFixed(1)} MB)`)
+  } finally {
+    ai.files.delete({ name: up.name }).catch(() => {})
+  }
+}
+
+/** Page pictures as the last resort: small JPEGs, at most 12 pages, kept under the request cap. */
+async function geminiReadPages(pdfPath, workDir, tag) {
+  await run('pdftoppm', ['-jpeg', '-jpegopt', 'quality=80', '-r', '130', '-l', '12', pdfPath, join(workDir, 'page')], 120000)
+  const { readdir } = require('fs/promises')
+  const pages = (await readdir(workDir)).filter(f => f.startsWith('page') && f.endsWith('.jpg')).sort()
+  const parts = []; let total = 0
+  for (const p of pages) {
+    const b = await readFile(join(workDir, p)); total += b.length
+    if (total > INLINE_MAX) break
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: b.toString('base64') } })
+  }
+  return parts.length ? geminiRead(parts, tag, `${parts.length} page picture(s)`) : ''
+}
+
+/**
+ * Returns the document's text (up to `max` characters). Throws DocReadError
+ * with a message written for the user when the file cannot be read.
+ */
+async function readDocumentText(inputPath, ext, workDir, { tag = 'read-doc', max = 60000 } = {}) {
+  if (ext === 'txt' || ext === 'csv' || ext === 'md') return decodeTextFile(await readFile(inputPath)).slice(0, max)
+
+  if (IMAGE_TYPES[ext]) {
+    const t = await geminiReadFile(inputPath, IMAGE_TYPES[ext], tag, 'the photo').catch(e => { console.error(`[${tag}] photo read failed:`, e.message?.slice(0, 200)); return '' })
+    if (!t.trim()) throw new DocReadError('I could not read any text in that picture. Try a sharper, well-lit photo of the page — or upload the PDF.')
+    return t.slice(0, max)
+  }
+
+  let pdfPath = inputPath
+  if (ext !== 'pdf') {
+    if (!OFFICE_TYPES.has(ext)) throw new DocReadError(`I can't read .${ext} files. Please upload a PDF, Word, PowerPoint, Excel, text file or a photo of the page.`)
+    try {
+      await run('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], 120000)
+    } catch (e) {
+      console.error(`[${tag}] LibreOffice error:`, e.message?.slice(0, 160), e.stderr?.slice(0, 200))
+    }
+    pdfPath = join(workDir, 'input.pdf')
+    const made = await readFile(pdfPath).then(b => b.length > 0).catch(() => false)
+    if (!made) throw new DocReadError(`I couldn't open that ${ext.toUpperCase()} file. It may be damaged or password-protected. Save it as a PDF and upload that instead.`)
+  }
+
+  const txtPath = join(workDir, 'out.txt')
+  try {
+    await run('pdftotext', ['-layout', pdfPath, txtPath], 60000)
+  } catch (e) {
+    const why = `${e.stderr || ''} ${e.message || ''}`
+    if (/password|encrypt/i.test(why)) throw new DocReadError('That PDF is password-protected. Remove the password (or print it to a new PDF) and upload it again.')
+    console.error(`[${tag}] pdftotext failed:`, why.slice(0, 200))
+    // Damaged text layer — the picture-reading below may still rescue it.
+  }
+  let text = (await readFile(txtPath, 'utf-8').catch(() => '')).slice(0, max)
+
+  // Scanned or partly scanned: little text per page. A real typed page has
+  // hundreds of characters; a scanned page has none, so a typed cover plus
+  // scanned pages averages very low. Read the pictures and keep the longer.
+  const pages = await pdfPageCount(pdfPath)
+  const thin = text.trim().length < 40 || (pages >= 2 && text.trim().length / pages < 200)
+  if (thin) {
+    console.log(`[${tag}] little text (${text.trim().length} chars over ${pages || '?'} pages) — reading the pages as pictures`)
+    let read = ''
+    try { read = await geminiReadFile(pdfPath, 'application/pdf', tag, 'the whole PDF') } catch (e) { console.error(`[${tag}] whole-PDF read failed:`, e.message?.slice(0, 200)) }
+    if (!read) {
+      try { read = await geminiReadPages(pdfPath, workDir, tag) } catch (e) { console.error(`[${tag}] page-picture read failed:`, e.message?.slice(0, 200)) }
+    }
+    if (read.trim().length > text.trim().length) text = read.slice(0, max)
+  }
+
+  if (!text.trim()) {
+    if (pages === 0) throw new DocReadError('That PDF looks damaged — I could not open its pages. Try saving or exporting it again, then upload the new copy.')
+    throw new DocReadError('I could not find any text in that file, even after reading the pages as pictures. If it is a photo of a document, try a clearer scan — or paste the text in instead.')
+  }
+  return text
+}
+
+// ============================================================
 // EXTRACT-DOCUMENT — parse an uploaded doc into structured ExtractedData.
 // (Was missing on the VPS; the app calls this for PDF/DOCX/PPTX/etc. uploads.)
 // Flow: write file -> convert to PDF if needed (libreoffice) -> pull text
@@ -832,127 +980,8 @@ app.post('/extract-document', authCheck, async (req, res) => {
     const inputPath = join(workDir, `input.${ext || 'bin'}`)
     await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
 
-    // 1) Get plain text. .txt/.csv read directly; everything else -> PDF -> pdftotext.
-    let text = ''
-    if (ext === 'txt' || ext === 'csv') {
-      text = (await readFile(inputPath, 'utf-8')).slice(0, 60000)
-    } else {
-      let pdfPath = inputPath
-      if (ext !== 'pdf') {
-        await new Promise((resolve, reject) => {
-          execFile('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], { timeout: 120000 }, (err, stdout, stderr) => {
-            if (err) { console.error('[extract-document] LibreOffice error:', err.message, stderr?.slice(0, 200)); return reject(new Error('Could not convert this file type.')) }
-            resolve(stdout)
-          })
-        })
-        pdfPath = join(workDir, 'input.pdf')
-      }
-      const txtPath = join(workDir, 'out.txt')
-      await new Promise((resolve, reject) => {
-        execFile('pdftotext', ['-layout', pdfPath, txtPath], { timeout: 60000 }, (err) => {
-          if (err) return reject(new Error('Could not read text from this document.'))
-          resolve(null)
-        })
-      })
-      text = (await readFile(txtPath, 'utf-8').catch(() => '')).slice(0, 60000)
-
-      /**
-       * READ THE PAGES AS PICTURES WHEN THERE IS NO TEXT LAYER.
-       *
-       * pdftotext only sees text that is stored AS text. A quote that was
-       * printed and scanned, exported with the type converted to outlines, or
-       * produced by an insurer's ancient print system, has no text layer at
-       * all — so it came back empty and the customer was told "no readable
-       * text found, paste it instead".
-       *
-       * They uploaded a document to avoid retyping it. Asking them to retype it
-       * is the app failing at the exact job they came for.
-       *
-       * pdftoppm ships in the same poppler-utils package as pdftotext, so the
-       * pages become images with nothing new installed — and Gemini reads text
-       * off an image perfectly well. It is already loaded a few lines below.
-       */
-      /**
-       * FIRST: hand Gemini the whole PDF. It reads scanned PDFs natively, and
-       * this is what rescued a 6-page scanned illustration (4 JPEG pages + 2
-       * fax-encoded pages) that the page-image path below returned empty on,
-       * six times in a row, for a paying customer (2026-10-14). The page-image
-       * path stays as the fallback. Every empty answer now logs WHY (finish
-       * reason), because the old path failed silently.
-       */
-      const ocrPrompt = 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
-        + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
-        + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
-        + 'not comment, and do not add anything that is not on the page. Output the text only.'
-      const readAnswer = (r) => (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
-      if (text.trim().length < 40) {
-        try {
-          const pdfBytes = await readFile(pdfPath)
-          if (pdfBytes.length < 18 * 1024 * 1024) {
-            console.log('[extract-document] no text layer — reading the whole PDF with Gemini')
-            const { GoogleGenAI } = require('@google/genai')
-            const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
-            for (let attempt = 1; attempt <= 2 && text.trim().length < 40; attempt++) {
-              const r = await vision.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [{ role: 'user', parts: [{ text: ocrPrompt }, { inlineData: { mimeType: 'application/pdf', data: pdfBytes.toString('base64') } }] }],
-              })
-              const read = readAnswer(r)
-              if (read) {
-                text = read.slice(0, 60000)
-                console.log(`[extract-document] read ${text.length} characters from the whole PDF`)
-              } else {
-                console.error(`[extract-document] whole-PDF read came back empty (attempt ${attempt}): finish=${r.candidates?.[0]?.finishReason} block=${JSON.stringify(r.promptFeedback || {})}`)
-              }
-            }
-          }
-        } catch (e) {
-          console.error('[extract-document] whole-PDF read failed:', e.message?.slice(0, 200))
-        }
-      }
-      if (text.trim().length < 40) {
-        console.log('[extract-document] no text layer — reading the pages as images')
-        try {
-          // 150 dpi is enough for body type and keeps the payload sane. Twelve
-          // pages at most: past that it is a book, not a quote, and both the
-          // cost and the wait stop being reasonable.
-          await new Promise((resolve, reject) => {
-            execFile('pdftoppm', ['-png', '-r', '150', '-l', '12', pdfPath, join(workDir, 'page')],
-              { timeout: 120000 }, (err) => err ? reject(err) : resolve(null))
-          })
-          const { readdir } = require('fs/promises')
-          const pages = (await readdir(workDir)).filter(f => f.startsWith('page') && f.endsWith('.png')).sort()
-
-          if (pages.length) {
-            const { GoogleGenAI } = require('@google/genai')
-            const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
-            const parts = [{ text: ocrPrompt }]
-            for (const p of pages) {
-              parts.push({ inlineData: { mimeType: 'image/png', data: (await readFile(join(workDir, p))).toString('base64') } })
-            }
-            const r = await vision.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: [{ role: 'user', parts }],
-            })
-            const read = readAnswer(r)
-            if (read) {
-              text = read.slice(0, 60000)
-              console.log(`[extract-document] read ${text.length} characters off ${pages.length} page image(s)`)
-            } else {
-              console.error(`[extract-document] page-image read came back empty: finish=${r.candidates?.[0]?.finishReason} block=${JSON.stringify(r.promptFeedback || {})}`)
-            }
-          }
-        } catch (e) {
-          // Never fatal by itself. If this cannot rescue the file, the message
-          // below still fires — and it now says something you can act on.
-          console.error('[extract-document] reading pages as images failed:', e.message?.slice(0, 160))
-        }
-      }
-    }
-
-    if (!text.trim()) {
-      throw new Error('I could not find any text in that file, even after reading the pages as pictures. If it is a photo of a document, try a clearer scan — or paste the text in instead.')
-    }
+    // 1) Get the text (shared reader: office files, scans, photos, CSV encodings).
+    const text = await readDocumentText(inputPath, ext, workDir, { tag: 'extract-document' })
 
     // 2) Gemini structures the text into ExtractedData.
     const { GoogleGenAI } = require('@google/genai')
@@ -1012,7 +1041,7 @@ ${text}`
     res.json(result)
   } catch (err) {
     console.error(`[extract-document] Error:`, err.message)
-    res.status(500).json({ error: err.message || 'Document extraction failed' })
+    res.status(err instanceof DocReadError ? 422 : 500).json({ error: err.message || 'Document extraction failed' })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
@@ -1946,18 +1975,14 @@ const { generateSlidePlan } = require('./slides')
 async function readDocText(fileBase64, fileName) {
   const workDir = join(tmpdir(), `d2v-slides-${randomUUID()}`)
   await mkdir(workDir, { recursive: true })
-  const ext = (fileName.split('.').pop() || '').toLowerCase()
-  const inputPath = join(workDir, `input.${ext || 'bin'}`)
-  await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
-  if (ext === 'txt' || ext === 'csv') return (await readFile(inputPath, 'utf-8')).slice(0, 120000)
-  let pdfPath = inputPath
-  if (ext !== 'pdf') {
-    await new Promise((resolve, reject) => execFile('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], { timeout: 120000 }, (err) => err ? reject(new Error('Could not convert this file type.')) : resolve()))
-    pdfPath = join(workDir, 'input.pdf')
+  try {
+    const ext = (fileName.split('.').pop() || '').toLowerCase()
+    const inputPath = join(workDir, `input.${ext || 'bin'}`)
+    await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
+    return await readDocumentText(inputPath, ext, workDir, { tag: 'slides-read', max: 120000 })
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
-  const txtPath = join(workDir, 'out.txt')
-  await new Promise((resolve, reject) => execFile('pdftotext', ['-layout', pdfPath, txtPath], { timeout: 60000 }, (err) => err ? reject(new Error('Could not read text from this document.')) : resolve()))
-  return (await readFile(txtPath, 'utf-8')).slice(0, 120000)
 }
 
 // AI background music for the slide deck — same Lyria model + call shape as

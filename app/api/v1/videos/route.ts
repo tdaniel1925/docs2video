@@ -210,7 +210,12 @@ export async function POST(request: Request) {
         headers: { 'x-internal-service': INTERNAL_SECRET, 'x-internal-user-id': caller.userId },
         body: form,
       })
-      if (!r.ok) return fail(502, `File extraction failed (${r.status})`)
+      if (!r.ok) {
+        // Pass the reader's own reason through (password-protected, no text,
+        // unsupported type…) — the caller can't act on a bare status code.
+        const why = await r.json().catch(() => ({})) as { error?: string }
+        return fail(r.status === 413 ? 413 : r.status < 500 ? 422 : 502, why.error ? `File extraction failed: ${why.error}` : `File extraction failed (${r.status})`)
+      }
       extracted = await r.json()
     } else {
       return fail(400, `Unsupported input.type "${input.type}"`)

@@ -37,7 +37,9 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What file formats can I upload?',
     answer: [
-      'You can upload up to 5 files at once: **PDF**, **Word (DOCX)**, **PowerPoint (PPTX)**, **text (TXT)**, **CSV** and **Excel (XLSX)**.',
+      'You can upload up to 5 files at once: **PDF**, **Word (DOCX)**, **PowerPoint (PPTX)**, **text (TXT)**, **CSV** and **Excel (XLSX)** — up to 50 MB each. Older **DOC**, **PPT** and **XLS** files work too.',
+      'Scanned PDFs work: we read the pages as pictures. You can also upload a **phone photo** of a printed page (**JPG**, **PNG** or **HEIC**) — take it in good light, straight on.',
+      'If a file can’t be read we say why (for example, a password-protected PDF) and what to do.',
       'On step 1, under **Where should the content come from?**, you can also choose **Website URL**, **Paste text**, or **AI writes it** — none of those need a file.',
     ],
   },

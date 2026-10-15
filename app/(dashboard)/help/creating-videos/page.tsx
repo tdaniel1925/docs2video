@@ -70,7 +70,7 @@ export default function CreatingVideosPage() {
           says <strong style={INK}>Add your document.</strong> with a big box to drop your file in (or click it to choose one).
         </p>
         <p style={P}>
-          <strong style={INK}>A document</strong> — up to 5 files: PDF, Word (DOCX), PowerPoint (PPTX), text (TXT), CSV or Excel (XLSX). Each file
+          <strong style={INK}>A document</strong> — up to 5 files, 50 MB each: PDF, Word, PowerPoint, Excel, text, CSV, or a phone photo of a printed page (JPG, PNG, HEIC). Scanned PDFs work too. Each file
           shows in a row under the box; press × to take one off. With more than one file we read them all and compare them (each extra file
           adds to the price, which you see on step 3 before anything is charged).
         </p>

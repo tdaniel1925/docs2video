@@ -1,4 +1,5 @@
 'use client'
+import { shrinkImageForUpload } from '../../../_lib/shrink-image'
 import { tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useEffect, useRef } from 'react'
@@ -189,7 +190,7 @@ export default function EditBrandPage() {
     setUploadError(null)
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', await shrinkImageForUpload(file, 1200))
       const res = await fetch('/api/upload-logo', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
@@ -649,7 +650,7 @@ export default function EditBrandPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
               />

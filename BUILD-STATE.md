@@ -5,6 +5,18 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-10-15 — Document upload/reading audit (code done; render service + site deploy pending)
+
+Found by sending real files to the live service:
+- **Word/Excel uploads always failed** — render image had only libreoffice-impress. Dockerfile now adds libreoffice-writer + libreoffice-calc.
+- render-service/server.js: one shared `readDocumentText` for /extract-document and slide videos (readDocText). Scans read whole by Gemini (inline ≤14MB, Files API above), page pictures fallback; partly-scanned PDFs (<200 chars/page) also read; photos read directly; CP-1252 CSVs; password/damaged PDFs get plain messages. User-fixable failures → 422 (DocReadError). Slide temp dirs now cleaned.
+- /api/extract-doc: one 285s budget, retries only fast 5xx (no more double picture-reading, no 504 page).
+- One list in app/_lib/doc-upload.ts (types incl. doc/ppt/xls/jpg/png/webp/heic; 50MB = Supabase project cap, was 100MB). Multi-file names every bad file.
+- Commercial page uses the signed-upload path (was Vercel body, 4.5MB) and keeps bullets/key numbers. Look reference + photo/logo uploads shrink big pictures first (app/_lib/shrink-image.ts; PNG logos stay transparent — settings used to JPEG them). SVG removed from pickers the routes reject.
+- try-demo: PDF-only, 4MB, safe file name. v1 API passes the reader's reason through. /api/extract logs render failures + has a timeout.
+- Guard: tests/doc-upload.test.ts (proved to fail without libreoffice-writer).
+- Ops: Vercel env VERCEL_FORCE_NO_BUILD_CACHE=1 (production) — stale build cache caused "next/font/google queries have exactly one entry" deploy failure 2026-10-15.
+
 ## 2026-10-14 — Aimed at life insurance & annuity agents, open to anyone (deployed)
 
 - Front page (Docs2VideoHome.tsx): hero tag "Built for life insurance & annuity agents", headline "Illustration in. Short video out.", "Not an agent? Anyone can use it" line, "Built for / Also works for" strip, industries block retitled "Speaks life and annuities", 2 new FAQs (only for agents? / annuity contracts?), footer blurb, nav "Who it's for".

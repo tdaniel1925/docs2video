@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { uploadAndExtract, uploadAndExtractMany, MAX_FILES } from './uploadAndExtract'
+import { DOC_UPLOAD_ACCEPT } from '../../../_lib/doc-upload'
 import ClientPicker, { type PickedClient } from './ClientPicker'
 import { methodFromSource } from '../../../_lib/create-sources'
 import { normalizeUrl, tidyUrlInput } from '../../../_lib/normalize-url'
@@ -50,7 +51,7 @@ const METHODS: Record<Method, { lead: string; word: string; chip: string }> = {
 }
 const METHOD_ORDER: Method[] = ['upload', 'url', 'text', 'idea']
 
-const ACCEPT = '.pdf,.docx,.pptx,.txt,.csv,.xlsx'
+const ACCEPT = DOC_UPLOAD_ACCEPT
 
 /** The real stages of reading, for the way the content is coming in. Each is
  *  ticked when that call actually finishes — never by a timer. */
@@ -465,7 +466,7 @@ export default function Step1Content() {
               disabled={reading}
             >
               <strong>{files.length ? 'Add another file' : 'Drop your file here'}</strong>
-              <span>or click to choose · PDF, Word or PowerPoint · up to {MAX_FILES} files</span>
+              <span>or click to choose · PDF, Word, PowerPoint, Excel or a photo · up to {MAX_FILES} files</span>
             </button>
             {files.length > 0 && (
               <ul className="cf-files" aria-label="Your files">

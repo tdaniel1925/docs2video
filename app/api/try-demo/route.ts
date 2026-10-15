@@ -42,8 +42,17 @@ export async function POST(req: NextRequest) {
       const formData = await req.formData()
       const file = formData.get('file') as File | null
       if (file) {
+        // Public endpoint: only a real PDF, a sane size, and a safe name in the
+        // storage path (it used to store anything under the raw file name).
+        if (file.size > 4 * 1024 * 1024) {
+          return NextResponse.json({ error: 'That PDF is over 4 MB. Try a smaller one, or paste your website instead.' }, { status: 413 })
+        }
         fileBuffer = Buffer.from(await file.arrayBuffer())
-        fileName = file.name
+        if (fileBuffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+          return NextResponse.json({ error: 'Please upload a PDF file.' }, { status: 400 })
+        }
+        const safe = (file.name || '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+/, '').slice(0, 80)
+        fileName = /\.pdf$/i.test(safe) ? safe : `${safe || 'document'}.pdf`
       }
       email = (formData.get('email') as string | null) || null
     } else {

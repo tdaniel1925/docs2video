@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { CalendarCheck, CalendarHeart, FileText, Upload, X } from 'lucide-react'
 import { Button, Card, Chip, EmptyState, Note } from '../../../../_components/kit'
 import { uploadAndExtract } from '../../../create/_components/uploadAndExtract'
+import { DOC_UPLOAD_ACCEPT } from '../../../../_lib/doc-upload'
 import Stages, { type Stage } from '../../../create/_components/workspace/Stages'
 import { addDays, dateWords, dueWords, REVIEW_STATUS_WORDS, todayIn } from '../../../../_lib/annual-review'
 import { resumeUrl } from '../../../dashboard/_home/derive'
@@ -159,7 +160,7 @@ export default function PrepareReviewPage() {
         <div className={s.stack}>
           <Card>
             <p className={s.label}>1 · This year’s statement</p>
-            <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.csv,.xlsx" style={{ display: 'none' }} aria-label="Choose this year’s statement"
+            <input ref={fileRef} type="file" accept={DOC_UPLOAD_ACCEPT} style={{ display: 'none' }} aria-label="Choose this year’s statement"
               onChange={(e) => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }} />
             {file ? (
               <div className={s.item}>

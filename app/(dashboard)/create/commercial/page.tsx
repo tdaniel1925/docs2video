@@ -1,5 +1,8 @@
 'use client'
 
+import { shrinkImageForUpload } from '../../../_lib/shrink-image'
+import { uploadAndExtract } from '../_components/uploadAndExtract'
+import { DOC_UPLOAD_ACCEPT } from '../../../_lib/doc-upload'
 import { useEffect, useState } from 'react'
 import { normalizeUrl, tidyUrlInput } from '../../../_lib/normalize-url'
 import { useRouter } from 'next/navigation'
@@ -40,7 +43,7 @@ type SourceMode = 'url' | 'text' | 'pdf' | 'ai'
 const SOURCE_TABS: { id: SourceMode; label: string; icon: string }[] = [
   { id: 'url', label: 'Website', icon: '🔗' },
   { id: 'text', label: 'Paste text', icon: '📝' },
-  { id: 'pdf', label: 'PDF', icon: '📄' },
+  { id: 'pdf', label: 'Document', icon: '📄' },
   { id: 'ai', label: 'AI writes it', icon: '✨' },
 ]
 
@@ -93,29 +96,30 @@ export default function CreateCommercialPage() {
       // direct expand it. Framed as a brief so it doesn't read as source facts.
       return { text: `Create a commercial about: ${aiTopic.trim()}` }
     }
-    // pdf → extract text via the existing document extractor (legacy multipart path)
+    // pdf → the same upload path as the create flow: straight to storage, then
+    // read by path. (The old multipart post went through the Vercel body,
+    // which rejects anything over ~4.5 MB with a page the user never saw.)
     if (!pdfFile) return null
-    const fd = new FormData()
-    fd.append('file', pdfFile)
-    fd.append('purpose', 'commercial')
-    const ex = await fetch('/api/extract-doc', { method: 'POST', body: fd })
-    if (!ex.ok) {
-      const j = await ex.json().catch(() => ({}))
-      throw new Error(j?.error || 'Could not read that PDF. Try pasting the text instead.')
-    }
-    const j = await ex.json()
-    // Flatten whatever text-bearing fields came back into one blob.
+    const j = await uploadAndExtract(pdfFile, 'commercial')
+    // Flatten whatever text-bearing fields came back into one blob — ALL of
+    // them: the bullet points and key numbers are the facts a commercial needs.
     const parts: string[] = []
     if (j.title) parts.push(String(j.title))
+    if (j.subtitle) parts.push(String(j.subtitle))
+    if (Array.isArray(j.keyMetrics)) {
+      for (const m of j.keyMetrics) if (m?.label && m?.value) parts.push(`${m.label}: ${m.value}`)
+    }
+    if (Array.isArray(j.bulletPoints)) parts.push(j.bulletPoints.filter((b: unknown) => typeof b === 'string').join('\n'))
     if (Array.isArray(j.sections)) {
       for (const s of j.sections) {
         if (typeof s === 'string') parts.push(s)
         else if (s && typeof s === 'object') parts.push([s.heading, s.title, s.text, s.content, s.body].filter(Boolean).join('\n'))
       }
     }
+    if (Array.isArray(j.additionalNotes)) parts.push(j.additionalNotes.filter((b: unknown) => typeof b === 'string').join('\n'))
     if (typeof j.text === 'string') parts.push(j.text)
     const text = parts.filter(Boolean).join('\n\n').trim().slice(0, 60000)
-    if (text.length < 40) throw new Error('That PDF had too little readable text. Try pasting the text instead.')
+    if (text.length < 40) throw new Error('That file had too little readable text. Try pasting the text instead.')
     return { text }
   }
 
@@ -132,7 +136,7 @@ export default function CreateCommercialPage() {
       if (logoFile) {
         try {
           const fd = new FormData()
-          fd.append('file', logoFile)
+          fd.append('file', await shrinkImageForUpload(logoFile, 1200))
           const up = await fetch('/api/upload-logo', { method: 'POST', body: fd })
           if (up.ok) { const j = await up.json(); logoUrl = j.url || j.logoUrl }
         } catch { /* non-fatal — proceed without an uploaded logo */ }
@@ -209,8 +213,8 @@ export default function CreateCommercialPage() {
 
       {source === 'pdf' && (
         <label style={styles.label}>
-          Upload a PDF <span style={styles.req}>*</span>
-          <input style={styles.file} type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+          Upload a document <span style={styles.req}>*</span>
+          <input style={styles.file} type="file" accept={DOC_UPLOAD_ACCEPT} onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
           <span style={styles.hint}>{pdfFile ? pdfFile.name : 'We extract the text and build the commercial from it.'}</span>
         </label>
       )}
@@ -252,7 +256,7 @@ export default function CreateCommercialPage() {
           <input
             style={styles.file}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept="image/png,image/jpeg,image/webp"
             onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
           />
           <span style={styles.hint}>{logoFile ? logoFile.name : 'We use your real logo if you upload one.'}</span>
