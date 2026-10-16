@@ -113,7 +113,7 @@ Platform guidelines:
     // Fetch video and verify ownership
     const { data: video } = await admin
       .from('videos')
-      .select('id, title, script, user_id, share_url')
+      .select('id, title, script, user_id')
       .eq('id', videoId)
       .single()
 
@@ -132,7 +132,7 @@ Platform guidelines:
       narrationText = (scriptData._pipeline_input.scenes as any[]).map((s: any) => s.narration || '').filter(Boolean).join(' ').slice(0, 800)
     }
 
-    const shareLink = video.share_url || `https://docs2video.com/watch/${videoId}`
+    const shareLink = `https://docs2video.com/watch/${videoId}`
 
     try {
       const completion = await openai.chat.completions.create({

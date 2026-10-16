@@ -232,7 +232,7 @@ export async function POST(req: Request) {
         round_id: design.round_id, user_id: user.id,
         size_id: design.size_id, label: design.label,
         width: design.width, height: design.height,
-        image_path: path, credits_used: unit,
+        image_path: path, // (no credits_used column — it failed the insert)
       }).select('id').maybeSingle()
 
       return NextResponse.json({
@@ -340,7 +340,7 @@ export async function POST(req: Request) {
       round_id: design.round_id, user_id: user.id,
       size_id: design.size_id, label: design.label,
       width: design.width, height: design.height,
-      image_path: path, credits_used: unit,
+      image_path: path, // (no credits_used column — it failed the insert)
     }).select('id').maybeSingle()
 
     return NextResponse.json({

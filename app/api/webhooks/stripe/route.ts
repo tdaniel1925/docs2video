@@ -180,8 +180,9 @@ export async function POST(request: Request) {
             }
           }
 
+          // No profiles.source column: sending it failed this whole update, so
+          // Apex buyers never got their name/email saved (drift scan 2026-10-16).
           await supabase.from('profiles').update({
-            source: 'apex',
             ...(apexName ? { full_name: apexName } : {}),
             email: apexEmail,
           }).eq('id', userId)

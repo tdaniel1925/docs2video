@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   if (draft.brandId) {
     const { data } = await supabase
       .from('brands')
-      .select('name, profile_type, person_role, tagline, company_name')
+      .select('name, profile_type, person_role, tagline') // no company_name column: asking for it failed the whole lookup, so every brief lost the brand
       .eq('id', draft.brandId)
       .maybeSingle()
     brand = data
