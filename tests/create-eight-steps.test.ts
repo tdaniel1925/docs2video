@@ -68,7 +68,7 @@ describe('nothing chosen on one step is lost on the way to the next', () => {
     expect(next).toMatch(/const problem = await saveChoices\(\)/)
     expect(next.indexOf('saveChoices()')).toBeLessThan(next.indexOf('router.push(stepPath(next.key, videoId))'))
     const make = lvr.slice(lvr.indexOf('async function handleMake'))
-    expect(make).toMatch(/const problem = await saveChoices\(\)\n\s*if \(problem\) return stop/)
+    expect(make).toMatch(/const problem = await saveChoices\(\)\r?\n\s*if \(problem\) return stop/)
     // …and every choice is read back from the draft on arrival.
     for (const k of ['d.voiceId', 'd.aiMusic', 'd.slidePhotos', 'd.drawStyle', 'd.presentationTemplate', 'd.allowSourceDownload', 'd.agentNote']) expect(lvr, k).toContain(k)
   })
