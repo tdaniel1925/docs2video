@@ -31,9 +31,9 @@ import { createClient } from '../../../../_lib/supabase/client'
 import { VOICE_OPTIONS } from '../../../../_lib/types'
 // Types only — the price helper itself is server code and never runs here.
 import type { MakeOutput } from '../../../../_lib/price-quote'
-import { LookPicker, OutputPicker, VoicePicker } from '../make/Pickers'
+import { LookPicker, OutputPicker, VoicePicker, SampleVideoDialog } from '../make/Pickers'
 import { usePriceQuote, formatCredits } from '../make/usePriceQuote'
-import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, type VideoLookId, type YourLook } from '../make/looks'
+import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, VIDEO_SAMPLE, type VideoLookId, type YourLook } from '../make/looks'
 // The same list the story step chooses from — one set of names for both.
 import { LENGTHS, LENGTH_ANCHOR } from '../story/lengths'
 import { sceneSeconds } from '../story/bookends'
@@ -385,6 +385,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   // would send) could be the old engine's — a slow answer must never start a
   // video on the wrong engine. A failed answer counts as known (kit off).
   /* Hooks before the early returns below (rules of hooks). */
+  const [videoSampleOpen, setVideoSampleOpen] = useState(false)
+  const videoSampleFrom = useRef<HTMLButtonElement | null>(null)
   const openLookScreen = () => router.push(`/create/look?id=${encodeURIComponent(videoId ?? "")}`)
   /* A picture pasted on the Look step becomes the reference on the look screen (pasted-reference). */
   const [pasteKey, setPasteKey] = useState('Ctrl+V')
@@ -565,7 +567,9 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
                 onChange={(o) => { setOutput(o); setError(null) }}
                 options={quote?.options ?? null}
               />
+              {isVideo ? <button type="button" className="cf-look-watch" onClick={(e) => { videoSampleFrom.current = e.currentTarget; setVideoSampleOpen(true) }} data-video-sample>▶ Watch a sample video</button> : null}
             </div>
+            {videoSampleOpen ? <SampleVideoDialog name="A sample video" sample={VIDEO_SAMPLE} onClose={() => { setVideoSampleOpen(false); videoSampleFrom.current?.focus() }} /> : null}
 
             <LookPicker
               cards={cards}
