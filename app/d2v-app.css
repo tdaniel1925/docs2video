@@ -109,8 +109,11 @@
 .d2v-app a.kit-focusbar-step:hover { background: none; color: var(--ink); }
 .d2v-app .kit-focusbar-word { overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 700px) {
-  .d2v-app .kit-focusbar-step { letter-spacing: 0.06em; }
+  .d2v-app .kit-focusbar-step { letter-spacing: 0.02em; }
   .d2v-app .kit-focusbar-steps li:not([aria-current='step']) .kit-focusbar-word { display: none; }
+  /* The step you are on gets the room to say its name. */
+  .d2v-app .kit-focusbar-steps li { flex: 0 0 28px; }
+  .d2v-app .kit-focusbar-steps li[aria-current='step'] { flex: 1 1 auto; }
 }
 
 /* ── Buttons: the bright one is the logo blue with navy words; the rest are
@@ -180,3 +183,10 @@
 }
 .d2v-app .section-title { font-family: var(--d2v-head); font-weight: 900; text-transform: uppercase; letter-spacing: -0.03em; }
 .d2v-app .section-title em { font-family: inherit; font-style: normal; font-weight: inherit; color: var(--accent-ink); }
+/* The smallest phones: the bars and numbers alone — the page's own heading
+   says which step it is. */
+@media (max-width: 420px) {
+  .d2v-app .kit-focusbar-steps li[aria-current='step'] .kit-focusbar-word { display: none; }
+  .d2v-app .kit-focusbar-steps li,
+  .d2v-app .kit-focusbar-steps li[aria-current='step'] { flex: 1 1 0; }
+}
