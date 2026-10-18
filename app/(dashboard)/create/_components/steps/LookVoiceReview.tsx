@@ -20,7 +20,7 @@
 // with, reading the same saved draft. Before starting the job this page saves
 // every choice to the draft, re-reads the price, and stops if it changed.
 
-import { StepExplain, LookVsBrand } from './StepExplain'
+import { StepExplain } from './StepExplain'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { usePasteImage, pasteKeyLabel } from '../../../../_components/usePasteImage'
 import { holdPastedReference } from '../../../../_components/look/pasted-reference'
@@ -557,10 +557,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
 
   return (
     <div className="cf-page cf-step" data-step={part}>
-      <h1 className="cf-h1">{heads.h}</h1>
-      <p className="cf-lede">{heads.lede}</p>
       <StepExplain step={part} />
-      {part === 'look' ? <LookVsBrand /> : null}
+      <h1 className="cf-h1">{heads.h}</h1>
 
       {part === 'look' ? (
         <div className="cf-split">

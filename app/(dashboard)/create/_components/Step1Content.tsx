@@ -442,8 +442,8 @@ export default function Step1Content() {
 
   return (
     <div className="cf-page">
-      <h1 className="cf-h1">{head.lead} <em>{head.word}</em></h1>
       <StepExplain step="content" />
+      <h1 className="cf-h1">{head.lead} <em>{head.word}</em></h1>
 
       <div id="s1-source" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {src === 'upload' && (

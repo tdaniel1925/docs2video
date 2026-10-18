@@ -724,15 +724,13 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
     <div className="cf-page cf-step story-page" data-step={part}>
       {part === 'story' ? (
         <>
-          <h1 className="cf-h1">Here&rsquo;s the <em>story.</em></h1>
-          <p className="cf-lede">What we took from your content. Fix anything that is wrong and leave out what should not be said — the video says exactly this.</p>
           <StepExplain step="story" />
+          <h1 className="cf-h1">Here&rsquo;s the <em>story.</em></h1>
         </>
       ) : (
         <>
-          <h1 className="cf-h1">Every <em>scene.</em></h1>
-          <p className="cf-lede">Every scene, in order. Change any word, see what is on screen, drag one to move it, and pick how long it runs.</p>
           <StepExplain step="scenes" />
+          <h1 className="cf-h1">Every <em>scene.</em></h1>
         </>
       )}
 

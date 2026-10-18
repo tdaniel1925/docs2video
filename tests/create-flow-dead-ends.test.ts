@@ -356,8 +356,10 @@ describe('the create flow says Brand, Library and New', () => {
   it('the brand step is headed "Your brand" and says it can be a person or a company', () => {
     const brand = read(BRAND)
     expect(brand).toMatch(/>Your <em>brand\.<\/em></)
-    expect(brand).toMatch(/A brand can be you/)
-    expect(brand).toMatch(/or a company/)
+    // Said once, in the coach bar above the heading (approved option B).
+    expect(brand).toMatch(/<StepExplain step="brand" \/>/)
+    const coach = read('app/(dashboard)/create/_components/steps/StepExplain.tsx')
+    expect(coach).toMatch(/your name, photo and contact, or a company/)
   })
 })
 
