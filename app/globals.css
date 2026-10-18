@@ -3880,6 +3880,30 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
 @media (prefers-reduced-motion: reduce) { .ws-stage.is-now .ws-stage-mark { animation: none; border-top-color: var(--accent-ink); } }
 
 /* ===========================================================================
+   FRONT PAGE, DARK (redesign 2026-10-18; app/_components/marketing/home.css)
+   ---------------------------------------------------------------------------
+   Dark navy and the logo's blue, never redefined for a theme: the front page
+   looks the same whatever the app's theme. home.css only names these.
+   =========================================================================== */
+:root {
+  --d2v-page: #030B1C;
+  --d2v-frame: #06142E;
+  --d2v-card: #0A1E40;
+  --d2v-card-on: #0E2750;
+  --d2v-line: #1C3A6B;
+  --d2v-line2: #2A4F86;
+  --d2v-text: #EAF2FF;
+  --d2v-nav: #C9D6EE;
+  --d2v-soft: #B7C7E3;
+  --d2v-dim: #8EA3C7;
+  --d2v-blue: #22B5FF;
+  --d2v-blue-hover: #7DD3FF;
+  --d2v-on-blue: #04122B;
+  --d2v-amber: #FF9F1C;
+  --d2v-live: #5FE3F0;
+}
+
+/* ===========================================================================
    FRONT PAGE PALETTE (app/_components/marketing/home.css)
    ---------------------------------------------------------------------------
    Light only on purpose: these names are never redefined for dark mode, so

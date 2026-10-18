@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
-// Phone-width menu for the front page header. Hidden above 900px by CSS
+// Phone-width menu for the front page header. Hidden above 1000px by CSS
 // (app/_components/marketing/home.css).
 export default function HomeMenu({ links }: { links: { href: string; label: string }[] }) {
   const [open, setOpen] = useState(false)
@@ -35,7 +35,7 @@ export default function HomeMenu({ links }: { links: { href: string; label: stri
         <div id="hp-menu-panel" className="hp-menu-panel">
           {links.map((l) => <a key={l.href} href={l.href} onClick={() => setOpen(false)}>{l.label}</a>)}
           <Link href="/blog" onClick={() => setOpen(false)}>Blog</Link>
-          <Link href="/login" onClick={() => setOpen(false)}>Log in</Link>
+          <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>
         </div>
       )}
     </div>

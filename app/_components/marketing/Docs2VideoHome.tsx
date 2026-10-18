@@ -1,127 +1,145 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Schibsted_Grotesk, JetBrains_Mono } from 'next/font/google'
+import { Archivo, DM_Sans } from 'next/font/google'
 import HomeMenu from './HomeMenu'
+import FieldTabs, { type Field } from './FieldTabs'
 import { PLANS, SELLABLE_PLAN_TIERS } from '../../_lib/pricing'
-import { INDUSTRIES, type IndustryId } from '../../_lib/industries'
 import './home.css'
 
 /*
- * The Docs2Video public front page (approved design "Home-after", 2026-10-14).
- * Light only: white and pale grey grounds, ink, one cobalt accent. Everything is
- * scoped under .hp (styles in ./home.css) and the two fonts are loaded here,
- * so the app's own fonts and colours are untouched.
+ * The Docs2Video public front page (redesign approved 2026-10-18, in the
+ * One Dollar Decks house style: dark navy, the logo's blue, big condensed
+ * capitals). Everything is scoped under .hp (styles in ./home.css) and the
+ * two fonts are loaded here, so the app's own fonts and colours are untouched.
  *
  * TRUTH RULES for this page — every line must be true of the product today:
- *   - Prices and "about N videos" come from PLANS (pricing.ts). Starter is
- *     retired, so only Free + SELLABLE_PLAN_TIERS are shown.
- *   - Industry wording, fine print and the closing ask come from INDUSTRIES.
- *   - The four looks are the ones step 3 offers today (scene kit): Animated
- *     slides, Editorial, Bright, Drawn slides. Pictures are their real sample
- *     frames from /public/style-samples, which carry only made-up names
- *     ("Your Agency", the Rivera family) — never a real carrier or company.
- *   - No popularity claims: the Pro badge says "Recommended" (the design's
- *     popularity badge is banned by tests/no-false-claims.test.ts).
+ *   - Prices come from PLANS (pricing.ts); nothing typed in.
+ *   - Every field tab has its own /for/* page.
+ *   - The six scenes are real frames the explainer engine drew for a made-up
+ *     family (the Moraleses); the photos are made-up people. No real carrier,
+ *     firm or client anywhere.
+ *   - No popularity claims: the Pro card says "Recommended".
  */
 
-const sans = Schibsted_Grotesk({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--hp-sans', display: 'swap' })
-const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '700'], variable: '--hp-mono', display: 'swap', preload: false })
+const display = Archivo({ subsets: ['latin'], weight: ['800', '900'], variable: '--hp-display', display: 'swap' })
+const sans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--hp-sans', display: 'swap' })
 
-// ── Industries ──────────────────────────────────────────────────────────────
-const ALL_INDUSTRIES = (Object.keys(INDUSTRIES) as IndustryId[]).filter((id) => id !== 'general')
-// Aimed at life insurance and annuity agents (2026-10-14), open to anyone.
-// "Built for" names their documents; "Also works for" shows other fields the
-// product has its own wording for. +N counts the rest of INDUSTRIES.
-const BUILT_FOR = ['Life insurance', 'Annuities', 'Policy reviews']
-const ALSO_FOR = ['Financial advice', 'Mortgage', 'Real estate', 'Legal']
-const MORE_INDUSTRIES = Math.max(0, ALL_INDUSTRIES.length - 1 - ALSO_FOR.length)
+// Section links: #how, #share, #industries and #pricing are kept from the old
+// page so links already shared or bookmarked still land.
+export const HOME_NAV = [
+  { href: '#how', label: 'How it works' },
+  { href: '#videos', label: 'Real videos' },
+  { href: '#share', label: 'The client page' },
+  { href: '#pricing', label: 'Price' },
+  { href: '#industries', label: 'Who it’s for' },
+] as const
 
-const INDUSTRY_CHIPS = [
-  { label: 'Life & annuities', href: '/for/insurance' },
-  { label: 'Financial', href: '/for/financial-services' },
-  { label: 'Mortgage', href: '/for/mortgage' },
+const HERO_FIELDS = [
+  { label: 'Insurance', href: '/for/insurance' },
+  { label: 'Financial advice', href: '/for/financial-services' },
   { label: 'Real estate', href: '/for/real-estate' },
+  { label: 'Mortgage', href: '/for/mortgage' },
+  { label: 'Healthcare', href: '/for/healthcare' },
+  { label: 'HR & benefits', href: '/for/human-resources' },
   { label: 'Legal', href: '/for/legal' },
+  { label: 'Education', href: '/for/education' },
+]
+// The /for/* pages not in the hero row: coaching, consulting, fitness,
+// medical, non-profit, property management.
+const MORE_FIELDS = 6
+
+const SOURCES = ['A report or policy', 'A PDF or scan', 'A website', 'Word or PowerPoint', 'Just the topic']
+
+const SCENES = [
+  { src: '/home/still-01.jpg', alt: 'Scene 1: the cover, prepared for the Morales family' },
+  { src: '/home/still-02.jpg', alt: 'Scene 2: the new monthly premium, said big' },
+  { src: '/home/still-03.jpg', alt: 'Scene 3: last year and this year side by side' },
+  { src: '/home/still-04.jpg', alt: 'Scene 4: what the policy covers' },
+  { src: '/home/still-05.jpg', alt: 'Scene 5: why it matters to the family' },
+  { src: '/home/still-06.jpg', alt: 'Scene 6: what happens next, in three steps' },
 ]
 
-const INSURANCE = INDUSTRIES.insurance
-const INSURANCE_TERMS = INSURANCE.terminology.use
-  .filter((t) => ['policyholder', 'death benefit', 'cash value growth', 'guaranteed values', 'illustrated values'].includes(t))
-  .join(' · ')
+const MADE_FOR = [
+  { src: '/home/still-02.jpg', alt: 'A scene with the new monthly premium said big', t: 'The number that matters', d: 'Said big, said simply' },
+  { src: '/home/still-03.jpg', alt: 'A scene comparing last year and this year', t: 'Last year and this year', d: 'Charts drawn from the document' },
+  { src: '/home/still-06.jpg', alt: 'A scene listing what happens next', t: 'A clear next step', d: 'Every video ends with an ask' },
+]
+
+const PROMISES = [
+  { icon: '⬚', t: 'From any document', d: 'Illustrations, policies, statements, a website, or just the topic' },
+  { icon: '✦', t: 'In your brand', d: 'Your real logo and colours on every scene, never an AI-drawn logo' },
+  { icon: '◎', t: 'Their name on it', d: '“Prepared for the Morales family”, personal from the first second' },
+  { icon: '↗', t: 'One link, tracked', d: 'Know when they open it and how far they watch' },
+]
+
+const STEPS = [
+  { t: 'Drop in the document', d: 'A report, a policy, a plan, a lease: up to five files. Or a website, or just the topic.' },
+  { t: 'Check the story', d: 'Read it like a script. Fix a number, leave out a private detail, change anything in plain words.' },
+  { t: 'Pick a look and a voice', d: 'Your brand, a picture you like, or one of ours. Your logo and your client’s name on the cover.' },
+  { t: 'Send it, then follow up', d: 'One link by email or text. Hear when they open it, answer their questions, let them book a call.' },
+]
+
+const PAGE_ACTIONS = [
+  { t: 'Book a call', d: 'Your booking link, one tap' },
+  { t: 'Ask a question', d: 'It comes straight to you' },
+  { t: 'Pay your quote', d: 'A Pay button, when you add one' },
+  { t: 'The original PDF', d: 'If you let them download it' },
+]
+
+const FIELDS: Field[] = [
+  { name: 'INSURANCE', kicker: 'Life insurance & annuities', title: 'Send the illustration as a video they will watch', doc: 'a policy illustration', reader: 'client', problem: 'Pages of tables and footnotes. Clients flip to the premium and skip the rest, then call you with the questions it already answered.', does: ['The premium, the cover and the riders, said simply', 'Your name, photo and booking link on it', 'The right fine print, added for you'], img: '/home/table.jpg', alt: 'An older couple watching their coverage video at the kitchen table', caption: 'ANNUITY STATEMENT · 3 MIN', href: '/for/insurance' },
+  { name: 'FINANCIAL ADVICE', kicker: 'Financial advisors', title: 'Your clients deserve to understand their money', doc: 'a portfolio report', reader: 'client', problem: 'Quarterly reports get filed unread, so the review meeting starts from zero.', does: ['Performance and allocation as clear charts', 'What changed and why, in plain words', 'Book the review from the same page'], img: '/home/finance.jpg', alt: 'An advisor and a couple watching a short video with growth charts', caption: 'QUARTERLY REVIEW · 2 MIN', href: '/for/financial-services' },
+  { name: 'REAL ESTATE', kicker: 'Real estate agents', title: 'Your market analysis deserves better than a spreadsheet', doc: 'a market analysis', reader: 'seller', problem: 'Sellers skim the numbers and fixate on one comparable. Your pricing story gets lost.', does: ['Comparables, pricing and timing told as one story', 'Your listing photos and your brand', 'Easy to share with everyone deciding'], img: '/home/realestate.jpg', alt: 'A couple in an empty sunlit house watching a short video on a phone', caption: 'LISTING PRESENTATION · 2 MIN', href: '/for/real-estate' },
+  { name: 'MORTGAGE', kicker: 'Mortgage & lending', title: 'Help borrowers understand their loan before they sign', doc: 'a loan estimate', reader: 'borrower', problem: 'Loan estimates confuse first-time buyers, and every question becomes a phone call.', does: ['Rate, payment and closing costs explained', 'Every step to closing, in order', 'Fewer “quick question” calls'], img: '/home/mortgage.jpg', alt: 'A buyer at a cafe watching a short video beside a loan estimate', caption: 'LOAN ESTIMATE · 2 MIN', href: '/for/mortgage' },
+  { name: 'HEALTHCARE', kicker: 'Healthcare & medical', title: 'Patients leave with questions you already answered', doc: 'care instructions', reader: 'patient', problem: 'Printed instructions get lost or misread once the patient is home.', does: ['Care steps in clear, calm language', 'Something to rewatch at home', 'Easy to share with a caregiver'], img: '/home/healthcare.jpg', alt: 'A nurse showing a patient a short video on a tablet', caption: 'AFTER-VISIT CARE · 2 MIN', href: '/for/healthcare' },
+  { name: 'HR & BENEFITS', kicker: 'Human resources', title: 'Your benefits guide is long. Your people are busy.', doc: 'a benefits guide', reader: 'employee', problem: 'Open enrollment questions flood the inbox, and new hires miss the deadlines.', does: ['Plans compared side by side', 'Deadlines and next steps that stick', 'Ready for every new hire'], img: '/home/hr.jpg', alt: 'A new employee watching a benefits welcome video at her desk', caption: 'OPEN ENROLLMENT · 4 MIN', href: '/for/human-resources' },
+  { name: 'LEGAL', kicker: 'Law firms', title: 'Your clients sign documents they don’t understand', doc: 'an agreement', reader: 'client', problem: 'The important clauses are the ones nobody reads before signing.', does: ['Key terms explained without the jargon', 'Nothing claimed beyond what the document says', 'Something they can rewatch before signing'], img: '/home/legal.jpg', alt: 'A lawyer handing a client a tablet playing a short video', caption: 'ENGAGEMENT LETTER · 3 MIN', href: '/for/legal' },
+  { name: 'EDUCATION', kicker: 'Education & coaching', title: 'Your material is valuable. Make it easy to take in.', doc: 'course material', reader: 'student', problem: 'Long handouts lose learners halfway through.', does: ['Lessons turned into short videos', 'In your brand', 'Easy to share with a whole class'], img: '/home/education.jpg', alt: 'A learner taking notes while watching a short course video', caption: 'MODULE 1 · 5 MIN', href: '/for/education' },
+]
+
+const PRICE_NOTES = [
+  { t: 'You see the price first', d: 'The exact price is on the Make button, worked out from your story, before anything is charged.' },
+  { t: 'Failed means free', d: 'If a video can’t be made, every credit comes back.' },
+  { t: 'The story is free', d: 'Reading your document and writing the story cost nothing. Change it as often as you like.' },
+  { t: 'Teams and agencies', d: 'Plans for whole offices.', link: { href: '/contact', label: 'Talk to us →' } },
+]
+
+const FAQ = [
+  { q: 'Is it only for insurance agents?', a: 'No. Anyone with a document to explain can use it: advisors, lenders, real estate agents, clinics, HR teams, lawyers, coaches and more. It adjusts its words for your field.' },
+  { q: 'Do I need to record anything?', a: 'No. A natural AI voice narrates the video. You never have to be on camera.' },
+  { q: 'Will it get my numbers right?', a: 'It uses the figures in your document as written, and you read the story and change it before anything is made.' },
+  { q: 'Can I put my own branding on it?', a: 'Yes. Your real logo, your colours, and your client’s name on the cover.' },
+  { q: 'What does my client need?', a: 'Just the link. It plays in any browser, on any phone.' },
+]
+
+const FOOTER_FIELDS = [
+  { href: '/for/insurance', label: 'Insurance' },
+  { href: '/for/financial-services', label: 'Financial advice' },
+  { href: '/for/real-estate', label: 'Real estate' },
+  { href: '/for/mortgage', label: 'Mortgage' },
+  { href: '/for/healthcare', label: 'Healthcare' },
+  { href: '/for/human-resources', label: 'HR & benefits' },
+  { href: '/for/legal', label: 'Legal' },
+  { href: '/for/education', label: 'Education' },
+]
 
 // ── Pricing (from pricing.ts) ───────────────────────────────────────────────
 const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
-const TOP_UP_LINE = FREE_PLAN.features.find((f) => f.startsWith('Top up')) ?? ''
 
 function pricingCards() {
   const free = FREE_PLAN
   const paid = PLANS.filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
   return [
-    {
-      // One name for the free plan everywhere: pricing.ts's label (audit 2026-10-09).
-      key: 'free', name: free.label, price: '$0', per: '', popular: false,
-      videos: `About ${free.approxStandardVideos} videos to try`,
-      cta: 'Start free',
-    },
+    // One name for the free plan everywhere: pricing.ts's label (audit 2026-10-09).
+    { key: 'free', name: free.label, price: '$0', per: '', pop: false, line: `About ${free.approxStandardVideos} videos to try` },
     ...paid.map((p) => ({
-      key: p.tier, name: p.label, price: `$${p.monthlyPrice / 100}`, per: '/mo', popular: p.tier === 'pro',
-      videos: `About ${p.approxStandardVideos} videos a month`,
-      cta: `Choose ${p.label}`,
+      key: p.tier, name: p.label, price: `$${p.monthlyPrice / 100}`, per: '/mo', pop: p.tier === 'pro',
+      line: `About ${p.approxStandardVideos} videos a month`,
     })),
   ]
 }
 
-// ── Copy ────────────────────────────────────────────────────────────────────
-const LOOKS = [
-  { name: 'Animated slides', src: '/style-samples/kit-animated-slides-data.png', alt: 'Animated slides look: a big gold $500,000 on a deep navy background' },
-  { name: 'Editorial', src: '/style-samples/kit-editorial-cover.png', alt: 'Editorial look: a calm cream cover with a serif headline and the agent’s photo' },
-  { name: 'Bright', src: '/style-samples/kit-bright-data.png', alt: 'Bright look: a big orange number on a light, colourful background' },
-  { name: 'Drawn slides', src: '/style-samples/drawn-3d.png', alt: 'Drawn slides look: glossy 3D cards showing coverage, monthly premium and age' },
-]
-
-const CLOSE_POINTS = [
-  { t: 'Plays anywhere', d: 'Any browser, any phone or laptop. No app and no login for your client.' },
-  { t: 'A booking button', d: 'Add your Calendly, Cal.com or Google Calendar link and they get a big “Book a call” button.' },
-  { t: 'Quotes and payments', d: 'Attach a line-item quote and your own payment link. They see the total and a Pay button.' },
-  { t: 'Know when they watch', d: 'An alert the moment they open it, and how far they got. Follow up while it’s fresh.' },
-]
-
-const FAQ = [
-  { q: 'Is it only for insurance agents?', a: 'No. It’s built with life insurance and annuity agents in mind, but anyone with a document to explain can use it: advisors, lenders, real estate agents, lawyers, coaches and more. It adjusts its words for your field.' },
-  { q: 'Does it work with annuity contracts?', a: 'Yes. It recognises annuity contracts as well as life illustrations, and explains values, surrender charges and payout options in plain words.' },
-  { q: 'Do I need to record anything?', a: 'No. A natural AI voice narrates the video. You never have to be on camera.' },
-  { q: 'Will it get my numbers right?', a: 'It uses the figures in your document as written, and you read the script and change it before anything is made.' },
-  { q: 'Can I put my own branding on it?', a: 'Yes. Your real logo, your colours, and your client’s name on the cover.' },
-  { q: 'What does my client need?', a: 'Just the link. It plays in any browser, on any phone.' },
-]
-
-// Section links: ids kept from the old page (#how, #share, #industries,
-// #pricing) so links already shared or bookmarked still land.
-export const HOME_NAV = [
-  { href: '#how', label: 'How it works' },
-  { href: '#share', label: 'The client page' },
-  { href: '#industries', label: 'Who it’s for' },
-  { href: '#pricing', label: 'Pricing' },
-] as const
-
-const FOOTER_INDUSTRIES = [
-  { href: '/for/insurance', label: 'Life & annuities' },
-  { href: '/for/financial-services', label: 'Financial services' },
-  { href: '/for/real-estate', label: 'Real estate' },
-  { href: '/for/mortgage', label: 'Mortgage' },
-  { href: '/for/healthcare', label: 'Healthcare' },
-  { href: '/for/legal', label: 'Legal' },
-  { href: '/for/consulting', label: 'Consulting' },
-  { href: '/for/education', label: 'Education' },
-]
-
 function jsonLd() {
-  const offers = pricingCards().map((c) => ({
-    '@type': 'Offer',
-    name: c.name,
-    price: c.price.replace('$', ''),
-    priceCurrency: 'USD',
-  }))
   return [
     {
       '@context': 'https://schema.org',
@@ -130,8 +148,8 @@ function jsonLd() {
       url: 'https://docs2video.com',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
-      description: 'Built for life insurance and annuity agents, open to anyone: turn an illustration, annuity contract or any long document into a short narrated video, sent on a branded page where your client can book a call and pay.',
-      offers,
+      description: 'Turn a policy, report, plan or any long document into a short narrated video in your brand, sent on a page where your client can book a call, ask a question and pay.',
+      offers: pricingCards().map((c) => ({ '@type': 'Offer', name: c.name, price: c.price.replace('$', ''), priceCurrency: 'USD' })),
     },
     {
       '@context': 'https://schema.org',
@@ -141,282 +159,257 @@ function jsonLd() {
   ]
 }
 
-function Mark() {
-  return (
-    <span className="hp-mark" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M8 5v14l11-7z" /></svg>
-    </span>
-  )
+function Logo({ className }: { className: string }) {
+  return <img src="/logo-nav.png" alt="Docs2Video" className={className} />
 }
 
 export default function Docs2VideoHome() {
   const tiers = pricingCards()
 
   return (
-    <div className={`hp ${sans.variable} ${mono.variable}`}>
+    <div className={`hp ${display.variable} ${sans.variable}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd()) }} />
       <a href="#main" className="hp-skip">Skip to content</a>
 
-      {/* ───── Header ───── */}
-      <header className="hp-header">
-        <div className="hp-header-in">
-          <Link href="/" className="hp-brand" aria-label="Docs2Video home">
-            <Mark />
-            <span>Docs2Video</span>
-          </Link>
+      <div className="hp-frame">
+        {/* ───── Header ───── */}
+        <header className="hp-header">
+          <Link href="/" className="hp-brand" aria-label="Docs2Video home"><Logo className="hp-logo" /></Link>
           <nav className="hp-nav" aria-label="Main">
             {HOME_NAV.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}
           </nav>
-          <Link href="/login" className="hp-login">Log in</Link>
-          <Link href="/signup" className="hp-btn hp-btn-ink hp-btn-sm">Start free</Link>
-          <HomeMenu links={HOME_NAV.map((l) => ({ href: l.href, label: l.label }))} />
+          <span className="hp-header-btns">
+            <Link href="/login" className="hp-btn hp-btn-line hp-login">Sign in</Link>
+            <Link href="/signup" className="hp-btn hp-btn-blue">Make a video</Link>
+            <HomeMenu links={HOME_NAV.map((l) => ({ href: l.href, label: l.label }))} />
+          </span>
+        </header>
+
+        <main id="main">
+          {/* ───── Hero ───── */}
+          <section className="hp-hero" aria-labelledby="hp-hero-title">
+            <Image
+              src="/home/hero.jpg"
+              alt="A couple on their sofa at dusk, watching their coverage video together on a tablet"
+              fill priority sizes="(max-width: 1312px) 100vw, 1280px"
+              className="hp-hero-img"
+            />
+            <div className="hp-hero-shade" aria-hidden="true" />
+            <div className="hp-hero-top">
+              <span className="hp-hero-for">
+                <span className="hp-flag" aria-hidden="true" /><span className="hp-flag hp-flag-amber" aria-hidden="true" />
+                <span>For anyone who explains documents<br /><span className="hp-soft">Agents · advisors · clinics · HR · lenders</span></span>
+              </span>
+              <span className="hp-hero-list">✦ Narrated &amp; animated<br />Your brand, your client’s name<br />One link, tracked</span>
+            </div>
+            <h1 id="hp-hero-title" className="hp-h1"><span>Documents in.</span><span className="hp-blue">Videos out.</span></h1>
+            <div className="hp-hero-chips">
+              {HERO_FIELDS.map((c) => <Link key={c.href} href={c.href} className="hp-pill">{c.label}</Link>)}
+              <a href="#industries" className="hp-pill hp-pill-on">+ {MORE_FIELDS} more</a>
+            </div>
+            <div className="hp-hero-foot">
+              <a href="#how" className="hp-watch">
+                <span className="hp-watch-ring" aria-hidden="true">▶</span>
+                <span>See how it works<br /><span className="hp-soft">Document to sent video</span></span>
+              </a>
+              <div className="hp-sent">
+                <span className="hp-kicker">Sent today</span>
+                <div className="hp-sent-pic">
+                  <Image src="/home/still-01.jpg" alt="The opening scene of a coverage review video" width={960} height={540} sizes="276px" />
+                  <span>1:13</span>
+                </div>
+                <b>The Morales family · coverage review</b>
+                <span className="hp-sent-status"><span className="hp-live" aria-hidden="true" />Opened 2 minutes ago · watched it all</span>
+                <Link href="/share-demo" className="hp-btn hp-btn-blue hp-btn-block">See a client page</Link>
+              </div>
+            </div>
+          </section>
+
+          <div className="hp-body">
+            {/* ───── Make it from ───── */}
+            <div className="hp-from">
+              <span className="hp-kicker">Make it<br />from</span>
+              {SOURCES.map((s, i) => <Link key={s} href="/signup" className={i === 0 ? 'hp-from-on' : undefined}>{s}</Link>)}
+              <Link href="/signup" aria-label="Start" className="hp-round">→</Link>
+            </div>
+
+            {/* ───── Made for your client ───── */}
+            <div className="hp-made">
+              <div className="hp-made-copy">
+                <span className="hp-kicker">✦ Made for your client</span>
+                <b className="hp-made-title">A video they’ll watch, not a PDF they won’t</b>
+                <p>Drop in a 38-page report, policy or plan. Get back a few minutes they actually watch: every scene in your brand, their name on the cover, the numbers that matter said big.</p>
+                <a href="#how" className="hp-btn hp-btn-blue hp-btn-sm">How it works</a>
+              </div>
+              <div className="hp-made-grid">
+                {MADE_FOR.map((m) => (
+                  <div key={m.t} className="hp-tile">
+                    <Image src={m.src} alt={m.alt} width={960} height={540} sizes="(max-width: 700px) calc(100vw - 32px), 260px" />
+                    <div><span className="hp-caps">{m.t}</span><br /><span className="hp-caps hp-dim">{m.d}</span></div>
+                  </div>
+                ))}
+              </div>
+              <div className="hp-free">
+                <span><span className="hp-kicker">Reading it</span><br /><b>Free</b></span>
+                <span><span className="hp-kicker">Checking the story</span><br /><b>Free</b></span>
+                <span><span className="hp-kicker">Changing it</span><br /><b>Free</b></span>
+              </div>
+            </div>
+
+            {/* ───── Four promises ───── */}
+            <div className="hp-promises">
+              {PROMISES.map((p) => (
+                <div key={p.t}>
+                  <span className="hp-icon" aria-hidden="true">{p.icon}</span>
+                  <span><b className="hp-caps">{p.t}</b><br /><span className="hp-small">{p.d}</span></span>
+                </div>
+              ))}
+            </div>
+
+            {/* ───── How it works ───── */}
+            <section id="how" className="hp-sec" aria-labelledby="hp-how-title">
+              <span className="hp-kicker">✦ Document to sent video</span>
+              <h2 id="hp-how-title" className="hp-h2">How it <span className="hp-blue">works</span></h2>
+              <div className="hp-how">
+                <ol className="hp-steps">
+                  {STEPS.map((s, i) => (
+                    <li key={s.t}>
+                      <b className="hp-step-num">{String(i + 1).padStart(2, '0')}</b>
+                      <span><b className="hp-caps">{s.t}</b><br /><span className="hp-soft">{s.d}</span></span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="hp-browser">
+                  <div className="hp-browser-bar" aria-hidden="true"><i /><i /><i /><span>docs2video.com/watch/morales</span></div>
+                  <Link href="/share-demo" className="hp-browser-pic" aria-label="See an example client page">
+                    <Image src="/home/still-01.jpg" alt="The coverage review video, ready to play" width={960} height={540} sizes="(max-width: 1000px) calc(100vw - 32px), 640px" />
+                    <span className="hp-play" aria-hidden="true">▶</span>
+                    <span className="hp-browser-tag">See the client page</span>
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* ───── The client page ───── */}
+            <section id="share" className="hp-sec hp-client" aria-labelledby="hp-share-title">
+              <div className="hp-client-art">
+                <Image src="/home/agent.jpg" alt="An agent smiling at her phone as a client opens their video" fill sizes="(max-width: 1000px) calc(100vw - 32px), 620px" />
+                <div className="hp-client-alert">
+                  <span className="hp-live" aria-hidden="true" />
+                  <span><b>The Riveras opened your video.</b><br /><span className="hp-soft">Watched to the end · good time to call.</span></span>
+                </div>
+              </div>
+              <div className="hp-client-copy">
+                <span className="hp-kicker">✦ The client page</span>
+                <h2 id="hp-share-title" className="hp-h2 hp-h2-md">Not just a video. <span className="hp-blue">A page that closes.</span></h2>
+                <p className="hp-soft">Every video lives on its own page in your brand, with your note on top and everything your client needs to say yes underneath.</p>
+                <div className="hp-actions">
+                  {PAGE_ACTIONS.map((a) => (
+                    <span key={a.t} className="hp-card"><b className="hp-caps">{a.t}</b><br /><span className="hp-small">{a.d}</span></span>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* ───── A real video, scene by scene ───── */}
+            <section id="videos" className="hp-sec" aria-labelledby="hp-videos-title">
+              <span className="hp-kicker">✦ Real output, not mockups</span>
+              <h2 id="hp-videos-title" className="hp-h2">A video it <span className="hp-blue">made</span></h2>
+              <p className="hp-soft hp-measure">One coverage review, scene by scene: each one designed for what it says, in the agency’s colours, then animated with the narrator’s voice.</p>
+              <div className="hp-scenes-head"><span>The Morales family · coverage review</span><span>From a 12-page renewal summary · 1:13</span></div>
+              <div className="hp-scenes">
+                {SCENES.map((s) => <Image key={s.src} src={s.src} alt={s.alt} width={960} height={540} sizes="(max-width: 700px) calc(100vw - 32px), 400px" />)}
+              </div>
+            </section>
+
+            {/* ───── Who it's for: one tab per field ───── */}
+            <section id="industries" className="hp-sec" aria-labelledby="hp-ind-title">
+              <span className="hp-kicker">✦ Built for your field</span>
+              <h2 id="hp-ind-title" className="hp-h2">Speaks your field. <span className="hp-blue">Minds the fine print.</span></h2>
+              <FieldTabs fields={FIELDS} />
+            </section>
+
+            {/* ───── Price ───── */}
+            <section id="pricing" className="hp-sec" aria-labelledby="hp-pricing-title">
+              <span className="hp-kicker">✦ The short version</span>
+              <h2 id="hp-pricing-title" className="hp-h2">Start free. <span className="hp-blue">Grow when it works.</span></h2>
+              <div className="hp-tiers">
+                {tiers.map((t) => (
+                  <div key={t.key} className={t.pop ? 'hp-tier hp-tier-pop' : 'hp-tier'}>
+                    <span className="hp-kicker">{t.name}{t.pop ? ' · Recommended' : ''}</span>
+                    <b className="hp-price">{t.price}{t.per && <small>{t.per}</small>}</b>
+                    <span className="hp-small">{t.line}</span>
+                    <Link href="/signup" className={`hp-btn ${t.pop ? 'hp-btn-blue' : 'hp-btn-line'} hp-btn-sm`}>{t.key === 'free' ? 'Start free' : `Choose ${t.name}`}</Link>
+                  </div>
+                ))}
+              </div>
+              <div className="hp-notes">
+                {PRICE_NOTES.map((n) => (
+                  <span key={n.t}>
+                    <b className="hp-caps hp-white">✓ {n.t}</b><br />{n.d}
+                    {n.link && <> <Link href={n.link.href}>{n.link.label}</Link></>}
+                  </span>
+                ))}
+              </div>
+              <p><Link href="/pricing" className="hp-textlink">Compare every plan in detail →</Link></p>
+            </section>
+
+            {/* ───── Questions ───── */}
+            <section id="faq" className="hp-sec hp-faq" aria-labelledby="hp-faq-title">
+              <h2 id="hp-faq-title" className="hp-h2 hp-h2-md">Questions</h2>
+              <div className="hp-faq-list">
+                {FAQ.map((f) => (
+                  <div key={f.q} className="hp-faq-item"><h3>{f.q}</h3><p>{f.a}</p></div>
+                ))}
+              </div>
+            </section>
+
+            {/* ───── Final CTA ───── */}
+            <section className="hp-final" aria-labelledby="hp-final-title">
+              <h2 id="hp-final-title" className="hp-h2 hp-h2-xl">Send something<br /><span className="hp-blue">they’ll watch.</span></h2>
+              <span className="hp-soft">Bring a document. See the story free.</span>
+              <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Make your first video</Link>
+            </section>
+          </div>
+        </main>
+
+        {/* ───── Plays on ───── */}
+        <div className="hp-plays">
+          <span>Plays on</span>
+          <span className="hp-plays-list"><span>Phones</span><span>Tablets</span><span>Laptops</span><span>Smart TVs</span></span>
         </div>
-      </header>
 
-      <main id="main">
-        {/* ───── Hero ───── */}
-        <section className="hp-hero" aria-labelledby="hp-hero-title">
-          <div className="hp-hero-in">
-            <div className="hp-hero-copy">
-              <span className="hp-tag">Built for life insurance &amp; annuity agents</span>
-              <h1 id="hp-hero-title" className="hp-h1"><span className="hp-line">Illustration in.</span> <span className="hp-line hp-blue">Short video out.</span></h1>
-              <p className="hp-lede">Life illustrations, annuity contracts and policy reviews, turned into a short video your client will actually watch. Narrated, branded, careful with compliance, and sent on a page where they can book a call and say yes.</p>
-              <div className="hp-cta-row">
-                <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Start free · {FREE_PLAN.approxStandardVideos} videos on us</Link>
-                <a href="#share" className="hp-btn hp-btn-line hp-btn-lg"><span aria-hidden="true">▶</span> See what your client gets</a>
-              </div>
-              <p className="hp-note">No card needed for the free preview · PDF, Word, PowerPoint, a website, or just the topic</p>
-              <p className="hp-note hp-anyone"><b>Not an agent?</b> Anyone can use it. It works with any document, in any field.</p>
-            </div>
-
-            <div className="hp-hero-art">
-              <div className="hp-cover">
-                <Image
-                  src="/style-samples/kit-animated-slides-cover.png"
-                  alt="A finished video cover: Your Family’s Protection Plan, prepared for the Rivera family, with the agent’s photo"
-                  width={960} height={540} priority
-                  sizes="(max-width: 1000px) calc(100vw - 58px), 556px"
-                />
-                <div className="hp-cover-meta">
-                  <span className="hp-avatar" aria-hidden="true">JA</span>
-                  <div className="hp-cover-text"><b>Your Family’s Protection Plan</b><span>From a 38-page illustration · 3 minutes</span></div>
-                  <span className="hp-watched">Watched 92%</span>
-                </div>
-              </div>
-              <div className="hp-alert" aria-label="Example alert">
-                <span className="hp-dot" aria-hidden="true" />
-                <span><b>The Riveras opened your video.</b> Good time to call.</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── Made for ───── */}
-        <section className="hp-madefor" aria-label="Who it’s for">
-          <div className="hp-madefor-in">
-            <b>Built for</b>
-            {BUILT_FOR.map((m) => <span key={m}>{m}</span>)}
-            <b className="hp-madefor-also">Also works for</b>
-            {ALSO_FOR.map((m) => <span key={m}>{m}</span>)}
-            {MORE_INDUSTRIES > 0 && <span>+ {MORE_INDUSTRIES} more</span>}
-          </div>
-        </section>
-
-        {/* ───── How it works ───── */}
-        <section id="how" className="hp-sec hp-wrap" aria-labelledby="hp-how-title">
-          <h2 id="hp-how-title" className="hp-h2">Upload. Pick a look. Send.</h2>
-          <p className="hp-sub">No design skills, no recording, no editing timeline.</p>
-          <ol className="hp-steps">
-            <li className="hp-step">
-              <div className="hp-mini hp-mini-drop" aria-hidden="true"><b>illustration.pdf</b> · 38 pages</div>
-              <span className="hp-num" aria-hidden="true">01</span>
-              <h3>Drop in the document</h3>
-              <p>A life illustration, annuity contract or policy review. Or any PDF, Word file, PowerPoint or website, or just describe the topic. It reads the whole thing and finds the points that matter.</p>
-            </li>
-            <li className="hp-step">
-              <div className="hp-mini hp-mini-story" aria-hidden="true"><b>Your family keeps its home if the worst happens.</b><span>6 scenes · about 3 minutes</span></div>
-              <span className="hp-num" aria-hidden="true">02</span>
-              <h3>Check the story, pick a look</h3>
-              <p>Read it like a script and change anything in plain words. Choose a look and a narrator. Your logo and your client’s name go on the cover.</p>
-            </li>
-            <li className="hp-step">
-              <div className="hp-mini hp-mini-send" aria-hidden="true"><span>docs2video.com/watch/rivera</span><b>Send</b></div>
-              <span className="hp-num" aria-hidden="true">03</span>
-              <h3>Send it and follow up</h3>
-              <p>Share one link by email or text. Hear when they open it, and let them book a call or pay your quote from the same page.</p>
-            </li>
-          </ol>
-        </section>
-
-        {/* ───── Two ways to share ───── */}
-        <section className="hp-sec-s hp-wrap" aria-labelledby="hp-two-title">
-          <h2 id="hp-two-title" className="hp-h2 hp-mb">One document. Two ways to share it.</h2>
-          <div className="hp-two">
-            <div className="hp-two-item">
-              <Image src="/style-samples/kit-animated-slides-data.png" alt="A video scene showing $500,000 paid to your family" width={960} height={540} sizes="(max-width: 940px) calc(100vw - 48px), 566px" />
-              <h3>A narrated video</h3>
-              <p>A natural voice walks your client through it. Branded with your real logo, a few minutes long.</p>
-            </div>
-            <div className="hp-two-item">
-              <Image src="/style-samples/kit-editorial-cover.png" alt="An interactive presentation cover in a calm editorial style" width={960} height={540} sizes="(max-width: 940px) calc(100vw - 48px), 566px" className="hp-bordered" />
-              <h3>An interactive presentation</h3>
-              <p>They click through at their own pace, with narration. Its slides download as a PDF or PowerPoint for the meeting.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── The client page ───── */}
-        <section id="share" className="hp-band-wrap" aria-labelledby="hp-share-title">
-          <div className="hp-band">
-            <div className="hp-page" role="img" aria-label="Example client page: a personal greeting, the video, and buttons to book a call, review a quote and get the original document">
-              <div className="hp-page-bar" aria-hidden="true">docs2video.com/watch/chen</div>
-              <div className="hp-page-body" aria-hidden="true">
-                <div className="hp-page-from">
-                  <span className="hp-avatar">JA</span>
-                  <div><b>Prepared for the Chen family</b><span>From Jordan Avery · your coverage in 3 minutes</span></div>
-                </div>
-                <Image src="/style-samples/kit-animated-slides-cover.png" alt="" width={960} height={540} sizes="(max-width: 940px) calc(100vw - 120px), 520px" />
-                <div className="hp-page-actions">
-                  <span className="hp-pa-main">Book a call</span>
-                  <span>Review the quote</span>
-                  <span>Your document</span>
-                </div>
-              </div>
-            </div>
-            <div className="hp-band-copy">
-              <h2 id="hp-share-title" className="hp-h2 hp-on-dark">Not just a video.<br /><span className="hp-soft-blue">A page that closes.</span></h2>
-              <ul className="hp-points">
-                {CLOSE_POINTS.map((p) => (
-                  <li key={p.t}><b>{p.t}</b><p>{p.d}</p></li>
-                ))}
-              </ul>
-              <Link href="/signup" className="hp-btn hp-btn-white">Make your first one free</Link>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── Looks ───── */}
-        <section id="looks" className="hp-sec hp-wrap" aria-labelledby="hp-looks-title">
-          <div className="hp-split">
-            <h2 id="hp-looks-title" className="hp-h2">Pick a look. Or make your own.</h2>
-            <p>Start from your brand, a picture you like, or a ready style. Your real logo, never an AI-drawn one.</p>
-          </div>
-          <ul className="hp-looks">
-            {LOOKS.map((l) => (
-              <li key={l.name}>
-                <figure>
-                  <Image src={l.src} alt={l.alt} width={960} height={540} sizes="(max-width: 600px) calc(100vw - 48px), (max-width: 1140px) 45vw, 277px" className={l.name === 'Editorial' ? 'hp-bordered' : undefined} />
-                  <figcaption>{l.name}</figcaption>
-                </figure>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* ───── Industries / compliance ───── */}
-        <section id="industries" className="hp-sec hp-wrap" aria-labelledby="hp-ind-title">
-          <div className="hp-ind">
-            <div className="hp-ind-copy">
-              <h2 id="hp-ind-title" className="hp-h2 hp-h2-sm">Speaks life and annuities.<br />Minds your compliance.</h2>
-              <p>Made around the documents life and annuity agents send every week. It explains guaranteed and illustrated values in plain words, adds the fine print, never names a carrier or product, and ends with a clear next step.</p>
-              <p><b>Not in insurance?</b> Anyone can use it. It switches to your field’s words:</p>
-              <div className="hp-chips">
-                {INDUSTRY_CHIPS.map((c, i) => (
-                  <Link key={c.href} href={c.href} className={i === 0 ? 'hp-chip hp-chip-on' : 'hp-chip'}>{c.label}</Link>
-                ))}
-              </div>
-              <Link href="/for/insurance" className="hp-textlink">More for life &amp; annuity agents →</Link>
-            </div>
-            <div className="hp-ind-card">
-              <div><span className="hp-label">Knows the language</span><p>{INSURANCE_TERMS}</p></div>
-              {INSURANCE.disclaimerText && (
-                <div><span className="hp-label">Adds the fine print</span><p className="hp-fine">{INSURANCE.disclaimerText}</p></div>
-              )}
-              <div><span className="hp-label">Ends with a clear ask</span><p className="hp-ask">“{INSURANCE.ctaText}”</p></div>
-            </div>
-          </div>
-        </section>
-
-        {/* ───── Pricing ───── */}
-        <section id="pricing" className="hp-sec hp-wrap" aria-labelledby="hp-pricing-title">
-          <h2 id="hp-pricing-title" className="hp-h2">Start free. Grow when it works.</h2>
-          <p className="hp-sub">{TOP_UP_LINE ? `${TOP_UP_LINE}. ` : ''}Cancel any time.</p>
-          <div className="hp-tiers">
-            {tiers.map((t) => (
-              <div key={t.key} className={`hp-tier${t.popular ? ' hp-tier-pop' : ''}`}>
-                {t.popular && <span className="hp-tier-badge">Recommended</span>}
-                <b>{t.name}</b>
-                <span className="hp-price">{t.price}{t.per && <small>{t.per}</small>}</span>
-                <span className="hp-tier-videos">{t.videos}</span>
-                <Link href="/signup" className={`hp-btn ${t.popular ? 'hp-btn-blue' : 'hp-btn-line'}`}>{t.cta}</Link>
-              </div>
-            ))}
-          </div>
-          <p className="hp-more"><Link href="/pricing" className="hp-textlink">Compare every plan in detail →</Link></p>
-        </section>
-
-        {/* ───── Questions ───── */}
-        <section id="faq" className="hp-sec hp-wrap hp-faq" aria-labelledby="hp-faq-title">
-          <h2 id="hp-faq-title" className="hp-h2">Questions</h2>
-          <div className="hp-faq-list">
-            {FAQ.map((f) => (
-              <div key={f.q} className="hp-faq-item">
-                <h3>{f.q}</h3>
-                <p>{f.a}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ───── Final CTA ───── */}
-        <section className="hp-final-wrap" aria-labelledby="hp-final-title">
-          <div className="hp-final">
-            <div>
-              <h2 id="hp-final-title" className="hp-h2 hp-on-dark">Send something they’ll actually watch.</h2>
-              <p>{FREE_PLAN.monthlyCredits.toLocaleString('en-US')} free credits, about {FREE_PLAN.approxStandardVideos} videos, on us.</p>
-            </div>
-            <Link href="/signup" className="hp-btn hp-btn-white hp-btn-lg">Start free</Link>
-          </div>
-        </section>
-      </main>
-
-      {/* ───── Footer ───── */}
-      <footer className="hp-footer">
-        <div className="hp-footer-in">
+        {/* ───── Footer ───── */}
+        <footer className="hp-footer">
           <div className="hp-footer-brand">
-            <Link href="/" className="hp-brand" aria-label="Docs2Video home"><Mark /><span>Docs2Video</span></Link>
-            <p>Made for life insurance and annuity agents. Open to anyone with a document to explain.</p>
+            <Logo className="hp-logo hp-logo-foot" />
+            <p className="hp-soft">Your documents, explained in a video your clients actually watch.</p>
             <a href="mailto:support@docs2video.com">support@docs2video.com</a>
+            <span className="hp-dim">© {new Date().getFullYear()} Docs2Video. All rights reserved.</span>
           </div>
-          <div className="hp-footer-col">
-            <h2>Product</h2>
-            <ul>
-              <li><a href="#how">How it works</a></li>
-              <li><a href="#share">The client page</a></li>
-              <li><Link href="/pricing">Pricing</Link></li>
-              <li><Link href="/signup">Start free</Link></li>
-              <li><Link href="/login">Log in</Link></li>
-            </ul>
+          <div className="hp-footer-cols">
+            <div>
+              <h2 className="hp-kicker">Docs2Video</h2>
+              <Link href="/signup">Make a video</Link>
+              <a href="#how">How it works</a>
+              <Link href="/pricing">Pricing</Link>
+              <Link href="/login">Sign in</Link>
+              <Link href="/blog">Blog</Link>
+            </div>
+            <div>
+              <h2 className="hp-kicker">Who it’s for</h2>
+              {FOOTER_FIELDS.map((l) => <Link key={l.href} href={l.href}>{l.label}</Link>)}
+            </div>
+            <div>
+              <h2 className="hp-kicker">Company</h2>
+              <Link href="/contact">Contact</Link>
+              <Link href="/terms">Terms</Link>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/cookies">Cookies</Link>
+            </div>
           </div>
-          <div className="hp-footer-col">
-            <h2>Industries</h2>
-            <ul>
-              {FOOTER_INDUSTRIES.map((l) => <li key={l.href}><Link href={l.href}>{l.label}</Link></li>)}
-            </ul>
-          </div>
-          <div className="hp-footer-col">
-            <h2>Company</h2>
-            <ul>
-              <li><Link href="/blog">Blog</Link></li>
-              <li><Link href="/contact">Contact</Link></li>
-              <li><Link href="/terms">Terms</Link></li>
-              <li><Link href="/privacy">Privacy</Link></li>
-              <li><Link href="/cookies">Cookies</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="hp-footer-bottom">© {new Date().getFullYear()} Docs2Video. All rights reserved.</div>
-      </footer>
+        </footer>
+      </div>
     </div>
   )
 }
