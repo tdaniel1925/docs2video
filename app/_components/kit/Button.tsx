@@ -19,7 +19,8 @@ import { useId, type ButtonHTMLAttributes, type ReactNode } from 'react'
  * With `href` it renders a link that looks like a button (a link can't be
  * disabled, so the reason is ignored there).
  */
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet'
+import { kitButtonClass, type ButtonVariant } from './button-class'
+export { kitButtonClass, type ButtonVariant }
 
 type Common = {
   variant?: ButtonVariant
@@ -44,11 +45,6 @@ type AsLink = Common & {
   external?: boolean
   'aria-label'?: string
   onClick?: () => void
-}
-
-export function kitButtonClass(variant: ButtonVariant = 'primary', size: 'md' | 'sm' = 'md', full = false, extra = '') {
-  return ['kit-btn', `kit-btn--${variant}`, size === 'sm' ? 'kit-btn--sm' : '', full ? 'kit-btn--full' : '', extra]
-    .filter(Boolean).join(' ')
 }
 
 function Label({ children, price }: { children: ReactNode; price?: ReactNode }) {
