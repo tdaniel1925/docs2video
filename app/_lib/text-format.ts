@@ -56,3 +56,40 @@ export function scrubPlaceholderNamesInText(text: string): string {
     .replace(/\s+([.,;:!?])/g, '$1')
     .trim()
 }
+
+const COMPANY_RE = /\b(inc|llc|l\.l\.c|corp|corporation|co|company|group|partners|ltd|llp|agency|associates|foundation|trust|holdings|enterprises|church|school|district|clinic|hospital)\.?$/i
+const TITLE_RE = /^(mr|mrs|ms|miss|mx|dr|prof|rev|hon)\.?\s+/i
+
+/**
+ * HOW THE NARRATOR GREETS THE CLIENT ("___, thank you for letting…").
+ * The first word of the name was used, so "The Smith Family" became "The,",
+ * "Mr. John Smith" became "Mr.," and "SMITH, JOHN" became "SMITH,," (script
+ * edge-case review, 2026-10-18). Now:
+ *   a family     "The Smith Family"     → "Smith family"
+ *   a couple     "John and Mary Smith"  → "John and Mary"
+ *   a title      "Mr. John Smith"       → "Mr. Smith"
+ *   a company    "Acme Corp"            → "Acme Corp"
+ *   last, first  "SMITH, JOHN"          → "John"
+ *   a person     "jane smith"           → "Jane"
+ * Returns '' for no name / a placeholder.
+ */
+export function salutationFor(name: string | null | undefined): string {
+  let n = cleanRecipientName(name).replace(/\s+/g, ' ').trim()
+  if (!n) return ''
+  const shouting = n === n.toUpperCase() || n === n.toLowerCase()
+  if (shouting) n = toTitleCase(n)
+  const fam = n.match(/^(?:the\s+)?([A-Za-z][\w'’-]*)\s+family$/i)
+  if (fam) return `${fam[1]} family`
+  if (COMPANY_RE.test(n)) return n
+  const lastFirst = n.match(/^([^,]+),\s*([^,]+)$/)
+  if (lastFirst) n = `${lastFirst[2]} ${lastFirst[1]}`.trim()
+  const title = n.match(TITLE_RE)
+  if (title) {
+    const rest = n.slice(title[0].length).trim().split(' ')
+    const t = title[1].charAt(0).toUpperCase() + title[1].slice(1).toLowerCase()
+    return rest[rest.length - 1] ? `${t}. ${rest[rest.length - 1]}`.replace('Miss.', 'Miss') : ''
+  }
+  const couple = n.match(/^([A-Za-z][\w'’-]*)\s+(?:and|&)\s+([A-Za-z][\w'’-]*)\b/i)
+  if (couple) return `${couple[1]} and ${couple[2]}`
+  return n.split(' ')[0]
+}

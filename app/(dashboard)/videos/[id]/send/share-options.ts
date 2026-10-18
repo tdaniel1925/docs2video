@@ -20,6 +20,7 @@
 // =============================================================================
 
 import { FOLLOW_UP_STAGES, OPEN_QUOTE_STATUSES } from '../../../../_lib/follow-up-schedule'
+import { salutationFor } from '../../../../_lib/text-format'
 
 export interface QuoteLike {
   id: string
@@ -116,7 +117,7 @@ export function buildPreview(i: PreviewInput): PreviewModel {
   const paymentLink = httpsOnly(i.pipelinePaymentLink) || httpsOnly(i.agent?.payment_link_url)
   const q = i.publicQuote
   return {
-    greetingName: clientName.split(/\s+/)[0] || '',
+    greetingName: salutationFor(clientName),
     agentName: String(i.agent?.full_name || i.agent?.company_name || '').trim(),
     note: i.note.trim(),
     bookingUrl,

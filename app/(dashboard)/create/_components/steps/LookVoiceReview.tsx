@@ -47,9 +47,10 @@ import { D2V_OUTPUTS, d2vOutputs } from '../../../../_lib/videos-only'
 import { DEFAULT_DRAW_STYLE, DRAW_STYLES, isDrawStyle, type DrawStyleId } from '../../../../_lib/drawn-slides'
 // The new scene engine (KIT_ENGINE=on): which card saves which kit look (pure data).
 import { cardForDraft, previewLookFor, RETIRED_WITH_KIT, styleForCard } from '../../../../_lib/kit-looks'
+import { voiceNote, type SpeakAs, type PresenterVoice } from '../../../../_lib/narration-pov'
 
 type Draft = Record<string, any>
-type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null; brand_guide_data?: Record<string, unknown> | null }
+type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null; brand_guide_data?: Record<string, unknown> | null; profile_type?: string | null; intro_line?: string | null }
 
 /** A saved look (the look screen) as step 3 needs it: the whole settings object, copied at Make time. */
 type FullLook = YourLook & Record<string, unknown>
@@ -168,6 +169,13 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
               .limit(1)
             found = ((data as BrandInfo[] | null) ?? [])[0] ?? null
           }
+        }
+        // Is it a person's brand (for the voice note)? Its own query: a column
+        // this read lacks must never cost the page its brand — with no brand
+        // the video would be made from the account's profile instead.
+        if (found) {
+          const { data: who } = await supabase.from('brands').select('profile_type, intro_line').eq('id', found.id).maybeSingle()
+          if (who) found = { ...found, ...(who as Pick<BrandInfo, 'profile_type' | 'intro_line'>) }
         }
         // Loading ends only now, so Make can never run before the brand is known.
         if (alive) {
@@ -651,6 +659,18 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
                 <VoicePicker value={voiceId} onChange={setVoiceId} />
               </div>
             ) : null}
+            {narrated && brand?.profile_type === 'person' ? (() => {
+              // WHO IS SPEAKING (app/_lib/narration-pov.ts): say it when this
+              // voice cannot be the presenter they asked it to be.
+              const note = voiceNote({
+                presenterName: brand.name,
+                speakAs: (draft?.speakAs as SpeakAs | undefined) ?? 'for',
+                presenterVoice: (draft?.presenterVoice as PresenterVoice | undefined) ?? null,
+                voiceId,
+                intro: typeof draft?.presenterIntro === 'string' ? draft.presenterIntro : brand.intro_line,
+              })
+              return note ? <p className="cf-hint" role="status" data-testid="voice-note">{note}</p> : null
+            })() : null}
 
             {isVideo ? (
               <div className="cf-row">

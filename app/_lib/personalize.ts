@@ -13,7 +13,7 @@
  * from app/_lib — it carries a mirrored copy). Search "PERSONALIZED OPENING".
  * ==========================================================================*/
 
-import { cleanRecipientName } from './text-format'
+import { cleanRecipientName, salutationFor } from './text-format'
 import { isRegulated } from './compliance'
 import type { Presenter } from './presenter'
 
@@ -89,8 +89,13 @@ export function buildOpeningNarration(opts: {
   regulated: boolean
   baseNarration?: string
   presenterIntro?: string
+  /** The voice IS the presenter ("Speak as me" with a voice that fits them,
+   *  app/_lib/narration-pov.ts): greet as them — never thank the client for
+   *  letting the speaker's own name share it. */
+  speakingAs?: boolean
 }): string {
-  const clientFirst = (opts.client || '').trim().split(/\s+/)[0]
+  // "Smith family", "Mr. Smith", "John and Mary", "Jane" — never "The," (text-format.ts salutationFor).
+  const clientFirst = salutationFor(opts.client)
   const agent = (opts.agent || '').trim()
   let base = (opts.baseNarration || '').trim()
 
@@ -100,7 +105,7 @@ export function buildOpeningNarration(opts: {
   if (!clientFirst || !agent) return base
 
   const doc = opts.regulated ? 'illustration summary' : 'summary'
-  const greet = `${clientFirst}, thank you for letting ${agent} share this ${doc} with you.`
+  const greet = opts.speakingAs ? `Hi ${clientFirst}.` : `${clientFirst}, thank you for letting ${agent} share this ${doc} with you.`
 
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   // base already opens by naming the client → keep it as-is (no double greeting)
@@ -110,9 +115,9 @@ export function buildOpeningNarration(opts: {
   // base opens with a redundant self-intro that names the agent → drop that
   // leading sentence so the agent isn't named twice.
   const firstSentence = (base.match(/^.*?[.!?](\s|$)/) || [''])[0]
-  const selfIntro = agent &&
+  const selfIntro = !opts.speakingAs && agent &&
     new RegExp(esc(agent), 'i').test(firstSentence) &&
-    /\b(this is|walkthrough|put together|prepared|here)\b/i.test(firstSentence)
+    /\b(this is|walkthrough|put together|prepared|here|I['’]m|I am|my name is)\b/i.test(firstSentence)
   if (selfIntro) base = base.slice(firstSentence.length).trim()
 
   return `${greet} ${base}`.trim()

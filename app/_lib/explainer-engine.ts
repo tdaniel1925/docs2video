@@ -84,6 +84,14 @@ export async function startExplainer(o: {
   palette: string[]
   logoUrl?: string | null
   referenceUrl?: string | null
+  /**
+   * A person's brand: who presents it, and where their photo goes ("Where my
+   * photo appears"). The worker places assets/presenter.png on those scenes
+   * (ODD render-worker/portrait.ts). Before this the photo never left here —
+   * "no picture of Darrell on the opening or closing" (owner, 2026-10-18).
+   */
+  presenter?: { name: string; role?: string; cover: boolean; closing: boolean } | null
+  photoUrl?: string | null
   voiceId?: string
   music: boolean
 }): Promise<{ jobId: string }> {
@@ -109,13 +117,18 @@ export async function startExplainer(o: {
    */
   const own = await fetched(o.referenceUrl)
   const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/+$/, '')
-  const [logo, reference] = await Promise.all([fetched(o.logoUrl), own ? Promise.resolve(own) : fetched(`${site}${DEFAULT_LOOK}`)])
+  const wantsPhoto = !!(o.presenter && o.photoUrl && (o.presenter.cover || o.presenter.closing))
+  const [logo, reference, photo] = await Promise.all([fetched(o.logoUrl), own ? Promise.resolve(own) : fetched(`${site}${DEFAULT_LOOK}`), wantsPhoto ? fetched(o.photoUrl) : Promise.resolve(null)])
+  // A photo that was promised but cannot be fetched stops the video here (the
+  // caller makes it the old way) rather than leaving it off silently.
+  if (wantsPhoto && !photo) throw new Error('the presenter’s photo could not be fetched')
   const job = {
     kind: 'explainer', title: o.title, scenes,
     palette: o.palette.filter((x) => /^#[0-9a-f]{6}$/i.test(x)).slice(0, 5),
     logo: Boolean(logo), reference: Boolean(reference),
     direction: own ? undefined : 'conservative',
     voiceId: elevenVoiceFor(o.voiceId), music: o.music,
+    ...(o.presenter ? { presenter: { name: o.presenter.name, ...(o.presenter.role ? { role: o.presenter.role } : {}), photo: Boolean(photo), cover: o.presenter.cover, closing: o.presenter.closing } } : {}),
     report: { kind: 'd2v', videoId: o.videoId, userId: o.userId },
     /* The worker's own fields for a film job, filled when the scenes are drawn. */
     ds: {}, pages: [],
@@ -123,6 +136,7 @@ export async function startExplainer(o: {
   await Promise.all([
     ...(logo ? [put('assets/logo.png', logo, 'image/png')] : []),
     ...(reference ? [put('assets/reference.png', reference, 'image/png')] : []),
+    ...(photo ? [put('assets/presenter.png', photo, 'image/png')] : []),
   ])
   await put('job.json', JSON.stringify(job), 'application/json')
   const r = await new ECSClient(auth).send(new RunTaskCommand({

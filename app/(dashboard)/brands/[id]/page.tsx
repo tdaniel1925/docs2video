@@ -479,12 +479,12 @@ export default function EditBrandPage() {
                   className="input"
                   rows={3}
                   style={{ resize: 'vertical' }}
-                  placeholder="Hi, I'm Sarah Talls, a registered nurse. I've prepared this video to walk you through your prescription plan."
+                  placeholder="Sarah Talls is a registered nurse and prepared this video to walk you through your prescription plan."
                   value={introLine}
                   onChange={(e) => setIntroLine(e.target.value)}
                 />
                 <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 6, marginBottom: 0 }}>
-                  Spoken at the start of your video — write it the way you&apos;d say it.
+                  Spoken at the start by the narrator, on your behalf — so write it about you (“Sarah is…”). A line written as “I’m…” is said in the third person.
                 </p>
               </div>
 

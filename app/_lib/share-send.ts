@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { escapeHtml, messageToHtml, startsWithGreeting, sendWithResend, appUrl } from './client-email'
 import type { EmailConnection } from './types'
+import { loadSender, videoBrandId, senderName as nameOf } from './video-sender'
 
 // =============================================================================
 // THE ONE "EMAIL THIS VIDEO TO A CLIENT" PATH.
@@ -44,7 +45,11 @@ export async function sendShareEmail(admin: Admin, o: {
     .eq('id', o.userId)
     .single()
 
-  const senderName = profile?.full_name || profile?.company_name || 'Your agent'
+  // The name the client reads is who the VIDEO is from — its brand, else the
+  // account (app/_lib/video-sender.ts) — the same name its share page shows.
+  // Replies still go to the account that sent it.
+  const { sender } = await loadSender(admin, { userId: o.userId, brandId: await videoBrandId(admin, o.videoId) })
+  const senderName = nameOf(sender) || 'Your agent'
   const senderEmail = profile?.email || o.userEmail || ''
   const isDeck = video.output_type === 'interactive' || video.output_type === 'deck'
   const thing = isDeck ? 'presentation' : 'video'

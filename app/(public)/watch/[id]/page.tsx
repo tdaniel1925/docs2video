@@ -5,17 +5,21 @@ import { useParams, useSearchParams } from 'next/navigation'
 import type { Video, Brand } from '../../../_lib/types'
 import type { ExtractedData } from '../../../_lib/extract-types'
 import { INDUSTRIES } from '../../../_lib/industries'
+import { salutationFor } from '../../../_lib/text-format'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+/** Who the video is from: the brand it was made with, else the account (app/_lib/video-sender.ts). */
 interface AgentProfile {
   full_name: string | null
   company_name: string | null
+  role?: string | null
   photo_url: string | null
-  email: string
+  email: string | null
   phone?: string | null
+  website?: string | null
   calendly_url: string | null
   payment_link_url?: string | null
   // Branding decisions made on the server; the agent's plan itself is private.
@@ -1088,9 +1092,13 @@ export default function PublicWatchPage() {
   // The client this video was prepared for — powers the welcome banner. Prefer
   // the recorded recipient_name; fall back to the quote's client name.
   const clientName = ((video.recipient_name || quote?.client_name || '') as string).trim()
-  const clientFirstName = clientName.split(/\s+/)[0] || ''
+  // "Smith family", "Mr. Smith", "Jane" — never "Hi The," (text-format.ts).
+  const clientFirstName = salutationFor(clientName)
   const agentEmail = agent?.email ?? ''
   const agentPhone = agent?.phone ?? ''
+  const agentWebsite = safeLink(agent?.website && !/^https?:\/\//i.test(agent.website) ? `https://${agent.website}` : agent?.website)
+  // The line under the name: their role, and the company when it isn't the name.
+  const agentSecondary = [agent?.role, agent?.company_name && agent.company_name !== agentName ? agent.company_name : null].filter(Boolean).join(' · ')
   const agentInitials = hasAgentIdentity ? getInitials(agentName) : ''
   // Any https booking link gets the big button — Calendly, Cal.com, Acuity,
   // Google Calendar, a website page. It used to show only for calendly.com,
@@ -1160,9 +1168,7 @@ export default function PublicWatchPage() {
           ) : null}
           <div>
             <div className="wp-agent-name">{agentName}</div>
-            {agent?.company_name && agent.company_name !== agent.full_name && (
-              <div className="wp-agent-company">{agent.company_name}</div>
-            )}
+            {agentSecondary && <div className="wp-agent-company">{agentSecondary}</div>}
           </div>
         </div>
         {/* "Powered by Docs2Video" is said ONCE, in the footer (audit 2026-10-09). */}
@@ -1640,9 +1646,9 @@ export default function PublicWatchPage() {
             ) : null}
             <div>
               <div className="wp-contact-name">{agentName}</div>
-              {agent.company_name && agent.company_name !== agent.full_name && (
+              {agentSecondary && (
                 <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginTop: 2 }}>
-                  {agent.company_name}
+                  {agentSecondary}
                 </div>
               )}
             </div>
@@ -1657,6 +1663,11 @@ export default function PublicWatchPage() {
                 <a href={`tel:${agentPhone}`} className="wp-contact-link">
                   <IconPhone />
                   {agentPhone}
+                </a>
+              )}
+              {agentWebsite && (
+                <a href={agentWebsite} className="wp-contact-link" target="_blank" rel="noopener noreferrer">
+                  {agent.website}
                 </a>
               )}
             </div>

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { buildEmailTemplate, sendViaGoogle, sendViaMicrosoft, sendViaSMTP } from '../../_lib/email'
 import { rateLimit, getRateLimitKey, LIMITS, checkRateLimit } from '../../_lib/rate-limit'
-import type { EmailConnection } from '../../_lib/types'
+import type { Brand, EmailConnection } from '../../_lib/types'
+import { loadSender, videoBrandId, senderName, SENDER_PROFILE_COLS } from '../../_lib/video-sender'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -50,12 +51,20 @@ export async function POST(request: Request) {
   if (!connection) return NextResponse.json({ error: 'Email connection not found' }, { status: 404 })
   const conn = connection as EmailConnection
 
-  // Get agent profile
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  const agentName = profile?.full_name ?? profile?.company_name ?? 'Your Agent'
-
-  // Get brand
-  const { data: brand } = await supabase.from('brands').select('*').eq('user_id', user.id).eq('is_default', true).single()
+  // Who it is from (app/_lib/video-sender.ts): a video's OWN brand — it was
+  // the account's default brand, so a Darrell Wolfe video went out under
+  // the default brand's colors and the account owner's name — else the
+  // account. With no video (an infographic), the default brand as before.
+  const { data: profile } = await supabase.from('profiles').select(SENDER_PROFILE_COLS).eq('id', user.id).single()
+  let brandId: string | null = null
+  if (videoId) brandId = await videoBrandId(supabase, videoId)
+  else {
+    const { data: def } = await supabase.from('brands').select('id').eq('user_id', user.id).eq('is_default', true).maybeSingle()
+    brandId = (def as { id?: string } | null)?.id ?? null
+  }
+  const { sender, brand: senderBrand } = await loadSender(supabase, { userId: user.id, brandId, profile })
+  const brand = senderBrand as (Brand | null)
+  const agentName = senderName(sender) ?? 'Your Agent'
 
   // Get content URLs
   let videoUrl: string | undefined
@@ -107,7 +116,7 @@ export async function POST(request: Request) {
     title,
     clientName: toName || 'there',
     agentName,
-    agentPhoto: profile?.photo_url,
+    agentPhoto: sender.kind === 'person' ? sender.photo ?? undefined : undefined,
     logoUrl: brand?.logo_file_url ?? brand?.logo_url,
     brandColors: {
       primary: brand?.primary_color ?? '#1B365D',

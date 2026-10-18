@@ -298,6 +298,10 @@ export interface WizardDraft {
   introduceInOpening?: boolean
   showContactClosing?: boolean
   photoPlacement?: 'auto' | 'cover' | 'closing' | 'both' | 'none'
+  /** Who is speaking (app/_lib/narration-pov.ts): 'for' (default) — the narrator speaks on the presenter's behalf; 'as' — as them, only with a matching voice. */
+  speakAs?: 'for' | 'as'
+  /** The voice that fits the presenter, when they chose to be spoken as. */
+  presenterVoice?: 'female' | 'male'
   // Theme chosen on the Theme step (per-video; overrides global default).
   videoStyle?: 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer' | 'aurora' | 'kit'
   // THE SCENE KIT (videoStyle 'kit', app/_lib/kit-engine.ts): which look —
