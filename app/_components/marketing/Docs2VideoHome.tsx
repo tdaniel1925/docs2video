@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { HomeFilm, HOME_FILM } from './HomeFilm'
 import Link from 'next/link'
 import { SiteFrame, SITE_NAV } from './SiteChrome'
 import FieldTabs, { type Field } from './FieldTabs'
@@ -168,10 +169,10 @@ export default function Docs2VideoHome() {
               <a href="#industries" className="hp-pill hp-pill-on">+ {MORE_FIELDS} more</a>
             </div>
             <div className="hp-hero-foot">
-              <a href="#how" className="hp-watch">
+              <HomeFilm className="hp-watch" label={`Watch Docs2Video in ${HOME_FILM.length}`}>
                 <span className="hp-watch-ring" aria-hidden="true">▶</span>
-                <span>See how it works<br /><span className="hp-soft">Document to sent video</span></span>
-              </a>
+                <span>Watch the film<br /><span className="hp-soft">Document to sent video · {HOME_FILM.length}</span></span>
+              </HomeFilm>
               <div className="hp-sent">
                 <span className="hp-kicker">Sent today</span>
                 <div className="hp-sent-pic">
@@ -241,11 +242,11 @@ export default function Docs2VideoHome() {
                 </ol>
                 <div className="hp-browser">
                   <div className="hp-browser-bar" aria-hidden="true"><i /><i /><i /><span>docs2video.com/watch/morales</span></div>
-                  <Link href="/share-demo" className="hp-browser-pic" aria-label="See an example client page">
-                    <Image src="/home/still-01.jpg" alt="The coverage review video, ready to play" width={960} height={540} sizes="(max-width: 1000px) calc(100vw - 32px), 640px" />
+                  <HomeFilm className="hp-browser-pic" label={`Play the film: how Docs2Video works, ${HOME_FILM.length}`}>
+                    <Image src="/home/film/docs2video-tour.jpg" alt="" width={1280} height={720} sizes="(max-width: 1000px) calc(100vw - 32px), 640px" />
                     <span className="hp-play" aria-hidden="true">▶</span>
-                    <span className="hp-browser-tag">See the client page</span>
-                  </Link>
+                    <span className="hp-browser-tag">Watch the film · {HOME_FILM.length}</span>
+                  </HomeFilm>
                 </div>
               </div>
             </section>

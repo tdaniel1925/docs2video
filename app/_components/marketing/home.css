@@ -276,3 +276,13 @@
 @media (max-width: 600px) {
   .hp-cookie { left: 0; right: 0; bottom: 0; max-width: none; border-radius: 0; padding: 8px 12px 8px 16px; font-size: 13px; justify-content: space-between; }
 }
+
+/* The homepage film (HomeFilm): the buttons that open it, and the player. */
+.hp button.hp-watch, .hp button.hp-browser-pic { background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.hp button.hp-watch { width: auto; }
+.hp-film { position: fixed; inset: 0; z-index: 200; background: rgba(3, 11, 28, .86); display: grid; place-items: center; padding: 24px; }
+.hp-film-box { position: relative; width: min(1180px, 100%); }
+.hp-film-video { width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: var(--d2v-page); display: block; }
+.hp-film-close { position: absolute; top: -52px; right: 0; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--hp-line2); background: var(--hp-frame); color: var(--hp-text); font: inherit; font-size: 16px; cursor: pointer; }
+.hp-film-close:hover { border-color: var(--hp-blue); }
+@media (max-width: 700px) { .hp-film { padding: 12px; } .hp-film-close { top: -50px; } }
