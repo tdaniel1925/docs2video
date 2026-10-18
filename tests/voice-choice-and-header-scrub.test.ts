@@ -110,7 +110,7 @@ describe('app tts.ts speaks in the chosen voice', () => {
 
 // ── 1b. Render service voice (Aurora / Cinematic / Infographic / Editorial) ─
 describe('render-service ttsToBuffer speaks in the chosen voice', () => {
-  const src = readFileSync(path.join(ROOT, 'render-service/server.js'), 'utf8')
+  const src = readFileSync(path.join(ROOT, 'render-service/server.js'), 'utf8').replace(/\r\n/g, '\n')
   const fnSrc = (name: string) => {
     const i = src.indexOf(`async function ${name}(`)
     if (i < 0) return `/* ${name} missing */`

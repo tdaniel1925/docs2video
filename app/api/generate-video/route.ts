@@ -40,6 +40,7 @@ import { storyTooBigMessage, storySize } from '../../_lib/length-limits'
 import { explainerPricingOn } from '../../_lib/explainer-price'
 import { alertOps } from '../../_lib/ops-alert'
 import { explainerEngineFor, startExplainer, sceneFor } from '../../_lib/explainer-engine'
+import { explainerLookFor } from '../../_lib/explainer-look'
 
 export const runtime = 'nodejs'
 
@@ -1104,18 +1105,28 @@ export async function POST(request: Request) {
     // designed in the brand and filmed on the render worker, which saves the MP4
     // and marks this row completed itself. Every engine below still makes the
     // videos it is not switched on for, and any it cannot start.
-    if (await explainerEngineFor(user.id)) {
+    // Drawn slides are one finished AI picture per slide — not something the
+    // explainer engine draws — so they keep their own pipeline below.
+    if (!isDrawn && await explainerEngineFor(user.id)) {
       try {
         await admin.from('videos').update({ progress_detail: 'Designing your scenes...', progress_pct: 14, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
         const closingExtra = wantContactClosing ? [contactDisplayPhone, contactForClosing.email, contactForClosing.website].filter((x): x is string => typeof x === 'string' && !!x) : []
         const coverExtra = [recipient ? `Prepared for ${recipient}` : '', effectiveBrandName || ''].filter(Boolean)
         const logos = kitLogoAssets(brand)
+        // THE LOOK THEY PICKED (explainer-look.ts): their own picture, else the
+        // free preview they saw of this look, else the look's own sample page.
+        const picked = await explainerLookFor({
+          admin, userId: user.id, videoId, draft,
+          ownReferenceUrl: styleReferenceUrl || null,
+          siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com',
+        })
+        console.log(`[video ${videoId}] explainer look: ${picked.look ?? 'default'} from ${picked.source}`)
         const started = await startExplainer({
           videoId, userId: user.id, title: videoTitle,
           scenes: [sceneFor('cover', coverScene, coverExtra), ...ttsScenes.map((sc: any) => sceneFor('content', sc)), sceneFor('closing', closingScene, closingExtra)],
           palette: [brandColors.primary, brandColors.secondary, brand?.accent_color, brand?.background_color].filter((x): x is string => typeof x === 'string' && !!x),
           logoUrl: logos.logo_any || logos.logo_light || logos.logo_dark || null,
-          referenceUrl: styleReferenceUrl || null,
+          referenceUrl: picked.referenceUrl,
           voiceId, music: !!(aiMusic || musicPrompt || musicUrl),
         })
         console.log(`[video ${videoId}] explainer engine — ${ttsScenes.length + 2} scenes, job ${started.jobId}`)

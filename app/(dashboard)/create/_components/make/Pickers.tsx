@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Play, Square } from 'lucide-react'
 import { formatCredits } from './usePriceQuote'
-import type { LookCard } from './looks'
+import type { LookCard, LookSample } from './looks'
 import { VOICE_OPTIONS } from '../../../../_lib/types'
 import type { MakeOutput, OutputQuote } from '../../../../_lib/price-quote'
 
@@ -26,12 +26,14 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
   children?: ReactNode
 }) {
   const sel = cards.find((l) => l.id === value) ?? cards[0]
+  /* The sample being watched, and the card's button to give focus back to. */
+  const [watching, setWatching] = useState<{ name: string; sample: LookSample; from: HTMLElement | null } | null>(null)
   return (
     <>
       <div className="cf-looks" role="radiogroup" aria-label="The look">
         {cards.map((l) => (
+          <div key={l.id} className="cf-look-wrap">
           <button
-            key={l.id}
             type="button"
             role="radio"
             aria-checked={value === l.id}
@@ -51,8 +53,15 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
               <span className="cf-look-short">{l.short}</span>
             </span>
           </button>
+          {l.sample ? (
+            <button type="button" className="cf-look-watch" onClick={(e) => setWatching({ name: l.name, sample: l.sample!, from: e.currentTarget })} aria-label={`Watch a ${l.sample.seconds}-second sample of ${l.name}`} data-look-sample={l.id}>
+              <Play size={12} aria-hidden="true" /> Watch a sample
+            </button>
+          ) : null}
+          </div>
         ))}
       </div>
+      {watching ? <SampleVideoDialog name={watching.name} sample={watching.sample} onClose={() => { const from = watching.from; setWatching(null); from?.focus() }} /> : null}
       {sel ? (
         <div className="cf-look-detail">
           <p className="cf-hint"><strong style={{ color: 'var(--ink)' }}>{sel.name}.</strong> {sel.tagline}{note ? ` ${note}` : ''}</p>
@@ -76,6 +85,44 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
         </div>
       ) : null}
     </>
+  )
+}
+
+/**
+ * A LOOK'S SAMPLE VIDEO, in a dialog: focus goes to Close, Tab stays inside,
+ * Escape or the backdrop closes it and focus goes back to the card. The video
+ * plays with its sound (the click that opened it is the gesture browsers ask
+ * for) and its own controls.
+ */
+export function SampleVideoDialog({ name, sample, onClose }: { name: string; sample: LookSample; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    closeRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose() }
+      if (e.key === 'Tab' && boxRef.current) {
+        const f = [...boxRef.current.querySelectorAll<HTMLElement>('button, video, a[href]')]
+        if (!f.length) return
+        const first = f[0], last = f[f.length - 1]
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return (
+    <div className="cf-sample-dialog" onClick={onClose} data-sample-dialog>
+      <div ref={boxRef} className="cf-sample-box" role="dialog" aria-modal="true" aria-label={`${name}: a sample video`} onClick={(e) => e.stopPropagation()}>
+        <div className="cf-sample-head">
+          <b>{name}</b>
+          <span>A {sample.seconds}-second sample, made the way your video will be. The story and names are made up.</span>
+          <button ref={closeRef} type="button" className="cf-sample-close" onClick={onClose} aria-label="Close the sample">✕</button>
+        </div>
+        <video src={sample.video} poster={sample.poster} controls autoPlay playsInline preload="auto" />
+      </div>
+    </div>
   )
 }
 

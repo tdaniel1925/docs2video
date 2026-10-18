@@ -65,6 +65,39 @@ export type LookCard = {
   tag?: string
   /** Sample pictures shown under the cards when this look is picked. */
   samples?: string[]
+  /** A short sample VIDEO of this look (LOOK_SAMPLES), opened from the card. */
+  sample?: LookSample
+}
+
+export type LookSample = { video: string; poster: string; seconds: number }
+
+/*
+ * A SAMPLE VIDEO FOR A LOOK (owner, 2026-10-18: "user can click to see what it
+ * will be like"). Each one was made by the SAME pipeline a customer's video in
+ * that look goes through (scripts/look-samples): the presentation looks by
+ * buildPresentationHtml + the production MP4 export's capture. Made-up story
+ * and agent (the Morales family, Jordan Avery); nothing real. A look with no
+ * entry here shows no sample button: none is faked.
+ */
+export const LOOK_SAMPLES: Record<string, LookSample> = Object.fromEntries(
+  ['heritage', 'warm', 'bold', 'midnight', 'mint', 'certificate'].map((id) => [id, { video: `/look-samples/${id}.mp4`, poster: `/look-samples/${id}.jpg`, seconds: 30 }]),
+)
+
+/*
+ * A SAMPLE VIDEO FOR EACH READY VIDEO LOOK (fix, 2026-10-18). A video is made by
+ * the explainer engine designing from a picture of the picked look
+ * (app/_lib/explainer-look.ts) — for a new customer, the look's own sample
+ * page. Each sample here was made exactly that way
+ * (scripts/look-samples/run-explainer-samples.mjs): the look's page as the
+ * reference, the made-up Morales story, no brand — so a customer's video wears
+ * their brand colours as accents on top of what the sample shows.
+ * Drawn slides has no sample: its pipeline can only make a video into a real
+ * project row, and none is faked.
+ */
+export const VIDEO_LOOK_SAMPLES: Partial<Record<VideoLookId, LookSample>> = {
+  slides: { video: '/look-samples/video-animated-slides.mp4', poster: '/look-samples/video-animated-slides.jpg', seconds: 35 },
+  editorial: { video: '/look-samples/video-editorial.mp4', poster: '/look-samples/video-editorial.jpg', seconds: 35 },
+  explainer: { video: '/look-samples/video-bright.mp4', poster: '/look-samples/video-bright.jpg', seconds: 35 },
 }
 
 /** Which video look carries the BEST tag (and is picked by default). */
@@ -87,7 +120,7 @@ export type YourLook = { name?: string; colors: { bg: string; glow: string; acce
 
 export function lookCards(output: string, opts: { kit?: boolean; yourLook?: YourLook | null } = {}): LookCard[] {
   if (output === 'interactive' || output === 'deck') {
-    return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0 }))
+    return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0, ...(LOOK_SAMPLES[l.id] ? { sample: LOOK_SAMPLES[l.id] } : {}) }))
   }
   if (opts.kit) {
     // THE LOOK SCREEN (look wizard): "Your look" comes FIRST when the brand or
@@ -113,6 +146,7 @@ export function lookCards(output: string, opts: { kit?: boolean; yourLook?: Your
         recommended: l.id === RECOMMENDED_VIDEO_LOOK,
         ...(l.tag ? { tag: l.tag } : {}),
         samples: VIDEO_SAMPLE_KINDS.map((s) => `/style-samples/${pic}-${s}.png`),
+        ...(VIDEO_LOOK_SAMPLES[l.id] ? { sample: VIDEO_LOOK_SAMPLES[l.id] } : {}),
       }
     })
     const drawnAt = ready.findIndex((c) => c.id === 'drawn')

@@ -3869,6 +3869,20 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
 .cf-preview { padding: 20px; display: flex; flex-direction: column; gap: var(--space-3); }
 .cf-lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, var(--ink) 70%, transparent); cursor: zoom-out; }
 .cf-lightbox img { max-width: min(1100px, 100%); max-height: 100%; border-radius: 10px; }
+/* A look's sample video (make/Pickers SampleVideoDialog): the button under its card, and the dialog. */
+.cf-look-wrap { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.cf-look-wrap > .cf-look { flex: 1; }
+.cf-look-watch { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card); color: var(--accent-ink); font: inherit; font-size: var(--fs-small); font-weight: 700; padding: 6px 12px; cursor: pointer; }
+.cf-look-watch:hover { border-color: var(--accent-ink); }
+.cf-look-watch:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.cf-sample-dialog { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; background: color-mix(in srgb, var(--ink) 70%, transparent); }
+.cf-sample-box { width: min(1100px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border); box-sizing: border-box; overflow: auto; }
+.cf-sample-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-3); padding-right: 44px; position: relative; }
+.cf-sample-head b { font-size: var(--fs-h3); color: var(--ink); }
+.cf-sample-head span { font-size: var(--fs-small); color: var(--ink-light); }
+.cf-sample-close { position: absolute; top: -4px; right: 0; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-card); color: var(--ink); font: inherit; font-size: 16px; cursor: pointer; }
+.cf-sample-close:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.cf-sample-box video { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; background: #000; }
 
 /* The making screen. */
 .cf-making { padding: 24px; display: flex; flex-direction: column; gap: var(--space-4); }
