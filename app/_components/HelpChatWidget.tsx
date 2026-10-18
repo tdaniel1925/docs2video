@@ -101,7 +101,7 @@ export default function HelpChatWidget() {
           // so the button sits above the notice instead of under it.
           position: 'fixed', bottom: 'calc(24px + var(--bottom-bar, 0px))', right: 24,
           width: 56, height: 56, borderRadius: '50%',
-          background: 'var(--ink)', color: 'var(--on-ink)',
+          background: 'var(--cta)', color: 'var(--on-cta)',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)',

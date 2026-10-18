@@ -161,3 +161,22 @@
     scrollbar-width: thin;
   }
 }
+
+/* The old italic serif accent in headings ("Saved brands", "Good evening,
+   Trent.") becomes the logo blue in the heading's own face, as on the mockups. */
+.d2v-app { --font-serif: var(--d2v-display), 'Archivo', sans-serif; }
+.d2v-app :is(h1, h2, h3) em,
+.d2v-app :is(h1, h2, h3) i { font-style: normal; color: var(--accent-ink); }
+
+/* Section eyebrows and titles inside the app: the small spaced capitals and
+   the big condensed face, not the marketing site's italic. */
+.d2v-app .section-eyebrow {
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.d2v-app .section-title { font-family: var(--d2v-head); font-weight: 900; text-transform: uppercase; letter-spacing: -0.03em; }
+.d2v-app .section-title em { font-family: inherit; font-style: normal; font-weight: inherit; color: var(--accent-ink); }

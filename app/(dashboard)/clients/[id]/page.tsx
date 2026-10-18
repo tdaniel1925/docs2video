@@ -481,7 +481,7 @@ export default function ClientDetailPage() {
       {tab === 'videos' && (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <Link href={`/create/client?clientId=${clientId}`} className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+            <Link href={`/create?clientId=${clientId}`} className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
               Make a video for this client
             </Link>
           </div>

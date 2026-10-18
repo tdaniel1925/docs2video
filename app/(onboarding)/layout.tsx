@@ -1,6 +1,13 @@
 import { redirect } from 'next/navigation'
+import { Archivo, DM_Sans } from 'next/font/google'
 import { createClient } from '../_lib/supabase/server'
 import { getBrand } from '../_lib/brand-server'
+import { ThemeSync } from '../_components/theme'
+import '../d2v-app.css'
+
+/* The redesign's two faces, as in the dashboard layout (2026-10-18). */
+const d2vDisplay = Archivo({ subsets: ['latin'], variable: '--d2v-display', display: 'swap' })
+const d2vBody = DM_Sans({ subsets: ['latin'], variable: '--d2v-body', display: 'swap' })
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -14,8 +21,14 @@ export default async function OnboardingLayout({ children }: { children: React.R
   const brand = await getBrand()
   if (!brand.showVideoFeatures) redirect(brand.home)
 
+  // Same navy-and-blue skin and light/dark choice as the rest of the signed-in
+  // app (the redesign, 2026-10-18), so setup no longer looks like an older app.
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div
+      className={brand.id === 'docs2video' ? `app-themed d2v-app ${d2vDisplay.variable} ${d2vBody.variable}` : undefined}
+      style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      {brand.id === 'docs2video' && <ThemeSync />}
       <div style={{ width: '100%', maxWidth: 640 }}>{children}</div>
     </div>
   )

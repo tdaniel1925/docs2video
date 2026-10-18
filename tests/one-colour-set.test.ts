@@ -63,8 +63,9 @@ describe('one colour set', () => {
     // in Text2Art's design wizard (design/**), the logo creator and the look
     // swatches; most of the rest are content (brand defaults, social logos, the
     // black behind video, email HTML). Lower this when you remove more; never
-    // raise it — use a name from app/globals.css instead.
-    const CEILING = 219
+    // raise it — use a name from app/globals.css instead. 209 after the app
+    // redesign (2026-10-18) moved the cookie notice onto named colours.
+    const CEILING = 209
     const HEX = /(?<![&\w])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b/g
     const dirs = ['app/(dashboard)', 'app/_components', 'app/(public)/watch'].map((d) => path.join(ROOT, d))
     let total = 0

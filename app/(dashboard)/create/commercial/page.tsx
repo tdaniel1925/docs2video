@@ -174,7 +174,7 @@ export default function CreateCommercialPage() {
 
   return (
     <div style={styles.wrap}>
-      <Link href="/create/start" style={styles.back}>← Back</Link>
+      <Link href="/create" style={styles.back}>← Back</Link>
       <div style={styles.header}>
         <span style={styles.icon}>🎥</span>
         <h1 style={styles.h1}>Make a commercial</h1>
