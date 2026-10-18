@@ -71,8 +71,8 @@
 .kit-btn--sm { min-height: 36px; padding: 7px 13px; font-size: var(--fs-ui); }
 .kit-btn--full { width: 100%; }
 
-.kit-btn--primary { background: var(--ink); color: var(--on-ink); }
-.kit-btn--primary:hover { background: color-mix(in srgb, var(--ink) 86%, var(--on-ink)); }
+.kit-btn--primary { background: var(--cta); color: var(--on-cta); }
+.kit-btn--primary:hover { background: var(--cta-hover); }
 
 .kit-btn--secondary { background: var(--bg-card); color: var(--ink); border-color: var(--border); }
 .kit-btn--secondary:hover { border-color: var(--ink); }

@@ -86,8 +86,11 @@ export default function CookieBanner() {
       left: 0,
       right: 0,
       zIndex: 9999,
-      background: '#1B365D',
-      color: '#fff',
+      /* Docs2Video's fixed navy and logo blue (globals.css --d2v-*), the same on
+         every page and in either theme. */
+      background: 'var(--d2v-frame)',
+      color: 'var(--d2v-text)',
+      borderTop: '1px solid var(--d2v-line2)',
       padding: '14px 24px',
       display: 'flex',
       alignItems: 'center',
@@ -100,8 +103,8 @@ export default function CookieBanner() {
       <button
         onClick={accept}
         style={{
-          background: '#C7E8A8',
-          color: '#1B365D',
+          background: 'var(--d2v-blue)',
+          color: 'var(--d2v-on-blue)',
           border: 'none',
           borderRadius: 8,
           padding: '8px 20px',

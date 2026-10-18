@@ -187,7 +187,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
               : `Showing ${activeTab.label.toLowerCase()} only.`
             : typeFilter ? 'Showing some of what you’ve made.' : 'Everything you’ve made.'}</p>
         </div>
-        <Link href="/create/start" className="btn btn-primary btn-lg">{NAMES.newButton}</Link>
+        <Link href="/create" className="btn btn-primary btn-lg">{NAMES.newButton}</Link>
       </div>
 
       <nav className="kit-tabs" aria-label="Show one kind" style={{ marginBottom: 16 }}>
@@ -297,7 +297,7 @@ async function PagedLibrary({ sp, pagedKey, userId, supabase }: {
               ? 'Your videos and presentations. Older slide decks and graphics are under Older items.'
               : 'Your videos and presentations.'}</p>
         </div>
-        <Link href="/create/start" className="btn btn-primary btn-lg">{NAMES.newButton}</Link>
+        <Link href="/create" className="btn btn-primary btn-lg">{NAMES.newButton}</Link>
       </div>
 
       <nav className="kit-tabs" aria-label="Show one kind" style={{ marginBottom: 16 }}>

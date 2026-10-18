@@ -1,0 +1,192 @@
+/* ===========================================================================
+   DOCS2VIDEO, SIGNED IN — THE APPROVED REDESIGN (2026-10-18)
+   ---------------------------------------------------------------------------
+   The One Dollar Decks way of building screens, in Docs2Video's own navy and
+   logo blue (the approved mockups): big condensed capitals for a page's
+   heading, small spaced capitals for labels, the steps as bars that fill in,
+   one bright button per screen, panels on navy. Colours are only the names
+   from globals.css (dark is the default; light is the same blue on pale
+   grounds). Scoped to .d2v-app — the dashboard layout puts it on Docs2Video's
+   signed-in screens only, so Text2Art and the public site are untouched.
+   Side panels scroll on their own, so the middle of a screen never moves.
+   Corners stay at 10px or less (the house rule).
+   =========================================================================== */
+
+.d2v-app {
+  font-family: var(--d2v-body), 'DM Sans', system-ui, sans-serif;
+  --d2v-head: var(--d2v-display), 'Archivo', 'Arial Black', sans-serif;
+  /* The top bar's height, so sticky panels sit under it. */
+  --d2v-bar-h: 72px;
+}
+.d2v-app ::selection { background: var(--cta); color: var(--on-cta); }
+
+/* ── Headings: a page's one heading in big condensed capitals; the part in
+   <em> (or .d2v-ghost) is the logo blue, as on the mockups ("YOUR CONTENT"). */
+.d2v-app main h1,
+.d2v-app .cf-h1 {
+  font-family: var(--d2v-head);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+  font-size: clamp(34px, 4.6vw, 60px);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.d2v-app main h1 em,
+.d2v-app .cf-h1 em,
+.d2v-app .d2v-ghost {
+  font-family: inherit;
+  font-style: normal;
+  font-weight: inherit;
+  color: var(--accent-ink);
+}
+.d2v-app main h2 { font-family: var(--d2v-head); font-weight: 800; letter-spacing: -0.01em; }
+.d2v-app .cf-h2 { font-family: var(--d2v-head); font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; }
+
+/* Small spaced capitals for every label above a group. */
+.d2v-app .kit-label,
+.d2v-app .cf-label,
+.d2v-app .kit-choices-legend {
+  font-family: var(--d2v-body), 'DM Sans', system-ui, sans-serif;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.d2v-app .cf-label small { letter-spacing: 0; text-transform: none; font-weight: 500; }
+
+/* ── The top bar: logo · NEW VIDEO · LIBRARY · CLIENTS · BRANDS · … ─────── */
+.d2v-app .kit-topbar {
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.d2v-app .kit-topbar-inner { height: var(--d2v-bar-h); max-width: 1280px; }
+.d2v-app .kit-topbar-logo img { height: 48px; }
+.d2v-app .kit-topbar-nav { gap: var(--space-2); margin: 0 auto; }
+.d2v-app .kit-topbar-nav .kit-btn,
+.d2v-app .kit-topbar-link {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.d2v-app .kit-topbar-link { color: var(--ink-soft); background: none; border-radius: 0; padding: 8px 10px 6px; border-bottom: 2px solid transparent; }
+.d2v-app .kit-topbar-link:hover { background: none; color: var(--ink); }
+.d2v-app .kit-topbar-link[aria-current='page'] { background: none; color: var(--ink); border-bottom-color: var(--cta); }
+.d2v-app .kit-topbar-end { margin-left: 0; }
+.d2v-app .kit-credit { border-radius: 10px; }
+@media (max-width: 900px) {
+  .d2v-app { --d2v-bar-h: 64px; }
+  .d2v-app .kit-topbar-logo img { height: 40px; }
+}
+
+/* ── The steps while making something: bars that fill in, as on the
+   mockups ("1 · CONTENT ✓  2 · STORY  3 · LOOK"). ───────────────────────── */
+.d2v-app .kit-focusbar-steps { gap: var(--space-2); flex: 1; justify-content: center; }
+.d2v-app .kit-focusbar-steps li { flex: 0 1 220px; min-width: 0; }
+.d2v-app .kit-focusbar-step {
+  width: 100%;
+  border-radius: 0;
+  border-top: 3px solid var(--border-light);
+  padding: 8px 2px 4px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  gap: var(--space-2);
+}
+.d2v-app .kit-focusbar-num { width: auto; height: auto; min-width: 0; border: 0; background: none; color: inherit; font-size: inherit; }
+.d2v-app .kit-focusbar-step.is-now { border-top-color: var(--cta); color: var(--ink); }
+.d2v-app .kit-focusbar-step.is-now .kit-focusbar-num { background: none; color: inherit; }
+.d2v-app .kit-focusbar-step.is-done { border-top-color: var(--accent-ink); color: var(--ink-soft); }
+.d2v-app .kit-focusbar-step.is-done .kit-focusbar-num { background: none; color: var(--accent-ink); }
+.d2v-app a.kit-focusbar-step:hover { background: none; color: var(--ink); }
+.d2v-app .kit-focusbar-word { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) {
+  .d2v-app .kit-focusbar-step { letter-spacing: 0.02em; }
+  .d2v-app .kit-focusbar-steps li:not([aria-current='step']) .kit-focusbar-word { display: none; }
+  /* The step you are on gets the room to say its name. */
+  .d2v-app .kit-focusbar-steps li { flex: 0 0 28px; }
+  .d2v-app .kit-focusbar-steps li[aria-current='step'] { flex: 1 1 auto; }
+}
+
+/* ── Buttons: the bright one is the logo blue with navy words; the rest are
+   outlined on navy. Capitals and spacing like the mockups. ─────────────── */
+.d2v-app .kit-btn--primary { font-weight: 800; letter-spacing: 0.04em; }
+.d2v-app .kit-btn--secondary { background: transparent; border-color: var(--border); }
+.d2v-app .kit-btn--secondary:hover { border-color: var(--cta); }
+.d2v-app .btn-primary { background: var(--cta); color: var(--on-cta); }
+.d2v-app .btn-primary:hover { background: var(--cta-hover); color: var(--on-cta); box-shadow: none; }
+
+/* ── Panels, tiles and cards: navy panels with a fine line. ────────────── */
+.d2v-app .kit-card,
+.d2v-app .cf-card,
+.d2v-app .kit-tile { background: var(--bg-card); border-color: var(--border-light); }
+.d2v-app .kit-tile:hover,
+.d2v-app .kit-card--link:hover { border-color: var(--cta); }
+.d2v-app .kit-tile-title { font-weight: 700; }
+.d2v-app .kit-tile-icon { color: var(--accent-ink); }
+
+/* Choices and chips: selected = the blue line, as on the mockups. */
+.d2v-app .cf-chip.is-on,
+.d2v-app .cf-chip[aria-checked='true'],
+.d2v-app .cf-chip[aria-pressed='true'] { border-color: var(--cta); background: var(--accent-soft); color: var(--ink); }
+
+/* Inputs on navy. */
+.d2v-app .cf-input,
+.d2v-app input.input,
+.d2v-app textarea.input,
+.d2v-app select.input { background: var(--bg-soft); border-color: var(--border); color: var(--ink); }
+
+/* ── The create flow: one wide column; its bottom bar on the panel colour. */
+.d2v-app .cf-bar { background: var(--bg-soft); border-top-color: var(--border-light); }
+.d2v-app .cf-bar-big { font-family: var(--d2v-head); font-weight: 800; }
+
+/* ── Side panels scroll on their own, so the middle never moves (owner,
+   2026-10-18). Only where they sit beside the page; on a phone they stack
+   and scroll with it. ──────────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  .d2v-app main aside,
+  .d2v-app .kit-account-menu,
+  .d2v-app .rts-panel {
+    position: sticky;
+    top: calc(var(--d2v-bar-h) + 16px);
+    align-self: start;
+    max-height: calc(100vh - var(--d2v-bar-h) - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+
+/* The old italic serif accent in headings ("Saved brands", "Good evening,
+   Trent.") becomes the logo blue in the heading's own face, as on the mockups. */
+.d2v-app { --font-serif: var(--d2v-display), 'Archivo', sans-serif; }
+.d2v-app :is(h1, h2, h3) em,
+.d2v-app :is(h1, h2, h3) i { font-style: normal; color: var(--accent-ink); }
+
+/* Section eyebrows and titles inside the app: the small spaced capitals and
+   the big condensed face, not the marketing site's italic. */
+.d2v-app .section-eyebrow {
+  font-size: var(--fs-caption);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.d2v-app .section-title { font-family: var(--d2v-head); font-weight: 900; text-transform: uppercase; letter-spacing: -0.03em; }
+.d2v-app .section-title em { font-family: inherit; font-style: normal; font-weight: inherit; color: var(--accent-ink); }
+/* The smallest phones: the bars and numbers alone — the page's own heading
+   says which step it is. */
+@media (max-width: 420px) {
+  .d2v-app .kit-focusbar-steps li[aria-current='step'] .kit-focusbar-word { display: none; }
+  .d2v-app .kit-focusbar-steps li,
+  .d2v-app .kit-focusbar-steps li[aria-current='step'] { flex: 1 1 0; }
+}

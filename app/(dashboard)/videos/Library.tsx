@@ -136,7 +136,7 @@ export default function Library({ items, emptyLabel = null, paging = null }: { i
     return (
       <EmptyState
         title={emptyLabel ? `No ${emptyLabel} yet` : 'Nothing here yet'}
-        actions={<Button href="/create/start">{NAMES.newButton}</Button>}
+        actions={<Button href="/create">{NAMES.newButton}</Button>}
       >
         Everything you make shows up here — videos, presentations and commercials.
       </EmptyState>

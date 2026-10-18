@@ -345,7 +345,7 @@ export default function ClientsPage() {
               </div>
               <div className="cl-card-actions">
                 <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm">View</Link>
-                <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm">Send a video</Link>
+                <Link href={`/create${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm">Send a video</Link>
                 {client.email && <a href={`mailto:${client.email}`} className="btn btn-soft btn-sm">Email</a>}
               </div>
             </li>
@@ -405,7 +405,7 @@ export default function ClientsPage() {
                           <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
                             View
                           </Link>
-                          <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
+                          <Link href={`/create${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
                             Send a video
                           </Link>
                           {client.email && (
