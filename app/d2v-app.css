@@ -85,34 +85,62 @@
   .d2v-app .kit-topbar-logo img { height: 40px; }
 }
 
-/* ── The steps while making something: bars that fill in, as on the
-   mockups ("1 · CONTENT ✓  2 · STORY  3 · LOOK"). ───────────────────────── */
-.d2v-app .kit-focusbar-steps { gap: var(--space-2); flex: 1; justify-content: center; }
-.d2v-app .kit-focusbar-steps li { flex: 0 1 220px; min-width: 0; }
+/* ── The steps while making something (approved option B, 2026-10-18): done
+   steps a green tick you can click back to, the step you are on a solid blue
+   pill, the ones to come dimmed with an outlined number. ─────────────────── */
+.d2v-app .kit-focusbar-steps { gap: var(--space-1); flex: 1; justify-content: center; }
+.d2v-app .kit-focusbar-steps li { flex: 0 1 auto; min-width: 0; }
 .d2v-app .kit-focusbar-step {
-  width: 100%;
-  border-radius: 0;
-  border-top: 3px solid var(--border-light);
-  padding: 8px 2px 4px;
-  font-size: var(--fs-caption);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: var(--fs-small);
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--ink-light);
   gap: var(--space-2);
 }
-.d2v-app .kit-focusbar-num { width: auto; height: auto; min-width: 0; border: 0; background: none; color: inherit; font-size: inherit; }
-.d2v-app .kit-focusbar-step.is-now { border-top-color: var(--cta); color: var(--ink); }
-.d2v-app .kit-focusbar-step.is-now .kit-focusbar-num { background: none; color: inherit; }
-.d2v-app .kit-focusbar-step.is-done { border-top-color: var(--accent-ink); color: var(--ink-soft); }
-.d2v-app .kit-focusbar-step.is-done .kit-focusbar-num { background: none; color: var(--accent-ink); }
-.d2v-app a.kit-focusbar-step:hover { background: none; color: var(--ink); }
+.d2v-app .kit-focusbar-num {
+  width: 20px; height: 20px; min-width: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-light);
+  background: none;
+  color: inherit;
+  font-size: var(--fs-caption);
+}
+.d2v-app .kit-focusbar-step.is-now { background: var(--cta); color: var(--on-cta); }
+.d2v-app .kit-focusbar-step.is-now .kit-focusbar-num { background: var(--on-cta); border-color: var(--on-cta); color: var(--cta); }
+.d2v-app .kit-focusbar-step.is-done { color: var(--ink-soft); }
+.d2v-app .kit-focusbar-step.is-done .kit-focusbar-num { background: var(--success); border-color: var(--success); color: var(--bg); }
+.d2v-app a.kit-focusbar-step:hover { background: var(--surface); color: var(--ink); }
 .d2v-app .kit-focusbar-word { overflow: hidden; text-overflow: ellipsis; }
+
+/* ── The coach bar (StepExplain): one amber line of guidance per step, so
+   help never reads as the page's own content. ──────────────────────────── */
+.d2v-app {
+  --coach-bg: var(--warning-bg);
+  --coach-border: var(--warning-border);
+  --coach-ink: var(--warning-text);
+  --coach-strong: var(--warning-text);
+}
+.d2v-app .cf-coach { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--coach-border); border-radius: 10px; background: var(--coach-bg); color: var(--coach-ink); }
+.d2v-app .cf-coach-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.d2v-app .cf-coach-step { flex: none; padding: 3px 8px; border-radius: 6px; background: var(--coach-ink); color: var(--coach-bg); font-size: var(--fs-caption); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.d2v-app .cf-coach-text { flex: 1 1 320px; margin: 0; font-size: var(--fs-body); line-height: 1.45; }
+.d2v-app .cf-coach-text b { color: var(--coach-strong); }
+.d2v-app .cf-coach-next { opacity: 0.8; }
+.d2v-app .cf-coach-more { flex: none; border: 0; background: none; padding: 6px 4px; color: var(--coach-strong); font: inherit; font-size: var(--fs-small); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.d2v-app .cf-coach-x { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--coach-strong); font-size: 20px; line-height: 1; cursor: pointer; }
+.d2v-app .cf-coach-x:hover, .d2v-app .cf-coach-more:hover { background: var(--coach-border); }
+.d2v-app .cf-coach-more-body { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-small); line-height: 1.55; }
+.d2v-app .cf-coach-more-body p { margin: 0; }
+.d2v-app .cf-coach-more-body .cf-vs > div { background: var(--bg-card); color: var(--ink); }
+.d2v-app .cf-coach-tip { align-self: flex-start; padding: 5px 12px; border: 1px solid var(--coach-border); border-radius: 999px; background: var(--coach-bg); color: var(--coach-strong); font: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
+.d2v-app .cf-coach button:focus-visible, .d2v-app .cf-coach-tip:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
 @media (max-width: 700px) {
-  .d2v-app .kit-focusbar-step { letter-spacing: 0.02em; }
+  .d2v-app .kit-focusbar-step { padding: 6px; }
   .d2v-app .kit-focusbar-steps li:not([aria-current='step']) .kit-focusbar-word { display: none; }
   /* The step you are on gets the room to say its name. */
-  .d2v-app .kit-focusbar-steps li { flex: 0 0 28px; }
+  .d2v-app .kit-focusbar-steps li { flex: 0 0 34px; }
   .d2v-app .kit-focusbar-steps li[aria-current='step'] { flex: 1 1 auto; }
 }
 
