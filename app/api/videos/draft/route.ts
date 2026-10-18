@@ -6,6 +6,7 @@ import type { WizardDraft } from '../../../_lib/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isOwnedStoragePath, mergeDraft, mergeExtractedDocs } from '../../../_lib/wizard-draft'
 import { snapshotLook } from '../../../_lib/look-wizard'
+import { isVideoTemplate } from '../../../_lib/video-templates'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -176,6 +177,8 @@ export async function PATCH(request: NextRequest) {
   if ('kitLookCustom' in u && u.kitLookCustom !== null) {
     u.kitLookCustom = u.kitLookCustom && typeof u.kitLookCustom === 'object' ? snapshotLook(u.kitLookCustom) : null
   }
+  // The video's template (video-templates.ts): one of the eight, or none.
+  if ('templateId' in u && !isVideoTemplate(u.templateId)) u.templateId = null
   if ('sourcePdfPath' in u && u.sourcePdfPath === null) {
     u.sourcePdfName = null
     u.allowSourceDownload = false

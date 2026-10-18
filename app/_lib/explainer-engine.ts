@@ -1,6 +1,8 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs'
 import { isAdminDB } from './admin'
+import { isVideoTemplate, type VideoTemplateId } from './video-templates'
+import type { TemplateIdentity } from './template-identity'
 
 /**
  * THE EXPLAINER ENGINE — the code-drawn explainer (built in One Dollar Decks'
@@ -94,6 +96,15 @@ export async function startExplainer(o: {
   photoUrl?: string | null
   voiceId?: string
   music: boolean
+  /**
+   * ONE OF THE FIXED TEMPLATES (video-templates.ts): the worker lays the
+   * scenes out in it instead of copying a reference look, builds the cover
+   * and closing from `identity` alone, and refuses any page that shows one
+   * of `forbidden` (the account's own details on another person's video).
+   */
+  template?: VideoTemplateId | null
+  identity?: TemplateIdentity | null
+  forbidden?: string[]
 }): Promise<{ jobId: string }> {
   if (!explainerConfigured()) throw new Error('the explainer engine is not configured (RENDER_*)')
   const scenes = o.scenes.filter((s) => s.narration)
@@ -115,10 +126,12 @@ export async function startExplainer(o: {
    * a little (conservative). A board of their bare colors was tried first
    * (2026-10-17): every scene copied the board's blocks.
    */
-  const own = await fetched(o.referenceUrl)
+  /* A template needs no reference look: its design is fixed. */
+  const template = o.template && isVideoTemplate(o.template) ? o.template : null
+  const own = template ? null : await fetched(o.referenceUrl)
   const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/+$/, '')
   const wantsPhoto = !!(o.presenter && o.photoUrl && (o.presenter.cover || o.presenter.closing))
-  const [logo, reference, photo] = await Promise.all([fetched(o.logoUrl), own ? Promise.resolve(own) : fetched(`${site}${DEFAULT_LOOK}`), wantsPhoto ? fetched(o.photoUrl) : Promise.resolve(null)])
+  const [logo, reference, photo] = await Promise.all([fetched(o.logoUrl), template ? Promise.resolve(null) : own ? Promise.resolve(own) : fetched(`${site}${DEFAULT_LOOK}`), wantsPhoto ? fetched(o.photoUrl) : Promise.resolve(null)])
   // A photo that was promised but cannot be fetched stops the video here (the
   // caller makes it the old way) rather than leaving it off silently.
   if (wantsPhoto && !photo) throw new Error('the presenter’s photo could not be fetched')
@@ -126,9 +139,14 @@ export async function startExplainer(o: {
     kind: 'explainer', title: o.title, scenes,
     palette: o.palette.filter((x) => /^#[0-9a-f]{6}$/i.test(x)).slice(0, 5),
     logo: Boolean(logo), reference: Boolean(reference),
-    direction: own ? undefined : 'conservative',
+    direction: own || template ? undefined : 'conservative',
     voiceId: elevenVoiceFor(o.voiceId), music: o.music,
     ...(o.presenter ? { presenter: { name: o.presenter.name, ...(o.presenter.role ? { role: o.presenter.role } : {}), photo: Boolean(photo), cover: o.presenter.cover, closing: o.presenter.closing } } : {}),
+    ...(template ? {
+      template,
+      identity: { ...(o.identity ?? { kind: 'none' }), ...(photo ? {} : { photoOn: undefined }) },
+      ...(o.forbidden?.length ? { forbidden: o.forbidden } : {}),
+    } : {}),
     report: { kind: 'd2v', videoId: o.videoId, userId: o.userId },
     /* The worker's own fields for a film job, filled when the scenes are drawn. */
     ds: {}, pages: [],

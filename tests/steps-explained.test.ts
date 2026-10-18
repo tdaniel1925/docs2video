@@ -37,7 +37,8 @@ describe('look vs brand', () => {
   it('says every scene wears the look, on the brand step, the look step and the look screen', () => {
     expect(String(STEP_COPY.look.what)).toMatch(/Every scene, from the cover to the closing, wears it/)
     expect(read(STEPS + 'steps/BrandCovers.tsx')).toMatch(/<LookVsBrand \/>/)
-    expect(read(STEPS + 'steps/LookVoiceReview.tsx')).toMatch(/part === 'look' \? <LookVsBrand \/>/)
+    /* The Look step (layout B, 2026-10-18) carries no explanation blocks: its coach bar says it. */
+    expect(read(STEPS + 'steps/LookVoiceReview.tsx')).not.toMatch(/<LookVsBrand/)
     expect(read('app/_components/look/LookWizard.tsx')).toMatch(/data-look-explain/)
   })
 
@@ -60,7 +61,8 @@ describe('a reference picture can be pasted', () => {
 
   it('on the Look step, carried to the look screen', () => {
     const step = read(STEPS + 'steps/LookVoiceReview.tsx')
-    expect(step).toMatch(/usePasteImage\(\(f\) => \{ void holdPastedReference\(f\)\.then\(openLookScreen\) \}, part === 'look'/)
+    /* …and opens the Match a picture tab on the way (layout B). */
+    expect(step).toMatch(/usePasteImage\(\(f\) => \{ setLookTab\('picture'\); void holdPastedReference\(f\)\.then\(openLookScreen\) \}, part === 'look'/)
     expect(step).toMatch(/Paste, drop or upload a picture/)
   })
 })

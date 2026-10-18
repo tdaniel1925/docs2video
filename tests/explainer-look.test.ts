@@ -64,10 +64,11 @@ describe('the route', () => {
   const engine = readFileSync(join(__dirname, '..', 'app/_lib/explainer-engine.ts'), 'utf8')
 
   it('sends the picked look as the reference, matched faithfully', () => {
-    expect(route).toMatch(/const picked = await explainerLookFor\(\{/)
+    /* a template has its own fixed design: no look is read for it (video-templates.ts) */
+    expect(route).toMatch(/const picked = videoTemplateId\r?\n\s+\? \{ referenceUrl: null, source: 'template', look: videoTemplateId \}\r?\n\s+: await explainerLookFor\(\{/)
     expect(route).toMatch(/referenceUrl: picked\.referenceUrl,/)
     /* a picture of the look is matched as it is (no direction); only the bare default is pushed */
-    expect(engine).toMatch(/direction: own \? undefined : 'conservative'/)
+    expect(engine).toMatch(/direction: own \|\| template \? undefined : 'conservative'/)
   })
 
   it('Drawn slides keep their own pipeline — the explainer engine does not draw them', () => {

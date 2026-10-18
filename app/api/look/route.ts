@@ -106,7 +106,8 @@ export async function POST(request: Request) {
   const look = snapshotLook(body.look)
   const draft = (row.draft_data ?? {}) as Record<string, unknown>
   // This video's own copy (old videos keep theirs; a later edit can't reach it).
-  const { error } = await admin.from('videos').update({ draft_data: { ...draft, videoStyle: 'kit', kitLook: 'custom', kitLookCustom: look } })
+  // A look of their own replaces any template chosen before (video-templates.ts).
+  const { error } = await admin.from('videos').update({ draft_data: { ...draft, videoStyle: 'kit', kitLook: 'custom', kitLookCustom: look, templateId: null } })
     .eq('id', body.videoId).eq('user_id', user.id).in('status', DRAFT_EDITABLE)
   if (error) return NextResponse.json({ error: 'We couldn’t save the look. Please try again.' }, { status: 500 })
   // …and the brand's look, so its next videos start here.

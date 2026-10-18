@@ -155,12 +155,28 @@ const OUTPUT_HINT: Record<MakeOutput, string> = {
 }
 
 /** Video or presentation, each with the server's price (… while it loads). */
-export function OutputPicker({ offered, value, onChange, options }: {
+export function OutputPicker({ offered, value, onChange, options, compact }: {
   offered: MakeOutput[]
   value: MakeOutput
   onChange: (o: MakeOutput) => void
   options: Partial<Record<MakeOutput, OutputQuote>> | null
+  /** A small switch (the Look step's bar): the names only, the price in its title. */
+  compact?: boolean
 }) {
+  if (compact) {
+    return (
+      <div className="cf-seg" role="radiogroup" aria-label="Make">
+        {offered.map((o) => {
+          const q = options?.[o]
+          return (
+            <button key={o} type="button" role="radio" aria-checked={value === o} className="cf-seg-btn" title={`${OUTPUT_HINT[o]}${q ? ` ${formatCredits(q.total)}.` : ''}`} onClick={() => onChange(o)}>
+              {OUTPUT_NAME[o]}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
   return (
     <div className="cf-chips" role="radiogroup" aria-label="Make">
       {offered.map((o) => {
