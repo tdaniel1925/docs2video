@@ -50,7 +50,7 @@ describe('Add your brand — reuses the brand code, keeps the logo rule', () => 
   })
 
   it('step 3 opens it in place for a first project, and saving puts the brand on this project', () => {
-    const theme = read('app/(dashboard)/create/theme/page.tsx')
+    const theme = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
     expect(theme).toMatch(/setAddingBrand\(!found && d\.brandId === undefined\)/)
     expect(theme).toMatch(/onClick=\{\(\) => setAddingBrand\(\(o\) => !o\)\}>Add your brand<\/button>/)
     expect(piece).toMatch(/updates: \{ brandId: made\.id \}/)

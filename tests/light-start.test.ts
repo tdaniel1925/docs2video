@@ -181,7 +181,7 @@ describe('a cardless account can NOT start a real render (or spend at all)', () 
     const commercial = read('app/api/generate-commercial/route.ts')
     expect(commercial).toMatch(/if \(!check\.allowed\) return creditDeniedResponse\(check, COMMERCIAL_COST\)/)
     // Step 3 sends the person to add a card and back (video and presentations).
-    const theme = read('app/(dashboard)/create/theme/page.tsx')
+    const theme = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
     expect(theme).toMatch(/isPres && quote\?\.blockedReason === 'card_required'/)
     expect(theme).toMatch(/g\.code === 'card_required'\) \{\s*router\.push\(`\/setup-payment\?next=/)
     expect(read('app/(dashboard)/create/commercial/page.tsx')).toMatch(/data\?\.code === 'card_required'/)

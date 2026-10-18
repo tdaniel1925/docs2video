@@ -156,5 +156,5 @@ export function copyDraft(input: CopyInput): CopyResult {
 
 /** The screen a new copy opens on: the story step, with a note saying it's a copy. */
 export function copyLandingUrl(newId: string): string {
-  return `/create/script?id=${encodeURIComponent(newId)}&copied=1`
+  return `/create/story?id=${encodeURIComponent(newId)}&copied=1`
 }

@@ -5,17 +5,17 @@ import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 /*
- * THE CREATE FLOW, AS THE OWNER APPROVED IT (sketch, 2026-10-09):
- * wide, big type, few words.
+ * THE CREATE FLOW, AS THE OWNER APPROVED IT (sketch, 2026-10-09; the eight
+ * steps of the approved redesign, 2026-10-18): wide, big type, few words.
  *
- *  - THREE steps in the focus header: Your content · The story · The look.
- *    The making screen and the result page come after them (not a step).
- *  - No step list on the left and no "Your video so far" panel on any step:
- *    one centred column.
- *  - ONE bottom bar per step, fixed to the bottom (clear of the phone's home
- *    bar): the price on the left, the ONE main button on the right. No other
- *    main (primary) button on a step.
- *  - Step 3's looks come from one list, so adding a look is one entry.
+ *  - EIGHT steps in the focus header: Content · Story · Brand · Look ·
+ *    Scenes · Voice · Opener & close · Review. The making screen and the
+ *    result page come after them (not a step).
+ *  - No step list on the left and no "Your video so far" panel on any step.
+ *  - ONE bottom bar per screen, fixed to the bottom (clear of the phone's
+ *    home bar): the price on the left, the ONE main button on the right, the
+ *    way back beside it. No other main (primary) button on a step.
+ *  - The look step's cards come from one list, so adding a look is one entry.
  *
  * Each source check is shown to fail on a planted bad value first.
  */
@@ -48,12 +48,15 @@ function walk(p: string, out: string[] = []): string[] {
   return out
 }
 
-/** The three steps' screens and the parts drawn on them. */
+/** The steps' screens (steps 2+5, 3+7 and 4+6+8 share one each) and the parts drawn on them. */
 const STEP_FILES = {
   content: `${CREATE}/_components/Step1Content.tsx`,
-  story: `${CREATE}/script/page.tsx`,
-  look: `${CREATE}/theme/page.tsx`,
+  story: `${CREATE}/_components/steps/StoryScenes.tsx`,
+  brand: `${CREATE}/_components/steps/BrandCovers.tsx`,
+  look: `${CREATE}/_components/steps/LookVoiceReview.tsx`,
 }
+/** How many screens each file draws — each draws exactly one bottom bar. */
+const SCREENS_IN: Record<keyof typeof STEP_FILES, number> = { content: 1, story: 1, brand: 2, look: 2 }
 const STEP_PARTS = [
   `${CREATE}/_components/ClientPicker.tsx`,
   `${CREATE}/_components/story/OnePoint.tsx`,
@@ -74,20 +77,20 @@ function primaryButtons(src: string): string[] {
   return hits
 }
 
-describe('three steps in the focus header', () => {
-  it('Your content · The story · The look — the old 4th step is gone', () => {
-    expect(STEPS.map((s) => s.label)).toEqual(['Your content', 'The story', 'The look'])
+describe('eight steps in the focus header', () => {
+  it('Content · Story · Brand · Look · Scenes · Voice · Opener & close · Review — no "send it" step', () => {
+    expect(STEPS.map((s) => s.label)).toEqual(['Content', 'Story', 'Brand', 'Look', 'Scenes', 'Voice', 'Opener & close', 'Review'])
     expect(STEPS.some((s) => /send it/i.test(s.label))).toBe(false)
-    // The making screen comes after the steps: all three show done there.
+    // The making screen comes after the steps: all of them show done there.
     expect(stepIndexFor('/create/generating')).toBe(STEPS.length)
   })
 
-  it('the header shows the three, the current one marked, and links a done step back to its draft', () => {
+  it('the header shows the eight, the current one marked, and links a done step back to its draft', () => {
     const profile = { id: 'u', email: 'sam@example.com', full_name: 'Sam', subscription_status: 'pro', is_admin: false } as unknown as Profile
-    pathname = '/create/script'
+    pathname = '/create/story'
     const html = renderToStaticMarkup(h(Header, { profile, brand: DOCS2VIDEO, lowCreditsAt: 1000 }))
-    for (const w of ['Your content', 'The story', 'The look']) expect(html).toContain(w)
-    expect(html.match(/class="kit-focusbar-step /g) ?? []).toHaveLength(3)
+    for (const w of ['Content', 'Story', 'Brand', 'Look', 'Scenes', 'Voice', 'Opener &amp; close', 'Review']) expect(html).toContain(w)
+    expect(html.match(/class="kit-focusbar-step /g) ?? []).toHaveLength(8)
     expect(html).toMatch(/aria-current="step"[^>]*>.*?<span class="kit-focusbar-num"[^>]*>2</)
     // Phone: the words hide, the numbers stay.
     const kit = read('app/kit.css')
@@ -123,9 +126,9 @@ describe('one bottom bar per step, with the one main button', () => {
     expect(css).toMatch(/@media \(max-width: 760px\) \{[\s\S]*?\.cf-bar-buttons > \* \{ flex: 1;/)
   })
 
-  it.each(Object.entries(STEP_FILES))('step "%s" has exactly one bottom bar', (_, file) => {
+  it.each(Object.entries(STEP_FILES))('"%s" draws one bottom bar per screen', (key, file) => {
     const src = code(read(file))
-    expect(src.match(/<BottomBar\b/g) ?? []).toHaveLength(1)
+    expect(src.match(/<BottomBar\b/g) ?? []).toHaveLength(SCREENS_IN[key as keyof typeof STEP_FILES])
     expect(src, 'a main button outside the bar').not.toMatch(/<MainAction\b/)
   })
 
@@ -136,7 +139,11 @@ describe('one bottom bar per step, with the one main button', () => {
     expect(one).toMatch(/'Read it →'/)
     const two = code(read(STEP_FILES.story))
     expect(two).toMatch(/sub="Changes cost nothing"/)
-    expect(two).toMatch(/'Pick a look →'/)
+    // Every step's main button names the next one, and the step before is beside it.
+    for (const f of [STEP_FILES.story, STEP_FILES.brand, STEP_FILES.look]) {
+      expect(code(read(f)), f).toMatch(/`Next: \$\{next\?\.label \?\? ''\} →`/)
+      expect(code(read(f)), f).toMatch(/back=\{back\b|back=\{prev && videoId/)
+    }
     const three = code(read(STEP_FILES.look))
     expect(three).toMatch(/const makeLabel = 'Make it'/)
     // The price is the server's quote, never typed.
@@ -158,7 +165,7 @@ describe('one bottom bar per step, with the one main button', () => {
   })
 })
 
-describe('step 3: looks from one list, one settings line, More options', () => {
+describe('the look, voice and review steps: looks from one list, one settings line', () => {
   it('every look card comes from looks.ts; one is BEST; adding a look is one entry', () => {
     const video = lookCards('video')
     expect(video.map((c) => c.id)).toEqual(VIDEO_LOOKS.map((l) => l.id))
@@ -177,8 +184,10 @@ describe('step 3: looks from one list, one settings line, More options', () => {
     expect(settingsLine({ output: 'video', voiceId: 'nova', aiMusic: true, length: 'Standard' })).toBe('Sarah · music on · standard')
     expect(settingsLine({ output: 'interactive', voiceId: 'onyx', aiMusic: true, length: 'Standard' })).toBe('James · presentation')
     const page = code(read(STEP_FILES.look))
-    expect(page).toMatch(/<summary>More options<\/summary>/)
-    for (const row of ['Voice', 'Music', 'Make', 'Length', 'Photos', 'For your client', 'Price']) expect(page).toContain(`<span className="cf-row-name">${row}</span>`)
+    // Each choice has a step of its own now (no "More options" fold).
+    expect(page).not.toMatch(/<summary>More options<\/summary>/)
+    for (const row of ['Make', 'Voice', 'Music', 'Length', 'Photos']) expect(page).toContain(`<span className="cf-row-name">${row}</span>`)
+    for (const label of ['On their watch page', 'The price']) expect(page).toContain(`<span className="cf-label">${label}</span>`)
   })
 })
 

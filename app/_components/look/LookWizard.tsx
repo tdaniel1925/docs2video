@@ -10,7 +10,7 @@
 // The preview on the right (first on phones) is the REAL scene kit playing
 // the person's own scenes in the browser (LookPreview, loaded lazily).
 //
-// Used from step 3 (/create/look?id=…, "Use this look" → this video's draft +
+// Used from step 4, the look (/create/look?id=…, "Use this look" → this video's draft +
 // the brand) and from Brands (/brands/[id]/look, "Save look" → the brand).
 // =============================================================================
 
@@ -235,7 +235,7 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
         const j = await r.json().catch(() => ({}))
         if (!r.ok) throw new Error(j.error || 'We couldn’t save the look.')
         setSaved(true)
-        router.push(`/create/theme?id=${encodeURIComponent(videoId || '')}`)
+        router.push(`/create/style?id=${encodeURIComponent(videoId || '')}`)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'We couldn’t save the look.')
@@ -322,7 +322,7 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
     <div className={`cf-page ${s.page}`}>
       <div className={s.body}>
         <div className={s.main}>
-          {mode === 'draft' ? <button type="button" className={`cf-link ${s.back}`} onClick={() => router.push(`/create/theme?id=${encodeURIComponent(videoId || '')}`)}>← Back to looks</button> : null}
+          {mode === 'draft' ? <button type="button" className={`cf-link ${s.back}`} onClick={() => router.push(`/create/style?id=${encodeURIComponent(videoId || '')}`)}>← Back to looks</button> : null}
           <h1 className={`cf-h1 ${s.h1}`}>Make it look <em>like…</em></h1>
           <p className={s.sub}>Pick one. We set everything else.</p>
 

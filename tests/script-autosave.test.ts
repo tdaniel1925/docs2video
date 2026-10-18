@@ -28,7 +28,7 @@ const read = (p: string) => readFileSync(join(__dirname, '..', p), 'utf8')
 const code = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
 
-const page = code(read('app/(dashboard)/create/script/page.tsx'))
+const page = code(read('app/(dashboard)/create/_components/steps/StoryScenes.tsx'))
 const beacon = code(read('app/api/videos/draft/beacon/route.ts'))
 const types = read('app/_lib/types.ts')
 

@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 
   const { messages, page } = await request.json() as {
     messages: { role: 'user' | 'assistant'; content: string }[]
-    /** The address of the screen the help was opened on (e.g. /create/theme). */
+    /** The address of the screen the help was opened on (e.g. /create/review). */
     page?: unknown
   }
 

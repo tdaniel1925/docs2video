@@ -112,7 +112,7 @@ export default function PrepareReviewPage() {
       if (both) { go('compare'); await fetch('/api/combine-docs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: d.videoId }) }).catch(() => null) }
       go('brief')
       await fetch('/api/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: d.videoId }) }).catch(() => null)
-      router.push(`/create/script?id=${d.videoId}`)
+      router.push(`/create/story?id=${d.videoId}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
       setStages(null)

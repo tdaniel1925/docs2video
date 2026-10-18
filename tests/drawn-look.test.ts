@@ -57,7 +57,7 @@ describe('the look is offered', () => {
   })
 
   it('step 3 shows the style chips only for this look, and saves + sends the style', () => {
-    const page = read('app/(dashboard)/create/theme/page.tsx')
+    const page = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
     expect(page).toMatch(/videoLook === 'drawn' \? \(\s*<div className="cf-row cf-draw-styles">/)
     expect(page).toMatch(/aria-label="Drawing style"/)
     // Saved on the draft AND sent to generate-video.

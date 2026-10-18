@@ -23,28 +23,38 @@ const read = (p: string) => readFileSync(path.join(ROOT, p), 'utf8')
 const CREATE = 'app/(dashboard)/create'
 const STEP_SCREENS = [
   `${CREATE}/_components/Step1Content.tsx`,
-  `${CREATE}/script/page.tsx`,
-  `${CREATE}/theme/page.tsx`,
+  `${CREATE}/_components/steps/StoryScenes.tsx`,
+  `${CREATE}/_components/steps/LookVoiceReview.tsx`,
+  `${CREATE}/_components/steps/BrandCovers.tsx`,
   `${CREATE}/generating/page.tsx`,
 ]
 
-describe('three steps, then the making screen', () => {
-  it('the steps are Your content · The story · The look; the making screen comes after them', () => {
-    expect(STEPS.map((s) => s.label)).toEqual(['Your content', 'The story', 'The look'])
+describe('eight steps, then the making screen', () => {
+  it('the steps are the approved eight; the making screen comes after them', () => {
+    expect(STEPS.map((s) => s.label)).toEqual(['Content', 'Story', 'Brand', 'Look', 'Scenes', 'Voice', 'Opener & close', 'Review'])
     expect(stepIndexFor('/create')).toBe(0)
+    expect(stepIndexFor('/create/story')).toBe(1)
     expect(stepIndexFor('/create/script')).toBe(1)
     expect(stepIndexFor('/create/brief')).toBe(1)
-    expect(stepIndexFor('/create/theme')).toBe(2)
     expect(stepIndexFor('/create/brand')).toBe(2)
-    // all three done on the making screen
-    expect(stepIndexFor('/create/generating')).toBe(3)
+    expect(stepIndexFor('/create/style')).toBe(3)
+    expect(stepIndexFor('/create/look')).toBe(3)
+    expect(stepIndexFor('/create/scenes')).toBe(4)
+    expect(stepIndexFor('/create/voice')).toBe(5)
+    expect(stepIndexFor('/create/opening')).toBe(6)
+    expect(stepIndexFor('/create/review')).toBe(7)
+    expect(stepIndexFor('/create/theme')).toBe(7)
+    // all eight done on the making screen
+    expect(stepIndexFor('/create/generating')).toBe(8)
     expect(stepIndexFor('/create/commercial')).toBe(-1)
   })
 
   it('a step already done links back to it for the same draft', () => {
     expect(stepHref(0, 'abc')).toBe('/create?id=abc')
-    expect(stepHref(1, 'abc')).toBe('/create/script?id=abc')
-    expect(stepHref(2, 'abc')).toBe('/create/theme?id=abc')
+    expect(stepHref(1, 'abc')).toBe('/create/story?id=abc')
+    expect(stepHref(3, 'abc')).toBe('/create/style?id=abc')
+    expect(stepHref(7, 'abc')).toBe('/create/review?id=abc')
+    expect(stepHref(8, 'abc')).toBeNull()
     expect(stepHref(0, null)).toBeNull()
   })
 })
@@ -101,7 +111,7 @@ describe('a main button that can’t be pressed says why', () => {
     expect(html).not.toMatch(/disabled/)
   })
 
-  it.each(STEP_SCREENS.slice(0, 3))('%s moves on with the bottom bar (its MainAction), not a bare disabled button', (file) => {
+  it.each(STEP_SCREENS.slice(0, 4))('%s moves on with the bottom bar (its MainAction), not a bare disabled button', (file) => {
     const src = read(file)
     expect(src).toMatch(/<BottomBar\b/)
     expect(src).not.toMatch(/className="btn btn-primary btn-lg btn-full"/)
