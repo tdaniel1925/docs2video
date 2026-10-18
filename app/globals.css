@@ -25,6 +25,11 @@
   --accent-ink: #2F6B3A;
   --accent-soft: #EEF7E4;    /* tints behind accent words */
   --link: #1F5FA8;           /* links and the focus ring */
+  /* The one main button of a screen (kit-btn--primary). Its own name since
+     the 2026-10-18 redesign, so the app can wear Docs2Video's blue on it. */
+  --cta: #0B2545;
+  --cta-hover: #1B3A63;
+  --on-cta: #FFFFFF;
   --gold: #9A6200;           /* money only — prices, credits. Sits on white,
                                 cream or --gold-soft (not on the grey wells). */
   --gold-soft: #FFF6E0;
@@ -128,6 +133,33 @@
   --shadow-lg: 0 12px 40px rgba(27,58,92,0.12);
 }
 
+/* THE APP, LIGHT, IN DOCS2VIDEO'S BLUE (redesign 2026-10-18). The signed-in
+   screens of anyone who picked Light: pale blue grounds, navy words, the
+   logo's blue on the main button. The public site and the share page keep
+   the :root colours above. Pairs checked by tests/d2v-app-skin.test.ts. */
+html[data-brand='docs2video']:not([data-theme='dark']):has(.app-themed):not(:has([data-light-only])) {
+  --bg: #EEF3FA;
+  --bg-soft: #F6F9FD;
+  --bg-card: #FFFFFF;
+  --ink: #06142E;
+  --ink-body: #13233F;
+  --ink-soft: #3A4D6B;
+  --ink-light: #4A5D7E;
+  --on-ink: #FFFFFF;
+  --border: #C6D4E8;
+  --border-light: #DCE5F2;
+  --accent: #CDE8FF;
+  --accent-ink: #0A55A0;
+  --accent-soft: #E4F2FF;
+  --link: #0A55A0;
+  --cta: #0B62BA;
+  --cta-hover: #094F96;
+  --on-cta: #FFFFFF;
+  --sky: #E1EEFB;
+  --surface: #E7EEF8;
+  --surface-raised: #DCE6F4;
+}
+
 /* DARK MODE (UI round C, 2026-10) — the same names, re-pointed once.
    Who gets it: Docs2Video's signed-in screens only — admin, pricing, AI
    Social and the photo fixer included since 2026-10-09. The dashboard layout
@@ -142,33 +174,40 @@
    words still read on them; --accent-ink (green words) turns light.
    Every words-on-ground pair is ≥ 4.5:1 (round-c-type-and-theme test). */
 html[data-brand='docs2video'][data-theme='dark']:has(.app-themed):not(:has([data-light-only])) {
+  /* THE APP IN DOCS2VIDEO'S OWN NAVY AND LOGO BLUE (redesign 2026-10-18, the
+     approved mockups): navy grounds, pale-blue words, the logo's bright blue
+     for links, accents and the main button (--cta). Every words-on-ground pair
+     is still at least 4.5:1 (round-c-type-and-theme test). */
   color-scheme: dark;
-  --bg: #0F1620;
-  --bg-soft: #141C27;
-  --bg-card: #19222F;
-  --ink: #F4F1EC;
-  --ink-body: #E6E1D8;
-  --ink-soft: #C9C3B8;
-  --ink-light: #A9A398;
-  --on-ink: #0B2545;
-  --border: #3A4658;
-  --border-light: #2B3545;
-  --accent: #2F5A33;
-  --accent-ink: #A9D98C;
-  --accent-soft: #1C2E22;
-  --link: #8EBBF2;
+  --bg: #06142E;
+  --bg-soft: #0A1E40;
+  --bg-card: #0E2750;
+  --ink: #EAF2FF;
+  --ink-body: #DCE7F8;
+  --ink-soft: #B7C7E3;
+  --ink-light: #9DB1D3;
+  --on-ink: #04122B;
+  --border: #2A4F86;
+  --border-light: #1C3A6B;
+  --accent: #0A3A70;
+  --accent-ink: #4CC3FF;
+  --accent-soft: #0C2D5C;
+  --link: #4CC3FF;
+  --cta: #22B5FF;
+  --cta-hover: #7DD3FF;
+  --on-cta: #04122B;
   --gold: #F2B84B;
   --gold-soft: #2D2414;
   --peach: #3A2918;
   --peach-deep: #F59A45;
   --lilac: #2C2742;
-  --sky: #1A2A3E;
+  --sky: #10305C;
   --sun: #E9C24F;
   --rose: #3B2224;
-  --surface: #202A38;
-  --surface-raised: #283343;
-  --success: #9AD88A;
-  --success-bg: #1A2E1F;
+  --surface: #0C2348;
+  --surface-raised: #123060;
+  --success: #7EE2B0;
+  --success-bg: #0D3030;
   --warning: #F5A623;
   --warning-bg: #2E2410;
   --warning-text: #F4C46A;

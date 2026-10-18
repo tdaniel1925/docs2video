@@ -154,7 +154,7 @@ describe('round C — light / dark', () => {
   it('dark reaches Docs2Video signed-in screens only; unchecked screens and the share page stay light', () => {
     expect(css).toContain(`${DARK_SELECTOR} {`)
     const layout = read('app/(dashboard)/layout.tsx')
-    expect(layout).toMatch(/brand\.id === 'docs2video' \? 'app-themed'/)
+    expect(layout).toMatch(/brand\.id === 'docs2video' \? [`']app-themed/)
     expect(layout).toContain('<ThemeSync />')
     // The share page is not inside the dashboard layout, and wears no themed wrapper.
     expect(read('app/(public)/watch/[id]/page.tsx')).not.toContain('app-themed')

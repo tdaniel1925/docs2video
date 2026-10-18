@@ -8,6 +8,13 @@ import type { Profile } from '../_lib/types'
 import { getBrand } from '../_lib/brand-server'
 import { CREDIT_COSTS } from '../_lib/credits'
 import { ThemeSync } from '../_components/theme'
+import { Archivo, DM_Sans } from 'next/font/google'
+import '../d2v-app.css'
+
+/* The redesign's two faces (2026-10-18): Archivo for a page's big capitals,
+   DM Sans for everything else — Docs2Video's signed-in screens only. */
+const d2vDisplay = Archivo({ subsets: ['latin'], variable: '--d2v-display', display: 'swap' })
+const d2vBody = DM_Sans({ subsets: ['latin'], variable: '--d2v-body', display: 'swap' })
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -61,7 +68,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // .app-themed: the screens that follow the light/dark choice (Docs2Video
     // only — Text2Art keeps its own look). Pages not ready for dark carry
     // <LightOnly /> (globals.css, "DARK MODE").
-    <div className={brand.id === 'docs2video' ? 'app-themed' : undefined} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
+    <div className={brand.id === 'docs2video' ? `app-themed d2v-app ${d2vDisplay.variable} ${d2vBody.variable}` : undefined} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
       {brand.id === 'docs2video' && <ThemeSync />}
       <ImpersonationBanner />
       {/* The credit chip turns amber below one standard video's worth. */}
