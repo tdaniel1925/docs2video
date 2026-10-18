@@ -145,7 +145,8 @@ export function stillEngineFor(output: string, look: string): StillEngine | null
  *  the free preview leaves out (an AI picture costs money to make). */
 export function lookNote(output: string, look: string): string | null {
   if (output !== 'video') return null
-  if (look.startsWith('kit:')) return 'The finished video picks the scene design that suits each part of your story. This shows one of them.'
+  // The explainer engine designs the finished video FROM this still (explainer-look.ts), so it says so.
+  if (look.startsWith('kit:')) return 'Your video is designed from this frame: the same colours, type and feel on every scene, each laid out to suit what it says.'
   if (look === 'cinematic') return 'The finished video adds a photo behind each scene. This preview shows the layout and your words.'
   if (look === 'infographic') return 'The finished video adds a designed background picture. This preview shows the layout and your numbers.'
   if (look === 'editorial' || look === 'explainer') return 'The finished video can give this page a different layout (numbers, a list or a quote) to suit what it says.'

@@ -146,5 +146,8 @@ export const config = {
   //
   // Everything listed here is a static asset that is public by definition;
   // nothing that needs a signed-in session lives at one of these extensions.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|txt|xml|pdf|css|js|woff2?)$).*)'],
+  // Video and audio too (2026-10-18): the /for/* pages' sample videos
+  // (/industry-demos/*.mp4) were redirected to sign-in for every visitor who
+  // wasn't signed in, so the public pages showed a player that never played.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|html|txt|xml|pdf|css|js|woff2?|mp4|webm|mov|mp3|m4a|wav)$).*)'],
 }

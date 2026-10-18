@@ -100,10 +100,12 @@ export async function startExplainer(o: {
     try { const r = await fetch(url, { signal: AbortSignal.timeout(15000) }); return r.ok ? Buffer.from(await r.arrayBuffer()) : null } catch { return null }
   }
   /*
-   * THE LOOK. The user's own picture when they gave one, copied as it is.
-   * Otherwise a designed starting look (public/explainer-looks — calm, with a
-   * real picture) worn in their brand colors and logo. A board of their bare
-   * colors was tried first (2026-10-17): every scene copied the board's blocks.
+   * THE LOOK. The picture of the look they picked (explainer-look.ts: their
+   * own picture, their free preview of the look, or the look's sample page),
+   * matched faithfully with their brand colors as its accents. Only with no
+   * picture at all: the default starting look (public/explainer-looks), pushed
+   * a little (conservative). A board of their bare colors was tried first
+   * (2026-10-17): every scene copied the board's blocks.
    */
   const own = await fetched(o.referenceUrl)
   const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/+$/, '')
