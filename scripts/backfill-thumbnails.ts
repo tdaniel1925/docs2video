@@ -53,13 +53,32 @@ async function main() {
   let ok = 0, failed = 0
   for (const m of make) {
     const row = rows.find((r) => r.id === m.id)!
-    try { if (await makeCover(admin, row)) ok++; else failed++ } catch (err) {
+    try { if (await makeCover(admin, row, { capturePage })) ok++; else failed++ } catch (err) {
       failed++
       console.log(`  fail ${m.id}: ${err instanceof Error ? err.message : String(err)}`)
     }
     if ((ok + failed) % 10 === 0) console.log(`  … ${ok + failed}/${make.length}`)
   }
   console.log(`Done: ${ok} made, ${failed} failed.`)
+  await browser?.close()
+}
+
+// An interactive presentation is a web page: its first screen, drawn in a
+// browser at 1280×720, is its cover. One browser for the whole run.
+let browser: import('playwright').Browser | null = null
+async function capturePage(url: string): Promise<Buffer> {
+  if (!browser) browser = await (await import('playwright')).chromium.launch()
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
+  try {
+    // Storage serves the file as plain text, so a browser opening the URL
+    // shows its source. Load the page's own HTML instead.
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`page ${res.status}`)
+    await page.setContent(await res.text(), { waitUntil: 'networkidle', timeout: 45_000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(1500)
+    return await page.screenshot({ type: 'png' })
+  } finally { await page.close() }
 }
 
 main().catch((err) => { console.error(err instanceof Error ? err.message : err); process.exit(1) })

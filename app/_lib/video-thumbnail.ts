@@ -106,13 +106,19 @@ export function coverFrameAt(durations: number[] | null | undefined): number {
 export type CoverPlan =
   | { kind: 'still'; url: string }
   | { kind: 'frame'; url: string; at: number }
+  | { kind: 'page'; url: string }
   | { kind: 'none'; why: string }
+
+/** An interactive presentation is a web page, not a film: no frame to grab. */
+const isPage = (u: string | null | undefined): u is string => !!u && /\.html?(\?|$)/i.test(u)
 
 /** Where a video's cover comes from. */
 export function coverPlan(v: { video_url?: string | null; slide_urls?: string[] | null; slide_durations?: number[] | null; status?: string | null }): CoverPlan {
   if (v.status && v.status !== 'completed') return { kind: 'none', why: 'not finished' }
   const first = v.slide_urls?.[0]
   if (isEngineStill(first)) return { kind: 'still', url: first }
+  if (isStill(first) && isPage(v.video_url)) return { kind: 'still', url: first }
+  if (isPage(v.video_url)) return { kind: 'page', url: v.video_url }
   if (v.video_url) return { kind: 'frame', url: v.video_url, at: coverFrameAt(v.slide_durations) }
   if (isStill(first)) return { kind: 'still', url: first }
   return { kind: 'none', why: 'no film and no still' }

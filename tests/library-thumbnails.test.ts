@@ -50,6 +50,8 @@ describe('which picture a video shows', () => {
     expect(coverPlan({ status: 'completed', slide_urls: [`${S}_slide_01.png`], video_url: `${S}.mp4` })).toEqual({ kind: 'still', url: `${S}_slide_01.png` })
     expect(coverPlan({ status: 'completed', video_url: `${S}.mp4`, slide_durations: [7] })).toEqual({ kind: 'frame', url: `${S}.mp4`, at: 5.6 })
     expect(coverPlan({ status: 'failed', video_url: `${S}.mp4` }).kind).toBe('none')
+    // An interactive presentation is a web page: its first screen, never a film frame.
+    expect(coverPlan({ status: 'completed', video_url: `${S}/presentations/p.html` })).toEqual({ kind: 'page', url: `${S}/presentations/p.html` })
     expect(coverPlan({ status: 'completed' }).kind).toBe('none')
     for (const d of [undefined, [], [0], [0.4], [1.2], [30]]) {
       const at = coverFrameAt(d as number[] | undefined)

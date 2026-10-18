@@ -88,10 +88,15 @@ async function save(admin: SupabaseClient, row: ThumbRow, meta: ThumbMeta, inUse
 }
 
 /** Make (or remake) the cover. Returns its URL, or null when there is nothing to make it from. */
-export async function makeCover(admin: SupabaseClient, row: ThumbRow): Promise<string | null> {
+export async function makeCover(admin: SupabaseClient, row: ThumbRow, opts: { capturePage?: (url: string) => Promise<Buffer> } = {}): Promise<string | null> {
   const plan = coverPlan(row)
   if (plan.kind === 'none') return null
-  const raw = plan.kind === 'still' ? await fetchPicture(plan.url) : await grabFrame(plan.url, plan.at)
+  // A presentation's first screen needs a browser: only the backfill script
+  // has one. Without it, leave the presentation to its own poster.
+  if (plan.kind === 'page' && !opts.capturePage) return null
+  const raw = plan.kind === 'still' ? await fetchPicture(plan.url)
+    : plan.kind === 'page' ? await opts.capturePage!(plan.url)
+    : await grabFrame(plan.url, plan.at)
   const jpeg = await toThumbJpeg(raw)
   const cover = await put(admin, thumbPaths(row.user_id, row.id).cover, jpeg)
   const old = thumbMeta(row.draft_data)
