@@ -13,6 +13,8 @@ import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene }
 import { isRegulated, productTokens, scrubComplianceText, smoothScrubbed } from '../../_lib/compliance'
 import { safeEqual } from '../../_lib/api-auth'
 import { getBrand } from '../../_lib/brand-server'
+import { loadSender, senderName } from '../../_lib/video-sender'
+import { repairNarration, narratorMode, type PresenterVoice, type SpeakAs } from '../../_lib/narration-pov'
 import { RETIRED_MESSAGE } from '../../_lib/videos-only'
 
 export const runtime = 'nodejs'
@@ -134,6 +136,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // WHO IT IS FROM, and WHO IS SPEAKING (app/_lib/video-sender.ts,
+  // app/_lib/narration-pov.ts): the chosen brand, else the account — never
+  // both — and a narrator that speaks FOR a person, never as them unless they
+  // chose "Speak as me" with a voice that fits.
+  // An explicit "no brand" (brandId: null from Skip) stays no brand.
+  const brandId = (draft.brandId !== undefined ? draft.brandId : (draft.selectedBrand || draft.autoBrandId)) as string | undefined
+  const { sender, brand: senderBrand } = await loadSender(admin, { userId: user.id, brandId: brandId || null })
+  {
+    const mode = narratorMode({ hasPresenter: sender.kind === 'person' && sender.source === 'brand', speakAs: draft.speakAs as SpeakAs | undefined, presenterVoice: draft.presenterVoice as PresenterVoice | undefined, voiceId: draft.voiceId })
+    const pov = { presenterName: sender.source === 'brand' ? sender.person : null, presenterRole: sender.role, brandName: sender.source === 'brand' && sender.kind === 'company' ? sender.company : null, mode }
+    scenes = scenes.map((s, i) => (s.narration ? { ...s, narration: repairNarration(s.narration, pov, i) } : s))
+  }
+
   // ── Credits: interactive 700 · deck reuses the existing deck price.
   // Internal (v1/partner) calls are already metered upstream — skip. ──
   // Same function the Make screen's /api/price-quote shows.
@@ -216,51 +231,34 @@ export async function POST(request: NextRequest) {
     // ── Assemble the presentation ──
     await setStatus('assembling', 70, 'Assembling presentation')
 
-    // Resolve brand + presenter identity from their real sources: the selected
-    // brands row (company or person profile) and the user's own profile.
-    // An explicit "no brand" (brandId: null from Skip) stays no brand.
-    const brandId = (draft.brandId !== undefined ? draft.brandId : (draft.selectedBrand || draft.autoBrandId)) as string | undefined
-    let brandRow: { name?: string; profile_type?: string; person_role?: string | null; photo_url?: string | null } | null = null
-    let brandLogo: string | undefined
-    let brandColor: string | undefined
-    if (brandId) {
-      const { data } = await admin.from('brands')
-        .select('name, profile_type, person_role, photo_url, primary_color, accent_color')
-        .eq('id', brandId).eq('user_id', user.id).single()
-      brandRow = data
-      // The deck's accent follows the brand. primary_color is the brand's
-      // "headers · CTAs" color — exactly the role --gold plays in the deck.
-      const c = data as { primary_color?: string | null; accent_color?: string | null } | null
-      brandColor = (c?.primary_color || c?.accent_color) ?? undefined
-      // Real uploaded logos only — never an AI-drawn mark. Read defensively:
-      // the processed-variant columns may not exist in every environment.
-      try {
-        const { data: lg } = await admin.from('brands')
-          .select('logo_dark_url, logo_url, logo_file_url')
-          .eq('id', brandId).eq('user_id', user.id).single()
-        brandLogo = (lg?.logo_dark_url || lg?.logo_url || lg?.logo_file_url) ?? undefined
-      } catch { /* logo columns unavailable — ship without a logo */ }
-    }
-    const { data: profile } = await admin.from('profiles')
-      .select('full_name, company_name, phone, email, photo_url')
-      .eq('id', user.id).single()
+    // Brand + presenter identity: the selected brand, all of it, else the
+    // account (loaded above). It used to take a person brand's name with the
+    // ACCOUNT's phone, email and photo, and a company brand with the account
+    // owner's name as its presenter — one deck, two people.
+    const b = senderBrand as { primary_color?: string | null; accent_color?: string | null; logo_dark_url?: string | null; logo_url?: string | null; logo_file_url?: string | null } | null
+    // The deck's accent follows the brand. primary_color is the brand's
+    // "headers · CTAs" color — exactly the role --gold plays in the deck.
+    const brandColor = (b?.primary_color || b?.accent_color) ?? undefined
+    // Real uploaded logos only — never an AI-drawn mark.
+    const brandLogo = (b?.logo_dark_url || b?.logo_url || b?.logo_file_url) ?? undefined
 
     const inlineBrand = (draft.inlineBrand ?? {}) as { name?: string }
-    const brandName = brandRow?.name || inlineBrand.name || profile?.company_name || undefined
-    const presenterName = (brandRow?.profile_type === 'person' ? brandRow.name : undefined)
-      || profile?.full_name || brandName
-    const presenterPhoto = (brandRow?.profile_type === 'person' ? brandRow.photo_url : undefined)
-      || profile?.photo_url || undefined
+    const brandName = sender.company || (sender.source === 'brand' ? undefined : inlineBrand.name) || undefined
+    const presenterName = senderName(sender) || inlineBrand.name || undefined
+    const presenterPhoto = sender.kind === 'person' ? sender.photo : undefined
     const fmtPhone = (p?: string | null) => {
       const d = String(p ?? '').replace(/\D/g, '')
       if (d.length === 11 && d.startsWith('1')) return `1-${d.slice(1, 4)}-${d.slice(4, 7)}-${d.slice(7)}`
       if (d.length === 10) return `1-${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
       return p || undefined
     }
+    // The draft's contact (typed on the brand step) only when no saved brand
+    // speaks for this deck; a brand's own contact otherwise.
+    const own = sender.source === 'brand'
     const contactLine = [
-      fmtPhone((draft.contactPhone as string) || profile?.phone),
-      (draft.contactEmail as string) || profile?.email,
-      (draft.contactWebsite as string) || undefined,
+      fmtPhone(own ? sender.phone : ((draft.contactPhone as string) || sender.phone)),
+      own ? sender.email : ((draft.contactEmail as string) || sender.email),
+      own ? sender.website : ((draft.contactWebsite as string) || undefined),
     ].filter(Boolean).join('  ·  ') || undefined
 
     // Title comes from the source document (or the user's override) — never

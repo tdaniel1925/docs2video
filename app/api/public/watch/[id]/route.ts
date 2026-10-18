@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
 import { safeHttpsUrl } from '../../../../_lib/client-email'
+import { loadSender, videoBrandId, bookingFor } from '../../../../_lib/video-sender'
 
 export const runtime = 'nodejs'
 
@@ -89,7 +90,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   const ownerId = (video as { user_id: string }).user_id
-  const [{ data: profile }, { data: quote }] = await Promise.all([
+  const [{ data: profile }, { data: quote }, brandId] = await Promise.all([
     // Only SAFE, intentionally-public profile columns — never the whole row.
     // subscription_status is read to decide branding but NOT sent out: which
     // plan an agent pays for is their business, not their client's.
@@ -106,17 +107,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    videoBrandId(admin, id),
   ])
 
+  // WHO IT IS FROM (app/_lib/video-sender.ts, owner 2026-10-18): the brand
+  // the video was made with — a person's name, role, photo and contact, or a
+  // company's name, logo and contact — and the account's own profile ONLY when
+  // no brand was chosen. Never a mix: a Darrell Wolfe video showed the account
+  // owner's name, photo, phone and email here.
+  const { sender } = await loadSender(admin, { userId: ownerId, brandId, profile })
   const plan = String(profile?.subscription_status ?? '').toLowerCase()
   const agent = profile ? {
-    full_name: profile.full_name,
-    company_name: profile.company_name,
-    photo_url: profile.photo_url,
-    email: profile.email,
-    phone: profile.phone,
-    // Same rule for the agent's saved links: https only, or nothing.
-    calendly_url: safeHttpsUrl(profile.calendly_url) || null,
+    full_name: sender.person,
+    company_name: sender.company,
+    role: sender.role,
+    photo_url: sender.photo,
+    email: sender.email,
+    phone: sender.phone,
+    website: sender.website,
+    // Same rule for the agent's saved links: https only, or nothing. The
+    // booking link is the brand's, else the account's — never the account's
+    // on another person's video (bookingFor).
+    calendly_url: safeHttpsUrl(bookingFor(sender, profile)) || null,
     payment_link_url: safeHttpsUrl(profile.payment_link_url) || null,
     white_label: WHITELABEL_PLANS.includes(plan),
     free_tier: !PAID_PLANS.includes(plan),

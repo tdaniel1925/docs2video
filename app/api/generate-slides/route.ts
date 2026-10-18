@@ -63,9 +63,13 @@ export async function POST(request: Request) {
   // website → calendly → phone → email → company. Only fall back further if the
   // agent has set literally nothing. (Bug this fixes: the footer was defaulting
   // to docs2video.com on the client-facing closing slide.)
+  //
+  // A caller that names the preparer (a brand) speaks for the whole video: its
+  // footer is the caller's or none — never the ACCOUNT's contact under another
+  // brand's name (app/_lib/video-sender.ts: one source, never mixed).
   let contactFooter: string | undefined = (footer || '').toString().trim() || undefined
   let profilePreparer: string | undefined
-  if (!contactFooter || !preparer) {
+  if (!preparer) {
     const { data: prof } = await admin
       .from('profiles')
       .select('full_name, company_name, phone, calendly_url, email, payment_link_url')

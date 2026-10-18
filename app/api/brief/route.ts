@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const kind = brand?.profile_type === 'person'
       ? `a PERSON presenting (${brand?.person_role ? brand.person_role + ', ' : ''}${idName})`
       : `the COMPANY "${idName}"`
-    knownIdentity = `KNOWN PRESENTER/BRAND (already selected by the user — treat as authoritative; this video is FROM ${idName} to its audience, do NOT ask who it's from): ${kind}${brand?.tagline ? ` — tagline: "${brand.tagline}"` : ''}.`
+    knownIdentity = `KNOWN PRESENTER/BRAND (already selected by the user — treat as authoritative; this video is FROM ${idName} to its audience, do NOT ask who it's from): ${kind}${brand?.tagline ? ` — tagline: "${brand.tagline}"` : ''}. The narration is spoken by an AI voice ON BEHALF of ${idName}, in the third person — never as ${idName} ("I'm ${idName}").`
   }
 
   // Compact, grounded input for the model.

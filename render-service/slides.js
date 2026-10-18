@@ -784,7 +784,23 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // ⚠ KEEP IN SYNC with app/_lib/personalize.ts (buildOpeningNarration) — the
   // Vercel V3/editorial paths use that shared copy; this is the slides mirror.
   {
-    const clientFirst = String(recipient || '').trim().split(/\s+/)[0]  // first name feels personal
+    // How the client is greeted: "Smith family", "Mr. Smith", "John and Mary",
+    // "Jane" — never "The," or "Mr.,". ⚠ KEEP IN SYNC with app/_lib/text-format.ts salutationFor.
+    const clientFirst = (() => {
+      let n = String(recipient || '').replace(/\s+/g, ' ').trim()
+      if (!n) return ''
+      if (n === n.toUpperCase() || n === n.toLowerCase()) n = n.replace(/[A-Za-z]+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      const fam = n.match(/^(?:the\s+)?([A-Za-z][\w'’-]*)\s+family$/i)
+      if (fam) return `${fam[1]} family`
+      if (/\b(inc|llc|l\.l\.c|corp|corporation|co|company|group|partners|ltd|llp|agency|associates|foundation|trust|holdings|enterprises|church|school|district|clinic|hospital)\.?$/i.test(n)) return n
+      const lf = n.match(/^([^,]+),\s*([^,]+)$/)
+      if (lf) n = `${lf[2]} ${lf[1]}`.trim()
+      const t = n.match(/^(mr|mrs|ms|miss|mx|dr|prof|rev|hon)\.?\s+/i)
+      if (t) { const rest = n.slice(t[0].length).trim().split(' '); const tt = t[1].charAt(0).toUpperCase() + t[1].slice(1).toLowerCase(); return rest[rest.length - 1] ? `${tt}. ${rest[rest.length - 1]}`.replace('Miss.', 'Miss') : '' }
+      const c = n.match(/^([A-Za-z][\w'’-]*)\s+(?:and|&)\s+([A-Za-z][\w'’-]*)\b/i)
+      if (c) return `${c[1]} and ${c[2]}`
+      return n.split(' ')[0]
+    })()
     // CANONICAL agent name = the "prepared by" name the cover + CTA use (preparer).
     // Prefer it over presenter.name so the greeting NEVER names a different agent
     // than the rest of the deck (they come from the same brand profile in the app;
@@ -806,6 +822,29 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
       const selfIntro = agentName && new RegExp(esc(agentName), 'i').test(firstSentence) && /\b(this is|walkthrough|put together|prepared|here)\b/i.test(firstSentence)
       if (selfIntro) body = body.slice(firstSentence.length).trim()  // drop the writer's redundant self-intro
       introScene.narration = namesClient ? body : `${greet} ${body}`.trim()
+    }
+    // WHO IS SPEAKING — the AI voice speaks FOR the agent, never AS them:
+    // no "Hello, I'm Darrell Wolfe" after "thank you for letting Darrell Wolfe
+    // share…" (owner, 2026-10-18). A sentence claiming to be the agent is cut
+    // to what else it says, and "This comes to you from …" when nothing
+    // before it named them.
+    // ⚠ KEEP IN SYNC with app/_lib/narration-pov.ts (repairNarration).
+    const who = [agentName, presenter && presenter.name].filter((n) => n && String(n).trim().length > 1).map((n) => String(n).trim())
+    if (who.length) {
+      const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const alts = [...new Set(who.flatMap((n) => [n, n.split(/\s+/)[0]]).filter((n) => n.length > 1))].map(esc).join('|')
+      const claim = new RegExp(`(?:(?:hi|hello|hey)(?:\\s+there)?[\\s,!.—-]+)?(?:\\b(?:I['’]m|I am|my name['’]?s|my name is|this is|it['’]s)\\s+(?:${alts})\\b|^\\s*(?:${alts})\\s+here\\b)(?:\\s*,\\s*(?!(?:and|but|so)\\b)[^,.!?—]+?(?=\\s*(?:[,.!?—-]|\\band\\b|$)))?[\\s,.!?—-]*(?:and\\s+)?`, 'i')
+      for (const s of scenes) {
+        if (!s.narration || !claim.test(s.narration)) continue
+        const parts = s.narration.match(/[^.!?]+(?:[.!?]+["”’)]?|$)\s*/g) || [s.narration]
+        s.narration = parts.map((p, k) => {
+          if (!claim.test(p)) return p
+          const named = new RegExp(`\\b(?:${alts})\\b`, 'i').test(parts.slice(0, k).join(' '))
+          let rest = p.replace(claim, '').trim()
+          rest = /[a-z0-9]/i.test(rest) ? rest.charAt(0).toUpperCase() + rest.slice(1) + ' ' : ''
+          return named ? rest : `This comes to you from ${who[0]}. ${rest}`
+        }).join('').replace(/\s+/g, ' ').trim()
+      }
     }
   }
 

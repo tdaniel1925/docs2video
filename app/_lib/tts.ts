@@ -40,7 +40,9 @@ export function speakable(text: string): string {
     `${u.replace(/\./g, ' dot ')} at ${d.replace(/\./g, ' dot ')} dot ${tld}`)
   // Bare domains/URLs → "domain dot tld" (common TLDs only, so normal sentences
   // with periods are never touched).
-  t = t.replace(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|ai|co|app|us|info|biz))\b/gi,
+  // A link's path and query are never read out ("wolfe dot com slash plans
+  // question mark id equals 7") — only where to go.
+  t = t.replace(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|ai|co|app|us|info|biz))\b(?:\/[^\s,;)]*[^\s,;).!?])?\/?/gi,
     (_m, dom: string) => dom.replace(/\./g, ' dot '))
   // Phone numbers → digit groups spoken one at a time ("9 3 6, 6 4 1, 7 1 3 0").
   t = t.replace(/(?:\+?1[\s.-]?)?\(?\b(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g, (_m, a: string, b: string, c: string) =>
@@ -55,6 +57,25 @@ export function speakable(text: string): string {
   })
   t = t.replace(/(\d(?:[\d,.]*\d)?)\s?%/g, '$1 percent')
   t = t.replace(/\$/g, ' dollars ')
+  // READ THE WAY A PERSON SAYS IT (edge-case review, 2026-10-18).
+  // Retirement accounts by their spoken names: "401(k)" → "four oh one k".
+  t = t.replace(/\b(401|403|457)\s?\(([kb])\)/gi, (_m, n: string, l: string) => `${{ '401': 'four oh one', '403': 'four oh three', '457': 'four fifty-seven' }[n]} ${l.toLowerCase()}`)
+  // "per" for rates: "$12.50/mo" → "12.50 dollars per month".
+  t = t.replace(/\s?\/\s?(mo|mos|month)\b/gi, ' per month').replace(/\s?\/\s?(yr|year|annum)\b/gi, ' per year').replace(/\s?\/\s?(wk|week)\b/gi, ' per week').replace(/\s?\/\s?(day|hr|hour)\b/gi, (_m, u: string) => ` per ${u.toLowerCase() === 'hr' ? 'hour' : u.toLowerCase()}`)
+  // Bare magnitudes: "1.5M" → "1.5 million" (capitals only — "5m" may be meters).
+  t = t.replace(/\b(\d+(?:\.\d+)?)\s?(MM|M|B|K)\b(?![a-z])/g, (_m, n: string, u: string) => `${n} ${u === 'K' ? 'thousand' : u === 'B' ? 'billion' : 'million'}`)
+  // About: "~20 percent" → "about 20 percent".
+  t = t.replace(/~\s?(?=\d)/g, 'about ')
+  // Ranges: "3-5 years" → "3 to 5 years", "100 dollars-200 dollars" → "… to …".
+  // Never a date ("2026-01-05") or anything longer: no hyphen or digit either side.
+  t = t.replace(/(?<![\d\-–])(\d{1,4}(?:\.\d+)?)\s?[-–—]\s?(\d{1,4}(?:\.\d+)?)(?![\d\-–])/g, '$1 to $2')
+  t = t.replace(/\b(dollars|percent)\s?[-–—]\s?(?=\d)/gi, '$1 to ')
+  // Units after a number.
+  const UNIT: Record<string, [string, string]> = { lb: ['pound', 'pounds'], lbs: ['pound', 'pounds'], oz: ['ounce', 'ounces'], ft: ['foot', 'feet'], 'sq ft': ['square foot', 'square feet'], 'sq. ft': ['square foot', 'square feet'], hr: ['hour', 'hours'], hrs: ['hour', 'hours'], yr: ['year', 'years'], yrs: ['year', 'years'], mos: ['month', 'months'] }
+  t = t.replace(/\b(\d+(?:\.\d+)?)\s?(sq\.? ft|lbs?|oz|ft|hrs?|yrs?|mos)\b(?=\s|$|[.,;:!?])/gi, (_m, n: string, u: string) => {
+    const w = UNIT[u.toLowerCase()]
+    return w ? `${n} ${n === '1' ? w[0] : w[1]}` : _m
+  })
   // Ensure a space after an injected "dollars"/"percent" when the source ran the
   // next token right up against the number ("$X at" → "...dollars at", not
   // "dollarsat"; "$X&" → "dollars &"). Do this BEFORE the & → "and" rewrite.

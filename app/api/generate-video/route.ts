@@ -11,6 +11,8 @@ import { getFlag, getSetting } from '../../_lib/app-settings'
 import { buildV3Payload } from '../../_lib/v3-render'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
+import { videoSender, foreignIdentity, foreignIn, preflightIdentity, SENDER_PROFILE_COLS, type SenderProfile } from '../../_lib/video-sender'
+import { narratorMode, repairNarration, checkNarration, thirdPersonIntro, type PovContext, type PresenterVoice, type SpeakAs } from '../../_lib/narration-pov'
 import { cleanRecipientName } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration, resolvePreparerName } from '../../_lib/personalize'
 import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor } from '../../_lib/compliance'
@@ -107,6 +109,8 @@ const inFlightVideos = new Set<string>()
  * as a plain sentence — raw server text on a paid product reads as broken.
  */
 class FriendlyError extends Error {}
+/** The explainer job's pre-flight (app/_lib/video-sender.ts preflightIdentity) said no. */
+class PreflightError extends Error {}
 const GENERIC_FAILURE = 'Something went wrong while making your video. Your credits were refunded — please try again in a few minutes.'
 function customerMessage(err: unknown): string {
   return err instanceof FriendlyError ? err.message : GENERIC_FAILURE
@@ -511,12 +515,44 @@ export async function POST(request: Request) {
   //   • `profiles.company_name` is a DIFFERENT concept: the AGENT's identity on
   //     the public share page ("prepared by"), not in-video branding. Not read here.
   let brand: Brand | null = null
-  if (brandId) {
+  // The brand on the request, else the one saved on the draft (step 3 sends
+  // the brand it managed to load; a page that failed to load it must not turn
+  // the video into the account's own). An explicit "no brand" stays none.
+  const chosenBrandId = (typeof brandId === 'string' && brandId) ? brandId
+    : (brandId === undefined && typeof draft.brandId === 'string' && draft.brandId) ? draft.brandId : null
+  if (chosenBrandId) {
     // Scope to the requesting user (review S3): without this, any user could
     // read any brand by id (contact info, logos) and render under a stolen
     // brand identity — defense-in-depth alongside the brands RLS policy.
-    const { data } = await db.from('brands').select('*').eq('id', brandId).eq('user_id', user.id).single()
+    const { data } = await db.from('brands').select('*').eq('id', chosenBrandId).eq('user_id', user.id).single()
     brand = data as Brand | null
+    // A brand was chosen but is gone: never fall back to the account's own
+    // details — that would mix two identities in one video.
+    if (!brand) return failAndRefund(409, 'The brand chosen for this video can’t be found any more. Pick a brand on the brand step and try again — your credits were refunded.')
+  }
+
+  // WHO IT IS FROM (app/_lib/video-sender.ts): the brand above, all of it —
+  // the account's profile only when there is no brand, never a mix. The
+  // account's own name/phone/email are the "foreign" identity the pre-flight
+  // refuses on a video made under someone else's brand (the Darrell Wolfe
+  // video showed the account owner's details, owner 2026-10-18).
+  const { data: senderProfile } = await db.from('profiles').select(SENDER_PROFILE_COLS).eq('id', user.id).maybeSingle()
+  const sender = videoSender(brand, senderProfile as SenderProfile | null)
+  const foreignNames = foreignIdentity(sender, senderProfile as SenderProfile | null)
+  // WHO IS SPEAKING (app/_lib/narration-pov.ts): the AI voice speaks FOR the
+  // presenter, in the third person — as them only when they chose "Speak as
+  // me" and the voice fits them. Every narration below passes repairNarration.
+  const povMode = narratorMode({
+    hasPresenter: isPersonProfile(brand),
+    speakAs: (draft.speakAs ?? (body as { speakAs?: unknown }).speakAs) as SpeakAs | undefined,
+    presenterVoice: (draft.presenterVoice ?? (body as { presenterVoice?: unknown }).presenterVoice) as PresenterVoice | undefined,
+    voiceId,
+  })
+  const pov: PovContext = {
+    presenterName: isPersonProfile(brand) ? brand?.name : null,
+    presenterRole: isPersonProfile(brand) ? brand?.person_role : null,
+    brandName: brand && !isPersonProfile(brand) ? brand.name : null,
+    mode: povMode,
   }
 
   const colors = {
@@ -770,6 +806,9 @@ export async function POST(request: Request) {
       } catch { /* best-effort — scrubbed text still ships */ }
     }
 
+    // WHO IS SPEAKING — every content scene, before anything is saved or said.
+    scenes = scenes.map((sc: any, i: number) => (typeof sc.narration === 'string' ? { ...sc, narration: repairNarration(sc.narration, pov, i + 1) } : sc))
+
     // Save script revision
     try {
       const { data: latestRevision } = await admin
@@ -1020,7 +1059,8 @@ export async function POST(request: Request) {
     // personal spoken opening + the closing card. Null for company profiles or
     // when the person opted out of being introduced.
     const presenter = buildPresenter(brand, { intro: presenterIntro, introduceInOpening })
-    const photoPlacementResolved = resolvePhotoPlacement(videoStyle, photoPlacement)
+    // The video's own choice, else the brand's saved "Where my photo appears", else the style's.
+    const photoPlacementResolved = resolvePhotoPlacement(videoStyle, photoPlacement || brand?.photo_placement || undefined)
 
     // PERSONALIZED OPENING — one shared layer (app/_lib/personalize.ts) so the
     // client-name cover + "thank you {client} for letting {agent} share this
@@ -1044,13 +1084,21 @@ export async function POST(request: Request) {
     const regulatedContent = isRegulated(policyData, (policyData as any)?.classification?.documentType, industry)
     // Base opening: the presenter's own intro line if they wrote one, else a lead
     // into the title. buildOpeningNarration prepends the client greeting.
-    const baseOpening = presenter?.intro ? presenter.intro : `${videoTitle}.`
+    // The intro is said ON THEIR BEHALF ("Hello, I'm Darrell Wolfe" after
+    // "thank you for letting Darrell Wolfe share…", in a woman's voice, was the
+    // bug) — in their own words only when the voice speaks as them.
+    const greetedByName = !!(recipient && agentName)
+    const introLine = presenter?.intro
+      ? (povMode === 'as' ? presenter.intro : thirdPersonIntro(presenter.intro, { name: presenter.name || agentName, role: presenter.role }, { greeted: greetedByName }))
+      : ''
+    const baseOpening = introLine || `${videoTitle}.`
     const coverNarration = formatForTTS(
       buildOpeningNarration({
         client: recipient,
         agent: agentName,
         regulated: regulatedContent,
         baseNarration: baseOpening,
+        speakingAs: povMode === 'as',
       })
     )
 
@@ -1088,6 +1136,30 @@ export async function POST(request: Request) {
       slidePrompt: 'closing',
       slideData: editedClosing?.slideData || undefined,
     }
+    // WHO IS SPEAKING, on the bookends too — the user's own edited cover and
+    // closing included. The first content scene opens without a greeting of
+    // its own when the cover already greeted the viewer.
+    coverScene.narration = repairNarration(coverScene.narration, pov, 0)
+    closingScene.narration = repairNarration(closingScene.narration, pov, scenes.length + 1)
+    if (scenes.length && typeof (scenes[0] as any).narration === 'string') {
+      const greets = /^\s*(?:hi|hello|hey|welcome|good (?:morning|afternoon|evening))\b|thank you for letting\b/i.test(coverScene.narration)
+      if (greets) scenes[0] = { ...(scenes[0] as any), narration: repairNarration((scenes[0] as any).narration, pov, 0, { greetedBefore: true }) }
+    }
+    if (editedCover?.narration) editedCover.narration = repairNarration(editedCover.narration, pov, 0)
+    if (editedClosing?.narration) editedClosing.narration = repairNarration(editedClosing.narration, pov, scenes.length + 1)
+    {
+      const left = checkNarration([coverScene.narration, ...scenes.map((s: any) => s.narration || ''), closingScene.narration], pov).filter((i) => i.code !== 'foreign-name')
+      if (left.length) console.warn(`[video ${videoId}] narration point of view still off after repair:`, left)
+      // PRE-FLIGHT, every engine: the account's own name on the opening or
+      // closing, or its phone or email anywhere, on a video made under another
+      // brand — refused before anything is made (refunded by the catch below).
+      const foreign = foreignIn([coverScene.narration, closingScene.narration], scenes.map((s: any) => s.narration || ''), foreignNames, sender)
+      if (foreign.length) {
+        console.error(`[video ${videoId}] pre-flight refused:`, foreign)
+        throw new FriendlyError(`We stopped this video before making it: who it is from does not match the brand you chose (${foreign.map((p) => p.detail).join('; ')}). Your credits were refunded — check the brand and the story, then try again.`)
+      }
+    }
+
     // V3 + editorial build their OWN cover/closing from the content scenes. When
     // the user wrote their own cover/closing, hand those words to them as the
     // first/last scene so every style says what the user wrote.
@@ -1121,18 +1193,45 @@ export async function POST(request: Request) {
           siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com',
         })
         console.log(`[video ${videoId}] explainer look: ${picked.look ?? 'default'} from ${picked.source}`)
+        const exScenes = [sceneFor('cover', coverScene, coverExtra), ...ttsScenes.map((sc: any) => sceneFor('content', sc)), sceneFor('closing', closingScene, closingExtra)]
+        // A person's brand: their name, and their photo where they chose it.
+        const exPresenter = isPersonProfile(brand) && presenter?.name
+          ? { name: presenter.name, ...(presenter.role ? { role: presenter.role } : {}), cover: photoPlacementResolved.cover, closing: photoPlacementResolved.closing }
+          : null
+        const exPhoto = exPresenter && presenter?.photo && (exPresenter.cover || exPresenter.closing) ? presenter.photo : null
+        // PRE-FLIGHT (app/_lib/video-sender.ts): the job says it is from the
+        // chosen brand — its presenter, photo and contact — and nothing of the
+        // account's own when that is someone else. Refused, never sent.
+        const cover = exScenes[0], closing = exScenes[exScenes.length - 1]
+        const problems = [
+          ...preflightIdentity({
+            cover: { bullets: cover.bullets, narration: cover.narration },
+            closing: { bullets: closing.bullets, narration: closing.narration },
+            narrations: exScenes.slice(1, -1).map((s) => s.narration),
+            presenter: exPresenter, photoUrl: exPhoto,
+          }, sender, { placement: photoPlacementResolved, foreign: foreignNames, showContactClosing: wantContactClosing }),
+          ...checkNarration(exScenes.map((s) => s.narration), pov).filter((i) => i.code === 'self-intro').map((i) => ({ code: 'narration-pov', detail: `scene ${i.scene + 1}: “${i.text}”` })),
+        ]
+        if (problems.length) {
+          console.error(`[video ${videoId}] pre-flight refused the explainer job:`, problems)
+          throw new PreflightError(problems.map((p) => p.detail).join('; '))
+        }
         const started = await startExplainer({
           videoId, userId: user.id, title: videoTitle,
-          scenes: [sceneFor('cover', coverScene, coverExtra), ...ttsScenes.map((sc: any) => sceneFor('content', sc)), sceneFor('closing', closingScene, closingExtra)],
+          scenes: exScenes,
           palette: [brandColors.primary, brandColors.secondary, brand?.accent_color, brand?.background_color].filter((x): x is string => typeof x === 'string' && !!x),
           logoUrl: logos.logo_any || logos.logo_light || logos.logo_dark || null,
           referenceUrl: picked.referenceUrl,
+          presenter: exPresenter, photoUrl: exPhoto,
           voiceId, music: !!(aiMusic || musicPrompt || musicUrl),
         })
         console.log(`[video ${videoId}] explainer engine — ${ttsScenes.length + 2} scenes, job ${started.jobId}`)
         inFlightVideos.delete(videoId)
         return NextResponse.json({ success: true, pipeline: 'explainer' })
       } catch (exErr) {
+        // A refused pre-flight is not an engine failure: the old engine would
+        // send the same wrong identity, so the video stops here (refunded).
+        if (exErr instanceof PreflightError) throw new FriendlyError(`We stopped this video before making it: who it is from does not match the brand you chose (${exErr.message}). Your credits were refunded — check the brand and try again.`)
         console.error(`[video ${videoId}] explainer engine failed to start (${(exErr as Error).message}) — making it the previous way`)
         await admin.from('videos').update({ render_note: 'Made with the previous engine — the new explainer engine could not start. Regenerate to try it again.' }).eq('id', videoId).then(() => {}, () => {})
         // Charged the explainer's price, made the old way: the difference goes

@@ -27,6 +27,7 @@ import { downscaleImage } from '../../../../_lib/image-resize'
 import { formatPhoneDisplay } from '../../../../_lib/phone-utils'
 import { toTitleCase } from '../../../../_lib/text-format'
 import { nextStepAfterBrand } from '../make/nextStep'
+import { voiceNote, type SpeakAs, type PresenterVoice } from '../../../../_lib/narration-pov'
 import BottomBar from '../workspace/BottomBar'
 import { type Missing } from '../workspace/MainAction'
 import { neighbours, stepPath } from '../workspace/steps'
@@ -94,6 +95,10 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
   const [introduceInOpening, setIntroduceInOpening] = useState(true)
   const [showContactClosing, setShowContactClosing] = useState(true)
   const [perVideoPlacement, setPerVideoPlacement] = useState('auto')
+  // WHO IS SPEAKING (app/_lib/narration-pov.ts): the AI voice speaks on the
+  // presenter's behalf unless they choose "as me" AND say which voice fits them.
+  const [speakAs, setSpeakAs] = useState<SpeakAs>('for')
+  const [presenterVoice, setPresenterVoice] = useState<PresenterVoice | ''>('')
   const photoInputRef = useRef<HTMLInputElement>(null)
 
   // Load draft + brands on mount
@@ -140,6 +145,8 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
       if (draft.photoPlacement) { setPhotoPlacement(draft.photoPlacement); setPerVideoPlacement(draft.photoPlacement) }
       if (typeof draft.introduceInOpening === 'boolean') setIntroduceInOpening(draft.introduceInOpening)
       if (typeof draft.showContactClosing === 'boolean') setShowContactClosing(draft.showContactClosing)
+      if (draft.speakAs === 'as' || draft.speakAs === 'for') setSpeakAs(draft.speakAs)
+      if (draft.presenterVoice === 'female' || draft.presenterVoice === 'male') setPresenterVoice(draft.presenterVoice)
 
       // Brands
       if (brandsResult.data) {
@@ -339,6 +346,8 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
         updates.photoPlacement = placementVal
         updates.introduceInOpening = introduceInOpening
         updates.showContactClosing = showContactClosing
+        updates.speakAs = speakAs
+        updates.presenterVoice = presenterVoice || undefined
       }
 
       // Save contact info if provided via inline form
@@ -404,6 +413,8 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
         updates.photoPlacement = perVideoPlacement
         updates.introduceInOpening = introduceInOpening
         updates.showContactClosing = showContactClosing
+        updates.speakAs = speakAs
+        updates.presenterVoice = presenterVoice || undefined
       }
       {
         const res = await fetch('/api/videos/draft', {
@@ -485,14 +496,39 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
                       value={presenterIntro}
                       onChange={(e) => setPresenterIntro(e.target.value)}
                       rows={3}
-                      placeholder={selectedBrand.intro_line || 'Hi, I’m Sarah Talls, a registered nurse. I’ve prepared this video to walk you through your prescription plan.'}
+                      placeholder={selectedBrand.intro_line || `${selectedBrand.name.split(/\s+/)[0]} is ${selectedBrand.person_role ? `a ${selectedBrand.person_role}` : 'here to help'} and prepared this video to walk you through your plan.`}
                     />
-                    <span className="cf-hint">Spoken at the start — write it the way you’d say it.</span>
+                    <span className="cf-hint">Spoken at the start by the narrator, on your behalf. A line written as “I’m…” is said in the third person unless the voice speaks as you (below).</span>
                   </label>
                   <label className="cf-toggle">
                     <input type="checkbox" checked={introduceInOpening} onChange={(e) => setIntroduceInOpening(e.target.checked)} />
                     <span>Introduce me in the opening</span>
                   </label>
+                  <fieldset className="cf-field" data-testid="speak-as">
+                    <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>Who is speaking?</span>
+                    <label className="cf-toggle">
+                      <input type="radio" name="speak-as" checked={speakAs === 'for'} onChange={() => setSpeakAs('for')} />
+                      <span>The narrator, on my behalf (recommended)</span>
+                    </label>
+                    <label className="cf-toggle">
+                      <input type="radio" name="speak-as" checked={speakAs === 'as'} onChange={() => setSpeakAs('as')} />
+                      <span>The voice speaks as me</span>
+                    </label>
+                    {speakAs === 'as' ? (
+                      <label className="cf-field">
+                        <span className="cf-hint">The voice that fits me</span>
+                        <select className="cf-input" value={presenterVoice} onChange={(e) => setPresenterVoice(e.target.value as PresenterVoice | '')}>
+                          <option value="">Choose…</option>
+                          <option value="female">A female voice</option>
+                          <option value="male">A male voice</option>
+                        </select>
+                      </label>
+                    ) : null}
+                    {(() => {
+                      const note = voiceNote({ presenterName: selectedBrand.name, speakAs, presenterVoice: presenterVoice || null, voiceId: draftData?.voiceId, intro: presenterIntro || selectedBrand.intro_line })
+                      return note ? <span className="cf-hint" role="status" data-testid="voice-note">{note}</span> : null
+                    })()}
+                  </fieldset>
                   <label className="cf-field">
                     <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>Where my photo appears</span>
                     <select className="cf-input" value={perVideoPlacement} onChange={(e) => setPerVideoPlacement(e.target.value)}>
@@ -680,9 +716,9 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
                       value={introLine}
                       onChange={e => setIntroLine(e.target.value)}
                       rows={3}
-                      placeholder="Hi, I'm Sarah Talls, a registered nurse. I've prepared this video to walk you through your prescription plan."
+                      placeholder="Sarah Talls is a registered nurse and prepared this video to walk you through your prescription plan."
                     />
-                    <span className="cf-hint">Spoken at the start of your video — write it the way you’d say it.</span>
+                    <span className="cf-hint">Spoken at the start by the narrator, on your behalf — so write it about you (“Sarah is…”). A line written as “I’m…” is said in the third person.</span>
                   </label>
 
                   <div className="cf-two">

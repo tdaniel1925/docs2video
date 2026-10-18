@@ -868,6 +868,7 @@ OPENING SCENE (scene 1, beat "hook") — IMPORTANT:
 - Example tone: "Welcome — in the next couple of minutes, we'll walk through your [topic] and what it means for you. Let's get started." (adapt to the real topic; never invent facts).
 - Do NOT just dive straight into data on scene 1. The viewer should feel oriented and welcomed first.
 - The narrator still never states their own name. Keep it natural, friendly, and relatable — not stiff or corporate.
+- WHO IS SPEAKING: the narrator is an AI voice speaking ON BEHALF of the person or company who sent this video — never AS them. Refer to them in the third person (e.g. "Darrell asked me to walk you through…", "Acme put this together for you"). Never write "I'm <name>", "my name is <name>", "this is <name>" or "<name> here", and never claim their work as the narrator's own ("I prepared your quote"). Greet the viewer at most once.
 - The COVER is an INTRODUCTION only — do NOT cite specific numbers, dollar amounts, or stats on scene 1 (those belong on their own data scenes later). Citing a figure here with nothing on screen is confusing.
 
 CLOSING SCENE (LAST scene) — IMPORTANT:

@@ -34,7 +34,7 @@ export const COPIED_FIELDS = [
   'voiceId', 'aiMusic', 'musicPrompt',
   // the brand and how the person is introduced
   'inlineBrand', 'contactPhone', 'contactEmail', 'contactWebsite',
-  'presenterIntro', 'introduceInOpening', 'showContactClosing', 'photoPlacement',
+  'presenterIntro', 'introduceInOpening', 'showContactClosing', 'photoPlacement', 'speakAs', 'presenterVoice',
 ] as const
 
 /** Share-page settings and job leftovers — never copied, named so a test can
