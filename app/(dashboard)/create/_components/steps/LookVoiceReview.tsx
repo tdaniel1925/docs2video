@@ -22,7 +22,7 @@
 
 import { StepExplain } from './StepExplain'
 import { TemplatePicker } from '../make/TemplatePicker'
-import { DEFAULT_VIDEO_TEMPLATE, VIDEO_TEMPLATES, isVideoTemplate, videoTemplate, type VideoTemplateId } from '../../../../_lib/video-templates'
+import { DEFAULT_VIDEO_TEMPLATE, VIDEO_TEMPLATES, brandTemplatePalette, isTemplateColors, isVideoTemplate, videoTemplate, type TemplateColors, type VideoTemplateId } from '../../../../_lib/video-templates'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { usePasteImage, pasteKeyLabel } from '../../../../_components/usePasteImage'
 import { holdPastedReference } from '../../../../_components/look/pasted-reference'
@@ -114,6 +114,10 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   const chosenStyle = styleForCard(videoLook, kitOn)
   // ONE OF THE EIGHT TEMPLATES (video-templates.ts), or none — a look below.
   const [templateId, setTemplateId] = useState<VideoTemplateId | null>(null)
+  // The template's own colors, or the brand's (owner, 2026-10-18). Its own by default.
+  const [templateColors, setTemplateColors] = useState<TemplateColors>('template')
+  // The chosen brand's own colors (never the account's): the choice shows only when it has some.
+  const brandPalette = brandTemplatePalette(brand)
   // The Look step's tabs (layout B): Templates · Match a picture · My looks.
   const [lookTab, setLookTab] = useState<'templates' | 'picture' | 'mine'>('templates')
   const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
@@ -193,6 +197,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           else if (!mine && d.kitLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
           // A template chosen before; else a look chosen before (or the brand's
           // own look) opens My looks; else a new video starts on a template.
+          if (isTemplateColors(d.templateColors)) setTemplateColors(d.templateColors)
           if (isVideoTemplate(d.templateId)) { setTemplateId(d.templateId); setLookTab('templates') }
           else if (d.videoStyle || d.kitLook === 'custom' || mine) setLookTab('mine')
           else { setTemplateId(DEFAULT_VIDEO_TEMPLATE); setLookTab('templates') }
@@ -249,6 +254,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
             ...(videoLook === 'drawn' ? { drawStyle } : {}),
             // The template, or none (a look) — videos only.
             templateId: isVideo ? templateId : null,
+            templateColors: brandPalette.length ? templateColors : 'template',
             presentationTemplate: presLook,
             slidePhotos,
             // Make the brand shown on this screen the draft's explicit choice.
@@ -346,6 +352,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
           ...(videoLook === 'drawn' ? { drawStyle } : {}),
           templateId: isVideo ? templateId : null,
+          templateColors: brandPalette.length ? templateColors : 'template',
           policyData: draft.extractedData || {},
           purpose: draft.purpose || 'Create a professional video',
           recipientName: draft.recipientName || undefined,
@@ -626,9 +633,23 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           ) : null}
 
           <div id="look-panel" role={isVideo ? 'tabpanel' : undefined} aria-labelledby={isVideo ? `look-tab-${lookTab}` : undefined}>
+          {isVideo && lookTab === 'templates' && brandPalette.length ? (
+            <div className="cf-tplcolors" data-template-colors>
+              <span className="cf-tplcolors-label" id="tpl-colors-label">Colors</span>
+              <div className="cf-seg" role="radiogroup" aria-labelledby="tpl-colors-label">
+                <button type="button" role="radio" aria-checked={templateColors === 'template'} className="cf-seg-btn" onClick={() => setTemplateColors('template')}>Template</button>
+                <button type="button" role="radio" aria-checked={templateColors === 'brand'} className="cf-seg-btn" onClick={() => setTemplateColors('brand')}>
+                  <span className="cf-tplcolors-dots" aria-hidden="true">{brandPalette.map((c) => <span key={c} style={{ background: c }} />)}</span>
+                  My brand
+                </button>
+              </div>
+              {templateColors === 'brand' ? <span className="cf-hint">Your colors, adjusted where needed so every word stays easy to read.</span> : null}
+            </div>
+          ) : null}
           {isVideo && lookTab === 'templates' ? (
             <TemplatePicker
               templates={VIDEO_TEMPLATES}
+              palette={brandPalette.length && templateColors === 'brand' ? brandPalette : null}
               value={templateId}
               onChange={(id) => {
                 setTemplateId(id)

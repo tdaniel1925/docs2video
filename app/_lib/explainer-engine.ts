@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs'
 import { isAdminDB } from './admin'
-import { isVideoTemplate, type VideoTemplateId } from './video-templates'
+import { isVideoTemplate, type TemplateColors, type VideoTemplateId } from './video-templates'
 import type { TemplateIdentity } from './template-identity'
 
 /**
@@ -105,6 +105,13 @@ export async function startExplainer(o: {
   template?: VideoTemplateId | null
   identity?: TemplateIdentity | null
   forbidden?: string[]
+  /**
+   * The template's own colors, or the brand's: `templatePalette` is the CHOSEN
+   * brand's main, second and accent color (brandTemplatePalette) — never the
+   * account's, never a default. The worker makes them readable on every page.
+   */
+  templateColors?: TemplateColors
+  templatePalette?: string[]
 }): Promise<{ jobId: string }> {
   if (!explainerConfigured()) throw new Error('the explainer engine is not configured (RENDER_*)')
   const scenes = o.scenes.filter((s) => s.narration)
@@ -135,6 +142,8 @@ export async function startExplainer(o: {
   // A photo that was promised but cannot be fetched stops the video here (the
   // caller makes it the old way) rather than leaving it off silently.
   if (wantsPhoto && !photo) throw new Error('the presenter’s photo could not be fetched')
+  // The brand's colors only when asked and the brand has some; else the template's own.
+  const templatePalette = template && o.templateColors === 'brand' ? (o.templatePalette ?? []).filter((x) => /^#[0-9a-f]{6}$/i.test(x)).slice(0, 3) : []
   const job = {
     kind: 'explainer', title: o.title, scenes,
     palette: o.palette.filter((x) => /^#[0-9a-f]{6}$/i.test(x)).slice(0, 5),
@@ -146,6 +155,7 @@ export async function startExplainer(o: {
       template,
       identity: { ...(o.identity ?? { kind: 'none' }), ...(photo ? {} : { photoOn: undefined }) },
       ...(o.forbidden?.length ? { forbidden: o.forbidden } : {}),
+      ...(templatePalette.length ? { templateColors: 'brand' as const, templatePalette } : {}),
     } : {}),
     report: { kind: 'd2v', videoId: o.videoId, userId: o.userId },
     /* The worker's own fields for a film job, filled when the scenes are drawn. */

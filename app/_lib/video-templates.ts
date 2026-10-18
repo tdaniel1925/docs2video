@@ -47,3 +47,18 @@ export const videoTemplate = (id: unknown): VideoTemplate | null => VIDEO_TEMPLA
 
 /** The template a new video starts on, when nothing was chosen before. */
 export const DEFAULT_VIDEO_TEMPLATE: VideoTemplateId = 'night'
+
+/**
+ * A TEMPLATE'S COLORS (owner, 2026-10-18: "templates need to be able to change
+ * to brand colors"): its own, or the chosen brand's — main, second and accent
+ * color, made readable on every page by the engine's rules
+ * (app/_lib/template-palette.ts, a copy of the engine's). The template's own
+ * colors by default.
+ */
+export type TemplateColors = 'template' | 'brand'
+export const isTemplateColors = (v: unknown): v is TemplateColors => v === 'template' || v === 'brand'
+
+/** The colors a brand gives a template: its main, second and accent color, valid hex only. Never the account's. */
+export function brandTemplatePalette(brand: { primary_color?: string | null; secondary_color?: string | null; accent_color?: string | null } | null | undefined): string[] {
+  return [brand?.primary_color, brand?.secondary_color, brand?.accent_color].filter((c): c is string => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c.trim())).map((c) => c.trim())
+}
