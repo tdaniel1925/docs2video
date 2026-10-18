@@ -5,6 +5,7 @@ import { rateLimit, getRateLimitKey } from '../../_lib/rate-limit'
 import { isPaidTier } from '../../_lib/subscription'
 import type { ExtractedPolicyData } from '../../_lib/types'
 import type { ExtractedData } from '../../_lib/extract-types'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -17,6 +18,11 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('subscription_status, is_admin, is_beta').eq('id', user.id).single()
   const isPaid = isPaidTier(profile?.subscription_status) || profile?.is_admin === true || profile?.is_beta === true
   if (!isPaid) {
+    // LIGHT START: an account with no card also counts this toward its daily
+    // cap on free AI work (cardless-prep.ts) — this one memory-only limit
+    // resets whenever a new server starts.
+    const capped = await cardlessPrepGate(user.id)
+    if (capped) return capped
     const rl = rateLimit(getRateLimitKey(user.id, 'style_previews'), 3, 86400000)
     if (!rl.allowed) return NextResponse.json({ error: 'Free accounts can preview 3 styles per day. Upgrade for unlimited.' }, { status: 429 })
   }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { createClient } from '../../_lib/supabase/server'
 import Anthropic from '@anthropic-ai/sdk'
 import FirecrawlApp from '@mendable/firecrawl-js'
@@ -11,6 +12,7 @@ import { wrapUserData } from '../../_lib/prompt-safety'
 import { classifyFromText } from '../../_lib/document-classifier'
 import { resolveRequestUser } from '../../_lib/api-auth'
 import { checkCredits } from '../../_lib/credits'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -69,7 +71,13 @@ export async function POST(request: Request) {
   // layer, so skip the UI credit gate here.
   if (!resolved.isInternal) {
     const credit = await checkCredits(user.id, 1)
-    if (!credit.allowed) {
+    // LIGHT START: an account with no card yet may read a website (free) so
+    // it can reach the free preview — within the daily cap. Every other block
+    // (failed payment, banned, no credits) still stops here.
+    if (credit.blockedReason === 'card_required') {
+      const capped = await cardlessPrepGate(user.id, true)
+      if (capped) return capped
+    } else if (!credit.allowed) {
       return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
     }
   }
@@ -80,10 +88,11 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
-  const { url } = body as { url: string }
+  // No one has to type https:// — "botmakers.ai" is fine (normalize-url.ts).
+  const url = normalizeUrl((body as { url?: unknown })?.url)
 
   if (!url || typeof url !== 'string') {
-    return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+    return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com' }, { status: 400 })
   }
 
   // Basic URL validation
@@ -316,6 +325,24 @@ export async function POST(request: Request) {
         logoUrl: brandAnalysis.logoUrl || null,
       }
 
+      // REUSE, don't duplicate. Going Back and scanning the same site again
+      // used to create a brand-new copy of the same brand every time. If this
+      // user already has a brand with this exact name, hand that one back.
+      const brandName = brandAnalysis.companyName || parsedUrl.hostname.replace('www.', '')
+      const { data: existingBrand } = await supabase.from('brands')
+        .select('id, logo_file_url')
+        .eq('user_id', user.id)
+        .ilike('name', brandName.replace(/[\\%_]/g, (c) => `\\${c}`))
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existingBrand) {
+        autoBrandId = existingBrand.id
+        autoLogoUrl = existingBrand.logo_file_url || null
+        if (autoLogoUrl && autoBrandInfo) (autoBrandInfo as Record<string, unknown>).logoFileUrl = autoLogoUrl
+        console.log(`[extract-url] Reusing existing brand "${brandName}" (${autoBrandId})`)
+      } else {
+
       // Upload logo to Supabase storage (brand scraper already processed it)
       let logoFileUrl: string | null = null
       try {
@@ -403,6 +430,7 @@ export async function POST(request: Request) {
         }
         console.log(`[extract-url] Auto-created brand: ${brandAnalysis.companyName} (${autoBrandId}), logo: ${logoFileUrl ? 'yes' : 'no'}`)
       }
+      } // end: no existing brand with this name
     } catch (brandErr) {
       console.error('[extract-url] Brand scraping failed:', brandErr instanceof Error ? brandErr.message : 'unknown')
     }

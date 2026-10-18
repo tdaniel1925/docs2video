@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { buildBrandAnalysisPrompt } from './prompts'
+import { isPrivateAddress } from './net-guard'
 
 let _claude: Anthropic | null = null
 function getClaude() {
@@ -22,21 +23,12 @@ export const FETCH_HEADERS = {
   'Upgrade-Insecure-Requests': '1',
 }
 
+// One address rule for every outside fetch (net-guard.ts — the fuller list:
+// also 192.0.0.0/24, documentation, benchmarking, multicast and reserved
+// ranges, which this copy used to miss).
 function isPrivateIp(ip: string): boolean {
-  if (isIP(ip) === 4) {
-    const [a, b] = ip.split('.').map(Number)
-    return (
-      a === 0 || a === 10 || a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168)
-    )
-  }
-  const lower = ip.toLowerCase()
-  if (lower.startsWith('::ffff:')) return isPrivateIp(lower.slice(7))
-  return lower === '::1' || lower === '::' ||
-    lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')
+  // Anything that is not a plain IP is treated as unsafe by isPrivateAddress.
+  return isPrivateAddress(ip)
 }
 
 /** SSRF guard: only public http(s) URLs whose host resolves to public IPs. */

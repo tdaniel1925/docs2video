@@ -69,17 +69,16 @@ const SECTIONS: AdminHelpSection[] = [
       {
         heading: 'Adding or Resetting Credits',
         body: [
-          'In the user detail panel, find the **Credits** section. You can:',
-          '**Add credits** — Enter a number and click Add. Credits are added immediately to the user account. Useful for promotions, refunds-as-credits, or partner arrangements.',
-          '**Reset credits** — Set credits to a specific number. This overwrites the current balance.',
-          'Credit changes are logged in the audit trail with your admin username and a timestamp.',
+          "On the **Users** tab, or on a person's own page, press **Give credits**.",
+          'A box opens: pick **100**, **500**, **1,000** or **Other** (type any amount up to 100,000), then write **why** (required — e.g. "Make-good for the failed video"). The button stays grey until there is a reason.',
+          "Press **Give … credits**. They are added to the person's extra credits straight away and the amount + your reason go in the **Audit Log**.",
         ],
       },
       {
         heading: 'Restricting Access',
         body: [
           'To remove a misbehaving user\'s access today, toggle **Admin/Beta** off and downgrade their plan, or disable the account in Supabase Auth.',
-          'A one-click Ban/Unban control is on the roadmap and not yet surfaced in the UI.',
+          'Or open the person\'s page (click their email) and press **Ban**. A box asks why (required); once banned they can\'t make anything. Ban does NOT stop Stripe billing — cancel their subscription in **Billing & Sales** too. **Unban** sets them back to Free.',
         ],
       },
       {
@@ -166,8 +165,8 @@ const SECTIONS: AdminHelpSection[] = [
       {
         heading: 'Lead Capture from Share Pages',
         body: [
-          'When a non-user views a share page, they may interact with the AI chatbot or click contact buttons. These interactions are captured as leads.',
-          'Leads appear in the admin panel with the viewer\'s engagement data: which video they watched, how long they watched, and whether they interacted with the chatbot.',
+          'When a non-user views a share page, they may click the contact, booking or payment buttons. These interactions are captured as leads.',
+          'Leads appear in the admin panel with the viewer\'s engagement data: which video they watched, how long they watched, and which buttons they clicked.',
         ],
       },
     ],
@@ -305,7 +304,7 @@ export default function AdminHelpPage() {
             <div
               key={section.id}
               style={{
-                background: 'white',
+                background: 'var(--bg-card)',
                 border: '1px solid var(--border-light)',
                 borderRadius: 10,
                 overflow: 'hidden',
@@ -349,7 +348,7 @@ export default function AdminHelpPage() {
                     <div
                       key={i}
                       style={{
-                        background: 'var(--bg-soft, #FAFAF8)',
+                        background: 'var(--bg-soft)',
                         border: '1px solid var(--border-light)',
                         borderRadius: 10,
                         padding: '20px 24px',
@@ -364,7 +363,7 @@ export default function AdminHelpPage() {
                           <p key={j} style={{ margin: '6px 0' }} dangerouslySetInnerHTML={{
                             __html: paragraph
                               .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--ink)">$1</strong>')
-                              .replace(/^• /gm, '<span style="color:var(--mint-darker,#2d7a4f)">&#8226;</span> ')
+                              .replace(/^• /gm, '<span style="color:var(--mint-darker)">&#8226;</span> ')
                           }} />
                         ))}
                       </div>
@@ -380,7 +379,7 @@ export default function AdminHelpPage() {
       {/* Link to user help */}
       <div style={{
         marginTop: 32, padding: '24px 28px', borderRadius: 10,
-        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Looking for user-facing help?</div>

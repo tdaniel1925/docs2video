@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shouldEndTrial } from '../app/_lib/credits'
+import { shouldEndTrial, MIN_ACTION_COST, CREDIT_COSTS } from '../app/_lib/credits'
 
 /**
  * Free-trial-then-auto-bill: the trial only ends (→ Stripe charges the saved
@@ -18,9 +18,23 @@ describe('shouldEndTrial', () => {
     expect(shouldEndTrial(base)).toBe(true)
   })
 
-  it('does NOT end while the user still has credits', () => {
+  it('does NOT end while the user can still afford the cheapest action', () => {
     expect(shouldEndTrial({ ...base, balanceTotal: 500 })).toBe(false)
-    expect(shouldEndTrial({ ...base, balanceTotal: 1 })).toBe(false)
+    expect(shouldEndTrial({ ...base, balanceTotal: MIN_ACTION_COST })).toBe(false)
+  })
+
+  it('ENDS when what is left cannot pay for even the cheapest action (audit H15)', () => {
+    // A trial user stranded with a handful of credits used to be stuck forever.
+    expect(shouldEndTrial({ ...base, balanceTotal: 1 })).toBe(true)
+    expect(shouldEndTrial({ ...base, balanceTotal: MIN_ACTION_COST - 1 })).toBe(true)
+  })
+
+  it('ENDS when the user just tried something their credits cannot cover', () => {
+    expect(shouldEndTrial({ ...base, balanceTotal: 800, attemptedCost: 1000 })).toBe(true)
+    // ...but not when the attempt was affordable
+    expect(shouldEndTrial({ ...base, balanceTotal: 800, attemptedCost: 600 })).toBe(false)
+    // ...and never for a non-trial user, however short they are
+    expect(shouldEndTrial({ ...base, subscriptionStatus: 'pro', balanceTotal: 0, attemptedCost: 1000 })).toBe(false)
   })
 
   it('treats a negative balance as depleted (safety)', () => {
@@ -54,5 +68,10 @@ describe('shouldEndTrial', () => {
     expect(shouldEndTrial({ balanceTotal: 0, subscriptionStatus: 'starter', stripeSubscriptionId: 'sub_1', stripeSubStatus: 'trialing' })).toBe(false)
     // everything right except credits remain → no charge
     expect(shouldEndTrial({ balanceTotal: 9999, subscriptionStatus: 'trial', stripeSubscriptionId: 'sub_1', stripeSubStatus: 'trialing' })).toBe(false)
+  })
+
+  it('MIN_ACTION_COST is the cheapest real price list entry', () => {
+    expect(MIN_ACTION_COST).toBe(Math.min(...Object.values(CREDIT_COSTS)))
+    expect(MIN_ACTION_COST).toBeGreaterThan(0)
   })
 })

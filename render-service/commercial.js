@@ -14,6 +14,9 @@ const { writeFile, stat } = require('fs/promises')
 const { join } = require('path')
 const { execFile } = require('child_process')
 const { claude, comprehend, ttsTimed, cloudflareImage, cloudflareAvailable, CARRIER_BLOCKLIST, isRegulated } = require('./slides')
+// SSRF guard (audit 2026-10-09): the website, its logo and the screenshot are outside URLs —
+// never let them reach our own network (every redirect hop is checked).
+const { guardedFetch } = require('./job-guards')
 
 const FPS = 30
 const STYLE_IDS = ['fintech', 'luxury', 'tech', 'upbeat', 'emerald', 'redblueprint', 'data', 'playful', 'casino', 'clean', 'glitchcore', 'cinematic', 'noir', 'retro', 'vibrant', 'editorial', 'brutalist', 'aurora', 'sport', 'corporate', 'neon', 'organic']
@@ -22,7 +25,7 @@ const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '').sli
 
 // ---------- single-page HTML fetch → text (no browser; enough for a commercial) ----------
 async function fetchText(url) {
-  const r = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; docs2video/1.0)' }, signal: AbortSignal.timeout(20000) })
+  const r = await guardedFetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; docs2video/1.0)' }, signal: AbortSignal.timeout(20000) })
   if (!r.ok) throw new Error(`fetch ${r.status}`)
   return await r.text()
 }
@@ -109,7 +112,7 @@ function findLogoCandidates(html, pageUrl) {
 // Returns { buffer, width, height } or null.
 async function downloadImage(u) {
   try {
-    const r = await fetch(u, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) })
+    const r = await guardedFetch(u, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) })
     if (!r.ok) return null
     const ct = r.headers.get('content-type') || ''
     if (!/image|octet-stream/i.test(ct) && !/\.(png|jpe?g|svg|webp|ico)(\?|$)/i.test(u)) return null
@@ -362,7 +365,7 @@ async function captureScreenshot(pageUrl, dir) {
     const j = await r.json()
     const shotUrl = j && j.data && j.data.screenshot && j.data.screenshot.url
     if (!shotUrl) return null
-    const img = await fetch(shotUrl, { signal: AbortSignal.timeout(25000) })
+    const img = await guardedFetch(shotUrl, { signal: AbortSignal.timeout(25000) })
     if (!img.ok) return null
     const buf = Buffer.from(await img.arrayBuffer())
     if (buf.length < 3000) return null              // reject blank/error images
@@ -640,6 +643,7 @@ RULES:
   · Don't write on-screen text that describes something DIFFERENT from what the voice is saying at that moment.
 - VO: natural spoken sentences, one per beat, that TOGETHER tell the story. No "..." ever. Contractions. Speak to "you". Match the TONE to the intent (opportunity = exciting/aspirational; luxury = refined; product = confident).
 - Headlines SHORT (2-6 words). Labels SHORT. img_prompt only on "shot" beats, literal + identity-neutral.
+- ON-SCREEN LENGTH LIMITS (the renderer shrinks anything longer to fit, which reads smaller and weaker — so stay inside these): kicker ≤ 3 words; hot ≤ 3 words; sub ≤ 8 words; stat/big "label" ≤ 4 words and stat "value" is a plain NUMBER; grid item title ≤ 4 words, desc ≤ 8 words; split labels ≤ 3 words, split subs ≤ 6 words, "both" ≤ 6 words; chat q ≤ 15 words, chat a ≤ 25 words; step title 2-4 words, step desc ≤ 8 words; cta.headline ≤ 7 words; cta.button ≤ 4 words; cta.url = a bare domain (no https://, no path) or a phone number. Use 2-4 stats, 3-4 grid items, 3-4 steps.
 - Pick styleId + musicPrompt to match the INTENT, not a default. An opportunity/income video should feel energetic and aspirational, not like a SaaS demo.
 - "showcase" = shows a REAL screenshot of the actual website/product in a browser frame. Use AT MOST ONE showcase beat, and ONLY when the video is about a software PRODUCT/tool the viewer would want to SEE (intent product/service with a real UI). Its kicker/hot/sub should reference seeing it in action (e.g. hot "See it live." sub "Ask anything, instantly."). Do NOT use showcase for opportunity/recruiting/brand videos, or for businesses with no real product UI. If in doubt, don't use it.
 - "bignumber" = ONE giant animated number filling the screen — use when a SINGLE real stat is dramatic (a price, a %, a count). Only with a real figure from the source. Great for a punchy value moment.
@@ -1006,6 +1010,9 @@ async function generateCommercial({ pub, url, text, brandName, music, forceStyle
   // scraped source hostname is wrong — the CTA should be "contact your agent",
   // never a source domain — so leave cta.url empty when regulated.
   for (const b of props.beats) if (b.kind === 'cta' && b.cta && !b.cta.url && domain && !regulated) b.cta.url = domain
+  // The closing frame shows the address as the viewer would type it: no
+  // "https://" or trailing slash (the prompt asks for this; models forget).
+  for (const b of props.beats) if (b.cta && typeof b.cta.url === 'string') b.cta.url = b.cta.url.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '')
 
   const propsPath = join(pub, `commercial-${videoId || assetDir}-props.json`)
   await writeFile(propsPath, JSON.stringify(props))

@@ -1,12 +1,18 @@
 import OpenAI from 'openai'
+import { normalizeVoice, ttsOrder, type OpenAIVoice } from './voice-choice'
+import { falSpeak } from './fal-tts'
 
 const TTS_MAX_CHARS = 4096
 
-// Voice engine order: ElevenLabs is PRIMARY (Rachel), OpenAI TTS-HD is the
-// FALLBACK. This keeps renders working even when one provider is out of quota.
-// ElevenLabs uses its own voice IDs (not 'nova'/'alloy'), so we use one good
-// default for everyone — Rachel, a warm female voice (matches the female-default
-// rule). The user-selected OpenAI voiceId is still honored on the fallback path.
+// Voice engine order: fal.ai FIRST (fal-tts.ts — the same ElevenLabs voices,
+// the customer's pick mapped by FAL_VOICE_MAP), then the old pair below
+// (voice-choice.ts ttsOrder — the same rule every look uses):
+//  - Sarah (nova) or nothing picked: ElevenLabs Rachel first (a warm female
+//    voice, matches the female-default rule), OpenAI Sarah as the fallback.
+//  - any other voice picked: that OpenAI voice first, ElevenLabs as the
+//    fallback. Before this, ElevenLabs always went first, so the voice the
+//    customer picked was only heard when ElevenLabs happened to be down.
+// Either provider failing never kills a render — we try the other.
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY
 const ELEVEN_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM' // Rachel
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
@@ -108,20 +114,46 @@ export async function synthesizeSpeech(
   // it correctly and doesn't clip the last word.
   text = speakable(text)
 
-  // PRIMARY: ElevenLabs (Rachel). On any failure, fall through to OpenAI.
-  if (ELEVEN_API_KEY) {
+  const voice = normalizeVoice(voiceId)
+  let lastError: Error | null = null
+  // PRIMARY (2026-10-09): fal.ai — the same ElevenLabs voices, in the voice the
+  // customer picked (fal-tts.ts FAL_VOICE_MAP). Retries + a real-audio check
+  // live in falSpeak; any failure drops to the old chain below.
+  if (process.env.FAL_KEY) {
     try {
-      return await elevenSpeak(text)
+      return (await falSpeak(text, { voiceId: voice })).audio
     } catch (err) {
-      const m = err instanceof Error ? err.message : String(err)
-      console.warn(`[tts] ElevenLabs failed, falling back to OpenAI: ${m}`)
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`[tts] fal voice failed (${lastError.message}) — trying ElevenLabs/OpenAI`)
+    }
+  }
+  for (const provider of ttsOrder(voice)) {
+    if (provider === 'elevenlabs') {
+      if (!ELEVEN_API_KEY) continue
+      try {
+        return await elevenSpeak(text)
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        console.warn(`[tts] ElevenLabs failed (${lastError.message}) — trying the other voice service`)
+      }
+    } else {
+      try {
+        return await openaiSpeak(text, voice)
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        console.warn(`[tts] OpenAI voice "${voice}" failed (${lastError.message}) — trying the other voice service`)
+      }
     }
   }
 
+  // Both providers failed — throw instead of silently substituting silence.
+  throw new Error(`TTS failed (fal + ElevenLabs + OpenAI). Last error: ${lastError?.message || 'Unknown error'}`)
+}
+
+/** OpenAI TTS-HD in the given voice — up to 3 tries with backoff, 30s each. */
+async function openaiSpeak(text: string, voice: OpenAIVoice): Promise<Buffer> {
   const openai = getClient()
   let lastError: Error | null = null
-
-  // FALLBACK: OpenAI TTS-HD — retry up to 3 times with backoff + 30s timeout.
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const controller = new AbortController()
@@ -130,7 +162,7 @@ export async function synthesizeSpeech(
       const response = await openai.audio.speech.create(
         {
           model: 'tts-1-hd',
-          voice: voiceId as 'alloy' | 'echo' | 'fable' | 'nova' | 'onyx' | 'shimmer',
+          voice,
           input: text,
           response_format: 'mp3',
           speed: 0.95,
@@ -158,8 +190,7 @@ export async function synthesizeSpeech(
     }
   }
 
-  // Both providers failed — throw instead of silently substituting silence.
-  throw new Error(`TTS failed (ElevenLabs + OpenAI). Last OpenAI error: ${lastError?.message || 'Unknown error'}`)
+  throw lastError || new Error('OpenAI TTS failed')
 }
 
 async function synthesizeLongText(text: string, voiceId: string): Promise<Buffer> {

@@ -48,8 +48,8 @@ type View = 'list' | 'detail'
 // ── Styles ──────────────────────────────────────────────────────────────────
 
 const cardStyle: React.CSSProperties = {
-  background: 'var(--surface, #fff)',
-  border: '1px solid var(--border, #e2e2e2)',
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
   borderRadius: 10,
   padding: 24,
   marginBottom: 16,
@@ -65,7 +65,7 @@ const statCardStyle: React.CSSProperties = {
 const statLabel: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
-  color: 'var(--ink-soft, #888)',
+  color: 'var(--ink-soft)',
   textTransform: 'uppercase' as const,
   letterSpacing: '0.05em',
   marginBottom: 6,
@@ -74,23 +74,23 @@ const statLabel: React.CSSProperties = {
 const statValue: React.CSSProperties = {
   fontSize: 28,
   fontWeight: 800,
-  color: 'var(--ink, #111)',
+  color: 'var(--ink)',
 }
 
 const thStyle: React.CSSProperties = {
   padding: '10px 12px',
   fontWeight: 700,
-  color: 'var(--ink-soft, #888)',
+  color: 'var(--ink-soft)',
   fontSize: 12,
   textTransform: 'uppercase' as const,
   letterSpacing: '0.05em',
   textAlign: 'left' as const,
-  borderBottom: '1px solid var(--border-light, #eee)',
+  borderBottom: '1px solid var(--border-light)',
 }
 
 const tdStyle: React.CSSProperties = {
   padding: '10px 12px',
-  borderBottom: '1px solid var(--border-light, #eee)',
+  borderBottom: '1px solid var(--border-light)',
   fontSize: 14,
 }
 
@@ -98,8 +98,8 @@ const btnPrimary: React.CSSProperties = {
   padding: '8px 20px',
   borderRadius: 8,
   border: 'none',
-  background: 'var(--mint, #4ade80)',
-  color: '#111',
+  background: 'var(--accent)',
+  color: 'var(--ink)',
   fontWeight: 700,
   fontSize: 14,
   cursor: 'pointer',
@@ -108,9 +108,9 @@ const btnPrimary: React.CSSProperties = {
 const btnSecondary: React.CSSProperties = {
   padding: '6px 14px',
   borderRadius: 6,
-  border: '1px solid var(--border, #e2e2e2)',
+  border: '1px solid var(--border)',
   background: 'transparent',
-  color: 'var(--ink, #111)',
+  color: 'var(--ink)',
   fontWeight: 600,
   fontSize: 13,
   cursor: 'pointer',
@@ -118,13 +118,13 @@ const btnSecondary: React.CSSProperties = {
 
 const btnDanger: React.CSSProperties = {
   ...btnSecondary,
-  color: '#c0392b',
-  borderColor: '#fca5a5',
+  color: 'var(--error)',
+  borderColor: 'var(--error-border)',
 }
 
 const inputStyle: React.CSSProperties = {
   padding: '8px 12px',
-  border: '1px solid var(--border, #e2e2e2)',
+  border: '1px solid var(--border)',
   borderRadius: 6,
   fontSize: 14,
   width: '100%',
@@ -133,17 +133,17 @@ const inputStyle: React.CSSProperties = {
 
 function statusTag(status: string): React.CSSProperties {
   const colors: Record<string, { bg: string; fg: string }> = {
-    draft: { bg: '#f3f4f6', fg: '#374151' },
-    active: { bg: 'var(--mint, #d4f5e9)', fg: '#166534' },
-    paused: { bg: '#fef3c7', fg: '#92400e' },
-    completed: { bg: 'var(--mint, #d4f5e9)', fg: '#166534' },
-    pending: { bg: '#f3f4f6', fg: '#374151' },
-    generating: { bg: '#fef3c7', fg: '#92400e' },
-    review: { bg: '#dbeafe', fg: '#1e40af' },
-    approved: { bg: 'var(--mint, #d4f5e9)', fg: '#166534' },
-    skipped: { bg: '#f3f4f6', fg: '#6b7280' },
-    sent: { bg: '#dbeafe', fg: '#1e40af' },
-    failed: { bg: '#fee2e2', fg: '#b91c1c' },
+    draft: { bg: 'var(--surface)', fg: 'var(--ink-soft)' },
+    active: { bg: 'var(--success-bg)', fg: 'var(--success)' },
+    paused: { bg: 'var(--warning-bg)', fg: 'var(--warning-text)' },
+    completed: { bg: 'var(--success-bg)', fg: 'var(--success)' },
+    pending: { bg: 'var(--surface)', fg: 'var(--ink-soft)' },
+    generating: { bg: 'var(--warning-bg)', fg: 'var(--warning-text)' },
+    review: { bg: 'var(--surface)', fg: 'var(--link)' },
+    approved: { bg: 'var(--success-bg)', fg: 'var(--success)' },
+    skipped: { bg: 'var(--surface)', fg: 'var(--ink-light)' },
+    sent: { bg: 'var(--surface)', fg: 'var(--link)' },
+    failed: { bg: 'var(--error-bg)', fg: 'var(--error-text)' },
   }
   const c = colors[status] || colors.pending
   return {
@@ -446,7 +446,7 @@ export default function CampaignsPage() {
           )}
           {approvedContacts.length > 0 && (
             <InlineConfirm message={`Send to ${approvedContacts.length} contacts?`} confirmLabel="Send" onConfirm={handleSendApproved}>
-              <button style={{ ...btnPrimary, background: '#3b82f6', color: '#fff' }}>{`Send Approved (${approvedContacts.length})`}</button>
+              <button style={{ ...btnPrimary, background: 'var(--ink)', color: 'var(--on-ink)' }}>{`Send Approved (${approvedContacts.length})`}</button>
             </InlineConfirm>
           )}
           <button style={btnSecondary} onClick={handleRunNurture} disabled={actionLoading === 'nurture'}>
@@ -459,8 +459,8 @@ export default function CampaignsPage() {
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 12px' }}>Add Contacts</h3>
             <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <button style={{ ...btnSecondary, ...(addMode === 'bulk' ? { background: 'var(--mint, #d4f5e9)' } : {}) }} onClick={() => setAddMode('bulk')}>Bulk Import</button>
-              <button style={{ ...btnSecondary, ...(addMode === 'single' ? { background: 'var(--mint, #d4f5e9)' } : {}) }} onClick={() => setAddMode('single')}>Single</button>
+              <button style={{ ...btnSecondary, ...(addMode === 'bulk' ? { background: 'var(--accent)' } : {}) }} onClick={() => setAddMode('bulk')}>Bulk Import</button>
+              <button style={{ ...btnSecondary, ...(addMode === 'single' ? { background: 'var(--accent)' } : {}) }} onClick={() => setAddMode('single')}>Single</button>
             </div>
             <form onSubmit={handleAddContacts}>
               {addMode === 'bulk' ? (
@@ -491,7 +491,7 @@ export default function CampaignsPage() {
 
         {/* Review & Approve Section */}
         {reviewContacts.length > 0 && (
-          <div style={{ ...cardStyle, borderLeft: '4px solid #3b82f6' }}>
+          <div style={{ ...cardStyle, borderLeft: '4px solid var(--link)' }}>
             <h3 style={{ margin: '0 0 16px' }}>Review & Approve ({reviewContacts.length})</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -509,7 +509,7 @@ export default function CampaignsPage() {
                     <td style={tdStyle}>{c.company ?? '--'}</td>
                     <td style={tdStyle}>
                       {c.video_id && (
-                        <a href={`/watch/${c.video_id}`} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: 13 }}>
+                        <a href={`/watch/${c.video_id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--link)', fontSize: 13 }}>
                           Preview
                         </a>
                       )}
@@ -573,8 +573,8 @@ export default function CampaignsPage() {
                         <span style={statusTag(c.video_status)}>{c.video_status}</span>
                         {c.video_status === 'generating' && (
                           <div style={{ marginTop: 6, minWidth: 130 }}>
-                            <div style={{ height: 5, background: '#eef1ee', borderRadius: 4, overflow: 'hidden' }}>
-                              <div style={{ width: `${pct}%`, height: '100%', background: '#0d9488', transition: 'width 0.4s' }} />
+                            <div style={{ height: 5, background: 'var(--surface)', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent-ink)', transition: 'width 0.4s' }} />
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 3 }}>{c.video_stage || 'Working…'} · {pct}%</div>
                           </div>
@@ -590,7 +590,7 @@ export default function CampaignsPage() {
                           </button>
                         )}
                         {c.video_status === 'review' && c.video_url && (
-                          <a href={c.video_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none' }}>Preview</a>
+                          <a href={c.video_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--link)', textDecoration: 'none' }}>Preview</a>
                         )}
                       </td>
                     </tr>
@@ -684,7 +684,7 @@ export default function CampaignsPage() {
                     <td style={{ ...tdStyle, fontWeight: 600 }}>
                       <button
                         onClick={() => { setSelectedCampaign(c); setView('detail'); loadCampaignDetail(c.id) }}
-                        style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: 700, cursor: 'pointer', fontSize: 14, padding: 0, textDecoration: 'underline' }}
+                        style={{ background: 'none', border: 'none', color: 'var(--link)', fontWeight: 700, cursor: 'pointer', fontSize: 14, padding: 0, textDecoration: 'underline' }}
                       >{c.name}</button>
                     </td>
                     <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 600 }}>{c.discount_code}</td>

@@ -10,7 +10,7 @@ export const INK = 'var(--ink,#23201c)'
 export const SOFT = 'var(--ink-soft,#6b6459)'
 export const LINE = 'var(--border,#ddd6cc)'
 export const CREAM = 'var(--cream,#F4F1EC)'
-export const MINT = 'var(--mint,#C7E8A8)'
+export const MINT = 'var(--accent)'
 
 export const card = {
   background: 'white', border: `1px solid ${LINE}`, borderRadius: 10, padding: 20,
@@ -257,7 +257,7 @@ export function HelpHint({ help }: { help: HelpContent }) {
         <div
           role="dialog" aria-modal="true"
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
-          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(35,32,28,0.45)', backdropFilter: 'blur(4px)', padding: '24px 16px', overflowY: 'auto' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(35,32,28,0.45)', backdropFilter: 'blur(4px)', padding: '24px 16px', overflowY: 'auto' }}
         >
           <div style={{ width: '100%', maxWidth: 440, marginInline: 'auto', background: 'white', border: `1px solid ${LINE}`, borderRadius: 12, padding: 24, boxShadow: '0 24px 60px rgba(35,32,28,0.22)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>

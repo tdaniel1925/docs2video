@@ -1,5 +1,6 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion'
 import { FONTS, roles, type Theme } from '../tokens'
+import { Fit, FitBox } from '../lib/fit'
 
 /**
  * DesignFrame — the persistent "chrome" that overlays EVERY scene and is the
@@ -29,6 +30,12 @@ export type FrameConfig = {
 }
 
 const UPPER = (s: string) => s.toUpperCase()
+/** Archivo's own "normal" line height, written out: <Fit> counts lines by the
+ *  line height, and it can't read "normal" (it guesses 1.2, which makes two
+ *  Archivo lines look like one). */
+const ARCHIVO_LH = 1.1
+/** Height of the footer chip line (22px Inter at its normal line height). */
+const FOOTER_LINE = 27
 
 export const DesignFrame: React.FC<{ theme: Theme; config?: FrameConfig }> = ({ theme, config }) => {
   const f = useCurrentFrame()
@@ -55,52 +62,66 @@ export const DesignFrame: React.FC<{ theme: Theme; config?: FrameConfig }> = ({ 
       {/* 2px gradient hairline along the very top edge. */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: hairline, opacity: 0.9 * settle }} />
 
-      {/* Top-left eyebrow chip. */}
-      {eyebrow ? (
+      {/* Top row: eyebrow on the left, tag pill on the right, sharing ONE row
+          so they can never run into each other. The tag keeps its natural
+          width (up to 45% of the row); the eyebrow gets the rest. Either one
+          shrinks to fit on its single line when it's too long. Positions match
+          the old layout (eyebrow at top 46, pill at top 42). */}
+      {eyebrow || tag ? (
         <div style={{
-          position: 'absolute', top: 46, left: 56,
-          display: 'flex', alignItems: 'center', gap: 12,
+          position: 'absolute', top: 42, left: 56, right: 56,
+          display: 'flex', alignItems: 'flex-start', gap: 32,
           opacity: settle, transform: `translateY(${(1 - settle) * -8}px)`,
         }}>
-          <div style={{ width: 11, height: 11, borderRadius: '50%', background: r.hero, boxShadow: `0 0 14px ${r.hero}` }} />
-          <span style={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: 24, letterSpacing: 3, color: chromeText, textTransform: 'uppercase' }}>
-            {UPPER(eyebrow)}
-          </span>
+          {eyebrow ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, minWidth: 0, flex: '0 1 auto' }}>
+              <div style={{ width: 11, height: 11, borderRadius: '50%', background: r.hero, boxShadow: `0 0 14px ${r.hero}`, flexShrink: 0 }} />
+              <div style={{ minWidth: 0, flex: '0 1 auto' }}>
+                <Fit max={24} min={16} lines={1} style={{ fontFamily: FONTS.display, fontWeight: 800, lineHeight: ARCHIVO_LH, letterSpacing: 3, color: chromeText, textTransform: 'uppercase' }}>
+                  {UPPER(eyebrow)}
+                </Fit>
+              </div>
+            </div>
+          ) : null}
+          {tag ? (
+            <div style={{
+              marginLeft: 'auto', flex: '0 0 auto', minWidth: 0, maxWidth: '45%',
+              padding: '8px 16px', borderRadius: 8,
+              border: `1.5px solid ${hexA(r.hero, isLight ? 0.4 : 0.5)}`,
+              background: hexA(r.hero, isLight ? 0.06 : 0.10),
+            }}>
+              <Fit max={20} min={14} lines={1} style={{ fontFamily: FONTS.display, fontWeight: 800, lineHeight: ARCHIVO_LH, letterSpacing: 2, color: r.hero, textTransform: 'uppercase' }}>
+                {UPPER(tag)}
+              </Fit>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      {/* Top-right tag pill (date / source). */}
-      {tag ? (
-        <div style={{
-          position: 'absolute', top: 42, right: 56,
-          padding: '8px 16px', borderRadius: 8,
-          border: `1.5px solid ${hexA(r.hero, isLight ? 0.4 : 0.5)}`,
-          background: hexA(r.hero, isLight ? 0.06 : 0.10),
-          opacity: settle, transform: `translateY(${(1 - settle) * -8}px)`,
-        }}>
-          <span style={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: 20, letterSpacing: 2, color: r.hero, textTransform: 'uppercase' }}>
-            {UPPER(tag)}
-          </span>
-        </div>
-      ) : null}
-
-      {/* Footer chip row. */}
+      {/* Footer chip row: always ONE line. If the chips are longer than the
+          row, the whole row scales down together (so all chips stay the same
+          size) instead of wrapping upward into the scene or the logo. */}
       {footer.length ? (
         <div style={{
           position: 'absolute', bottom: 40, left: 56, right: 56,
-          display: 'flex', alignItems: 'center', gap: 40,
           opacity: settle, transform: `translateY(${(1 - settle) * 8}px)`,
           borderTop: `1px solid ${isLight ? 'rgba(20,40,80,0.10)' : 'rgba(255,255,255,0.08)'}`,
           paddingTop: 18,
         }}>
-          {footer.map((chip, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 9, height: 9, borderRadius: '50%', background: i === 0 ? r.hero : r.neutral, boxShadow: `0 0 10px ${i === 0 ? r.hero : r.neutral}` }} />
-              <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 22, color: isLight ? theme.textPrimary : 'rgba(255,255,255,0.82)' }}>
-                {chip}
-              </span>
-            </div>
-          ))}
+          <div style={{ height: FOOTER_LINE }}>
+            <FitBox valign="center" minScale={0.65}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 40, whiteSpace: 'nowrap' }}>
+                {footer.map((chip, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <div style={{ width: 9, height: 9, borderRadius: '50%', background: i === 0 ? r.hero : r.neutral, boxShadow: `0 0 10px ${i === 0 ? r.hero : r.neutral}` }} />
+                    <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 22, lineHeight: `${FOOTER_LINE}px`, color: isLight ? theme.textPrimary : 'rgba(255,255,255,0.82)' }}>
+                      {chip}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </FitBox>
+          </div>
         </div>
       ) : null}
     </AbsoluteFill>

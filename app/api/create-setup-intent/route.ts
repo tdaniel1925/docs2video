@@ -2,8 +2,17 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { stripe } from '../../_lib/stripe'
+import { ensureStripeCustomer } from '../../_lib/stripe-customer'
 export const maxDuration = 30
 
+/**
+ * POST /api/create-setup-intent — the trial card step (/setup-payment and the
+ * "Add a card" pop-up for an account with no card yet). Saves a card in the
+ * app with Stripe's Payment Element; nothing is charged. No
+ * fixed list of payment methods: Stripe offers what the dashboard allows (cards,
+ * Apple Pay, Google Pay …); /api/confirm-card then insists on a real card,
+ * because the one-card-one-trial check needs the card's fingerprint.
+ */
 export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -13,46 +22,16 @@ export async function POST() {
     return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 })
   }
 
-  const admin = createAdminClient()
-
   try {
-    // Get existing profile to check for existing Stripe customer
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('stripe_customer_id, email, full_name')
-      .eq('id', user.id)
-      .single()
+    const customerId = await ensureStripeCustomer(createAdminClient(), stripe, { id: user.id, email: user.email })
+    const setupIntent = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' })
 
-    let customerId = profile?.stripe_customer_id
-
-    // Create Stripe customer if none exists
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: profile?.email ?? user.email ?? undefined,
-        name: profile?.full_name ?? undefined,
-        metadata: { supabase_user_id: user.id },
-      })
-      customerId = customer.id
-
-      // Save customer ID to profile immediately
-      await admin.from('profiles').update({
-        stripe_customer_id: customerId,
-      }).eq('id', user.id)
-    }
-
-    // Create SetupIntent (collects card without charging)
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-    })
-
-    return NextResponse.json({
-      clientSecret: setupIntent.client_secret,
-      customerId,
-    })
+    // No customer id in the reply: /api/confirm-card reads the customer from
+    // the user's own profile and must never trust one from the browser.
+    return NextResponse.json({ clientSecret: setupIntent.client_secret })
   } catch (err) {
+    // Raw Stripe detail stays in the log; the user gets a plain sentence.
     console.error('[create-setup-intent] Error:', err)
-    const message = err instanceof Error ? err.message : 'Failed to create setup intent'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We could not open the secure card form just now. Please refresh and try again.' }, { status: 500 })
   }
 }

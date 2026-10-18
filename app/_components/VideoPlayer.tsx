@@ -68,18 +68,18 @@ export default function VideoPlayer({ videoUrl, thumbnailUrl, title, brand }: Vi
             <img src={brand.logo_url} alt={brand.name} className="h-8 w-8 rounded object-cover" />
           ) : brand?.name ? (
             <div
-              className="flex h-8 w-8 items-center justify-center rounded text-xs font-bold"
+              className="flex h-8 w-8 items-center justify-center rounded text-caption font-bold"
               style={{ backgroundColor: secondary, color: textColor }}
             >
               {brand.name[0]}
             </div>
           ) : null}
-          <span className="text-sm font-medium" style={{ color: textColor }}>
+          <span className="text-ui font-medium" style={{ color: textColor }}>
             {brand?.name ?? 'Docs2Video'}
           </span>
         </div>
         {title && (
-          <span className="text-xs truncate max-w-[200px]" style={{ color: `${textColor}aa` }}>
+          <span className="text-caption truncate max-w-[200px]" style={{ color: `${textColor}aa` }}>
             {title}
           </span>
         )}
@@ -144,7 +144,7 @@ export default function VideoPlayer({ videoUrl, thumbnailUrl, title, brand }: Vi
               </svg>
             )}
           </button>
-          <span className="text-xs" style={{ color: `${textColor}80` }}>
+          <span className="text-caption" style={{ color: `${textColor}80` }}>
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
         </div>

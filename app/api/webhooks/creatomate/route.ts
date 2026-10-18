@@ -3,6 +3,7 @@ import { createAdminClient } from '../../../_lib/supabase/admin'
 import { getRender } from '../../../_lib/creatomate'
 import { addTopupCredits, refundVideoCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
+import { announceVideoReady } from '../../../_lib/video-ready'
 import { fireApiWebhook } from '../../../_lib/api-webhook'
 import { refundApiCredits } from '../../../_lib/api-auth'
 
@@ -68,12 +69,9 @@ export async function POST(request: Request) {
         progress_pct: 100,
       }).eq('id', videoId)
 
-      await sendNotification(admin, userId, {
-        type: 'video_ready',
-        title: 'Your video is ready',
-        message: 'Your video has finished rendering.',
-        link: `/videos/${videoId}`,
-      })
+      // Bell notice + "ready" email, once per video (app/_lib/video-ready.ts).
+      const { data: done } = await admin.from('videos').select('title, output_type').eq('id', videoId).maybeSingle()
+      await announceVideoReady(admin, { id: videoId, user_id: userId, status: 'completed', title: done?.title ?? null, output_type: done?.output_type ?? null }).catch(() => 'skipped')
       await fireApiWebhook(videoId)
       console.log(`[creatomate-webhook] Video ${videoId} completed (render ${renderId})`)
       return NextResponse.json({ received: true })
@@ -99,7 +97,7 @@ export async function POST(request: Request) {
     if (deductedCost && deductedCost > 0) {
       try {
         if (isApiJob) {
-          await refundApiCredits(userId, deductedCost)
+          await refundApiCredits(userId, deductedCost, videoId)
         } else {
           // Idempotent — won't double-refund if Inngest onFailure also fired.
           await refundVideoCredits(userId, deductedCost, videoId)
@@ -114,7 +112,7 @@ export async function POST(request: Request) {
     }).eq('id', videoId)
     await sendNotification(admin, userId, {
       type: 'video_failed',
-      title: 'Video generation failed',
+      title: 'Didn’t finish',
       message,
       link: `/videos/${videoId}`,
     })

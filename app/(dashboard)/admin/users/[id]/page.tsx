@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Profile, Video, Quote, EmailConnection } from '@/app/_lib/types'
+import { failReason } from '@/app/_lib/admin/fail-reason'
+import UserMoneyActions from '../../_components/UserMoneyActions'
+import { RetryButton } from '../../_components/VideoActions'
 
 interface CreditTransaction {
   id: string
@@ -35,7 +38,6 @@ export default function AdminUserDetailPage() {
   const [referrals, setReferrals] = useState<{ id: string; email: string; full_name: string | null }[]>([])
   const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([])
   const [stripe, setStripe] = useState<StripeStatus | null>(null)
-  const [busy, setBusy] = useState(false)
   const [activeTab, setActiveTab] = useState<'videos' | 'credits' | 'quotes' | 'email' | 'referrals'>('videos')
 
   useEffect(() => {
@@ -54,31 +56,11 @@ export default function AdminUserDetailPage() {
     }).catch(() => setState('error'))
   }, [userId])
 
-  async function toggleAccess(field: 'is_admin' | 'is_beta', value: boolean) {
-    setBusy(true)
-    try {
-      const r = await fetch('/api/admin/manage-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, field, value }),
-      })
-      if (r.ok && profile) setProfile({ ...profile, [field]: value })
-    } catch {}
-    setBusy(false)
-  }
-
-  async function userAction(action: string, value?: string | number) {
-    setBusy(true)
-    try {
-      await fetch('/api/admin/user-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, action, value }),
-      })
-      const r = await fetch(`/api/admin/user-detail?id=${userId}`)
-      if (r.ok) { const d = await r.json(); setProfile(d.profile); setStripe(d.stripe ?? null) }
-    } catch {}
-    setBusy(false)
+  async function reload() {
+    const r = await fetch(`/api/admin/user-detail?id=${userId}`)
+    if (r.ok) { const d = await r.json(); setProfile(d.profile); setStripe(d.stripe ?? null); setVideos(d.videos ?? []) }
+    const ch = await fetch(`/api/admin/credit-history?userId=${userId}`).then(x => x.ok ? x.json() : { transactions: [] }).catch(() => ({ transactions: [] }))
+    setCreditHistory(ch.transactions ?? [])
   }
 
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -113,7 +95,7 @@ export default function AdminUserDetailPage() {
       <h1 style={{ fontSize: 24, fontWeight: 800, marginTop: 8, marginBottom: 20 }}>{profile.full_name || profile.email}</h1>
 
       {/* Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
         <div style={s.statCard}>
           <div style={s.statLabel}>Plan</div>
           <div style={{ ...s.statValue, textTransform: 'capitalize' }}>{profile.subscription_status || 'Free'}</div>
@@ -125,7 +107,7 @@ export default function AdminUserDetailPage() {
         <div style={s.statCard}>
           <div style={s.statLabel}>Videos</div>
           <div style={s.statValue}>{completedVideos.length}</div>
-          {failedVideos.length > 0 && <div style={{ fontSize: 11, color: '#DC2626' }}>{failedVideos.length} failed</div>}
+          {failedVideos.length > 0 && <div style={{ fontSize: 11, color: 'var(--error)' }}>{failedVideos.length} failed</div>}
         </div>
         <div style={s.statCard}>
           <div style={s.statLabel}>Joined</div>
@@ -138,49 +120,35 @@ export default function AdminUserDetailPage() {
       </div>
 
       {/* Profile + Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 20 }}>
         <div style={s.card}>
           <h3 style={s.cardTitle}>Profile</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, fontSize: 13 }}>
             <div><span style={s.label}>Email:</span> {profile.email}</div>
             <div><span style={s.label}>Company:</span> {profile.company_name ?? '—'}</div>
             <div><span style={s.label}>Referral:</span> {profile.referral_code ?? '—'}</div>
-            <div><span style={s.label}>Stripe ID:</span> {(profile as any).stripe_customer_id?.slice(0, 15) ?? '—'}</div>
+            <div><span style={s.label}>Stripe:</span> {profile.stripe_customer_id
+              ? <a href={`https://dashboard.stripe.com/customers/${profile.stripe_customer_id}`} target="_blank" rel="noopener noreferrer" className="admin-link">Open in Stripe</a>
+              : '—'}</div>
           </div>
         </div>
         <div style={s.card}>
           <h3 style={s.cardTitle}>Quick Actions</h3>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className={`btn btn-sm ${profile.is_admin ? 'btn-primary' : 'btn-soft'}`} disabled={busy} onClick={() => toggleAccess('is_admin', !profile.is_admin)}>
-              {profile.is_admin ? 'Remove Admin' : 'Make Admin'}
-            </button>
-            <button className={`btn btn-sm ${profile.is_beta ? 'btn-primary' : 'btn-soft'}`} disabled={busy} onClick={() => toggleAccess('is_beta', !profile.is_beta)}>
-              {profile.is_beta ? 'Remove Beta' : 'Make Beta'}
-            </button>
-            <select disabled={busy} defaultValue="" onChange={e => { if (e.target.value) userAction('change_plan', e.target.value); e.target.value = '' }}
-              style={{ fontSize: 12, padding: '5px 8px', borderRadius: 8, border: '1px solid var(--border)' }}>
-              <option value="" disabled>Change Plan...</option>
-              <option value="free">Free</option>
-              <option value="pro">Pro</option><option value="business">Business</option>
-              <option value="enterprise">Enterprise</option>
-            </select>
-            <button className="btn btn-sm btn-soft" disabled={busy} onClick={() => userAction('add_credits', 10)}>+10</button>
-            <button className="btn btn-sm btn-soft" disabled={busy} onClick={() => userAction('add_credits', 100)}>+100</button>
-            <button className="btn btn-sm btn-soft" disabled={busy} onClick={() => userAction('add_credits', 500)}>+500</button>
-          </div>
+          <UserMoneyActions user={profile} onChanged={reload} />
+          <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginTop: 10 }}>Every button asks first. Credits and bans need a reason; all of it goes in the audit log.</p>
         </div>
       </div>
 
       {/* Live Stripe status — the real billing truth, so the admin can spot when
           the subscription_status flag doesn't match a real paying Stripe sub. */}
       {stripe && (
-        <div style={{ ...s.card, marginBottom: 20, ...(stripe.mismatch ? { border: '2px solid #DC2626', background: '#fef2f2' } : {}) }}>
+        <div style={{ ...s.card, marginBottom: 20, ...(stripe.mismatch ? { border: '2px solid var(--error)', background: 'var(--error-bg)' } : {}) }}>
           <h3 style={{ ...s.cardTitle, display: 'flex', alignItems: 'center', gap: 8, marginBottom: stripe.mismatch ? 8 : 12 }}>
             Stripe Billing
             <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: '#635bff', color: 'white' }}>LIVE</span>
           </h3>
           {stripe.mismatch && (
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--error)', marginBottom: 12 }}>
               ⚠ MISMATCH — the plan flag (<span style={{ textTransform: 'capitalize' }}>{profile.subscription_status || 'free'}</span>) does not match Stripe
               {stripe.subscription ? ` (Stripe sub: ${stripe.subscription})` : ' (no active Stripe subscription)'}. Fix the plan or refund accordingly.
             </div>
@@ -188,10 +156,10 @@ export default function AdminUserDetailPage() {
           {!stripe.hasCustomer ? (
             <p style={{ fontSize: 13, color: 'var(--ink-light)' }}>No Stripe customer record — this user has never started checkout.</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, fontSize: 13 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, fontSize: 13 }}>
               <div>
                 <div style={s.label}>Subscription</div>
-                <div style={{ fontWeight: 700, textTransform: 'capitalize', color: stripe.subscription ? (stripe.subscription === 'active' || stripe.subscription === 'trialing' ? '#059669' : '#D97706') : 'var(--ink-light)' }}>
+                <div style={{ fontWeight: 700, textTransform: 'capitalize', color: stripe.subscription ? (stripe.subscription === 'active' || stripe.subscription === 'trialing' ? 'var(--success)' : 'var(--warning-text)') : 'var(--ink-light)' }}>
                   {stripe.subscription || 'None'}
                 </div>
               </div>
@@ -218,7 +186,7 @@ export default function AdminUserDetailPage() {
           <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
             padding: '10px 16px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
             background: 'none', color: activeTab === t.id ? 'var(--ink)' : 'var(--ink-light)',
-            borderBottom: activeTab === t.id ? '2px solid var(--mint, #C7E8A8)' : '2px solid transparent',
+            borderBottom: activeTab === t.id ? '2px solid var(--accent-ink)' : '2px solid transparent',
           }}>{t.label}</button>
         ))}
       </div>
@@ -247,12 +215,16 @@ export default function AdminUserDetailPage() {
                       <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{fmt(v.created_at)}</span>
                       <span style={{
                         fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                        background: v.status === 'completed' ? '#ecfdf5' : v.status === 'failed' ? '#fef2f2' : '#fffbeb',
-                        color: v.status === 'completed' ? '#059669' : v.status === 'failed' ? '#DC2626' : '#D97706',
+                        background: v.status === 'completed' ? 'var(--success-bg)' : v.status === 'failed' ? 'var(--error-bg)' : 'var(--warning-bg)',
+                        color: v.status === 'completed' ? 'var(--success)' : v.status === 'failed' ? 'var(--error)' : 'var(--warning-text)',
                       }}>{v.status}</span>
                     </div>
+                    {v.status === 'failed' && (
+                      <div style={{ fontSize: 'var(--fs-small)', color: 'var(--error-text)', marginTop: 6 }}>{failReason(v.progress_detail, v.error_message).plain}</div>
+                    )}
+                    {v.status === 'failed' && <div style={{ marginTop: 6 }}><RetryButton videoId={v.id} title={v.title || 'Untitled'} onDone={reload} /></div>}
                     {v.status === 'completed' && (
-                      <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none', display: 'block', marginTop: 6 }}>
+                      <a href={`/watch/${v.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--link)', textDecoration: 'none', display: 'block', marginTop: 6 }}>
                         View &rarr;
                       </a>
                     )}
@@ -284,7 +256,7 @@ export default function AdminUserDetailPage() {
                   <tr key={tx.id}>
                     <td style={s.td}>{fmt(tx.created_at)}</td>
                     <td style={s.td}>{tx.action.replace(/_/g, ' ')}</td>
-                    <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: tx.amount > 0 ? '#059669' : tx.amount < 0 ? '#DC2626' : 'var(--ink-light)' }}>
+                    <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: tx.amount > 0 ? 'var(--success)' : tx.amount < 0 ? 'var(--error)' : 'var(--ink-light)' }}>
                       {tx.amount > 0 ? '+' : ''}{tx.amount}
                     </td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{tx.balance_after}</td>
@@ -349,13 +321,13 @@ export default function AdminUserDetailPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  statCard: { padding: '14px 16px', borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)', textAlign: 'center' },
+  statCard: { padding: '14px 16px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', textAlign: 'center' },
   statLabel: { fontSize: 11, fontWeight: 600, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 },
   statValue: { fontSize: 22, fontWeight: 800, color: 'var(--ink)' },
-  card: { padding: 20, borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)' },
+  card: { padding: 20, borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)' },
   cardTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--ink)' },
   label: { fontWeight: 600, color: 'var(--ink-light)' },
-  videoCard: { borderRadius: 10, background: 'white', border: '1px solid var(--border-light, #e5e7eb)', overflow: 'hidden' },
+  videoCard: { borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', overflow: 'hidden' },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, color: 'var(--ink-light)', fontSize: 11, textTransform: 'uppercase' },
-  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light, #f3f4f6)', color: 'var(--ink)' },
+  td: { padding: '8px 12px', borderBottom: '1px solid var(--border-light)', color: 'var(--ink)' },
 }

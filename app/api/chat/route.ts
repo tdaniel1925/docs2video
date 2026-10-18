@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { createClient } from '../../_lib/supabase/server'
 import { rateLimit, LIMITS } from '../../_lib/rate-limit'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -12,11 +14,23 @@ function getClient() {
   return new Anthropic({ apiKey: key })
 }
 
+/**
+ * POST /api/chat { videoId, message } — ask questions about a video's script.
+ *
+ * Audit 2026-10-09: this used to be open to anyone with a video id (no sign-in,
+ * no owner check), so anyone could read any video's script through the AI and
+ * spend our AI budget. Nothing in the app calls it any more (the share page's
+ * "Ask a question" emails the presenter instead), so it is now limited to the
+ * signed-in OWNER of the video, and every message counts toward the daily
+ * free-AI ceiling.
+ */
 export async function POST(request: Request) {
   try {
-    // IP-based rate limiting (public route — no auth required)
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-    const rl = rateLimit(`ip:${ip}:chat`, LIMITS.chat.limit, LIMITS.chat.windowMs)
+    const authClient = await createClient()
+    const { data: { user } } = await authClient.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+    const rl = rateLimit(`user:${user.id}:chat`, LIMITS.chat.limit, LIMITS.chat.windowMs)
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 })
     }
@@ -28,16 +42,20 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient()
 
-    // Load video with brand
+    // Load the video — ONLY if it belongs to the signed-in person.
     const { data: video } = await supabase
       .from('videos')
       .select('title, script, status')
       .eq('id', videoId)
-      .single()
+      .eq('user_id', user.id)
+      .maybeSingle()
 
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
     }
+
+    const capped = await aiDailyGate(user.id)
+    if (capped) return capped
 
     if (video.status !== 'completed') {
       return NextResponse.json({ error: 'Video is not yet available' }, { status: 400 })

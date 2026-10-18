@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { createClient } from '../../_lib/supabase/server'
 import { GoogleGenAI } from '@google/genai'
 import type { ExtractedData } from '../../_lib/extract-types'
@@ -55,6 +56,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
   const user = { id: resolved.userId }
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
   if (!rl.allowed) {

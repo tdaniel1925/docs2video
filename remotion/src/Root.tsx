@@ -58,6 +58,8 @@ import { AppCommercialV4, appV4Metadata } from './AppCommercialV4'
 import { ValorCommercial, valorMetadata, type ValorProps } from './ValorCommercial'
 import { ApexCommercial, apexMetadata, type ApexProps } from './ApexCommercial'
 import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedVideo'
+import { KitVideo, kitMetadata, type KitVideoProps } from './kit/KitVideo'
+import { KIT_LOOKS } from './kit/spec'
 import { VisualDirectorVideo, visualDirectorMetadata, type VisualDirectorProps } from './VisualDirectorVideo'
 import { HeroReveal, KineticHype, CinematicOpen, SplitCompare, StatGrid, CTAClose } from './CommercialProto'
 import { CommercialFull, commercialDuration } from './CommercialFull'
@@ -493,6 +495,17 @@ export const RemotionRoot: React.FC = () => {
       height={1080}
       durationInFrames={300}
     />
+    {/* THE SCENE KIT (videoStyle 'kit'): eight scene types, one look, one motion system. */}
+    <Composition
+      id="KitVideo"
+      component={KitVideo}
+      defaultProps={{ plan: { version: 1, title: '', look: KIT_LOOKS['animated-slides'], brand: {}, scenes: [] } } as KitVideoProps}
+      calculateMetadata={kitMetadata}
+      fps={30}
+      width={1920}
+      height={1080}
+      durationInFrames={30}
+    />
     <Composition
       id="VisualDirectorVideo"
       component={VisualDirectorVideo}
@@ -731,16 +744,13 @@ export const RemotionRoot: React.FC = () => {
         // video B's content). The staticFile fetch remains only for the legacy
         // generator/studio workflow, whose defaultProps have no audio.
         const passedInfo = props as InfographicProps
-        if (Array.isArray(passedInfo?.scenes) && passedInfo.scenes.some((s: any) => s?.audio)) {
+        // A free-preview STILL (`__preview`) has real scenes but no voice yet —
+        // it must use them too, never the shared file.
+        if (Array.isArray(passedInfo?.scenes) && passedInfo.scenes.length > 0 && ((props as any).__preview === true || passedInfo.scenes.some((s: any) => s?.audio))) {
           return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
-        try {
-          const res = await fetch(staticFile('infographic.json'))
-          if (res.ok) {
-            const data = (await res.json()) as InfographicProps
-            return { props: data, durationInFrames: infoTotal(data), fps: FPS, width: 1920, height: 1080 }
-          }
-        } catch {}
+        // No fallback to public/infographic.json: that file is whatever video was
+        // made last on the box (someone else's content). No real scenes → placeholder.
         return { props, durationInFrames: infoTotal(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />
@@ -763,14 +773,8 @@ export const RemotionRoot: React.FC = () => {
         if (passed && Array.isArray(passed.scenes) && passed.scenes.length > 0) {
           return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
         }
-        // Fallback: read the editorial.json written to public/ (legacy path).
-        try {
-          const res = await fetch(staticFile('editorial.json'))
-          if (res.ok) {
-            const data = (await res.json()) as EditorialProps
-            return { props: data, durationInFrames: editorialTotal(data), fps: FPS, width: 1920, height: 1080 }
-          }
-        } catch {}
+        // No fallback to public/editorial.json: that file is whatever video was
+        // made last on the box (someone else's content). No real scenes → placeholder.
         return { props, durationInFrames: editorialTotal(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />
@@ -792,16 +796,13 @@ export const RemotionRoot: React.FC = () => {
         // fetch remains only for the legacy scripts/generate-v3.mjs workflow —
         // its defaultProps placeholder scene has no audio, so it never matches.
         const passedV3 = props as V3Props
-        if (Array.isArray(passedV3?.scenes) && passedV3.scenes.some((s: any) => s?.audio)) {
+        // A free-preview STILL (`__preview`) has real scenes but no voice yet —
+        // it must use them too, never the shared file.
+        if (Array.isArray(passedV3?.scenes) && passedV3.scenes.length > 0 && ((props as any).__preview === true || passedV3.scenes.some((s: any) => s?.audio))) {
           return { props, durationInFrames: v3Total(props), fps: FPS, width: 1920, height: 1080 }
         }
-        try {
-          const res = await fetch(staticFile('v3.json'))
-          if (res.ok) {
-            const data = (await res.json()) as V3Props
-            return { props: data, durationInFrames: v3Total(data), fps: FPS, width: 1920, height: 1080 }
-          }
-        } catch {}
+        // No fallback to public/v3.json: that file is whatever video was made
+        // last on the box (someone else's content). No real scenes → placeholder.
         return { props, durationInFrames: v3Total(props), fps: FPS, width: 1920, height: 1080 }
       }}
     />

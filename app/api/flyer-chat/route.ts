@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { stripFalseDelivery } from '../../_lib/no-false-claims'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
@@ -60,6 +61,9 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   const body = await req.json().catch(() => null) as {
     message?: string

@@ -5,6 +5,7 @@ import type { ExtractedData } from '../../_lib/extract-types'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { resolveRequestUser } from '../../_lib/api-auth'
 import { checkCredits } from '../../_lib/credits'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
     if (!credit.allowed) {
       return NextResponse.json({ error: 'No credits remaining' }, { status: 403 })
     }
+    // Free AI step: counts toward the daily ceiling, fail closed — audit 2026-10-09.
+    const capped = await aiDailyGate(user.id)
+    if (capped) return capped
   }
 
   let body: { text?: string }

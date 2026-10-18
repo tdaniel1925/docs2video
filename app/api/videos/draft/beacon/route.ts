@@ -60,11 +60,15 @@ export async function POST(request: NextRequest) {
        security, so this check IS the security on this route. */
     const { data: video, error } = await admin
       .from('videos')
-      .select('id, user_id, draft_data')
+      .select('id, user_id, status, draft_data')
       .eq('id', videoId)
       .single()
     if (error || !video) return NextResponse.json({ ok: false }, { status: 404 })
     if (video.user_id !== user.id) return NextResponse.json({ ok: false }, { status: 403 })
+    /* Only an editable draft (or a failed video about to be retried). A tab
+       closing after generation started must not rewrite a running or finished
+       video's script. */
+    if (video.status !== 'draft' && video.status !== 'failed') return NextResponse.json({ ok: false }, { status: 409 })
 
     const existing = (video.draft_data as WizardDraft) || { step: 1, outputType: 'video' as const }
 
@@ -77,6 +81,7 @@ export async function POST(request: NextRequest) {
         draft_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
       .eq('id', videoId)
+      .in('status', ['draft', 'failed'])
 
     return NextResponse.json({ ok: true })
   } catch (err) {

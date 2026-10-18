@@ -1,7 +1,5 @@
 import { createClient } from '../../../_lib/supabase/client'
-
-const MAX_BYTES = 100 * 1024 * 1024 // 100MB
-const ALLOWED_EXT = ['pdf', 'docx', 'pptx', 'txt', 'csv', 'xlsx']
+import { docUploadExt, docUploadProblem } from '../../../_lib/doc-upload'
 
 /**
  * Bulletproof document upload + extraction:
@@ -14,16 +12,14 @@ const ALLOWED_EXT = ['pdf', 'docx', 'pptx', 'txt', 'csv', 'xlsx']
  * Returns the parsed extraction result, or throws an Error with a user-friendly
  * message.
  */
-export async function uploadAndExtract(file: File, purpose: string): Promise<any> {
-  const ext = file.name.split('.').pop()?.toLowerCase() || ''
-  if (!ALLOWED_EXT.includes(ext)) {
-    throw new Error(`Unsupported file type. Allowed: ${ALLOWED_EXT.join(', ').toUpperCase()}`)
-  }
-  if (file.size > MAX_BYTES) {
-    throw new Error(`File is too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum is ${Math.round(MAX_BYTES / 1024 / 1024)}MB — try a smaller file or paste the text.`)
-  }
+export async function uploadAndExtract(file: File, purpose: string, onPhase?: (phase: 'uploading' | 'reading') => void): Promise<any> {
+  const ext = docUploadExt(file.name)
+  const problem = docUploadProblem(file.name, file.size)
+  if (problem) throw new Error(problem)
 
-  // 1) signed upload URL
+  // 1) signed upload URL (the screen ticks "Uploading" → "Reading" as each
+  //    part really starts, instead of a timer guessing)
+  onPhase?.('uploading')
   const urlRes = await fetch('/api/extract-doc/upload-url', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileName: file.name, size: file.size }),
@@ -39,14 +35,22 @@ export async function uploadAndExtract(file: File, purpose: string): Promise<any
     await new Promise(r => setTimeout(r, 1200))
     up = await doUpload()
   }
-  if (up.error) throw new Error('Upload failed — please check your connection and try again.')
+  if (up.error) {
+    const why = up.error.message || ''
+    throw new Error(/size|large|exceed|413/i.test(why)
+      ? `"${file.name}" is too large to upload. Try a smaller copy, or paste the text instead.`
+      : 'Upload failed — please check your connection and try again.')
+  }
 
   // 3) extract by path
+  onPhase?.('reading')
   const exRes = await fetch('/api/extract-doc', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: urlData.path, purpose }),
   })
-  const result = await exRes.json().catch(() => ({ error: 'The server returned an unexpected response.' }))
+  const result = await exRes.json().catch(() => ({
+    error: exRes.status === 504 ? 'Reading that file took too long. Try a shorter document, or paste the text instead.' : 'The server returned an unexpected response. Please try again.',
+  }))
   if (!exRes.ok) throw new Error(result.error || 'We could not read this document.')
   // Carry the stored source path forward (private 'creation-assets' bucket) so
   // the share page can optionally offer the ORIGINAL file as a download. Only
@@ -75,13 +79,24 @@ export async function uploadAndExtractMany(
   if (files.length > MAX_FILES) {
     throw new Error(`You can upload up to ${MAX_FILES} files at once.`)
   }
+  // Read EVERY file before reporting, so one bad file is named (with its
+  // reason) instead of silently costing the user the others' progress.
   const out: { fileName: string; data: any }[] = []
+  const failed: string[] = []
   for (let i = 0; i < files.length; i++) {
     const f = files[i]
     onProgress?.(i, files.length, f.name)
-    const data = await uploadAndExtract(f, purpose)
-    out.push({ fileName: f.name, data })
+    try {
+      out.push({ fileName: f.name, data: await uploadAndExtract(f, purpose) })
+    } catch (e) {
+      failed.push(`"${f.name}": ${e instanceof Error ? e.message : 'could not be read'}`)
+    }
   }
   onProgress?.(files.length, files.length, '')
+  if (failed.length) {
+    throw new Error(failed.length === files.length
+      ? `None of the files could be read. ${failed.join(' ')}`
+      : `I couldn't read ${failed.length === 1 ? 'one file' : `${failed.length} files`} — remove ${failed.length === 1 ? 'it' : 'them'} and try again (the rest were fine). ${failed.join(' ')}`)
+  }
   return out
 }

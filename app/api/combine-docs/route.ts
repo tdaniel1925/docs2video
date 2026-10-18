@@ -4,6 +4,7 @@ import { createClient } from '../../_lib/supabase/server'
 import type { WizardDraft, VideoBrief } from '../../_lib/types'
 import { scrubPlaceholderNamesInText } from '../../_lib/text-format'
 import { logError } from '../../_lib/error-logger'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -46,6 +47,10 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // LIGHT START: free for everyone, but an account with no card yet gets a
+  // daily ceiling on this AI work (cardless-prep.ts). Cards: never counted.
+  const capped = await cardlessPrepGate(user.id)
+  if (capped) return capped
 
   const { videoId } = (await request.json().catch(() => ({}))) as { videoId?: string }
   if (!videoId) return NextResponse.json({ error: 'videoId required' }, { status: 400 })
@@ -120,8 +125,7 @@ No markdown, no commentary — just the JSON.`
     await supabase.from('videos').update({ draft_data: merged }).eq('id', videoId).eq('user_id', user.id)
     return NextResponse.json({ brief })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to combine documents'
     logError('combine-docs', err, { videoId, userId: user?.id })
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We couldn’t compare your files automatically.' }, { status: 500 })
   }
 }

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { synthesizeSpeech } from '../../_lib/tts'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { videoServiceUrl } from '../../_lib/video-service'
+import { fetchOurStorageImage, isOurStorageUrl } from '../../_lib/our-storage-image'
+import { storyTooBigMessage } from '../../_lib/length-limits'
+import { normalizeDetailLevel } from '../../_lib/wizard-draft'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -16,6 +20,9 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+  const capped = await aiDailyGate(user.id)
+  if (capped) return capped
 
   const rl = rateLimit(getRateLimitKey(user.id, 'generation'), LIMITS.generation.limit, LIMITS.generation.windowMs)
   if (!rl.allowed) {
@@ -31,8 +38,14 @@ export async function POST(request: Request) {
     voiceId: string
   }
 
-  if (!videoId || !updatedScenes || !updatedSlideUrls) {
+  if (!videoId || !Array.isArray(updatedScenes) || !Array.isArray(updatedSlideUrls)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+  // The slide pictures are downloaded below — only from our own storage, never
+  // from an address the browser made up (the server must not fetch arbitrary
+  // URLs). Checked before anything changes on the video.
+  if (updatedSlideUrls.length > 60 || !updatedSlideUrls.every((u) => isOurStorageUrl(u))) {
+    return NextResponse.json({ error: 'One of the slide pictures can’t be used here.' }, { status: 400 })
   }
 
   const admin = createAdminClient()
@@ -41,6 +54,13 @@ export async function POST(request: Request) {
   const { data: video } = await admin.from('videos').select('*').eq('id', videoId).eq('user_id', user.id).single()
   if (!video) {
     return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+  }
+  // SCENE CAP (audit 2026-10-09): a free re-render can't carry a bigger story
+  // than the length this video was made (and charged) at.
+  {
+    const dd = (video.draft_data ?? {}) as Record<string, unknown>
+    const tooBig = storyTooBigMessage(updatedScenes, normalizeDetailLevel(dd.detailLevel) ?? normalizeDetailLevel(video.detail_level) ?? 'standard')
+    if (tooBig) return NextResponse.json({ error: tooBig, code: 'story_too_long' }, { status: 400 })
   }
 
   try {
@@ -85,12 +105,8 @@ export async function POST(request: Request) {
     for (let i = 0; i < updatedSlideUrls.length; i++) {
       const url = updatedSlideUrls[i]
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
-        if (res.ok) {
-          slideBuffers.push(Buffer.from(await res.arrayBuffer()))
-        } else {
-          throw new Error(`Failed to download slide ${i}`)
-        }
+        const { data } = await fetchOurStorageImage(url, { timeoutMs: 10000 })
+        slideBuffers.push(data)
       } catch (err) {
         throw new Error(`Failed to download slide ${i + 1}: ${err instanceof Error ? err.message : 'unknown error'}`)
       }

@@ -170,7 +170,7 @@ export default function BulkGeneratePage() {
 
       {mode === 'csv' && (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 24,
@@ -211,7 +211,7 @@ export default function BulkGeneratePage() {
 
       {mode === 'urls' && (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 24,
@@ -267,7 +267,7 @@ export default function BulkGeneratePage() {
       {/* Parsed items preview */}
       {items.length > 0 && (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           padding: 24,
@@ -294,7 +294,7 @@ export default function BulkGeneratePage() {
                 <div style={{
                   height: '100%',
                   width: `${(completed / items.length) * 100}%`,
-                  background: 'var(--mint)',
+                  background: 'var(--accent-ink)',
                   borderRadius: 8,
                   transition: 'width 0.3s ease',
                 }} />
@@ -338,8 +338,8 @@ export default function BulkGeneratePage() {
                               borderRadius: 6,
                               fontSize: 12,
                               fontWeight: 600,
-                              background: result.status === 'started' || result.status === 'queued' ? 'var(--mint, #d4f5e9)' : '#fee2e2',
-                              color: result.status === 'started' || result.status === 'queued' ? '#166534' : '#991b1b',
+                              background: result.status === 'started' || result.status === 'queued' ? 'var(--success-bg)' : 'var(--error-bg)',
+                              color: result.status === 'started' || result.status === 'queued' ? 'var(--success)' : 'var(--error-text)',
                             }}>
                               {result.status === 'started' ? 'Started' : result.status === 'queued' ? 'Queued' : 'Failed'}
                             </span>

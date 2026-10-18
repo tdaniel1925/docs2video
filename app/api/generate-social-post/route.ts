@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { aiDailyGate } from '../../_lib/cardless-prep'
 import { createClient } from '../../_lib/supabase/server'
 import OpenAI from 'openai'
 
@@ -12,6 +13,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    // Free AI step: counts toward the daily caps (no-card + every account), fail closed — audit 2026-10-09.
+    const capped = await aiDailyGate(user.id)
+    if (capped) return capped
 
     const { videoId } = (await request.json()) as { videoId?: string }
     if (!videoId) {

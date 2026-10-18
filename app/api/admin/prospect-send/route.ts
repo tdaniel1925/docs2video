@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const firstName = contactName?.split(' ')[0] ?? ''
 
     const personalGreeting = firstName ? `Hi ${firstName},` : 'Hi there,'
-    const bodyText = body || `I created a short personalized video showing how ${companyName} could use Docs2Video to turn documents into professional videos automatically. Take a look — it's only ${prospect.duration ?? 60} seconds.`
+    const bodyText = body || `I created a short personalized video showing how ${companyName} could use Docs2Video to turn documents into professional videos automatically. Take a look — ${prospect.duration ? `it's only ${prospect.duration} seconds.` : "it's short."}`
 
     const emailHtml = `<!DOCTYPE html>
 <html>
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           </a>
 
           <p style="margin:24px 0 0;font-size:13px;color:#888;line-height:1.5;">
-            This video was created specifically for ${companyName} by Docs2Video — the AI platform that turns any document into a professional video in minutes.
+            This video was created specifically for ${companyName} by Docs2Video — the AI platform that turns documents into narrated, branded videos.
           </p>
         </div>
       </div>

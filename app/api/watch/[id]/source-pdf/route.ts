@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+import { isOwnedStoragePath } from '../../../../_lib/wizard-draft'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +12,10 @@ export const runtime = 'nodejs'
  * PRIVATE 'creation-assets' bucket, so we never expose the bucket; we mint a
  * 5-minute signed URL and redirect to it. 404 in every other case (don't reveal
  * anything about videos that didn't opt in).
+ *
+ * The stored path must sit inside the VIDEO OWNER's own folder (H6). This
+ * route signs files from a private bucket for anyone holding the link, so a
+ * row pointing at someone else's upload would hand that file to a stranger.
  */
 const BUCKET = 'creation-assets'
 
@@ -20,11 +25,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   const { data: video } = await admin
     .from('videos')
-    .select('allow_source_download, source_pdf_path, source_pdf_name')
+    .select('user_id, allow_source_download, source_pdf_path, source_pdf_name')
     .eq('id', id)
     .maybeSingle()
 
   if (!video || !video.allow_source_download || !video.source_pdf_path) {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 })
+  }
+  if (!isOwnedStoragePath(video.source_pdf_path, video.user_id)) {
+    console.warn(`[source-pdf] refused a path outside the owner's folder for video ${id}`)
     return NextResponse.json({ error: 'Not available' }, { status: 404 })
   }
 

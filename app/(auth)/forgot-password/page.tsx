@@ -1,18 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { resetPassword } from '../../_actions/auth'
 
 export default function ForgotPasswordPage() {
-  const [error, setError] = useState<string | null>(null)
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordForm />
+    </Suspense>
+  )
+}
+
+function ForgotPasswordForm() {
+  // A reset link that failed (expired, used twice, or opened in a different
+  // browser than the one that asked for it) is sent back here with ?error=.
+  const linkFailed = !!useSearchParams().get('error')
+  const [formError, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const error = formError ?? (linkFailed
+    ? 'That reset link has expired or was already used. Enter your email to get a new one, and open it in this same browser.'
+    : null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
-    setError(null)
+    setError('') // '' (not null) also hides the ?error= link message
     const formData = new FormData(e.currentTarget)
     const result = await resetPassword(formData)
     if (result?.error) {

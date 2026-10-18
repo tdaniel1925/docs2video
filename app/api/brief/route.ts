@@ -5,6 +5,7 @@ import { isRegulated, productTokens, complianceLeaks, COMPLIANCE_CLAUSE } from '
 import { logError } from '../../_lib/error-logger'
 // Shared brief-generation core (also used by the key-authed /api/v1/brief).
 import { briefClaude as claude, parseBrief, describeSource, buildBriefSystemPrompt as buildSystemPrompt } from '../../_lib/brief-core'
+import { cardlessPrepGate } from '../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 45
@@ -13,6 +14,10 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // LIGHT START: free for everyone, but an account with no card yet gets a
+  // daily ceiling on this AI work (cardless-prep.ts). Cards: never counted.
+  const capped = await cardlessPrepGate(user.id)
+  if (capped) return capped
 
   const { videoId, regenerate, answers } = (await request.json().catch(() => ({}))) as {
     videoId?: string; regenerate?: boolean; answers?: Record<string, string>
@@ -40,19 +45,19 @@ export async function POST(request: Request) {
   const classification = (draft.classification as any) || extracted.classification || {}
   // Identify the input source so the brief calls a scanned website a "website",
   // pasted text "content", etc. — never blindly "this document".
-  const src = describeSource((draft as any).contentMethod)
+  const src = describeSource(draft.contentMethod)
 
   // Pull what we ALREADY know about who's presenting (brand/presenter), so the
   // AI doesn't ask "whose video is this" when the answer is already on record.
   // For URL scans extract-url auto-creates a brand; inlineBrand may also exist.
   let knownIdentity = ''
-  const inline = (draft as any).inlineBrand
+  const inline = draft.inlineBrand
   let brand: any = null
-  if ((draft as any).brandId) {
+  if (draft.brandId) {
     const { data } = await supabase
       .from('brands')
-      .select('name, profile_type, person_role, tagline, company_name')
-      .eq('id', (draft as any).brandId)
+      .select('name, profile_type, person_role, tagline') // no company_name column: asking for it failed the whole lookup, so every brief lost the brand
+      .eq('id', draft.brandId)
       .maybeSingle()
     brand = data
   }
@@ -130,8 +135,8 @@ export async function POST(request: Request) {
     await supabase.from('videos').update({ draft_data: merged }).eq('id', videoId).eq('user_id', user.id)
     return NextResponse.json({ brief })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to build brief'
+    // Details go to the log; the customer gets a sentence, not a stack message.
     logError('brief', err, { videoId, userId: user?.id })
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'We couldn’t build the summary just now. Please try again, or press Skip to continue.' }, { status: 500 })
   }
 }

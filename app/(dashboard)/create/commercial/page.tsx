@@ -1,19 +1,27 @@
 'use client'
 
+import { shrinkImageForUpload } from '../../../_lib/shrink-image'
+import { uploadAndExtract } from '../_components/uploadAndExtract'
+import { DOC_UPLOAD_ACCEPT } from '../../../_lib/doc-upload'
 import { useEffect, useState } from 'react'
+import { normalizeUrl, tidyUrlInput } from '../../../_lib/normalize-url'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import BuyCreditsModal from '../../../_components/BuyCreditsModal'
+import { CREDIT_COSTS } from '../../../_lib/credits'
 
 /**
  * Dedicated CUSTOMER flow for the AI Commercial pipeline (separate from the
  * Video/Slides create wizard). One page: URL + optional goal/brand/logo/music +
  * auto-pick style (with an Advanced style override). Posts to
- * /api/generate-commercial (auth + 600-credit gate + fires the render service director),
+ * /api/generate-commercial (auth + credit gate + fires the render service director),
  * then hands off to the shared /create/generating progress page which polls the
  * same videos row the director writes progress to.
  */
 
-const COMMERCIAL_COST = 600
+// The same number /api/generate-commercial charges. It was typed here as 600,
+// so a price change in credits.ts would have shown the old price on this page.
+const COMMERCIAL_COST = CREDIT_COSTS.commercial
 
 // The 22 director styles (source of truth: app/api/v1/commercials STYLE_IDS).
 // Friendly labels for the Advanced picker; 'auto' lets the director choose.
@@ -35,7 +43,7 @@ type SourceMode = 'url' | 'text' | 'pdf' | 'ai'
 const SOURCE_TABS: { id: SourceMode; label: string; icon: string }[] = [
   { id: 'url', label: 'Website', icon: '🔗' },
   { id: 'text', label: 'Paste text', icon: '📝' },
-  { id: 'pdf', label: 'PDF', icon: '📄' },
+  { id: 'pdf', label: 'Document', icon: '📄' },
   { id: 'ai', label: 'AI writes it', icon: '✨' },
 ]
 
@@ -52,6 +60,9 @@ export default function CreateCommercialPage() {
   const [music, setMusic] = useState(true)
   const [style, setStyle] = useState('auto')
   const [showAdvanced, setShowAdvanced] = useState(false)
+  // "Buy more" opens the same top-up modal as the header's Top Up button. It
+  // used to link to /billing, which does not exist (a 404 mid-purchase).
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
   const [balance, setBalance] = useState<number | null>(null)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -64,7 +75,8 @@ export default function CreateCommercialPage() {
       .catch(() => {})
   }, [])
 
-  const validUrl = /^https?:\/\/.+\..+/i.test(url.trim())
+  // No one has to type https:// — "yourcompany.com" is fine (normalize-url.ts).
+  const validUrl = !!normalizeUrl(url)
   const sourceReady =
     source === 'url' ? validUrl :
     source === 'text' ? pasted.trim().length >= 40 :
@@ -77,36 +89,37 @@ export default function CreateCommercialPage() {
   // The render director accepts EITHER a url (it scrapes) or text (it uses directly).
   // pdf → extract to text; ai → a short brief the director expands from.
   async function resolveSource(): Promise<{ url?: string; text?: string } | null> {
-    if (source === 'url') return { url: url.trim() }
+    if (source === 'url') return { url: normalizeUrl(url) ?? url.trim() }
     if (source === 'text') return { text: pasted.trim() }
     if (source === 'ai') {
       // "AI writes it": the user gives a topic/brief; the director's comprehend+
       // direct expand it. Framed as a brief so it doesn't read as source facts.
       return { text: `Create a commercial about: ${aiTopic.trim()}` }
     }
-    // pdf → extract text via the existing document extractor (legacy multipart path)
+    // pdf → the same upload path as the create flow: straight to storage, then
+    // read by path. (The old multipart post went through the Vercel body,
+    // which rejects anything over ~4.5 MB with a page the user never saw.)
     if (!pdfFile) return null
-    const fd = new FormData()
-    fd.append('file', pdfFile)
-    fd.append('purpose', 'commercial')
-    const ex = await fetch('/api/extract-doc', { method: 'POST', body: fd })
-    if (!ex.ok) {
-      const j = await ex.json().catch(() => ({}))
-      throw new Error(j?.error || 'Could not read that PDF. Try pasting the text instead.')
-    }
-    const j = await ex.json()
-    // Flatten whatever text-bearing fields came back into one blob.
+    const j = await uploadAndExtract(pdfFile, 'commercial')
+    // Flatten whatever text-bearing fields came back into one blob — ALL of
+    // them: the bullet points and key numbers are the facts a commercial needs.
     const parts: string[] = []
     if (j.title) parts.push(String(j.title))
+    if (j.subtitle) parts.push(String(j.subtitle))
+    if (Array.isArray(j.keyMetrics)) {
+      for (const m of j.keyMetrics) if (m?.label && m?.value) parts.push(`${m.label}: ${m.value}`)
+    }
+    if (Array.isArray(j.bulletPoints)) parts.push(j.bulletPoints.filter((b: unknown) => typeof b === 'string').join('\n'))
     if (Array.isArray(j.sections)) {
       for (const s of j.sections) {
         if (typeof s === 'string') parts.push(s)
         else if (s && typeof s === 'object') parts.push([s.heading, s.title, s.text, s.content, s.body].filter(Boolean).join('\n'))
       }
     }
+    if (Array.isArray(j.additionalNotes)) parts.push(j.additionalNotes.filter((b: unknown) => typeof b === 'string').join('\n'))
     if (typeof j.text === 'string') parts.push(j.text)
     const text = parts.filter(Boolean).join('\n\n').trim().slice(0, 60000)
-    if (text.length < 40) throw new Error('That PDF had too little readable text. Try pasting the text instead.')
+    if (text.length < 40) throw new Error('That file had too little readable text. Try pasting the text instead.')
     return { text }
   }
 
@@ -123,7 +136,7 @@ export default function CreateCommercialPage() {
       if (logoFile) {
         try {
           const fd = new FormData()
-          fd.append('file', logoFile)
+          fd.append('file', await shrinkImageForUpload(logoFile, 1200))
           const up = await fetch('/api/upload-logo', { method: 'POST', body: fd })
           if (up.ok) { const j = await up.json(); logoUrl = j.url || j.logoUrl }
         } catch { /* non-fatal — proceed without an uploaded logo */ }
@@ -143,6 +156,11 @@ export default function CreateCommercialPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        // No card yet (light start): add one, then come back here.
+        if (data?.code === 'card_required') {
+          router.push(`/setup-payment?next=${encodeURIComponent('/create/commercial')}`)
+          return
+        }
         setError(data?.error || 'Could not start the commercial. Please try again.')
         setSubmitting(false)
         return
@@ -159,7 +177,7 @@ export default function CreateCommercialPage() {
       <Link href="/create/start" style={styles.back}>← Back</Link>
       <div style={styles.header}>
         <span style={styles.icon}>🎥</span>
-        <h1 style={styles.h1}>Create a Commercial</h1>
+        <h1 style={styles.h1}>Make a commercial</h1>
         <p style={styles.sub}>From a website, a document, your own text, or just an idea — we produce a fully-directed, brand-matched commercial with script, voiceover, visuals, and music.</p>
       </div>
 
@@ -172,7 +190,7 @@ export default function CreateCommercialPage() {
             style={{ ...styles.sourceTab, ...(source === t.id ? styles.sourceTabActive : {}) }}
             onClick={() => { setSource(t.id); setError(null) }}
           >
-            <span style={{ fontSize: 16 }}>{t.icon}</span> {t.label}
+            <span style={{ fontSize: 'var(--fs-body)' }}>{t.icon}</span> {t.label}
           </button>
         ))}
       </div>
@@ -180,7 +198,7 @@ export default function CreateCommercialPage() {
       {source === 'url' && (
         <label style={styles.label}>
           Website URL <span style={styles.req}>*</span>
-          <input style={styles.input} type="url" placeholder="https://yourcompany.com" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus />
+          <input style={styles.input} type="text" inputMode="url" autoComplete="url" placeholder="yourcompany.com" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={() => setUrl((v) => tidyUrlInput(v))} autoFocus />
           <span style={styles.hint}>We read your site and build the commercial from it.</span>
         </label>
       )}
@@ -195,8 +213,8 @@ export default function CreateCommercialPage() {
 
       {source === 'pdf' && (
         <label style={styles.label}>
-          Upload a PDF <span style={styles.req}>*</span>
-          <input style={styles.file} type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+          Upload a document <span style={styles.req}>*</span>
+          <input style={styles.file} type="file" accept={DOC_UPLOAD_ACCEPT} onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
           <span style={styles.hint}>{pdfFile ? pdfFile.name : 'We extract the text and build the commercial from it.'}</span>
         </label>
       )}
@@ -238,7 +256,7 @@ export default function CreateCommercialPage() {
           <input
             style={styles.file}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept="image/png,image/jpeg,image/webp"
             onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
           />
           <span style={styles.hint}>{logoFile ? logoFile.name : 'We use your real logo if you upload one.'}</span>
@@ -247,7 +265,7 @@ export default function CreateCommercialPage() {
 
       {/* Music toggle */}
       <button type="button" style={styles.toggleRow} onClick={() => setMusic((m) => !m)}>
-        <span style={{ ...styles.toggle, background: music ? 'var(--mint, #C7E8A8)' : 'var(--border, #ddd)' }}>
+        <span style={{ ...styles.toggle, background: music ? 'var(--accent-ink)' : 'var(--border)' }}>
           <span style={{ ...styles.knob, transform: music ? 'translateX(20px)' : 'translateX(0)' }} />
         </span>
         <span style={styles.toggleLabel}>Add a custom music track {music ? '(on)' : '(off)'}</span>
@@ -281,13 +299,13 @@ export default function CreateCommercialPage() {
       <div style={styles.costBox}>
         {sufficient ? (
           <span style={styles.costOk}>
-            <strong>{COMMERCIAL_COST}</strong> credits · takes about 2–3 minutes
+            <strong>{COMMERCIAL_COST.toLocaleString()}</strong> credits · takes about 2–3 minutes
             {balance !== null && !isAdminUser && <span style={styles.bal}> · {balance.toLocaleString()} remaining</span>}
           </span>
         ) : (
           <span style={styles.costWarn}>
-            You need <strong>{COMMERCIAL_COST}</strong> credits but have <strong>{balance?.toLocaleString() ?? 0}</strong>.{' '}
-            <Link href="/billing" style={styles.buyLink}>Buy more</Link>
+            You need <strong>{COMMERCIAL_COST.toLocaleString()}</strong> credits but have <strong>{balance?.toLocaleString() ?? 0}</strong>.{' '}
+            <button type="button" onClick={() => setShowBuyCredits(true)} style={styles.buyLink}>Buy more</button>
           </span>
         )}
       </div>
@@ -299,41 +317,48 @@ export default function CreateCommercialPage() {
       >
         {submitting ? 'Starting…' : 'Generate Commercial'}
       </button>
+
+      <BuyCreditsModal
+        open={showBuyCredits}
+        onClose={() => setShowBuyCredits(false)}
+        needed={COMMERCIAL_COST}
+        balance={balance ?? undefined}
+      />
     </div>
   )
 }
 
 const styles: Record<string, React.CSSProperties> = {
   wrap: { maxWidth: 640, margin: '0 auto', padding: '24px 32px' },
-  back: { fontSize: 14, color: 'var(--ink-soft)', textDecoration: 'none', display: 'inline-block', marginBottom: 20 },
+  back: { fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', textDecoration: 'none', display: 'inline-block', marginBottom: 20 },
   header: { marginBottom: 28 },
-  icon: { fontSize: 32, display: 'block', marginBottom: 8 },
-  h1: { fontSize: 26, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.02em' },
-  sub: { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.5 },
-  sourceTabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  sourceTab: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border-light, #e0e0e0)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
-  sourceTabActive: { border: '1.5px solid var(--ink)', background: 'var(--ink)', color: 'white' },
-  label: { display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 18 },
-  req: { color: '#D97706', fontWeight: 700 },
+  icon: { fontSize: 'var(--fs-h1)', display: 'block', marginBottom: 8 },
+  h1: { fontSize: 'var(--fs-h2)', fontWeight: 800, color: 'var(--ink)', marginBottom: 6, letterSpacing: '-0.02em' },
+  sub: { fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.5 },
+  sourceTabs: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 18 },
+  sourceTab: { display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', padding: '9px 14px', fontSize: 'var(--fs-small)', fontWeight: 700, borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--ink-soft)', cursor: 'pointer' },
+  sourceTabActive: { border: '1.5px solid var(--ink)', background: 'var(--ink)', color: 'var(--on-ink)' },
+  label: { display: 'block', fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', marginBottom: 18 },
+  req: { color: 'var(--warning-text)', fontWeight: 700 },
   opt: { color: 'var(--ink-light)', fontWeight: 500 },
-  input: { display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1.5px solid var(--border-light, #e0e0e0)', background: 'white', color: 'var(--ink)', boxSizing: 'border-box' },
-  file: { display: 'block', width: '100%', marginTop: 6, fontSize: 13, color: 'var(--ink-soft)' },
-  hint: { display: 'block', marginTop: 6, fontSize: 12, color: 'var(--ink-light)', fontWeight: 500 },
-  row: { display: 'flex', gap: 16 },
-  toggleRow: { display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20 },
+  input: { display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', fontSize: 'var(--fs-body)', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--ink)', boxSizing: 'border-box' },
+  file: { display: 'block', width: '100%', marginTop: 6, fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' },
+  hint: { display: 'block', marginTop: 6, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 500 },
+  row: { display: 'flex', gap: 'var(--space-4)' },
+  toggleRow: { display: 'flex', alignItems: 'center', gap: 'var(--space-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20 },
   toggle: { width: 44, height: 24, borderRadius: 10, position: 'relative', transition: 'background 0.2s', flexShrink: 0 },
-  knob: { position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: 10, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'transform 0.2s' },
-  toggleLabel: { fontSize: 14, fontWeight: 600, color: 'var(--ink)' },
-  advToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)', padding: 0, marginBottom: 14, textAlign: 'left' },
-  styleGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
-  styleChip: { padding: '8px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1.5px solid var(--border-light, #e0e0e0)', background: 'white', color: 'var(--ink-soft)', cursor: 'pointer' },
-  styleChipActive: { border: '1.5px solid var(--mint, #C7E8A8)', background: 'rgba(199,232,168,0.18)', color: 'var(--ink)' },
-  error: { fontSize: 14, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
-  costBox: { marginBottom: 16, fontSize: 14 },
+  knob: { position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: 10, background: 'var(--bg-card)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'transform 0.2s' },
+  toggleLabel: { fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink)' },
+  advToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)', padding: 0, marginBottom: 14, textAlign: 'left' },
+  styleGrid: { display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 20 },
+  styleChip: { padding: '8px 14px', fontSize: 'var(--fs-small)', fontWeight: 600, borderRadius: 8, border: '1.5px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--ink-soft)', cursor: 'pointer' },
+  styleChipActive: { border: '1.5px solid var(--accent-ink)', background: 'var(--accent-soft)', color: 'var(--ink)' },
+  error: { fontSize: 'var(--fs-ui)', color: 'var(--error-text)', background: 'var(--error-bg)', border: '1px solid var(--error-border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 },
+  costBox: { marginBottom: 16, fontSize: 'var(--fs-ui)' },
   costOk: { color: 'var(--ink-soft)' },
   bal: { color: 'var(--ink-light)' },
-  costWarn: { color: '#92400E' },
-  buyLink: { color: 'var(--ink)', fontWeight: 700 },
-  cta: { width: '100%', padding: '15px 24px', fontSize: 16, fontWeight: 800, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'white', cursor: 'pointer', letterSpacing: '-0.01em' },
+  costWarn: { color: 'var(--warning-text)' },
+  buyLink: { color: 'var(--ink)', fontWeight: 700, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', font: 'inherit' },
+  cta: { width: '100%', padding: '15px 24px', fontSize: 'var(--fs-body)', fontWeight: 800, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'var(--on-ink)', cursor: 'pointer', letterSpacing: '-0.01em' },
   ctaDisabled: { opacity: 0.45, cursor: 'not-allowed' },
 }

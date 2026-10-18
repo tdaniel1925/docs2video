@@ -37,9 +37,11 @@ describe('ElevenLabs is the primary voice', () => {
     /* Set explicitly. Relying on a developer machine's missing key is how the
        primary path came to be untested in the first place. */
     process.env.ELEVENLABS_API_KEY = 'test-key-not-real'
+    vi.stubEnv('FAL_KEY', '') // fal (the primary since 2026-10-09) is tested in fal-tts.test.ts; never bill fal here
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     globalThis.fetch = realFetch
     if (realKey === undefined) delete process.env.ELEVENLABS_API_KEY
     else process.env.ELEVENLABS_API_KEY = realKey

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { CREDIT_PACKS, packPrice, type CreditPackKey } from '../_lib/credit-packs'
+import InlineCheckout from './billing/InlineCheckout'
 
 interface BuyCreditsModalProps {
   open: boolean
@@ -11,39 +13,30 @@ interface BuyCreditsModalProps {
   balance?: number
 }
 
-// Pack keys MUST match app/api/credits/buy/route.ts CREDIT_PACKS.
-const PACKS = [
-  { key: 'starter', name: 'Starter', credits: 2500, price: '$10', highlight: false },
-  { key: 'power', name: 'Power', credits: 7500, price: '$25', highlight: true },
-  { key: 'studio', name: 'Studio', credits: 18000, price: '$50', highlight: false },
-]
+// The packs come from credit-packs.ts — one list for every screen that sells
+// or describes them (it was typed here, in Settings and on the pricing page).
+const PACKS = CREDIT_PACKS.map(p => ({ ...p, price: packPrice(p), highlight: p.bestValue }))
 
+/**
+ * THE TOP-UP WINDOW. Pick a pack, then pay for it right here: the window
+ * hands over to the in-app checkout (InlineCheckout — Stripe's Payment
+ * Element in our own pop-up, 2026-10-14). Nobody is sent to a Stripe page.
+ * An account with no card yet is told to add one first (the server answers
+ * code 'card_required'; the checkout shows "Add a card").
+ */
 export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyCreditsModalProps) {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [chosen, setChosen] = useState<CreditPackKey | null>(null)
 
   if (!open) return null
 
-  async function buy(pack: string) {
-    setError(null)
-    setLoading(pack)
-    try {
-      const res = await fetch('/api/credits/buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.url && /^https?:\/\//.test(data.url)) {
-        window.location.href = data.url
-      } else {
-        setError(data.error || 'Could not start checkout. Please try again.')
-        setLoading(null)
-      }
-    } catch {
-      setError('Network error — please check your connection and try again.')
-      setLoading(null)
-    }
+  if (chosen) {
+    return (
+      <InlineCheckout
+        purchase={{ kind: 'pack', pack: chosen }}
+        onClose={() => { setChosen(null); onClose() }}
+        onPaid={() => window.dispatchEvent(new Event('d2v:credits-changed'))}
+      />
+    )
   }
 
   const blocked = typeof needed === 'number'
@@ -58,59 +51,50 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="buy-credits-title"
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'white', borderRadius: 10, padding: '36px 32px',
+          background: 'var(--bg-card)', borderRadius: 10, padding: '36px 32px',
           maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
         }}
       >
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+        <h2 id="buy-credits-title" style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
           {blocked ? 'You need more credits' : 'Buy credits'}
         </h2>
-        <p style={{ fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24 }}>
           {blocked
             ? `This needs ${needed?.toLocaleString()} credits${typeof balance === 'number' ? `, and you have ${balance.toLocaleString()}` : ''}. Top up below — credits never expire and are used after your monthly allotment.`
             : 'Top up your balance. Credits never expire and are used after your monthly allotment runs out.'}
         </p>
 
-        {error && (
-          <div role="alert" style={{
-            padding: '10px 14px', borderRadius: 8, marginBottom: 16,
-            background: 'rgba(220, 38, 38, 0.08)', border: '1.5px solid rgba(220, 38, 38, 0.3)',
-            color: '#b91c1c', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
-          }}>
-            {error}
-          </div>
-        )}
-
         {PACKS.map(p => (
           <div key={p.key} style={{
             padding: '16px 20px', borderRadius: 10, marginBottom: 12,
-            border: p.highlight ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
+            border: p.highlight ? '2px solid var(--accent-ink)' : '1.5px solid var(--border-light)',
             background: p.highlight ? 'rgba(199, 232, 168, 0.06)' : 'var(--bg-soft)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
-                {p.name}{p.highlight ? ' · Best value' : ''}
+              <span style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--ink)' }}>
+                {p.name} pack{p.highlight ? ' · Best value' : ''}
               </span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>{p.price}</span>
+              <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)' }}>{p.price}</span>
             </div>
-            <p style={{ fontSize: 13, color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
+            <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
               {p.credits.toLocaleString()} credits
             </p>
             <button
-              onClick={() => buy(p.key)}
-              disabled={loading === p.key}
+              onClick={() => setChosen(p.key)}
               style={{
                 width: '100%', padding: '10px', borderRadius: 8, border: 'none',
-                background: p.highlight ? 'var(--mint)' : 'var(--ink)',
-                color: p.highlight ? 'var(--ink)' : 'white',
-                fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                opacity: loading === p.key ? 0.6 : 1,
+                background: p.highlight ? 'var(--accent)' : 'var(--ink)',
+                color: p.highlight ? 'var(--ink)' : 'var(--on-ink)',
+                fontSize: 'var(--fs-ui)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
-              {loading === p.key ? 'Redirecting…' : `Buy ${p.name}`}
+              {`Buy ${p.name} pack`}
             </button>
           </div>
         ))}
@@ -121,10 +105,10 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
             waiting to happen — saying so beforehand costs nothing, while the
             surprise costs the payment and the trust. */}
         <p style={{
-          fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5,
+          fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', lineHeight: 1.5,
           marginTop: 16, textAlign: 'center',
         }}>
-          Payments are handled securely by Stripe. <strong>Docs2Video</strong> is the name
+          You pay right here, securely through Stripe. <strong>Docs2Video</strong> is the name
           that appears on your card statement and receipt.
         </p>
 
@@ -132,8 +116,8 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
           onClick={onClose}
           style={{
             width: '100%', padding: '12px', borderRadius: 8, marginTop: 8,
-            border: '1.5px solid var(--border-light)', background: 'white',
-            fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)',
+            border: '1.5px solid var(--border-light)', background: 'var(--bg-card)',
+            fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink-soft)',
             cursor: 'pointer', fontFamily: 'inherit',
           }}
         >

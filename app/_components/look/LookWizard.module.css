@@ -1,0 +1,137 @@
+/* THE LOOK SCREEN (approved design: look wizard v2). Theme tokens only, so
+   it follows light and dark; corners ≤ 10px. Desktop: choices left, the live
+   preview right (sticky). Phone: one column, the preview first. */
+
+.page { max-width: 1240px; }
+.loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.body {
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--space-5); align-items: start;
+}
+.main { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.h1 { margin: 0; }
+.sub { margin: calc(var(--space-3) * -1) 0 0; font-size: var(--fs-lead); color: var(--ink-light); }
+
+/* ── the three starts ── */
+.starts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.start {
+  display: flex; flex-direction: column; gap: var(--space-1); min-height: 96px; text-align: left;
+  padding: var(--space-4); border-radius: 10px; border: 2px solid var(--border); background: var(--bg-card);
+  font-family: inherit; color: var(--ink); cursor: pointer;
+}
+.start:hover { border-color: var(--ink-light); }
+.start[aria-checked='true'] { border-color: var(--accent-ink); }
+.start:disabled { cursor: not-allowed; opacity: 0.6; }
+.start b { font-size: var(--fs-lead); }
+.start span:last-child { font-size: var(--fs-small); color: var(--ink-light); }
+.ic {
+  width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; margin-bottom: var(--space-1);
+  background: var(--accent-soft); color: var(--accent-ink); font-weight: 800; font-size: var(--fs-body);
+}
+.start:focus-visible, .chip:focus-visible, .nudge:focus-visible, .stab:focus-visible, .play:focus-visible, .dot:focus-within { outline: 2px solid var(--link); outline-offset: 2px; }
+
+/* ── the reference drop ── */
+.drop {
+  display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4);
+  border: 2px dashed var(--border); border-radius: 10px; background: var(--bg-card);
+}
+.dropRow { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+.thumb, .thumbEmpty { width: 84px; height: 52px; border-radius: 6px; flex: none; object-fit: cover; background: var(--surface); }
+.thumbEmpty { display: grid; place-items: center; color: var(--ink-light); font-weight: 800; }
+.dropText { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.dropText b { font-size: var(--fs-body); color: var(--ink); overflow-wrap: anywhere; }
+.dropText span { font-size: var(--fs-small); color: var(--ink-light); }
+.dropText .reading { color: var(--accent-ink); font-weight: 700; }
+.urlRow { display: flex; gap: var(--space-3); }
+.urlRow input { flex: 1; min-width: 0; font-size: var(--fs-body); padding: 10px 14px; }
+
+.mini { position: relative; width: 28px; height: 18px; border-radius: 4px; border: 1px solid var(--border); flex: none; overflow: hidden; }
+.mini i { position: absolute; left: 4px; bottom: 4px; width: 12px; height: 3px; border-radius: 2px; }
+
+/* ── "We picked this from …" ── */
+.picked { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: var(--space-4); }
+.picked h3 { margin: 0 0 var(--space-2); font-size: var(--fs-lead); color: var(--ink); }
+.prow {
+  display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--space-3) 0; border-top: 1px solid var(--border-light);
+}
+.picked h3 + .prow, .fineIn > .prow:first-child { border-top: 0; }
+.k { width: 92px; flex: none; font-size: var(--fs-ui); font-weight: 700; color: var(--ink-light); }
+.val { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.dot { position: relative; width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; flex: none; }
+.dot input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.alt { background: none; border: 0; padding: 4px; font: inherit; font-size: var(--fs-small); font-weight: 700; color: var(--accent-ink); cursor: pointer; text-decoration: underline; }
+.chip {
+  min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-soft);
+  font-family: inherit; font-size: var(--fs-ui); font-weight: 700; color: var(--ink); cursor: pointer;
+}
+.chip:hover { border-color: var(--ink-light); }
+.chip[aria-checked='true'] { border-color: var(--accent-ink); background: var(--accent-soft); color: var(--accent-ink); }
+.small { font-size: var(--fs-small); color: var(--ink-light); margin: 0; }
+.savedRow { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+/* ── nudges + undo ── */
+.nudges { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.nudge {
+  min-height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px dashed var(--border); background: none;
+  font-family: inherit; font-size: var(--fs-ui); font-weight: 700; color: var(--ink-soft); cursor: pointer;
+}
+.nudge:hover { border-color: var(--ink-light); color: var(--ink); }
+.undo { margin-left: auto; background: none; border: 0; font: inherit; font-size: var(--fs-small); color: var(--ink-light); text-decoration: underline; cursor: pointer; padding: 8px 4px; }
+.undo:disabled { opacity: 0.5; cursor: default; text-decoration: none; }
+
+/* ── the contrast note ── */
+.fix {
+  font-size: var(--fs-ui); line-height: 1.5; padding: 10px 12px; border-radius: 8px;
+  background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border);
+}
+.why { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; text-decoration: underline; cursor: pointer; }
+.whyText { display: block; margin-top: var(--space-2); }
+
+/* ── fine-tune ── */
+.fine { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+.fine summary { padding: var(--space-4); font-weight: 700; cursor: pointer; color: var(--ink); }
+.fineIn { padding: 0 var(--space-4) var(--space-4); display: flex; flex-direction: column; }
+.name { max-width: 320px; font-size: var(--fs-body); padding: 10px 14px; }
+
+/* ── the preview ── */
+.pv { position: sticky; top: 76px; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.pvHead { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); flex-wrap: wrap; color: var(--ink); }
+.pvHead b { font-size: var(--fs-lead); }
+.play {
+  border: 1px solid var(--border); background: var(--bg-card); border-radius: 8px; padding: 8px 12px;
+  font-family: inherit; font-weight: 700; font-size: var(--fs-ui); color: var(--ink); cursor: pointer; min-height: 40px;
+}
+.sceneTabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.stab {
+  border: 1px solid var(--border); background: none; border-radius: 6px; padding: 6px 10px; min-height: 34px;
+  font-family: inherit; font-size: var(--fs-small); font-weight: 700; color: var(--ink-light); cursor: pointer;
+}
+.stab[aria-selected='true'] { color: var(--ink); border-color: var(--ink); }
+.frame { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: #0b1424; aspect-ratio: 16 / 9; }
+.playerWait { width: 100%; aspect-ratio: 16 / 9; background: var(--surface); }
+.music {
+  display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; font-size: var(--fs-ui); color: var(--ink-light);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+}
+.music b { color: var(--ink); }
+.musicText { flex: 1; min-width: 0; }
+.music button { margin-left: auto; }
+.pvNote { font-size: var(--fs-small); color: var(--ink-light); margin: 0; }
+.still { display: flex; flex-direction: column; gap: var(--space-2); }
+.still img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; }
+
+@media (max-width: 980px) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .pv { position: static; order: -1; }
+  .starts { grid-template-columns: minmax(0, 1fr); }
+  .start { min-height: 0; }
+  .k { width: 100%; }
+  .urlRow { flex-wrap: wrap; }
+  .pvHead b { font-size: var(--fs-body); }
+  .music { flex-wrap: nowrap; font-size: var(--fs-small); }
+  .musicSub { display: none; }
+}
+.back { align-self: flex-start; font-size: var(--fs-ui); }

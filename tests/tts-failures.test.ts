@@ -48,6 +48,7 @@ describe('TTS failure handling', () => {
     vi.clearAllMocks()
     delete process.env.STRICT_MODE
     delete process.env.ELEVENLABS_API_KEY
+    vi.stubEnv('FAL_KEY', '') // fal (the primary since 2026-10-09) is tested in fal-tts.test.ts; never bill fal here
   })
 
   afterEach(() => {
@@ -60,7 +61,7 @@ describe('TTS failure handling', () => {
 
     await expect(
       synthesizeSpeech('This is a test narration.', 'nova')
-    ).rejects.toThrow(/TTS failed \(ElevenLabs \+ OpenAI\).*OpenAI rate limit/)
+    ).rejects.toThrow(/TTS failed \(fal \+ ElevenLabs \+ OpenAI\).*OpenAI rate limit/)
 
     // Should have attempted 3 times
     expect(mockCreate).toHaveBeenCalledTimes(3)

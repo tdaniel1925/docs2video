@@ -4,7 +4,6 @@
  * imported by 'use client' files because requireAdmin pulls in next/headers).
  */
 export { isAdmin } from './admin-emails'
-import { isAdmin } from './admin-emails'
 
 // DB-driven check (use in server components/API routes)
 export async function isAdminDB(userId: string): Promise<boolean> {
@@ -14,16 +13,31 @@ export async function isAdminDB(userId: string): Promise<boolean> {
   return data?.is_admin === true
 }
 
+/** True when the sign-in has a confirmed email address. */
+export function emailConfirmed(user: { email_confirmed_at?: string | null; confirmed_at?: string | null } | null | undefined): boolean {
+  return !!(user && (user.email_confirmed_at || user.confirmed_at))
+}
+
 /**
- * Authoritative admin check for API routes. True if the user is in the
- * hardcoded/email-list admins OR has profiles.is_admin = true. Most admin
- * routes historically checked ONLY the email list, which locked out
- * flag-based admins (e.g. Phil). Use this everywhere instead of isAdmin(email).
+ * Authoritative admin check for API routes and the /admin pages.
+ *
+ * Audit 2026-10-09: an email address alone is NOT enough. Admin means BOTH a
+ * confirmed email on the sign-in AND profiles.is_admin = true. (It used to be
+ * "on the email list OR flagged" — so anyone who could get a session for a
+ * listed address, confirmed or not, was an admin.) The email list (isAdmin)
+ * is now only a hint for page layout, never a permission.
+ * Fails closed: an unreadable profile is not an admin.
  */
-export async function isAdminRequest(user: { id: string; email?: string | null } | null | undefined): Promise<boolean> {
+export async function isAdminRequest(
+  user: { id: string; email?: string | null; email_confirmed_at?: string | null; confirmed_at?: string | null } | null | undefined,
+): Promise<boolean> {
   if (!user) return false
-  if (isAdmin(user.email)) return true
-  return isAdminDB(user.id)
+  if (!emailConfirmed(user)) return false
+  try {
+    return await isAdminDB(user.id)
+  } catch {
+    return false
+  }
 }
 
 export async function isBetaOrAdmin(userId: string): Promise<boolean> {

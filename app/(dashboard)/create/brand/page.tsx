@@ -1,4 +1,5 @@
 'use client'
+import { tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -7,6 +8,7 @@ import type { Brand } from '../../../_lib/types'
 import { downscaleImage } from '../../../_lib/image-resize'
 import { formatPhoneDisplay } from '../../../_lib/phone-utils'
 import { toTitleCase } from '../../../_lib/text-format'
+import { nextStepAfterBrand } from '../_components/make/nextStep'
 
 interface DraftData {
   autoBrandInfo?: {
@@ -77,7 +79,7 @@ export default function BrandPage() {
       if (!authUser) { setLoading(false); return }
       Promise.all([
         fetch(`/api/videos/draft?videoId=${videoId}`).then(r => r.json()),
-        supabase.from('brands').select('*').eq('user_id', authUser.id).order('is_default', { ascending: false }),
+        supabase.from('brands').select('*').eq('user_id', authUser.id).order('is_default', { ascending: false }).order('created_at', { ascending: true }),
       ]).then(([draftResult, brandsResult]) => {
       // Draft
       const draft = draftResult?.draft_data || draftResult || {}
@@ -115,9 +117,19 @@ export default function BrandPage() {
         // Auto-select the auto-detected brand if present. We DON'T collapse the
         // picker anymore — "who's presenting?" must stay visible so the presenter
         // options aren't hidden behind a one-brand auto-select.
-        if (draft._autoBrandId) {
+        // Coming BACK to this step: re-select the brand already chosen (or
+        // created here) for this draft. Without this the inline form showed
+        // again and pressing Next created a second copy of the same brand
+        // every time the user went Back and forward.
+        const chosen = typeof draft.brandId === 'string' ? loaded.find((b: Brand) => b.id === draft.brandId) : undefined
+        if (chosen) setSelectedBrandId(chosen.id)
+        else if (draft._autoBrandId) {
           const match = loaded.find((b: Brand) => b.id === draft._autoBrandId)
           if (match) setSelectedBrandId(match.id)
+        } else if (draft.brandId === undefined && loaded.length > 0) {
+          // Nothing chosen yet: start on the profile's default brand — the one
+          // step 3 ("Make it yours") shows and uses.
+          setSelectedBrandId(loaded[0].id)
         }
       }
 
@@ -318,17 +330,22 @@ export default function BrandPage() {
         return
       }
 
-      // Navigate to next step
-      if (outputType === 'video') {
-        router.push(`/create/voice?id=${videoId}`)
-      } else {
-        router.push(`/create/script?id=${videoId}`)
-      }
+      // Back to step 3 ("Make it yours"), or to the story first if it isn't
+      // written yet. (The separate voice step is gone — it's on step 3 now.)
+      router.push(nextStepAfterBrand(videoId, draftData))
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
       setError(msg === 'Failed to fetch' ? 'Connection lost. Please check your internet and try again.' : msg)
       setSubmitting(false)
     }
+  }
+
+  // Back: to step 3 when the story is written (that's where "change" brought
+  // you from), otherwise to step 1.
+  function goBack() {
+    if (!videoId) { router.push('/create'); return }
+    const next = nextStepAfterBrand(videoId, draftData)
+    router.push(next.startsWith('/create/theme') ? next : `/create?id=${videoId}`)
   }
 
   async function handleSkip() {
@@ -343,11 +360,7 @@ export default function BrandPage() {
         body: JSON.stringify({ videoId, updates: { brandId: null, step: 2 } }),
       })
 
-      if (outputType === 'video') {
-        router.push(`/create/voice?id=${videoId}`)
-      } else {
-        router.push(`/create/script?id=${videoId}`)
-      }
+      router.push(nextStepAfterBrand(videoId, draftData))
     } catch {
       setError('Failed to skip')
       setSubmitting(false)
@@ -371,13 +384,13 @@ export default function BrandPage() {
         flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center', minHeight: '60vh', padding: '40px 24px',
       }}>
-        <p style={{ fontSize: 16, color: 'var(--ink-soft)' }}>No video ID provided.</p>
+        <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)' }}>No video ID provided.</p>
         <button
-          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
+          onClick={goBack}
           style={{
             marginTop: 16, padding: '10px 20px', borderRadius: 8,
-            border: '1px solid var(--border)', background: 'white',
-            cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+            border: '1px solid var(--border)', background: 'var(--bg-card)',
+            cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--fs-ui)', fontWeight: 600,
           }}
         >
           Go back
@@ -399,30 +412,31 @@ export default function BrandPage() {
       {/* Back link */}
       <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
         <button
-          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
+          onClick={goBack}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0,
+            fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0,
           }}
         >
           &larr; Back
         </button>
       </div>
 
-      {/* Heading */}
+      {/* Heading — the app calls this a "brand" everywhere. A brand can be a
+          person (name, photo, intro) or a company (logo, colors). */}
       <h1 style={{
-        fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em',
+        fontSize: 'var(--fs-h2)', fontWeight: 800, letterSpacing: '-0.03em',
         textAlign: 'center', marginBottom: 8, color: 'var(--ink)',
         fontFamily: 'inherit',
         animation: 'fadeInUp 0.4s ease',
       }}>
-        Who&rsquo;s presenting this video?
+        Your brand
       </h1>
       <p style={{
-        fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center',
+        fontSize: 'var(--fs-lead)', color: 'var(--ink-soft)', textAlign: 'center',
         marginBottom: 32, lineHeight: 1.6, animation: 'fadeInUp 0.4s ease 0.05s both',
       }}>
-        Introduce yourself with your name, photo, and a friendly intro &mdash; or pick a saved profile. Company branding is optional.
+        Who this comes from. A brand can be you &mdash; your name, photo and a friendly intro &mdash; or a company, with its logo and colors. Pick a saved one or set one up here.
       </p>
 
       {/* Compact confirm — single brand, auto-selected */}
@@ -432,33 +446,33 @@ export default function BrandPage() {
         return (
           <div style={{
             width: '100%', marginBottom: 24, padding: '16px 20px', borderRadius: 10,
-            border: '1.5px solid var(--mint)', background: 'rgba(199, 232, 168, 0.08)',
-            display: 'flex', alignItems: 'center', gap: 12,
+            border: '1.5px solid var(--accent)', background: 'var(--accent-soft)',
+            display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
             animation: 'fadeInUp 0.4s ease 0.1s both',
           }}>
             {b.logo_url ? (
               <img src={b.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'contain', background: 'var(--bg-soft)' }} />
             ) : (
-              <div style={{ width: 40, height: 40, borderRadius: 6, background: b.primary_color || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: 'white' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 6, background: b.primary_color || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-lead)', fontWeight: 800, color: 'var(--on-ink)' }}>
                 {b.name.charAt(0).toUpperCase()}
               </div>
             )}
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Using your brand</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{b.name}</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600 }}>Using your brand</div>
+              <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--ink)' }}>{b.name}</div>
             </div>
-            <button onClick={() => setShowPicker(true)} style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}>
+            <button onClick={() => setShowPicker(true)} style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 'var(--fs-ui)', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}>
               Change
             </button>
           </div>
         )
       })()}
 
-      {/* Saved profiles — a dropdown (people + companies, badged in the label). */}
+      {/* Saved brands — a dropdown (people + companies, badged in the label). */}
       {showPicker && brands.length > 0 && (
         <div style={{ width: '100%', marginBottom: 20, animation: 'fadeInUp 0.4s ease 0.1s both' }}>
-          <label htmlFor="profile-select" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }}>
-            Use a saved profile
+          <label htmlFor="profile-select" style={{ fontSize: 'var(--fs-small)', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }}>
+            Use a saved brand
           </label>
           <select
             id="profile-select"
@@ -469,13 +483,13 @@ export default function BrandPage() {
               else setSelectedBrandId(null)   // "Create new" → show the inline form
             }}
             style={{
-              width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 15,
+              width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 'var(--fs-body)',
               fontFamily: 'inherit', fontWeight: 600, color: 'var(--ink)',
-              border: '1.5px solid var(--border-light)', background: 'white',
+              border: '1.5px solid var(--border-light)', background: 'var(--bg-card)',
               boxSizing: 'border-box', cursor: 'pointer',
             }}
           >
-            <option value="">+ Create a new profile</option>
+            <option value="">+ Set up a new brand</option>
             {brands.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name} — {b.profile_type === 'person' ? 'Person' : 'Company'}{b.is_default ? ' (default)' : ''}
@@ -486,25 +500,25 @@ export default function BrandPage() {
           {/* Small confirmation card for the chosen profile. */}
           {selectedBrand && (
             <div style={{
-              marginTop: 12, display: 'flex', alignItems: 'center', gap: 12,
+              marginTop: 12, display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
               padding: '12px 14px', borderRadius: 10,
-              border: '1.5px solid var(--mint)', background: 'rgba(199, 232, 168, 0.08)',
+              border: '1.5px solid var(--accent)', background: 'var(--accent-soft)',
             }}>
               {selectedBrand.profile_type === 'person' && selectedBrand.photo_url ? (
                 <img src={selectedBrand.photo_url} alt={selectedBrand.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', background: 'var(--bg-soft)' }} />
               ) : selectedBrand.logo_url ? (
                 <img src={selectedBrand.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'contain', background: 'var(--bg-soft)' }} />
               ) : (
-                <div style={{ width: 40, height: 40, borderRadius: 6, background: selectedBrand.primary_color || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: 'white' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 6, background: selectedBrand.primary_color || 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-lead)', fontWeight: 800, color: 'var(--on-ink)' }}>
                   {selectedBrand.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{selectedBrand.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)' }}>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, color: 'var(--ink)' }}>{selectedBrand.name}</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
                   {selectedBrand.profile_type === 'person'
-                    ? (selectedBrand.person_role || 'Presenter')
-                    : 'Company branding'}
+                    ? (selectedBrand.person_role || 'Person')
+                    : 'Company'}
                 </div>
               </div>
             </div>
@@ -515,11 +529,11 @@ export default function BrandPage() {
       {/* Divider / toggle link */}
       {showPicker && brands.length > 0 && !selectedBrandId && (
         <div style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 16,
+          width: '100%', display: 'flex', alignItems: 'center', gap: 'var(--space-4)',
           marginBottom: 24, animation: 'fadeInUp 0.4s ease 0.15s both',
         }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
-          <span style={{ fontSize: 13, color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>
             or create one for this project
           </span>
           <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
@@ -530,11 +544,11 @@ export default function BrandPage() {
           Person. Lets the creator tweak how they're introduced for THIS video. */}
       {showPicker && selectedIsPerson && (
         <div style={{
-          width: '100%', padding: '24px', borderRadius: 10, background: 'white',
+          width: '100%', padding: '24px', borderRadius: 10, background: 'var(--bg-card)',
           border: '1.5px solid var(--border-light)', marginBottom: 20,
           animation: 'fadeInUp 0.4s ease both',
         }}>
-          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+          <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
             How you&apos;re introduced in this video
           </label>
           <textarea
@@ -543,34 +557,34 @@ export default function BrandPage() {
             rows={3}
             placeholder="Hi, I'm Sarah Talls, a registered nurse. I've prepared this video to walk you through your prescription plan."
             style={{
-              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 14,
+              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 'var(--fs-ui)',
               fontFamily: 'inherit', border: '1.5px solid var(--border-light)',
               color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box',
             }}
           />
-          <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 16px' }}>
+          <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '6px 0 16px' }}>
             Spoken at the start — write it the way you&apos;d say it.
           </p>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ink)', marginBottom: 10, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-ui)', color: 'var(--ink)', marginBottom: 10, cursor: 'pointer' }}>
             <input type="checkbox" checked={introduceInOpening} onChange={(e) => setIntroduceInOpening(e.target.checked)} />
             Introduce me in the opening
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ink)', marginBottom: 16, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-ui)', color: 'var(--ink)', marginBottom: 16, cursor: 'pointer' }}>
             <input type="checkbox" checked={showContactClosing} onChange={(e) => setShowContactClosing(e.target.checked)} />
             Show my contact on the closing
           </label>
 
-          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+          <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
             Where my photo appears
           </label>
           <select
             value={perVideoPlacement}
             onChange={(e) => setPerVideoPlacement(e.target.value)}
             style={{
-              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 14,
+              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 'var(--fs-ui)',
               fontFamily: 'inherit', border: '1.5px solid var(--border-light)',
-              color: 'var(--ink)', background: 'white', boxSizing: 'border-box',
+              color: 'var(--ink)', background: 'var(--bg-card)', boxSizing: 'border-box',
             }}
           >
             <option value="auto">Auto (the video style decides)</option>
@@ -586,20 +600,20 @@ export default function BrandPage() {
       {!selectedBrandId && (
       <div style={{
         width: '100%', padding: '24px', borderRadius: 10,
-        background: 'white',
+        background: 'var(--bg-card)',
         border: '1.5px solid var(--border-light)',
         marginBottom: 20,
         animation: 'fadeInUp 0.4s ease 0.2s both',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
-          {brands.length > 0 ? 'Or set up a new one' : "Set up who's presenting"}
+        <div style={{ fontSize: 'var(--fs-small)', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
+          {brands.length > 0 ? 'Or set up a new one' : 'Set up your brand'}
         </div>
         {/* Profile type toggle */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+          <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
             Is this a person or a company?
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             {(['person', 'company'] as const).map((t) => (
               <button
                 key={t}
@@ -607,9 +621,9 @@ export default function BrandPage() {
                 onClick={() => setProfileType(t)}
                 style={{
                   flex: 1, padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                  fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
-                  border: profileType === t ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
-                  background: profileType === t ? 'rgba(199, 232, 168, 0.12)' : 'white',
+                  fontSize: 'var(--fs-ui)', fontWeight: 700, fontFamily: 'inherit',
+                  border: profileType === t ? '2px solid var(--accent-ink)' : '1.5px solid var(--border-light)',
+                  background: profileType === t ? 'var(--accent-soft)' : 'var(--bg-card)',
                   color: 'var(--ink)',
                 }}
               >
@@ -621,8 +635,8 @@ export default function BrandPage() {
 
         {/* Company / person name */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-            {profileType === 'person' ? 'Your name' : 'Company name'} <span style={{ color: '#b91c1c' }}>*</span>
+          <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+            {profileType === 'person' ? 'Your name' : 'Company name'} <span style={{ color: 'var(--error-text)' }}>*</span>
           </label>
           <input
             type="text"
@@ -631,10 +645,10 @@ export default function BrandPage() {
             placeholder={profileType === 'person' ? 'e.g. Sarah Talls' : 'e.g. Acme Insurance'}
             style={{
               width: '100%', padding: '12px 16px', borderRadius: 8,
-              border: '2px solid var(--border)', fontSize: 15, fontFamily: 'inherit',
+              border: '2px solid var(--border)', fontSize: 'var(--fs-body)', fontFamily: 'inherit',
               outline: 'none', transition: 'border-color 0.2s',
             }}
-            onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+            onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
             onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; setCompanyName(toTitleCase(companyName)) }}
           />
         </div>
@@ -643,65 +657,65 @@ export default function BrandPage() {
         {profileType === 'person' && (
           <>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-                Role / title <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
+              <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+                Role / title <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
               </label>
               <input
                 type="text"
                 value={personRole}
                 onChange={e => setPersonRole(e.target.value)}
                 placeholder="e.g. Registered Nurse"
-                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 15, fontFamily: 'inherit', outline: 'none' }}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-body)', fontFamily: 'inherit', outline: 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-                Photo <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
+              <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+                Photo <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
               </label>
               {photoUrl && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <img src={photoUrl} alt="Presenter" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border-light)' }} />
-                  <button type="button" onClick={() => { setPhotoUrl(''); if (photoInputRef.current) photoInputRef.current.value = '' }} style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Remove photo</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 10 }}>
+                  <img src={photoUrl} alt="Your photo" style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border-light)' }} />
+                  <button type="button" onClick={() => { setPhotoUrl(''); if (photoInputRef.current) photoInputRef.current.value = '' }} style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 'var(--fs-small)', cursor: 'pointer', textDecoration: 'underline' }}>Remove photo</button>
                 </div>
               )}
               <div
                 onClick={() => photoInputRef.current?.click()}
                 style={{ border: '2px dashed var(--border-light)', borderRadius: 8, padding: '18px 14px', textAlign: 'center', cursor: 'pointer' }}
               >
-                <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>{photoUploading ? 'Uploading...' : 'Click to upload a headshot'}</span>
+                <span style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)' }}>{photoUploading ? 'Uploading...' : 'Click to upload a headshot'}</span>
                 <input ref={photoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f) }} style={{ display: 'none' }} />
               </div>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-                Intro line <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
+              <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+                Intro line <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
               </label>
               <textarea
                 value={introLine}
                 onChange={e => setIntroLine(e.target.value)}
                 rows={3}
                 placeholder="Hi, I'm Sarah Talls, a registered nurse. I've prepared this video to walk you through your prescription plan."
-                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical' }}
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none', resize: 'vertical' }}
               />
-              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0' }}>Spoken at the start of your video — write it the way you&apos;d say it.</p>
+              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '6px 0 0' }}>Spoken at the start of your video — write it the way you&apos;d say it.</p>
             </div>
 
-            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Accent color</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Accent color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                   <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} style={{ width: 40, height: 40, borderRadius: 8, border: '2px solid var(--border)', cursor: 'pointer', padding: 2 }} />
-                  <span style={{ fontSize: 13, color: 'var(--ink-soft)', fontFamily: 'monospace' }}>{primaryColor}</span>
+                  <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', fontFamily: 'monospace' }}>{primaryColor}</span>
                 </div>
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Photo placement</label>
+                <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Photo placement</label>
                 <select
                   value={photoPlacement}
                   onChange={e => setPhotoPlacement(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', background: 'white' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', background: 'var(--bg-card)' }}
                 >
                   <option value="auto">Auto (style decides)</option>
                   <option value="cover">Cover</option>
@@ -713,40 +727,40 @@ export default function BrandPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: 'var(--ink-soft)' }}>
-                <input type="checkbox" checked={showNameOnSlides} onChange={e => setShowNameOnSlides(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--mint)' }} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)' }}>
+                <input type="checkbox" checked={showNameOnSlides} onChange={e => setShowNameOnSlides(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-ink)' }} />
                 Show my name on slides
               </label>
-              <p style={{ fontSize: 12, color: 'var(--ink-light)', margin: '6px 0 0 24px' }}>Off = the document title leads the cover; your name still appears in the intro and closing.</p>
+              <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', margin: '6px 0 0 24px' }}>Off = the document title leads the cover; your name still appears in the intro and closing.</p>
             </div>
 
             {/* Contact info — shown on the closing card */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
-                Contact info <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional, for closing card)</span>
+              <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 10 }}>
+                Contact info <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional, for closing card)</span>
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <input
                   type="tel"
                   value={phone}
                   onChange={e => { setPhone(e.target.value); setSelectedBrandId(null) }}
                   onBlur={e => setPhone(formatPhoneDisplay(e.target.value))}
                   placeholder="Phone number"
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none' }}
                 />
                 <input
                   type="email"
                   value={email}
                   onChange={e => { setEmail(e.target.value); setSelectedBrandId(null) }}
                   placeholder="Email address"
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none' }}
                 />
                 <input
-                  type="url"
+                  type="text" inputMode="url" autoComplete="url" onBlur={() => setWebsite((v) => tidyUrlInput(v))}
                   value={website}
                   onChange={e => { setWebsite(e.target.value); setSelectedBrandId(null) }}
-                  placeholder="Website URL"
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                  placeholder="Website (yourcompany.com)"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontFamily: 'inherit', outline: 'none' }}
                 />
               </div>
             </div>
@@ -755,12 +769,12 @@ export default function BrandPage() {
 
         {/* Color pickers — Company only */}
         {profileType === 'company' && (
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 16 }}>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
               Primary color
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <input
                 type="color"
                 value={primaryColor}
@@ -770,16 +784,16 @@ export default function BrandPage() {
                   cursor: 'pointer', padding: 2,
                 }}
               />
-              <span style={{ fontSize: 13, color: 'var(--ink-soft)', fontFamily: 'monospace' }}>
+              <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', fontFamily: 'monospace' }}>
                 {primaryColor}
               </span>
             </div>
           </div>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-              Secondary color <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
+            <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+              Secondary color <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional)</span>
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <input
                 type="color"
                 value={secondaryColor}
@@ -789,7 +803,7 @@ export default function BrandPage() {
                   cursor: 'pointer', padding: 2,
                 }}
               />
-              <span style={{ fontSize: 13, color: 'var(--ink-soft)', fontFamily: 'monospace' }}>
+              <span style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', fontFamily: 'monospace' }}>
                 {secondaryColor}
               </span>
             </div>
@@ -801,12 +815,12 @@ export default function BrandPage() {
         {profileType === 'company' && (
         <div style={{ marginBottom: 0 }}>
           <label style={{
-            fontSize: 14, fontWeight: 700, color: 'var(--ink)',
+            fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)',
             display: 'block', marginBottom: 10,
           }}>
-            Contact info <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional, for CTA slide)</span>
+            Contact info <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional, for CTA slide)</span>
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <input
               type="tel"
               value={phone}
@@ -814,10 +828,10 @@ export default function BrandPage() {
               placeholder="Phone number"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
-                border: '1.5px solid var(--border-light)', fontSize: 14,
+                border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)',
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; setPhone(formatPhoneDisplay(phone)) }}
             />
             <input
@@ -827,24 +841,24 @@ export default function BrandPage() {
               placeholder="Email address"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
-                border: '1.5px solid var(--border-light)', fontSize: 14,
+                border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)',
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
               onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
             />
             <input
-              type="url"
+              type="text" inputMode="url" autoComplete="url"
               value={website}
               onChange={e => { setWebsite(e.target.value); setSelectedBrandId(null) }}
-              placeholder="Website URL"
+              placeholder="Website (yourcompany.com)"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: 8,
-                border: '1.5px solid var(--border-light)', fontSize: 14,
+                border: '1.5px solid var(--border-light)', fontSize: 'var(--fs-ui)',
                 fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--mint)'}
-              onBlur={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+              onFocus={e => e.currentTarget.style.borderColor = 'var(--link)'}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; setWebsite((v) => tidyUrlInput(v)) }}
             />
           </div>
         </div>
@@ -853,16 +867,16 @@ export default function BrandPage() {
         {/* Logo upload — shown for BOTH person and company. Real uploaded logo
             only (no AI-drawn logos). Placed in the video's intro/corner/outro. */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
-            Logo <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-light)' }}>(optional — shown in the video)</span>
+          <label style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+            Logo <span style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--ink-light)' }}>(optional — shown in the video)</span>
           </label>
           {logoPreview ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               <img src={logoPreview} alt="Logo" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'contain', background: 'var(--bg-soft)', border: '1px solid var(--border-light)', padding: 4 }} />
               <button
                 type="button"
                 onClick={() => { setLogoFile(null); setLogoPreview(null); if (logoInputRef.current) logoInputRef.current.value = '' }}
-                style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}
+                style={{ background: 'none', border: 'none', color: 'var(--ink-light)', fontSize: 'var(--fs-small)', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}
               >Remove logo</button>
             </div>
           ) : (
@@ -875,12 +889,12 @@ export default function BrandPage() {
                 textAlign: 'center', cursor: 'pointer', background: 'var(--bg-soft)',
               }}
             >
-              <span style={{ fontSize: 14, color: 'var(--ink-light)' }}>Click or drop to upload your logo (PNG with transparency works best)</span>
+              <span style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-light)' }}>Click or drop to upload your logo (PNG with transparency works best)</span>
               <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoChange(f) }} style={{ display: 'none' }} />
             </div>
           )}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--ink-soft)', marginTop: 10 }}>
-            <input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--mint)' }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', marginTop: 10 }}>
+            <input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-ink)' }} />
             Show logo in videos
           </label>
         </div>
@@ -888,16 +902,16 @@ export default function BrandPage() {
         {/* Save as default checkbox */}
         <div style={{ marginTop: 16 }}>
           <label style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            cursor: 'pointer', fontSize: 14, color: 'var(--ink-soft)',
+            display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+            cursor: 'pointer', fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)',
           }}>
             <input
               type="checkbox"
               checked={saveAsDefault}
               onChange={e => setSaveAsDefault(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: 'var(--mint)' }}
+              style={{ width: 16, height: 16, accentColor: 'var(--accent-ink)' }}
             />
-            Save as my default profile
+            Save as my default brand
           </label>
         </div>
       </div>
@@ -907,8 +921,8 @@ export default function BrandPage() {
       {error && (
         <div style={{
           width: '100%', padding: '12px 16px', borderRadius: 10,
-          background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c',
-          fontSize: 14, marginBottom: 16,
+          background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)',
+          fontSize: 'var(--fs-ui)', marginBottom: 16,
         }}>
           {error}
         </div>
@@ -916,15 +930,15 @@ export default function BrandPage() {
 
       {/* Action buttons */}
       <div style={{
-        width: '100%', display: 'flex', gap: 12,
+        width: '100%', display: 'flex', gap: 'var(--space-3)',
         animation: 'fadeInUp 0.4s ease 0.25s both',
       }}>
         <button
-          onClick={() => router.push(videoId ? `/create?id=${videoId}` : '/create')}
+          onClick={goBack}
           style={{
             padding: '16px 24px', borderRadius: 10,
-            border: '1.5px solid var(--border-light)', background: 'white',
-            fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            border: '1.5px solid var(--border-light)', background: 'var(--bg-card)',
+            fontSize: 'var(--fs-body)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
             color: 'var(--ink-soft)', transition: 'all 0.15s',
           }}
         >
@@ -935,7 +949,7 @@ export default function BrandPage() {
           disabled={submitting || (!canProceed && companyName.trim().length === 0)}
           style={{
             flex: 1, padding: '16px', borderRadius: 10, border: 'none',
-            background: 'var(--ink)', color: 'white', fontSize: 18, fontWeight: 800,
+            background: 'var(--ink)', color: 'var(--on-ink)', fontSize: 'var(--fs-lead)', fontWeight: 800,
             cursor: submitting ? 'wait' : 'pointer', fontFamily: 'inherit',
             letterSpacing: '-0.02em', transition: 'opacity 0.2s',
             opacity: submitting ? 0.6 : 1,
@@ -950,12 +964,12 @@ export default function BrandPage() {
         onClick={handleSkip}
         disabled={submitting}
         style={{
-          background: 'none', border: 'none', fontSize: 13, color: 'var(--ink-light)',
+          background: 'none', border: 'none', fontSize: 'var(--fs-small)', color: 'var(--ink-light)',
           cursor: 'pointer', fontFamily: 'inherit', marginTop: 14, padding: 0,
           opacity: submitting ? 0.5 : 1,
         }}
       >
-        Skip &mdash; no presenter or branding
+        Skip &mdash; no brand on this one
       </button>
     </div>
   )

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
-import { getStripe } from '../../../_lib/stripe'
+import { recordCronRun } from '../../../_lib/cron-heartbeat'
+import { getStripe, listAllStripe } from '../../../_lib/stripe'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { addTopupCredits } from '../../../_lib/credits'
 import { logError } from '../../../_lib/error-logger'
@@ -22,6 +23,8 @@ export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Heartbeat: the health cron emails Trent if this stops running (audit 2026-10-09).
+  await recordCronRun('reconcile-credit-packs')
 
   const stripe = getStripe()
   const admin = createAdminClient()
@@ -33,9 +36,15 @@ export async function GET(request: Request) {
 
   try {
     // Recent checkout sessions (platform account). Filter to paid credit packs.
-    const sessions = await stripe.checkout.sessions.list({ created: { gte: sinceSec }, limit: 100 })
+    // Page through ALL of them (audit, Low): one `limit: 100` call silently
+    // skipped every session past the first 100 in a busy day, so a paid pack
+    // that the webhook dropped could stay un-granted.
+    const sessions = await listAllStripe<Stripe.Checkout.Session>(
+      (p) => stripe.checkout.sessions.list(p as Stripe.Checkout.SessionListParams),
+      { created: { gte: sinceSec } },
+    )
 
-    for (const s of sessions.data as Stripe.Checkout.Session[]) {
+    for (const s of sessions) {
       if (s.metadata?.type !== 'credit_pack') continue
       if (s.payment_status !== 'paid') continue
       const userId = s.metadata.supabase_user_id

@@ -1,3 +1,4 @@
+import { isKitLookId } from '../../../../remotion/src/kit/spec'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import {
@@ -34,9 +35,13 @@ interface V1Body {
   brandId?: string | null
   voiceId?: string
   styleId?: string
-  /** Visual style (slides|aurora|cinematic|editorial|explainer). Distinct from
+  /** Visual style (slides|aurora|cinematic|editorial|explainer|drawn|kit). Distinct from
    *  styleId (a custom slide-template id). */
   videoStyle?: string
+  /** For videoStyle "drawn": 3d (default) | illustrated | classic. */
+  drawStyle?: string
+  /** For videoStyle "kit" (the scene kit, when the server has it on): animated-slides (default) | editorial | bright | brand. */
+  look?: string
   detailLevel?: DetailLevel
   outputType?: OutputType
   recipientName?: string
@@ -154,7 +159,7 @@ export async function POST(request: Request) {
 
   // Helper to refund + log + respond on any downstream failure.
   const fail = async (status: number, message: string, videoId?: string) => {
-    await refundApiCredits(caller.userId, cost)
+    await refundApiCredits(caller.userId, cost, videoId)
     await logApiUsage({
       apiKeyId: caller.keyId,
       userId: caller.userId,
@@ -205,7 +210,12 @@ export async function POST(request: Request) {
         headers: { 'x-internal-service': INTERNAL_SECRET, 'x-internal-user-id': caller.userId },
         body: form,
       })
-      if (!r.ok) return fail(502, `File extraction failed (${r.status})`)
+      if (!r.ok) {
+        // Pass the reader's own reason through (password-protected, no text,
+        // unsupported type…) — the caller can't act on a bare status code.
+        const why = await r.json().catch(() => ({})) as { error?: string }
+        return fail(r.status === 413 ? 413 : r.status < 500 ? 422 : 502, why.error ? `File extraction failed: ${why.error}` : `File extraction failed (${r.status})`)
+      }
       extracted = await r.json()
     } else {
       return fail(400, `Unsupported input.type "${input.type}"`)
@@ -231,6 +241,8 @@ export async function POST(request: Request) {
         // An approved brief is read by generate-video from draft_data.brief — the
         // SAME field the wizard uses — so API/MCP videos honor it identically.
         ...(body.brief ? { brief: body.brief } : {}),
+        // The scene kit's look, kept on the job so a retry renders it the same way.
+        ...(body.videoStyle === 'kit' ? { videoStyle: 'kit', kitLook: isKitLookId(body.look) ? body.look : 'animated-slides' } : {}),
         apiWebhookUrl: body.webhook_url || null,
         apiKeyId: caller.keyId,
         apiCost: cost,
@@ -255,7 +267,9 @@ export async function POST(request: Request) {
       brandId: body.brandId ?? null,
       voiceId: body.voiceId || undefined,
       styleId: body.styleId || undefined,
-      videoStyle: body.videoStyle || undefined,   // slides|aurora|cinematic|editorial|explainer
+      videoStyle: body.videoStyle || undefined,   // slides|aurora|cinematic|editorial|explainer|drawn
+      drawStyle: body.drawStyle || undefined,     // drawn only: 3d|illustrated|classic (anything else = 3d)
+      ...(body.videoStyle === 'kit' ? { kitLook: isKitLookId(body.look) ? body.look : 'animated-slides' } : {}),
       purpose: body.purpose,
       detailLevel,
       detailed: detailLevel === 'detailed',

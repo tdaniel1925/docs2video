@@ -6,11 +6,12 @@ export const runtime = 'nodejs'
 
 // The user-selectable explainer looks (kept in sync with the wizard's Theme step).
 const VIDEO_STYLES = [
-  { id: 'slides', name: 'Slide Deck', description: 'Animated explainer deck — headings, bullets, data cards, charts synced to the voice. Recommended.' },
+  { id: 'slides', name: 'Animated slides', description: 'Animated explainer deck — headings, bullets, data cards, charts synced to the voice. Recommended.' },
   { id: 'aurora', name: 'Aurora', description: 'Modern motion graphics — one flowing branded backdrop, kinetic type, no stock imagery.' },
   { id: 'cinematic', name: 'Cinematic', description: 'Film-style imagery with kinetic text and motion. Best for story-led videos.' },
   { id: 'editorial', name: 'Editorial', description: 'Clean, warm magazine layout with refined serif typography on your brand color.' },
   { id: 'explainer', name: 'Explainer', description: 'Friendly modern deck — navy + color accents, big rounded cards. Great for how-it-works.' },
+  { id: 'kit', name: 'Scene kit', description: 'The new scene engine: one big idea per scene (numbers that count up on the spoken word, charts, timelines, comparisons). Pass look: animated-slides | editorial | bright | brand. Until it is switched on for your account it renders as Animated slides.' },
 ]
 
 const OUTPUT_TYPES = [

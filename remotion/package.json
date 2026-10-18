@@ -7,7 +7,9 @@
     "dev": "remotion studio",
     "render": "remotion render AuroraExplainer out/explainer.mp4",
     "render:still": "remotion still AuroraExplainer out/frame.png",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "qa:overflow": "node scripts/overflow-qa.mjs",
+    "qa:overflow:gate": "node scripts/overflow-gate.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",

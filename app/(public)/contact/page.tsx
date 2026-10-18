@@ -53,7 +53,7 @@ export default function ContactPage() {
             <div style={{ fontSize: 48, marginBottom: 16 }}>&#10003;</div>
             <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Message sent</h2>
             <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 24 }}>
-              We&apos;ll get back to you within 24 hours.
+              We&apos;ll get back to you as soon as we can.
             </p>
             <Link href="/" style={{
               display: 'inline-block', padding: '12px 28px', borderRadius: 8,
@@ -148,7 +148,7 @@ export default function ContactPage() {
         )}
 
         <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: 'var(--ink-light)' }}>
-          Or email us directly at <a href="mailto:support@docs2video.com" style={{ color: 'var(--mint)' }}>support@docs2video.com</a>
+          Or email us directly at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
+import { hasSocialAddon } from '../../_lib/social-addon'
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
 
 export const runtime = 'nodejs'
@@ -33,7 +34,8 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles').select('social_addon_active').eq('id', user.id).single()
-  if (!profile?.social_addon_active) {
+  // The flag alone isn't trusted — confirmed against Stripe (social-addon.ts).
+  if (!(await hasSocialAddon(user.id, profile?.social_addon_active))) {
     return NextResponse.json({ error: 'The Social add-on is not active on your account.', code: 'addon_required' }, { status: 402 })
   }
 

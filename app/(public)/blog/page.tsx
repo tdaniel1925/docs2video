@@ -9,16 +9,16 @@ export const metadata: Metadata = {
 const POSTS = [
   {
     slug: 'why-video-beats-pdf',
-    title: 'Why Video Beats PDF: The Data Behind Document Engagement',
-    excerpt: 'Studies show 73% of PDFs are never fully read. Here\'s why video explainers get 2.7x more engagement and how to make the switch.',
+    title: 'Why Video Beats PDF for Getting Documents Understood',
+    excerpt: 'Long PDFs often go unread. Here\'s why a short narrated video is easier to take in, and how to make the switch.',
     date: 'May 23, 2026',
     category: 'Insights',
     readTime: '5 min',
   },
   {
     slug: 'insurance-agents-video-explainers',
-    title: 'How Insurance Agents Are Using Video to Close 40% Faster',
-    excerpt: 'Life insurance illustrations are complex. Video explainers simplify them for clients and shorten the sales cycle dramatically.',
+    title: 'How Insurance Agents Are Using Video to Explain Policies',
+    excerpt: 'Life insurance illustrations are complex. A short video explainer helps clients understand what they are looking at.',
     date: 'May 21, 2026',
     category: 'Use Cases',
     readTime: '6 min',
@@ -26,7 +26,7 @@ const POSTS = [
   {
     slug: 'ai-narration-vs-recording-yourself',
     title: 'AI Narration vs. Recording Yourself: Which Is Better for Business Videos?',
-    excerpt: 'Professional AI voices have come a long way. We compare quality, cost, speed, and consistency to help you decide.',
+    excerpt: 'AI voices have come a long way. We compare quality, cost, speed, and consistency to help you decide.',
     date: 'May 19, 2026',
     category: 'Guides',
     readTime: '4 min',
@@ -69,8 +69,8 @@ export default function BlogPage() {
             >
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, fontSize: 13 }}>
                 <span style={{
-                  padding: '2px 10px', borderRadius: 6, background: 'rgba(59,181,200,0.1)',
-                  color: 'var(--mint)', fontWeight: 600,
+                  padding: '2px 10px', borderRadius: 6, background: 'var(--accent-soft)',
+                  color: 'var(--accent-ink)', fontWeight: 600,
                 }}>{post.category}</span>
                 <span style={{ color: 'var(--ink-light)' }}>{post.date}</span>
                 <span style={{ color: 'var(--ink-light)' }}>{post.readTime} read</span>

@@ -6,6 +6,14 @@ import { CinematicGrade } from './CinematicGrade'
 import { FilmOverlay } from '../FilmOverlay'
 import { resolveLogo, type LogoSource } from '../components/infographic/BrandLogo'
 import { parseMetric, renderMetric } from '../components/infographic/format'
+import { FitBox } from '../lib/fit'
+
+/** Lets a long email / web address wrap at its natural joints (after @ . / - _)
+ *  instead of mid-word. Nothing changes when it fits on one line. */
+function breakable(s: string): string {
+  // U+200B is an invisible "you may wrap here" mark.
+  return s.replace(/([@./_-])/g, '$1​')
+}
 
 /**
  * Cinematic CLOSING card: a styled glass panel over the film image with the
@@ -61,13 +69,33 @@ export const ClosingCard: React.FC<{
           the shared backdrop is already dim. */}
       <AbsoluteFill style={{ background: transparentBg ? 'radial-gradient(120% 120% at 50% 50%, rgba(4,7,12,0.25) 0%, rgba(4,7,12,0.55) 100%)' : 'radial-gradient(120% 120% at 50% 50%, rgba(4,7,12,0.55) 0%, rgba(4,7,12,0.86) 100%)' }} />
 
+      {/* The card hugs its content as before (up to 1200px wide), inside a
+          fixed box that stays between the letterbox bars. A long headline, a
+          long email or a big value that makes the card too tall or too wide
+          scales the WHOLE card down together (FitBox) — nothing is cut off or
+          pushed off the frame. The rise-in motion sits on the box, outside
+          FitBox, so the fit is measured on the still card. */}
       <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 120px' }}>
         <div style={{
+          // With a logo, V3Video also pins it in the bottom-right corner (its
+          // top edge sits ~896px down), so a tall card stops at 880 instead of
+          // running under it. A normal card is far shorter than either limit.
+          width: 1200, maxWidth: '100%', height: logoSrc ? 680 : 900, flexShrink: 0,
           opacity: Math.min(1, panelP * 1.4), transform: `translateY(${(1 - panelP) * 24}px)`,
+        }}>
+        <FitBox valign="center" minScale={0.6}>
+        <div style={{
+          width: 'fit-content', maxWidth: '100%', margin: '0 auto',
           background: 'rgba(8,12,20,0.55)', backdropFilter: 'blur(14px)',
           border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
           padding: '56px 72px', display: 'flex', flexDirection: 'column', alignItems: 'center',
-          textAlign: 'center', gap: 22, maxWidth: 1200,
+          textAlign: 'center', gap: 22,
+          // A word too long for any line (an email, a URL) breaks rather than
+          // running out of the card; words that fit are never broken.
+          overflowWrap: 'anywhere',
+          // Lines rise into place inside the card's padding; clipping that
+          // motion vertically keeps it out of the fit measurement.
+          overflowX: 'visible', overflowY: 'clip',
         }}>
           {/* Presenter headshot (Person profile) — a circular portrait with an
               accent ring, sitting above the name/role. Takes precedence over the
@@ -98,8 +126,11 @@ export const ClosingCard: React.FC<{
           {/* Optional closing value */}
           {value?.value ? (
             <div style={{ opacity: ctaP, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 4 }}>
-              <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: TYPE.hero * 0.5, color: accent, fontVariantNumeric: 'tabular-nums', letterSpacing: -1 }}>
-                {renderMetric(parseMetric(value.value), countP)}
+              {/* Space held by the FINAL value (invisible); the counting number
+                  is drawn on top, so the card doesn't resize while it counts. */}
+              <div style={{ position: 'relative', fontFamily: FONTS.display, fontWeight: 900, fontSize: TYPE.hero * 0.5, color: accent, fontVariantNumeric: 'tabular-nums', letterSpacing: -1 }}>
+                <div style={{ visibility: 'hidden' }}>{renderMetric(parseMetric(value.value), 1)}</div>
+                <div style={{ position: 'absolute', left: 0, top: 0, width: '100%' }}>{renderMetric(parseMetric(value.value), countP)}</div>
               </div>
               <div style={{ fontFamily: FONTS.body, fontWeight: 700, letterSpacing: 3, fontSize: TYPE.label * 0.78, color: theme.textMuted, textTransform: 'uppercase' }}>{value.label}</div>
             </div>
@@ -114,10 +145,12 @@ export const ClosingCard: React.FC<{
           {contactLines.length ? (
             <div style={{ opacity: contactP, display: 'flex', gap: 0, flexDirection: 'column', alignItems: 'center', marginTop: 8, paddingTop: 22, borderTop: `1px solid rgba(255,255,255,0.12)` }}>
               <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', justifyContent: 'center', fontFamily: FONTS.body, fontWeight: 600, fontSize: TYPE.body * 0.62, color: accent }}>
-                {contactLines.map((c, i) => <span key={i}>{c}</span>)}
+                {contactLines.map((c, i) => <span key={i} style={{ minWidth: 0 }}>{breakable(c)}</span>)}
               </div>
             </div>
           ) : null}
+        </div>
+        </FitBox>
         </div>
       </AbsoluteFill>
 

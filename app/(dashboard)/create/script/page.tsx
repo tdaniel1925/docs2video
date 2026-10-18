@@ -1,178 +1,183 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import QuickPreview from '../../../_components/QuickPreview'
-import BuyCreditsModal from '../../../_components/BuyCreditsModal'
-import SceneEditChat from '../../../_components/SceneEditChat'
-import { isRegulated, productTokens, scrubComplianceText } from '../../../_lib/compliance'
+/*
+ * STEP 2 — "The story" (/create/script).
+ *
+ * "Here's the story.": the one point (a big card) and the numbers (big
+ * tiles) we read from the content — editable, exactly as they go into the
+ * story — then "N scenes · about X minutes" as title cards in two columns
+ * (Edit opens the full scene editor in place), and one "Ask for a change"
+ * line. Asking rewrites the whole story. Nothing here costs credits — the
+ * bottom bar says "Free"; generation is paid for on step 3.
+ *
+ * The script is written in the BACKGROUND on the server and saved to the
+ * draft, so a reload (or closing the tab) mid-write picks the job back up
+ * here instead of starting again or losing it.
+ *
+ * The LENGTH (Short / Standard / Detailed) is chosen here too. Step 3's
+ * "Change the length" link lands on it (#length). It used to have nowhere to
+ * land, so every video was Standard.
+ */
 
-// Build the default cover/closing copy and ensure the editable scene list has an
-// editable Cover (first) + Closing (last). Idempotent: if bookends already exist
-// (by _role), it leaves them. This makes the front/back slides editable like any
-// content scene; generate-video uses the edited versions (by _role) at submit.
-function addBookends(
-  scenes: any[],
-  opts: { title?: string; brandName?: string; recipientName?: string; contactLine?: string }
-): any[] {
-  if (!Array.isArray(scenes) || scenes.length === 0) return scenes
-  const hasCover = scenes.some(s => s?._role === 'cover')
-  const hasClosing = scenes.some(s => s?._role === 'closing')
-  let title = opts.title || scenes[0]?.title || 'Presentation'
-  // COMPLIANCE: the document title of a regulated illustration IS usually the
-  // carrier/product name — it must never seed the cover slide or its narration.
-  const regulated = isRegulated(title, scenes)
-  if (regulated) {
-    title = scrubComplianceText(title, productTokens(title))
-    if (title.replace(/[^a-zA-Z]/g, '').length < 6) title = 'Your Personalized Illustration'
-  }
-  // Existing drafts may carry a cover built before this scrub — clean it in place.
-  if (regulated && hasCover) {
-    scenes = scenes.map(s => {
-      if (s?._role !== 'cover') return s
-      const toks = productTokens(s.title)
-      const S = (v?: string) => (typeof v === 'string' && v ? scrubComplianceText(v, toks) : v)
-      let t = S(s.title) || ''
-      if (t.replace(/[^a-zA-Z]/g, '').length < 6) t = title
-      return { ...s, title: t, narration: S(s.narration) || s.narration, slideData: s.slideData ? { ...s.slideData, headline: S(s.slideData.headline) || t } : s.slideData }
-    })
-  }
-  const greeting = opts.recipientName
-    ? `Hello ${opts.recipientName}, thank you for your time today.`
-    : 'Thank you for your time today.'
-  const cover = {
-    _role: 'cover',
-    title,
-    narration: `${greeting} ${title}.`,
-    slideData: { headline: title },
-  }
-  const contactSentence = opts.contactLine ? ` To learn more, reach out: ${opts.contactLine}.` : ''
-  const closing = {
-    _role: 'closing',
-    title: 'Thank You',
-    narration: `Thank you for watching.${contactSentence} ${opts.brandName ? `${opts.brandName} looks forward to serving you.` : 'We appreciate your time.'}`.replace(/\s+/g, ' ').trim(),
-    slideData: { headline: 'Thank You', cta: 'Reach out to take the next step.' },
-  }
-  let out = scenes
-  if (!hasCover) out = [cover, ...out]
-  if (!hasClosing) out = [...out, closing]
-  return out
-}
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import type { VideoBrief } from '../../../_lib/types'
+import { addBookends, bookendOptsFrom, keepAutoMarks, sceneSeconds } from '../_components/story/bookends'
+import OnePoint from '../_components/story/OnePoint'
+import AskPanel, { type AskMsg } from '../_components/story/AskPanel'
+import SceneCard from '../_components/story/SceneCard'
+import LengthPicker from '../_components/story/LengthPicker'
+import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../_components/story/lengths'
+import { Note } from '../../../_components/kit'
+import BottomBar from '../_components/workspace/BottomBar'
+import { type Missing } from '../_components/workspace/MainAction'
+
+type OutputType = 'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'
+type StoryState = 'idle' | 'writing' | 'ready' | 'failed'
+
+/* A background job older than this is dead — the server gives up at 4 min. */
+const STALE_JOB_MS = 6 * 60 * 1000
 
 export default function ScriptPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const videoId = searchParams.get('id')
-
-  // Out-of-credits modal (opened when generation is blocked for low balance)
-  const [buyCredits, setBuyCredits] = useState<{ needed?: number; balance?: number } | null>(null)
-
-  // Wizard mode = videoId present
+  // Set by step 1 when comparing several files failed — shown, not hidden.
+  const combineFailed = searchParams.get('combine') === 'failed'
+  // Set when this draft was just made by "Duplicate" on a finished project.
+  const copied = searchParams.get('copied') === '1'
+  /* This screen only exists for a saved draft. The old no-draft mode read a
+     browser copy that nothing writes any more. */
   const isWizard = !!videoId
 
-  const [createState, setCreateState] = useState<any>(null)
-  const [detailLevel, setDetailLevel] = useState<'quick' | 'standard' | 'detailed'>('standard')
+  const [draftLoading, setDraftLoading] = useState(true)
+  const [draftData, setDraftData] = useState<any>(null)
+  const draftRef = useRef<any>(null)
+  const [outputType, setOutputType] = useState<OutputType>('video')
+  // The length the story on screen was written at — what step 3 prices.
+  const [detailLevel, setDetailLevel] = useState<StoryLength>('standard')
+  // The length chip shown as chosen. It differs from detailLevel only while a
+  // free rewrite is on offer; the ref lets the writer read it from callbacks.
+  const [pickedLength, setPickedLength] = useState<StoryLength>('standard')
+  const pickedRef = useRef<StoryLength>('standard')
+  const [flashLength, setFlashLength] = useState(false)
   const [narrationStyle, setNarrationStyle] = useState<'solo' | 'podcast'>('solo')
-  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'>('video')
+
+  const [brief, setBrief] = useState<VideoBrief | null>(null)
+  const [briefBuilding, setBriefBuilding] = useState(false)
+  const [briefNote, setBriefNote] = useState<string | null>(null)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answering, setAnswering] = useState(false)
+  // The point / numbers as last saved, and whether they were edited since —
+  // edited after the story was written means the scenes say the old ones.
+  const savedBriefRef = useRef<VideoBrief | null>(null)
+  const briefRef = useRef<VideoBrief | null>(null)
+  const briefChangedRef = useRef(false)
+  const [briefChanged, setBriefChanged] = useState(false)
+  // The scene open in the full editor (the cards show titles only).
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+
   const [scenes, setScenes] = useState<any[]>([])
-  const [generating, setGenerating] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [story, setStory] = useState<StoryState>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [savedScene, setSavedScene] = useState<number | null>(null)
   /* Said out loud when a save fails, because the alternative is what this
      screen used to do: show a tick and drop the work. */
   const [saveError, setSaveError] = useState<string | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [editMode, setEditMode] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
   const [previewIdx, setPreviewIdx] = useState<number | null>(null)
   const [previewImg, setPreviewImg] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [draftLoading, setDraftLoading] = useState(isWizard)
-  const [draftData, setDraftData] = useState<any>(null)
 
-  // Quick preview state
-  const [showQuickPreview, setShowQuickPreview] = useState(false)
-  const [quickPreviewData, setQuickPreviewData] = useState<{
-    scenes: any[]; slides: (string | null)[]; totalScenes: number; allScenes: any[]
-  } | null>(null)
-  const [quickPreviewLoading, setQuickPreviewLoading] = useState(false)
-  const [quickPreviewApproving, setQuickPreviewApproving] = useState(false)
+  const [chat, setChat] = useState<AskMsg[]>([])
+  const [asking, setAsking] = useState(false)
+  const undoRef = useRef<any[] | null>(null)
+  const loadedRef = useRef(false)
+  // true until the first load has decided what to do (show, resume, ask or write)
+  const [booting, setBooting] = useState(true)
+  useEffect(() => { briefRef.current = brief }, [brief])
 
-  // WHOLE-DECK AI edits. The per-scene chat (SceneEditChat) already rewrites
-  // one slide, but "add a slide about pricing" or "tighten the whole thing"
-  // spans slides, which no per-scene tool can do. This bar sends the full
-  // scene list plus one instruction and swaps in the result. One-step undo,
-  // because an instruction that lands wrong should cost one click, not the
-  // user's manual edits.
-  const [deckAiText, setDeckAiText] = useState('')
-  const [deckAiBusy, setDeckAiBusy] = useState(false)
-  const [deckAiError, setDeckAiError] = useState('')
-  const deckAiUndo = useRef<any[] | null>(null)
-  const runDeckAi = async () => {
-    if (!deckAiText.trim() || deckAiBusy || scenes.length === 0) return
-    setDeckAiBusy(true); setDeckAiError('')
-    deckAiUndo.current = JSON.parse(JSON.stringify(scenes))
-    const r = await fetch('/api/ai-edit-scenes', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ scenes, instruction: deckAiText.trim() }),
-    }).then((x) => x.json()).catch(() => ({ error: 'Network error' }))
-    setDeckAiBusy(false)
-    if (r?.scenes) { setScenes(r.scenes); autoSave(r.scenes, -1, true); setDeckAiText('') }
-    else { setDeckAiError(r?.error || 'The AI edit failed — nothing was changed.'); deckAiUndo.current = null }
+  /** A point/numbers the server gave us (or that were saved): the new "as saved". */
+  function takeBrief(b: VideoBrief) {
+    savedBriefRef.current = b
+    briefRef.current = b
+    briefChangedRef.current = false
+    setBriefChanged(false)
+    setBrief(b)
+  }
+
+  /** The person changed the point, a number or the summary. */
+  function editBrief(patch: Partial<VideoBrief>) {
+    setBrief((b) => {
+      const next = b ? { ...b, ...patch } : b
+      briefRef.current = next
+      return next
+    })
+    briefChangedRef.current = true
+    setBriefChanged(true)
+  }
+
+  function undoBriefEdits() {
+    if (savedBriefRef.current) setBrief(savedBriefRef.current)
+    briefRef.current = savedBriefRef.current
+    briefChangedRef.current = false
+    setBriefChanged(false)
+  }
+
+  /** Save the edited point / numbers to the draft (the story writer reads them there). */
+  async function saveBrief(): Promise<boolean> {
+    const b = briefRef.current
+    if (!videoId || !b) return true
+    const clean: VideoBrief = {
+      ...b,
+      angle: (b.angle ?? '').trim() || savedBriefRef.current?.angle || b.angle,
+      figures: (b.figures ?? []).map((f) => ({ label: (f.label ?? '').trim(), value: (f.value ?? '').trim() })).filter((f) => f.value),
+    }
+    try {
+      const res = await fetch('/api/videos/draft', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId, updates: { brief: clean } }),
+      })
+      if (!res.ok) throw new Error(`brief save failed (${res.status})`)
+    } catch (err) {
+      console.error('[story] brief save failed:', err)
+      setError('We couldn’t save your changes to the point and numbers. Please try again.')
+      return false
+    }
+    takeBrief(clean)
+    return true
   }
 
   /**
    * AUTO-SAVE — and the tick only appears when something was actually saved.
    *
-   * THE BUG THIS FIXES. The write was wrapped in `if (!isWizard)`, and
-   * setSavedScene sat OUTSIDE that block. So in the wizard — the paid flow —
-   * nothing was written and the green tick appeared anyway, after every
-   * single edit. A customer could rewrite the narration on twelve scenes,
-   * see a tick confirm each one, refresh, and lose all of it. The interface
-   * was actively telling them their work was safe while discarding it.
-   *
-   * The wizard keeps its scenes in the draft row, not localStorage, and the
-   * mechanism already existed — the generator PATCHes `scenes` the same way
-   * a few hundred lines below. Editing simply never used it.
-   *
-   * The tick now waits for the save to come back, and a failure says so
-   * rather than lying in the other direction.
+   * The write used to sit behind a guard that skipped the paid flow while the
+   * tick appeared anyway, after every edit. A customer could rewrite twelve
+   * scenes, see a tick on each, refresh, and lose all of it. The tick now
+   * waits for the save to come back, and a failure says so.
    */
   const autoSave = useCallback((updatedScenes: any[], sceneIdx: number, instant?: boolean) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     const doSave = async () => {
-      if (isWizard) {
-        /* The draft row is the wizard's storage. Await it, because claiming
-           "saved" before the round trip is the bug this replaces. */
-        try {
-          const res = await fetch('/api/videos/draft', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoId, updates: { scenes: updatedScenes } }),
-          })
-          if (!res.ok) throw new Error(`draft save failed (${res.status})`)
-          setSaveError(null)
-        } catch (err) {
-          console.error('[script] autosave failed:', err)
-          /* Say so. The customer is mid-edit and can still copy their work
-             out; a silent failure is how the twelve scenes were lost. */
-          setSaveError('Your changes aren’t saving right now. Keep this tab open — don’t reload.')
-          return
-        }
-      } else {
-        try {
-          const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-          state.scenes = updatedScenes
-          localStorage.setItem('d2v_create', JSON.stringify(state))
-          setSaveError(null)
-        } catch (err) {
-          /* Private mode, or the quota is full. Both are real and both used
-             to pass silently. */
-          console.error('[script] localStorage save failed:', err)
-          setSaveError('Your changes aren’t saving in this browser. Keep this tab open — don’t reload.')
-          return
-        }
+      if (!isWizard) return
+      /* The draft row is where the story lives. Await it, because claiming
+         "saved" before the round trip is the bug this replaces. */
+      try {
+        const res = await fetch('/api/videos/draft', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, updates: { scenes: updatedScenes } }),
+        })
+        if (!res.ok) throw new Error(`draft save failed (${res.status})`)
+        setSaveError(null)
+      } catch (err) {
+        console.error('[story] autosave failed:', err)
+        setSaveError('Your changes aren’t saving right now. Keep this tab open — don’t reload.')
+        return
       }
       setSavedScene(sceneIdx)
       setTimeout(() => setSavedScene(null), 1500)
@@ -185,186 +190,29 @@ export default function ScriptPage() {
   }, [isWizard, videoId])
 
   /*
-   * SAFETY NET ON THE WAY OUT — for both flows, not just one.
-   *
-   * This was also guarded by `!isWizard`, so the paid flow had no net at
-   * all: the 800ms debounce could still be pending when the tab closed and
-   * that edit was simply gone.
-   *
-   * The wizard uses sendBeacon rather than fetch. A browser tearing the page
-   * down kills in-flight fetches; a beacon is queued by the browser and sent
-   * regardless, which is the entire reason it exists. It is fire-and-forget,
-   * so this is a net under the real save above, never a replacement for it.
+   * SAFETY NET ON THE WAY OUT. The 800ms debounce can still be pending when
+   * the tab closes. A beacon is queued by the browser and sent even as the
+   * page dies, which a normal fetch is not. Fire-and-forget — a net under the
+   * real save above, never a replacement for it.
    */
   useEffect(() => {
     const handleUnload = () => {
-      if (scenes.length === 0) return
-      if (isWizard) {
-        try {
-          navigator.sendBeacon?.(
-            '/api/videos/draft/beacon',
-            new Blob([JSON.stringify({ videoId, updates: { scenes } })], { type: 'application/json' }),
-          )
-        } catch { /* nothing more we can do as the page dies */ }
-      } else {
-        try {
-          const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-          state.scenes = scenes
-          localStorage.setItem('d2v_create', JSON.stringify(state))
-        } catch { /* private mode, or the quota is full */ }
-      }
+      if (scenes.length === 0 || !isWizard) return
+      try {
+        navigator.sendBeacon?.(
+          '/api/videos/draft/beacon',
+          new Blob([JSON.stringify({ videoId, updates: { scenes } })], { type: 'application/json' }),
+        )
+      } catch { /* nothing more we can do as the page dies */ }
     }
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)
   })
 
-  // Wizard flow: load draft from API
-  useEffect(() => {
-    if (!isWizard) return
-    async function loadDraft() {
-      try {
-        const res = await fetch(`/api/videos/draft?videoId=${videoId}`)
-        if (!res.ok) throw new Error('Failed to load draft')
-        const video = await res.json()
-        const draft = video.draft_data
-        if (!draft) throw new Error('No draft data')
-
-        setDraftData(draft)
-        const ot = draft.outputType || video.output_type || 'video'
-        setOutputType(ot)
-        if (draft.detailLevel) setDetailLevel(draft.detailLevel)
-        if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
-
-        // If draft already has scenes, restore them (with editable cover/closing)
-        if (draft.scenes && draft.scenes.length > 0) {
-          const contactLine = [draft.contactPhone, draft.contactEmail, draft.contactWebsite].filter(Boolean).join(' | ')
-          setScenes(addBookends(draft.scenes, {
-            title: draft.title || video.title,
-            brandName: draft.inlineBrand?.name || undefined,
-            recipientName: draft.recipientName || undefined,
-            contactLine: contactLine || undefined,
-          }))
-        }
-        // Build a createState-like object from draft data for script generation
-        setCreateState({
-          extractedData: draft.extractedData || draft.inlineBrand || {},
-          intentType: draft.intentType || draft.purpose,
-          purpose: draft.purpose,
-          contactPhone: draft.contactPhone,
-          contactEmail: draft.contactEmail,
-          contactWebsite: draft.contactWebsite,
-          selectedBrand: draft.brandId,
-          autoBrandId: draft.autoBrandId,
-          customStylePrompt: draft.customStylePrompt || undefined,
-          detailLevel: draft.detailLevel,
-          narrationStyle: draft.narrationStyle,
-          voiceId: draft.voiceId || 'nova',
-          aiMusic: draft.aiMusic ?? false,
-          styleId: draft.styleId || undefined,
-          recipientName: draft.recipientName || undefined,
-          // Personalization (presenter) — set on the profile/brand step.
-          presenterIntro: draft.presenterIntro || undefined,
-          introduceInOpening: draft.introduceInOpening,
-          showContactClosing: draft.showContactClosing,
-          photoPlacement: draft.photoPlacement || undefined,
-        })
-      } catch (err) {
-        console.error('[script] load draft error:', err)
-        setError('Could not load your draft. Please go back and try again.')
-      } finally {
-        setDraftLoading(false)
-      }
-    }
-    loadDraft()
-  }, [isWizard, videoId])
-
-  // Legacy flow: load from localStorage
-  useEffect(() => {
-    if (isWizard) return
-    const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-    if (!state.extractedData && !state.scenes) {
-      // No data — redirect back
-      router.push('/create')
-      return
-    }
-    setCreateState(state)
-    if (state.detailLevel) setDetailLevel(state.detailLevel)
-    if (state.narrationStyle) setNarrationStyle(state.narrationStyle)
-    if (state.scenes) setScenes(addBookends(state.scenes, {
-      title: state.title,
-      brandName: state.brandName || state.inlineBrand?.name,
-      recipientName: state.recipientName,
-      contactLine: [state.contactPhone, state.contactEmail, state.contactWebsite].filter(Boolean).join(' | ') || undefined,
-    }))
-  }, [router, isWizard])
-
-  async function handleGenerate() {
-    setGenerating(true)
-    setError(null)
-    try {
-      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      const res = await fetch('/api/generate-script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          policyData: {
-            ...state.extractedData,
-            intentType: state.intentType,
-            contactPhone: state.contactPhone,
-            contactEmail: state.contactEmail,
-            contactWebsite: state.contactWebsite,
-          },
-          brandId: state.selectedBrand || state.autoBrandId,
-          detailed: detailLevel === 'detailed',
-          detailLevel,
-          narrationStyle,
-          purpose: state.purpose,
-          contactInfo: {
-            phone: state.contactPhone || undefined,
-            email: state.contactEmail || undefined,
-            website: state.contactWebsite || undefined,
-          },
-          industry: state.extractedData?.industry || 'general',
-          classification: state.extractedData?.classification || state.classification || null,
-          outputType,
-        }),
-      })
-      const text = await res.text()
-      let data: any
-      try { data = JSON.parse(text) } catch { throw new Error('Server error — please try again') }
-      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : data.error?.message || 'Script generation failed')
-
-      // ── Wizard path: server runs generation in the BACKGROUND (202) and writes
-      // scenes to the draft. Poll the draft until ready/failed so the browser
-      // never hits the ~60s synchronous-response timeout. ──
-      const bookendOpts = {
-        title: state.title || (createState?.extractedData as any)?.title,
-        brandName: state.brandName || draftData?.inlineBrand?.name,
-        recipientName: state.recipientName || createState?.recipientName,
-        contactLine: [state.contactPhone, state.contactEmail, state.contactWebsite].filter(Boolean).join(' | ') || undefined,
-      }
-      if (data.status === 'generating' && videoId) {
-        const scenes = await pollForScenes(videoId)
-        setScenes(addBookends(scenes, bookendOpts))
-        // scenes are already persisted to the draft by the background job.
-      } else {
-        // Legacy synchronous path (non-wizard): scenes returned inline.
-        if (!data.scenes || !Array.isArray(data.scenes)) throw new Error('No script was generated — please try again')
-        setScenes(addBookends(data.scenes, bookendOpts))
-        state.scenes = data.scenes
-        state.detailLevel = detailLevel
-        state.narrationStyle = narrationStyle
-        localStorage.setItem('d2v_create', JSON.stringify(state))
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to generate script')
-    }
-    setGenerating(false)
-  }
-
-  // Poll the draft for the background script job. Resolves with scenes when
-  // ready, throws on failure or timeout (~8 min ceiling).
-  async function pollForScenes(vid: string): Promise<any[]> {
+  // Poll the draft for the background script job. Resolves with the scenes
+  // (and the length they were written at) when ready, throws on failure or
+  // timeout.
+  async function pollForScenes(vid: string): Promise<{ scenes: any[]; detailLevel: unknown }> {
     const start = Date.now()
     const TIMEOUT_MS = 8 * 60 * 1000
     while (Date.now() - start < TIMEOUT_MS) {
@@ -374,14 +222,352 @@ export default function ScriptPage() {
         if (!res.ok) continue
         const video = await res.json()
         const d = video?.draft_data || {}
-        if (d.scriptStatus === 'ready' && Array.isArray(d.scenes) && d.scenes.length > 0) return d.scenes
-        if (d.scriptStatus === 'failed') throw new Error(d.scriptError || 'Script generation failed')
+        if (d.scriptStatus === 'ready' && Array.isArray(d.scenes) && d.scenes.length > 0) return { scenes: d.scenes, detailLevel: d.detailLevel }
+        if (d.scriptStatus === 'failed') throw new Error(d.scriptError || 'We couldn’t write your story just now. Please try again.')
       } catch (e) {
         if (e instanceof Error && e.message !== 'Failed to fetch') throw e
-        // transient network error — keep polling
+        // a blip in the connection — keep checking
       }
     }
-    throw new Error('Script is taking longer than expected. Check your Library in a few minutes.')
+    throw new Error('Your story is taking longer than usual. Come back to this project in a few minutes.')
+  }
+
+  /** The story on screen is now written at `len` — the length step 3 prices. */
+  function settleLength(len: StoryLength) {
+    draftRef.current = { ...(draftRef.current || {}), detailLevel: len }
+    setDetailLevel(len)
+    setPickedLength(len)
+    pickedRef.current = len
+  }
+
+  /** Wait for the background job. True when a story arrived. */
+  async function waitForStory(requested?: StoryLength): Promise<boolean> {
+    if (!videoId) return false
+    setStory('writing'); setError(null)
+    try {
+      const written = await pollForScenes(videoId)
+      // The writer saves the length it wrote at next to the scenes — trust
+      // that (it is right even when we only picked a running job back up).
+      settleLength(lengthOf(written.detailLevel ?? requested))
+      setScenes(addBookends(written.scenes, bookendOptsFrom(draftRef.current)))
+      setStory('ready')
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'We couldn’t write your story just now. Please try again.')
+      setStory('failed')
+      return false
+    }
+  }
+
+  /** Ask the server to write the story at a length (the chip shown as chosen
+   *  unless told otherwise). It uses the brief saved on the draft. True when
+   *  a story arrived. */
+  async function writeStory(len: StoryLength = pickedRef.current): Promise<boolean> {
+    const draft = draftRef.current
+    if (!videoId || !draft) return false
+    // Edited point / numbers go to the draft first: the writer reads them there.
+    if (briefChangedRef.current && !(await saveBrief())) return false
+    setStory('writing'); setError(null)
+    const extracted = draft.extractedData || draft.inlineBrand || {}
+    const dl = len
+    try {
+      const res = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          // The draft id makes the server (a) use the brief on the draft,
+          // (b) write in the background and save the scenes to the draft, and
+          // (c) never hit the ~60s response limit — we poll the draft instead.
+          videoId,
+          policyData: {
+            ...extracted,
+            intentType: draft.intentType || draft.purpose,
+            contactPhone: draft.contactPhone,
+            contactEmail: draft.contactEmail,
+            contactWebsite: draft.contactWebsite,
+          },
+          brandId: draft.brandId || draft.autoBrandId || null,
+          detailed: dl === 'detailed',
+          detailLevel: dl,
+          narrationStyle: draft.narrationStyle || 'solo',
+          purpose: draft.purpose,
+          contactInfo: {
+            phone: draft.contactPhone || undefined,
+            email: draft.contactEmail || undefined,
+            website: draft.contactWebsite || undefined,
+          },
+          industry: extracted.industry || 'general',
+          classification: extracted.classification || draft.classification || null,
+          outputType: draft.outputType || outputType,
+        }),
+      })
+      const text = await res.text()
+      let data: any
+      try { data = JSON.parse(text) } catch { throw new Error('Something went wrong on our side — please try again.') }
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'We couldn’t write your story just now. Please try again.')
+      if (data.status !== 'generating') throw new Error('We couldn’t write your story just now. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'We couldn’t write your story just now. Please try again.')
+      setStory('failed')
+      return false
+    }
+    return waitForStory(len)
+  }
+
+  /** Build the brief (the one point). Returns null if it couldn't. */
+  async function buildBrief(): Promise<VideoBrief | null> {
+    setBriefBuilding(true)
+    try {
+      const r = await fetch('/api/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId }) })
+      const d = await r.json().catch(() => ({}))
+      if (d?.brief) { takeBrief(d.brief); return d.brief }
+      setBriefNote('We couldn’t sum up the main point this time. The story below still uses everything you gave us.')
+      return null
+    } catch {
+      setBriefNote('We couldn’t sum up the main point this time. The story below still uses everything you gave us.')
+      return null
+    } finally { setBriefBuilding(false) }
+  }
+
+  // Load the draft, then: show the saved story, pick up a story still being
+  // written, or build the brief and write the story now.
+  useEffect(() => {
+    if (!videoId) { router.replace('/create'); return }
+    if (loadedRef.current) return
+    loadedRef.current = true
+    ;(async () => {
+      let draft: any
+      try {
+        const res = await fetch(`/api/videos/draft?videoId=${videoId}`)
+        if (!res.ok) throw new Error('Failed to load draft')
+        const video = await res.json()
+        if (!video?.draft_data) throw new Error('No draft data')
+        draft = { ...video.draft_data, title: video.draft_data.title || video.title }
+      } catch (err) {
+        console.error('[story] load draft error:', err)
+        setError('We couldn’t open this project. Go back and try again.')
+        setDraftLoading(false)
+        return
+      }
+      draftRef.current = draft
+      setDraftData(draft)
+      setOutputType(draft.outputType || 'video')
+      settleLength(lengthOf(draft.detailLevel))
+      if (draft.narrationStyle) setNarrationStyle(draft.narrationStyle)
+
+      const hasScenes = Array.isArray(draft.scenes) && draft.scenes.length > 0
+      if (hasScenes) {
+        setScenes(addBookends(draft.scenes, bookendOptsFrom(draft)))
+        setStory('ready')
+      }
+      if (draft.brief && !draft.briefSkipped) takeBrief(draft.brief)
+      setDraftLoading(false)
+
+      // A story written before this screen (or with "Skip") keeps its brief
+      // state as is — building a new brief now would not match the scenes.
+      if (hasScenes) return
+
+      const startedMs = typeof draft.scriptStartedAt === 'string' ? new Date(draft.scriptStartedAt).getTime() : 0
+      if (draft.scriptStatus === 'generating' && startedMs && Date.now() - startedMs < STALE_JOB_MS) {
+        // Reloaded mid-write: pick the running job back up.
+        if (!draft.brief && !draft.briefSkipped) void buildBrief()
+        await waitForStory()
+        return
+      }
+      if (draft.scriptStatus === 'failed') {
+        setError(draft.scriptError || 'We couldn’t write your story last time. Please try again.')
+        setStory('failed')
+        return
+      }
+
+      let b: VideoBrief | null = draft.briefSkipped ? null : (draft.brief || null)
+      if (!b && !draft.briefSkipped) b = await buildBrief()
+      // If the AI is unsure about something that changes the story, ask
+      // first. Otherwise write the story straight away.
+      if (b?.clarifyingQuestions?.length) return
+      await writeStory()
+    })().finally(() => setBooting(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId])
+
+  async function submitAnswers() {
+    if (!videoId || answering) return
+    const filled = Object.fromEntries(Object.entries(answers).filter(([, v]) => v && v.trim()))
+    if (Object.keys(filled).length === 0) return
+    setAnswering(true); setError(null)
+    try {
+      const res = await fetch('/api/brief', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId, answers: filled }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || 'We couldn’t use those answers. Please try again.')
+      if (d.brief) { takeBrief(d.brief); setAnswers({}) }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'We couldn’t use those answers. Please try again.')
+      setAnswering(false)
+      return
+    }
+    setAnswering(false)
+    await writeStory()
+  }
+
+  function skipQuestions() {
+    // Questions are optional — clear them on screen and write with what we have.
+    if (brief) setBrief({ ...brief, clarifyingQuestions: [] })
+    void writeStory()
+  }
+
+  function startOver() {
+    if (story === 'writing') return
+    if (scenes.length > 0 && !window.confirm('Write the story again from the start? Your changes to the scenes will be replaced.')) return
+    // A save still waiting to go out would land on top of the new story.
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    undoRef.current = null
+    setScenes([])
+    void writeStory()
+  }
+
+  /*
+   * THE LENGTH. With no story yet, a pick is just saved — the story will be
+   * written at it. With a story, the saved length never changes on its own:
+   * the pick shows a free "Rewrite at this length" offer, and the length only
+   * moves once the rewritten story arrives.
+   */
+  function pickLength(len: StoryLength) {
+    const change = lengthChange({ current: detailLevel, picked: len, hasStory: scenes.length > 0, writing: story === 'writing' })
+    if (story === 'writing') return
+    setPickedLength(len)
+    pickedRef.current = len
+    if (change !== 'save') return
+    settleLength(len)
+    void (async () => {
+      try {
+        const res = await fetch('/api/videos/draft', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, updates: { detailLevel: len } }),
+        })
+        if (!res.ok) throw new Error(`length save failed (${res.status})`)
+      } catch (err) {
+        console.error('[story] length save failed:', err)
+        setError('We couldn’t save that length just now. Please pick it again.')
+      }
+    })()
+  }
+
+  function keepLength() {
+    setPickedLength(detailLevel)
+    pickedRef.current = detailLevel
+  }
+
+  async function rewriteAtLength() {
+    if (story === 'writing' || scenes.length === 0) return
+    const before = scenes
+    const target = pickedRef.current
+    // Any save still waiting would land on top of the new story.
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    undoRef.current = null
+    setScenes([])
+    const ok = await writeStory(target)
+    if (!ok) {
+      // Nothing is lost: put the story back exactly as it was (and save it,
+      // in case the last edit was still waiting to go out).
+      setScenes(before)
+      setStory('ready')
+      autoSave(before, -1, true)
+      setError(`We couldn’t rewrite the story as ${lengthName(target)} just now. Your story is unchanged — try again in a moment.`)
+    }
+  }
+
+  /*
+   * "Change it by asking". Before the story exists, the request reshapes the
+   * brief (what the story will say). Once it exists, it rewrites the whole
+   * story at once — one-step undo, because an instruction that lands wrong
+   * should cost one click, not the user's own edits.
+   */
+  async function ask(instruction: string) {
+    if (asking) return
+    setChat(c => [...c, { role: 'user', text: instruction }])
+    setAsking(true); setError(null)
+    try {
+      if (scenes.length > 0) {
+        const before = scenes
+        const r = await fetch('/api/ai-edit-scenes', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ scenes: before, instruction }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok || !Array.isArray(d?.scenes)) throw new Error('That change didn’t work — nothing was changed.')
+        const next = addBookends(keepAutoMarks(before, d.scenes), bookendOptsFrom(draftRef.current))
+        undoRef.current = before
+        setScenes(next)
+        autoSave(next, -1, true)
+        setChat(c => [...c, { role: 'assistant', text: 'Done — I rewrote the story. Check the scenes, or undo if you liked it better before.' }])
+      } else if (brief && videoId) {
+        const r = await fetch('/api/brief/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, message: instruction }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error('That change didn’t work — nothing was changed.')
+        if (d.brief) takeBrief(d.brief)
+        setChat(c => [...c, { role: 'assistant', text: d.reply || 'Updated what the story will cover.' }])
+      }
+    } catch (e) {
+      setChat(c => [...c, { role: 'assistant', text: e instanceof Error ? e.message : 'That change didn’t work — nothing was changed.' }])
+    } finally { setAsking(false) }
+  }
+
+  /** "Rewrite the story with it": the edited point / numbers, a new story. */
+  async function rewriteWithBrief() {
+    if (story === 'writing' || scenes.length === 0) return
+    const before = scenes
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    undoRef.current = null
+    setEditIdx(null)
+    setScenes([])
+    const ok = await writeStory()
+    if (!ok) {
+      setScenes(before)
+      setStory('ready')
+      autoSave(before, -1, true)
+    }
+  }
+
+  function undoAsk() {
+    if (!undoRef.current) return
+    const prev = undoRef.current
+    undoRef.current = null
+    setScenes(prev)
+    autoSave(prev, -1, true)
+    setChat(c => [...c, { role: 'assistant', text: 'Put it back the way it was.' }])
+  }
+
+  function updateScene(i: number, updatedScene: any, instant?: boolean) {
+    const updated = [...scenes]
+    updated[i] = updatedScene
+    setScenes(updated)
+    autoSave(updated, i, instant)
+  }
+
+  function dropOn(i: number) {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); return }
+    const role = scenes[i]?._role
+    if (role === 'cover' || role === 'closing') { setDragIdx(null); return }
+    // Never move a content scene before the opening or after the closing.
+    const firstContent = scenes.findIndex(s => s._role !== 'cover')
+    const lastContent = scenes.length - 1 - [...scenes].reverse().findIndex(s => s._role !== 'closing')
+    const target = Math.min(Math.max(i, firstContent), lastContent)
+    const updated = [...scenes]
+    const [moved] = updated.splice(dragIdx, 1)
+    updated.splice(target, 0, moved)
+    updated.forEach((s, idx) => { s.scene = idx + 1 })
+    setScenes(updated)
+    autoSave(updated, target, true)
+    setDragIdx(null)
+    setOpenIdx(null)
+    setEditIdx(null)
   }
 
   async function handlePreviewSlide(idx: number) {
@@ -390,788 +576,312 @@ export default function ScriptPage() {
     setPreviewLoading(true)
     try {
       const scene = scenes[idx]
-      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      const brandColors = state.extractedData?.primaryColor ? { primary: state.extractedData.primaryColor, secondary: state.extractedData.secondaryColor || '#4A90D9' } : { primary: '#1B365D', secondary: '#4A90D9' }
-
+      const d = draftRef.current || {}
+      const ex = d.extractedData || d.inlineBrand || {}
+      const colors = ex.primaryColor ? { primary: ex.primaryColor, secondary: ex.secondaryColor || '#4A90D9' } : { primary: '#1B365D', secondary: '#4A90D9' }
       const res = await fetch('/api/style-previews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: `${state.customStylePrompt || 'Modern professional style'}\nColors: primary ${brandColors.primary}, accent ${brandColors.secondary}.\nGlossy polished finish.`,
+          prompt: `${d.customStylePrompt || 'Modern professional style'}\nColors: primary ${colors.primary}, accent ${colors.secondary}.\nGlossy polished finish.`,
           name: scene.title,
         }),
       })
       const data = await res.json()
       if (data.previewUrl) setPreviewImg(data.previewUrl)
-    } catch { /* skip */ }
+    } catch { /* shown as "try again" below */ }
     setPreviewLoading(false)
   }
 
-  // Legacy flow: continue to options
-  function handleContinue() {
-    if (isWizard) {
-      handleWizardGenerate()
-      return
-    }
-    const state = JSON.parse(localStorage.getItem('d2v_create') || '{}')
-    state.scenes = scenes
-    state.detailLevel = detailLevel
-    state.narrationStyle = narrationStyle
-    localStorage.setItem('d2v_create', JSON.stringify(state))
-    router.push('/create/generating')
-  }
+  // Arriving from step 3's "Change the length" (#length): bring the length
+  // choice into view and light it up briefly, so the link lands somewhere.
+  useEffect(() => {
+    if (draftLoading || window.location.hash !== `#${LENGTH_ANCHOR}`) return
+    const el = document.getElementById(LENGTH_ANCHOR)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setFlashLength(true)
+    const t = setTimeout(() => setFlashLength(false), 2400)
+    return () => clearTimeout(t)
+  }, [draftLoading])
 
-  // Wizard flow: save script to draft, then trigger generation and redirect
-  async function handleWizardGenerate() {
-    if (!videoId) return
+  // A different length is picked but the story hasn't been rewritten yet.
+  // Step 3 would price the old length, so decide first.
+  const lengthPending = scenes.length > 0 && pickedLength !== detailLevel
+
+  // "Looks right" — save the story, mark the brief as approved, go to step 3.
+  async function goToLook() {
+    if (!videoId || scenes.length === 0 || lengthPending) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
     setSubmitting(true)
     setError(null)
     try {
-      // Save the script to the draft, then go to the THEME step (where the user
-      // picks a style + sees a preview, and generation is finally triggered).
-      const wizardStep = (outputType === 'video' || outputType === 'interactive') ? 5 : 4
+      const step = (outputType === 'video' || outputType === 'interactive') ? 5 : 4
+      const updates: Record<string, unknown> = { scenes, detailLevel, narrationStyle, step }
+      if (brief) { updates.brief = { ...brief, approved: true }; updates.briefSkipped = false }
       const patchRes = await fetch('/api/videos/draft', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoId,
-          updates: { scenes, detailLevel, narrationStyle, step: wizardStep },
-        }),
+        body: JSON.stringify({ videoId, updates }),
       })
-      if (!patchRes.ok) throw new Error('Failed to save script')
-
+      if (!patchRes.ok) throw new Error('We couldn’t save your story. Please try again.')
       router.push(`/create/theme?id=${videoId}`)
     } catch (err) {
-      console.error('[script] generate error:', err)
-      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to generate. Please try again.')
+      setError(err instanceof Error ? err.message : 'We couldn’t save your story. Please try again.')
       setSubmitting(false)
     }
   }
 
-  // Quick Preview: generate a fast 3-slide preview
-  async function handleQuickPreview() {
-    setQuickPreviewLoading(true)
-    setError(null)
-    try {
-      const state = isWizard ? createState : JSON.parse(localStorage.getItem('d2v_create') || '{}')
-      const res = await fetch('/api/quick-preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          policyData: {
-            ...state.extractedData,
-            intentType: state.intentType,
-          },
-          brandId: state.selectedBrand || state.autoBrandId || undefined,
-          styleId: (state as any)?.styleId || undefined,
-          customStylePrompt: (state as any)?.customStylePrompt || undefined,
-          purpose: state.purpose,
-          industry: state.extractedData?.industry || 'general',
-          detailLevel,
-          narrationStyle,
-          voiceId: (state as any)?.voiceId || 'nova',
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Preview generation failed')
-
-      setQuickPreviewData(data)
-      setShowQuickPreview(true)
-
-      // Also populate scenes with the full script from the preview
-      if (data.allScenes && data.allScenes.length > 0) {
-        setScenes(data.allScenes)
-        if (isWizard) {
-          await fetch('/api/videos/draft', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              videoId,
-              updates: { scenes: data.allScenes, detailLevel, narrationStyle },
-            }),
-          })
-        } else {
-          state.scenes = data.allScenes
-          state.detailLevel = detailLevel
-          state.narrationStyle = narrationStyle
-          localStorage.setItem('d2v_create', JSON.stringify(state))
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : 'Preview generation failed')
-    } finally {
-      setQuickPreviewLoading(false)
-    }
-  }
-
-  // Approve quick preview: go straight to generation
-  async function handleApprovePreview() {
-    setQuickPreviewApproving(true)
-    setShowQuickPreview(false)
-    // Scenes are already loaded from preview — use the normal continue flow
-    handleContinue()
-  }
-
-  // Determine wizard step number for progress bar
-  const wizardStep = (outputType === 'video' || outputType === 'interactive') ? 4 : 3
-  const backPath = isWizard
-    ? (outputType === 'video' ? `/create/voice?id=${videoId}` : `/create/brand?id=${videoId}`)
-    : '/create'
-
-  // Loading state for wizard
   if (draftLoading) {
     return (
-      <div style={pageStyles.page}>
-        <div style={pageStyles.container}>
-          <div style={pageStyles.loadingText}>Loading...</div>
-        </div>
+      <div className="cf-page">
+        <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--ink-light)', fontSize: 'var(--fs-body)' }}>Loading&hellip;</div>
       </div>
     )
   }
 
+  // Why "Pick a look" can't be pressed yet — said under it, never a silent grey button.
+  const questionsWaiting = scenes.length === 0 && story !== 'writing' && !!brief?.clarifyingQuestions?.length
+  const missing: Missing | null =
+    story === 'writing' ? { reason: 'Your story is still being written — usually about a minute.' }
+      : questionsWaiting ? { reason: 'Answer the quick questions first, or skip them.', target: 's2-point' }
+        : asking ? { reason: 'Wait for your change to finish.' }
+          : lengthPending ? { reason: `First rewrite the story as ${lengthName(pickedLength)}, or keep it ${lengthName(detailLevel)}.`, target: LENGTH_ANCHOR }
+            : briefChanged && scenes.length > 0 ? { reason: 'First rewrite the story with your changes, or undo them.', target: 's2-point' }
+              : scenes.length === 0 ? { reason: story === 'failed' ? 'The story wasn’t written — press Try again.' : 'The story isn’t written yet.', target: story === 'failed' ? 's2-error' : undefined }
+                : null
+
+  const totalSeconds = scenes.reduce((sum: number, s: any) => sum + sceneSeconds(s), 0)
+  const spoken = outputType === 'video' || outputType === 'pptx'
+  const minutes = Math.max(1, Math.round(totalSeconds / 60))
+  const askNote = story === 'writing'
+    ? 'You can ask for changes once the story is written.'
+    : scenes.length === 0 && !brief
+      ? 'You can ask for changes once the story is written.'
+      : null
+
   return (
-    <div style={{
-      flex: 1, padding: '40px 24px', maxWidth: scenes.length > 0 ? 1100 : 800, margin: '0 auto', width: '100%', transition: 'max-width 0.3s',
-    }}>
+    <div className="cf-page story-page">
+      <h1 className="cf-h1">
+        Here&rsquo;s the <em>story.</em>
+      </h1>
 
-      <div style={{ animation: 'fadeInUp 0.4s ease' }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>
-          {scenes.length > 0 ? 'Your script' : 'Configure your video'}
-        </h1>
-        <p style={{ fontSize: 17, color: 'var(--ink-soft)', marginBottom: 40, lineHeight: 1.6 }}>
-          {scenes.length > 0
-            ? outputType === 'video'
-              ? 'Edit the narration for each scene. This is what the voice will say.'
-              : 'Edit the content for each slide. Headlines and bullets will appear on your slides.'
-            : 'Choose the length and style, then generate your script.'}
-        </p>
+      {combineFailed ? (
+        <Note tone="warn">
+          We couldn&rsquo;t compare your files automatically this time. The story still uses all of them — ask for what to compare or focus on, below the scenes.
+        </Note>
+      ) : null}
 
-        {scenes.length === 0 && (
-          <>
-            {/* Back button */}
-            <button onClick={() => router.push(backPath)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', marginBottom: 24, fontFamily: 'inherit' }}>
-              &larr; Back
-            </button>
+      {copied ? (
+        <Note tone="ok">
+          This is a copy of your earlier project — the story, look, voice and brand came with it. Change anything you like. Nothing is made or charged until you press Make it on the next step.
+        </Note>
+      ) : null}
 
-            {/* Detail level + narration style — only show in legacy (non-wizard) mode */}
-            {!isWizard && (
-              <>
-                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                  {outputType === 'video' ? 'Video length' : 'Document length'}
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
-                  {[
-                    { id: 'quick' as const, title: 'Highlights', desc: outputType === 'video' ? 'Under 60 seconds' : '3-5 slides' },
-                    { id: 'standard' as const, title: 'Standard', desc: outputType === 'video' ? '2-5 minutes' : '8-15 slides' },
-                    { id: 'detailed' as const, title: 'Detailed', desc: outputType === 'video' ? '5-15 minutes' : '15-30 slides' },
-                  ].map(level => (
-                    <button key={level.id} onClick={() => setDetailLevel(level.id)} style={{
-                      padding: '20px', borderRadius: 10,
-                      border: detailLevel === level.id ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                      background: detailLevel === level.id ? 'rgba(168,240,212,0.06)' : 'white',
-                      cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                    }}>
-                      <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{level.title}</div>
-                      <div style={{ fontSize: 14, color: 'var(--ink-light)' }}>{level.desc}</div>
-                    </button>
-                  ))}
-                </div>
-                {outputType === 'video' && (
-                  <>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Narration style</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 32 }}>
-                      <button onClick={() => setNarrationStyle('solo')} style={{
-                        padding: '20px', borderRadius: 10,
-                        border: narrationStyle === 'solo' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                        background: narrationStyle === 'solo' ? 'rgba(168,240,212,0.06)' : 'white',
-                        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                      }}>
-                        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Solo Narrator</div>
-                        <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>One professional voice.</div>
-                      </button>
-                      <button onClick={() => setNarrationStyle('podcast')} style={{
-                        padding: '20px', borderRadius: 10,
-                        border: narrationStyle === 'podcast' ? '2px solid var(--mint)' : '2px solid var(--border-light)',
-                        background: narrationStyle === 'podcast' ? 'rgba(168,240,212,0.06)' : 'white',
-                        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                      }}>
-                        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>Two Narrators</div>
-                        <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Professional discussion format.</div>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
+      <div id="s2-point" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <OnePoint
+          brief={brief}
+          building={briefBuilding}
+          onEdit={editBrief}
+          changed={briefChanged}
+          writing={story === 'writing'}
+          hasStory={scenes.length > 0}
+          onRewrite={() => void rewriteWithBrief()}
+          onUndo={undoBriefEdits}
+          showQuestions={scenes.length === 0 && story !== 'writing'}
+          answers={answers}
+          setAnswers={setAnswers}
+          answering={answering}
+          onAnswer={submitAnswers}
+          onSkipQuestions={skipQuestions}
+        />
+      </div>
+      {briefNote && !brief && (
+        <p className="cf-hint">{briefNote}</p>
+      )}
 
-            {error && (
-              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginBottom: 20 }}>
-                {typeof error === 'string' ? error : 'Something went wrong. Please try again.'}
-              </div>
-            )}
-
-            {generating ? (
-              <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                <style>{`
-                  @keyframes scriptPulse {
-                    0%, 100% { transform: scale(1); opacity: 0.7; }
-                    50% { transform: scale(1.05); opacity: 1; }
-                  }
-                  @keyframes dotBounce {
-                    0%, 80%, 100% { transform: translateY(0); }
-                    40% { transform: translateY(-8px); }
-                  }
-                `}</style>
-                <div style={{ animation: 'scriptPulse 2s ease infinite', marginBottom: 20 }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>&#9998;&#65039;</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Writing your script</div>
-                  <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>AI is analyzing your content and crafting the narration</div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-                  {[0, 1, 2].map(i => (
-                    <div key={i} style={{
-                      width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)',
-                      animation: `dotBounce 1.4s infinite ${i * 0.2}s`,
-                    }} />
-                  ))}
-                </div>
-                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes under a minute — please keep this tab open</p>
-              </div>
-            ) : quickPreviewLoading ? (
-              <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                <style>{`
-                  @keyframes previewPulse {
-                    0%, 100% { transform: scale(1); opacity: 0.7; }
-                    50% { transform: scale(1.05); opacity: 1; }
-                  }
-                `}</style>
-                <div style={{ animation: 'previewPulse 2s ease infinite', marginBottom: 20 }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>&#128064;</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Generating quick preview</div>
-                  <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Writing script and creating 3 preview slides</div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-                  {[0, 1, 2].map(i => (
-                    <div key={i} style={{
-                      width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)',
-                      animation: `dotBounce 1.4s infinite ${i * 0.2}s`,
-                    }} />
-                  ))}
-                </div>
-                <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 16 }}>This usually takes 30-60 seconds</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button
-                  onClick={handleQuickPreview}
-                  style={{
-                    flex: 1, padding: '18px', borderRadius: 10,
-                    border: '2px solid var(--mint)',
-                    background: 'rgba(168,240,212,0.08)', color: 'var(--ink)', fontSize: 15, fontWeight: 700,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Quick Preview
-                </button>
-                <button
-                  onClick={handleGenerate}
-                  style={{
-                    flex: 1, padding: '18px', borderRadius: 10, border: 'none',
-                    background: 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Generate Script &rarr;
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Two-column: Script editor + AI chat */}
-        {scenes.length > 0 && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div style={{ fontSize: 14, color: 'var(--ink-soft)' }}>
-                {scenes.length} scenes &middot; ~{Math.round(scenes.reduce((sum: number, s: any) => sum + (s.narration?.split(/\s+/).length || 0), 0) / 2.5)}s estimated
-              </div>
-              <button
-                onClick={() => setEditMode(!editMode)}
-                style={{
-                  padding: '6px 14px', borderRadius: 8,
-                  border: editMode ? '2px solid var(--mint)' : '1px solid var(--border)',
-                  background: editMode ? 'rgba(199, 232, 168, 0.1)' : 'white',
-                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                  color: 'var(--ink)',
-                }}
-              >
-                {editMode ? '✓ Editing' : '✎ Edit script'}
-              </button>
-            </div>
-
-            {/* Whole-deck AI bar — for changes that span slides. Each scene
-                card below has its own AI chat for single-slide edits. */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18, padding: '12px 14px', background: 'white', border: '1px solid var(--border)', borderRadius: 10 }}>
-              <input
-                value={deckAiText}
-                onChange={(e) => setDeckAiText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') runDeckAi() }}
-                disabled={deckAiBusy}
-                placeholder='Ask AI to change the whole script — e.g. "add a slide about pricing" or "make it shorter"'
-                style={{ flex: '1 1 300px', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 14 }}
-              />
-              <button
-                onClick={runDeckAi}
-                disabled={deckAiBusy || !deckAiText.trim()}
-                style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--ink)', color: 'white', fontSize: 13, fontWeight: 600, cursor: deckAiBusy ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: deckAiBusy || !deckAiText.trim() ? 0.6 : 1 }}
-              >
-                {deckAiBusy ? 'Thinking…' : 'Apply to whole script'}
-              </button>
-              {deckAiUndo.current && !deckAiBusy && (
-                <button
-                  onClick={() => { if (deckAiUndo.current) { setScenes(deckAiUndo.current); autoSave(deckAiUndo.current, -1, true); deckAiUndo.current = null } }}
-                  style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--ink)' }}
-                >
-                  Undo
-                </button>
-              )}
-              {deckAiError && <span style={{ color: '#B4432F', fontSize: 13 }}>{deckAiError}</span>}
-            </div>
-
-            {/*
-              * SAVING IS BROKEN — said out loud, directly above the scenes.
-              *
-              * This screen used to show a green tick after every edit in the
-              * paid flow while writing nothing at all. The opposite failure —
-              * a save that genuinely cannot complete — has to be louder than
-              * a tick is quiet, because the work is still on screen and can
-              * still be copied out. It sits here rather than at the foot of
-              * the page so it is beside the thing at risk, and it stays until
-              * a save succeeds.
-              */}
-            {saveError && (
-              <div
-                role="alert"
-                style={{
-                  padding: '12px 16px', borderRadius: 10, marginBottom: 16,
-                  background: '#fffbeb', border: '1px solid #fcd34d',
-                  color: '#92400e', fontSize: 14, fontWeight: 500,
-                }}
-              >
-                {saveError}
-              </div>
-            )}
-
-            {/* Read-only summary view */}
-            {!editMode && (
-              <div style={{ marginBottom: 16 }}>
-                {scenes.map((scene: any, i: number) => (
-                  <div key={i} style={{
-                    padding: '14px 18px', marginBottom: 8, borderRadius: 10,
-                    background: 'white', border: '1px solid var(--border-light)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <span style={{
-                        width: 24, height: 24, borderRadius: '50%', background: 'var(--mint)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 800, fontSize: 11, flexShrink: 0,
-                      }}>{i + 1}</span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{scene.title}</span>
-                      <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s</span>
-                    </div>
-                    {scene.narration && (
-                      <p style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5, margin: 0 }}>
-                        {scene.narration.length > 180 ? scene.narration.slice(0, 180) + '...' : scene.narration}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Full editor view */}
-            {editMode && (
-            <div className="create-script-layout" style={{ display: 'block' }}>
-              {/* Script editor — accordion with narration + slide content */}
-              <div>
-                {scenes.map((scene: any, i: number) => {
-                  const sd = scene.slideData || {}
-                  const bullets = sd.bullets || []
-                  const stats = sd.stats || []
-                  const role = scene._role as ('cover' | 'closing' | undefined)
-                  const isBookend = role === 'cover' || role === 'closing'
-                  return (
-                    <div
-                      key={i}
-                      draggable={!isBookend}
-                      onDragStart={() => { if (!isBookend) setDragIdx(i) }}
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={() => {
-                        if (dragIdx === null || dragIdx === i || isBookend) return
-                        // Never move a content scene before the cover or after the closing.
-                        const firstContent = scenes.findIndex(s => s._role !== 'cover')
-                        const lastContent = scenes.length - 1 - [...scenes].reverse().findIndex(s => s._role !== 'closing')
-                        const target = Math.min(Math.max(i, firstContent), lastContent)
-                        const updated = [...scenes]
-                        const [moved] = updated.splice(dragIdx, 1)
-                        updated.splice(target, 0, moved)
-                        updated.forEach((s, idx) => { s.scene = idx + 1 })
-                        setScenes(updated)
-                        autoSave(updated, target, true)
-                        setDragIdx(null)
-                      }}
-                      onDragEnd={() => setDragIdx(null)}
-                      style={{
-                        marginBottom: 12, borderRadius: 10, overflow: 'hidden',
-                        background: 'white',
-                        border: dragIdx === i ? '2px solid var(--mint)' : isBookend ? '1px solid var(--mint)' : '1px solid var(--border-light)',
-                        opacity: dragIdx === i ? 0.6 : 1,
-                        transition: 'opacity 0.2s, border-color 0.2s',
-                      }}
-                    >
-                      {/* Scene header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', cursor: isBookend ? 'default' : 'grab' }}>
-                        <span style={{
-                          width: 26, height: 26, borderRadius: '50%',
-                          background: isBookend ? 'var(--ink)' : 'var(--mint)', color: isBookend ? 'white' : 'inherit',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontWeight: 800, fontSize: 12, flexShrink: 0,
-                        }}>{i + 1}</span>
-                        {isBookend && (
-                          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink)', background: 'var(--mint)', padding: '2px 8px', borderRadius: 6 }}>
-                            {role === 'cover' ? 'Cover slide' : 'Closing slide'}
-                          </span>
-                        )}
-                        <input
-                          type="text"
-                          value={scene.title}
-                          onChange={e => {
-                            const updated = [...scenes]
-                            updated[i] = { ...updated[i], title: e.target.value }
-                            setScenes(updated)
-                            autoSave(updated, i)
-                          }}
-                          style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 15, flex: 1, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
-                        />
-                        <span style={{ fontSize: 11, color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>~{Math.round((scene.narration?.split(/\s+/).length || 0) / 2.5)}s</span>
-                        {savedScene === i && <span style={{ fontSize: 11, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600 }}>&#10003;</span>}
-                      </div>
-
-                      {/* Narration section — always shown for video, shown as speaker notes for pptx */}
-                      {(outputType === 'video' || outputType === 'pptx') && (
-                        <div style={{ padding: '0 16px 8px' }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {outputType === 'video' ? 'Narration' : 'Speaker Notes'}
-                          </div>
-                          <textarea
-                            value={scene.narration}
-                            onChange={e => {
-                              const updated = [...scenes]
-                              updated[i] = { ...updated[i], narration: e.target.value }
-                              setScenes(updated)
-                              autoSave(updated, i)
-                            }}
-                            placeholder={outputType === 'pptx' ? 'Speaker notes for this slide (optional)' : ''}
-                            style={{
-                              width: '100%', minHeight: 60, resize: 'vertical', border: '1px solid var(--border-light)',
-                              borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.6,
-                              fontFamily: 'inherit', outline: 'none',
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      {/* Slide content section */}
-                      <div style={{ padding: '0 16px 12px' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-light)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Slide Content</div>
-                        <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--bg-soft)', border: '1px solid var(--border-light)', fontSize: 13 }}>
-                          <input
-                            type="text"
-                            value={sd.headline || scene.title || ''}
-                            onChange={e => {
-                              const updated = [...scenes]
-                              updated[i] = { ...updated[i], slideData: { ...sd, headline: e.target.value } }
-                              setScenes(updated)
-                              autoSave(updated, i)
-                            }}
-                            placeholder="Slide headline"
-                            style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 14, width: '100%', outline: 'none', color: 'var(--ink)', fontFamily: 'inherit', marginBottom: 6 }}
-                          />
-                          {/* Closing CTA text (on-slide) — closing bookend only */}
-                          {role === 'closing' && (
-                            <input
-                              type="text"
-                              value={sd.cta || ''}
-                              onChange={e => {
-                                const updated = [...scenes]
-                                updated[i] = { ...updated[i], slideData: { ...sd, cta: e.target.value } }
-                                setScenes(updated)
-                                autoSave(updated, i)
-                              }}
-                              placeholder="Call-to-action text (e.g. Reach out to take the next step)"
-                              style={{ border: '1px solid var(--border-light)', borderRadius: 6, background: 'white', fontSize: 12, width: '100%', outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit', marginBottom: 6, padding: '6px 8px' }}
-                            />
-                          )}
-                          {/* Stats/bullets are for content slides only, not cover/closing */}
-                          {!isBookend && stats.length > 0 && (
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                              {stats.map((st: any, j: number) => (
-                                <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 6, background: 'white', border: '1px solid var(--border)', fontSize: 12 }}>
-                                  <input
-                                    type="text"
-                                    value={st.value || ''}
-                                    onChange={e => {
-                                      const updated = [...scenes]
-                                      const newStats = stats.map((s: any, k: number) => k === j ? { ...s, value: e.target.value } : s)
-                                      updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
-                                      setScenes(updated)
-                                      autoSave(updated, i)
-                                    }}
-                                    placeholder="value"
-                                    style={{ border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, width: 56, outline: 'none', color: 'var(--ink)', fontFamily: 'inherit' }}
-                                  />
-                                  <input
-                                    type="text"
-                                    value={st.label || ''}
-                                    onChange={e => {
-                                      const updated = [...scenes]
-                                      const newStats = stats.map((s: any, k: number) => k === j ? { ...s, label: e.target.value } : s)
-                                      updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
-                                      setScenes(updated)
-                                      autoSave(updated, i)
-                                    }}
-                                    placeholder="label"
-                                    style={{ border: 'none', background: 'transparent', fontSize: 12, width: 70, outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit' }}
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      const updated = [...scenes]
-                                      const newStats = stats.filter((_: any, k: number) => k !== j)
-                                      updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
-                                      setScenes(updated)
-                                      autoSave(updated, i, true)
-                                    }}
-                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 13, lineHeight: 1, padding: 0 }}
-                                    title="Remove stat"
-                                  >&times;</button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {!isBookend && (
-                          <button
-                            onClick={() => {
-                              const updated = [...scenes]
-                              const newStats = [...stats, { value: '', label: '' }]
-                              updated[i] = { ...updated[i], slideData: { ...sd, stats: newStats } }
-                              setScenes(updated)
-                              autoSave(updated, i, true)
-                            }}
-                            style={{ border: '1px dashed var(--border)', background: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}
-                          >+ Add stat</button>
-                          )}
-
-                          {/* Editable bullets — content slides only */}
-                          {!isBookend && bullets.length > 0 && (
-                            <div>
-                              {bullets.map((b: string, j: number) => (
-                                <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                                  <span style={{ color: 'var(--mint)', fontSize: 10 }}>&#9679;</span>
-                                  <input
-                                    type="text"
-                                    value={typeof b === 'string' ? b : (b as any)?.text || ''}
-                                    onChange={e => {
-                                      const updated = [...scenes]
-                                      const newBullets = [...bullets]
-                                      newBullets[j] = e.target.value
-                                      updated[i] = { ...updated[i], slideData: { ...sd, bullets: newBullets } }
-                                      setScenes(updated)
-                                      autoSave(updated, i)
-                                    }}
-                                    style={{ border: 'none', background: 'transparent', fontSize: 12, flex: 1, outline: 'none', color: 'var(--ink-soft)', fontFamily: 'inherit' }}
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      const updated = [...scenes]
-                                      const newBullets = bullets.filter((_: any, k: number) => k !== j)
-                                      updated[i] = { ...updated[i], slideData: { ...sd, bullets: newBullets } }
-                                      setScenes(updated)
-                                      autoSave(updated, i, true)
-                                    }}
-                                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 14, lineHeight: 1, padding: 0 }}
-                                    title="Remove bullet"
-                                  >&times;</button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {!isBookend && (
-                          <button
-                            onClick={() => {
-                              const updated = [...scenes]
-                              const newBullets = [...bullets, '']
-                              updated[i] = { ...updated[i], slideData: { ...sd, bullets: newBullets } }
-                              setScenes(updated)
-                              autoSave(updated, i, true)
-                            }}
-                            style={{ border: '1px dashed var(--border)', background: 'none', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: 'var(--ink-light)', cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}
-                          >+ Add bullet point</button>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                          <SceneEditChat
-                            scene={scene}
-                            outputType={outputType}
-                            sourceData={createState?.extractedData}
-                            onApply={(updatedScene) => {
-                              const updated = [...scenes]
-                              updated[i] = updatedScene
-                              setScenes(updated)
-                              autoSave(updated, i, true)
-                            }}
-                          />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handlePreviewSlide(i) }}
-                            style={{
-                              background: 'none', border: '1px solid var(--border)',
-                              borderRadius: 6, padding: '3px 10px', fontSize: 11, color: 'var(--ink-light)',
-                              cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
-                            }}
-                          >
-                            Preview slide
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            )}
-
-            {error && (
-              <div style={{ padding: '12px 16px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 14, marginTop: 16 }}>
-                {typeof error === 'string' ? error : 'Something went wrong. Please try again.'}
-              </div>
-            )}
-
-            {/* Quick Preview display */}
-            {showQuickPreview && quickPreviewData && (
-              <div style={{ marginTop: 24 }}>
-                <QuickPreview
-                  scenes={quickPreviewData.scenes}
-                  slides={quickPreviewData.slides}
-                  totalScenes={quickPreviewData.totalScenes}
-                  onApprove={handleApprovePreview}
-                  onEditScript={() => setShowQuickPreview(false)}
-                  approving={quickPreviewApproving}
-                />
-              </div>
-            )}
-
-            {!showQuickPreview && (
-              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                <button onClick={() => router.push(backPath)} style={{
-                  padding: '16px 28px', borderRadius: 10, border: '2px solid var(--border)',
-                  background: 'white', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit',
-                }}>
-                  &larr; Back
-                </button>
-                {quickPreviewData && !showQuickPreview && (
-                  <button
-                    onClick={() => setShowQuickPreview(true)}
-                    style={{
-                      padding: '16px 20px', borderRadius: 10,
-                      border: '2px solid var(--mint)',
-                      background: 'rgba(168,240,212,0.08)', color: 'var(--ink)',
-                      fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    View Preview
-                  </button>
-                )}
-                <button
-                  onClick={handleContinue}
-                  disabled={submitting}
-                  style={{
-                    flex: 1, padding: '16px 28px', borderRadius: 10, border: 'none',
-                    background: submitting ? 'var(--ink-light)' : 'var(--ink)', color: 'white', fontSize: 17, fontWeight: 700,
-                    cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                    opacity: submitting ? 0.7 : 1,
-                    transition: 'opacity 0.2s',
-                  }}
-                >
-                  {submitting ? 'Generating...' : 'Generate \u2192'}
-                </button>
-              </div>
-            )}
-          </>
-        )}
+      <div className="cf-scenes-head">
+        <h2 className="cf-h2" style={{ margin: 0 }}>
+          {story === 'writing' ? 'Writing the scenes…' : scenes.length > 0 ? `${scenes.length} scenes` : 'The scenes'}
+          {story !== 'writing' && scenes.length > 0 && spoken && totalSeconds > 0 ? <small>about {minutes} minute{minutes === 1 ? '' : 's'}</small> : null}
+        </h2>
+        {draftData ? (
+          <LengthPicker
+            picked={pickedLength}
+            storyLength={detailLevel}
+            hasStory={scenes.length > 0}
+            writing={story === 'writing'}
+            spoken={outputType !== 'deck' && outputType !== 'pdf'}
+            isVideo={outputType === 'video'}
+            flash={flashLength}
+            onPick={pickLength}
+            onRewrite={() => void rewriteAtLength()}
+            onKeep={keepLength}
+          />
+        ) : null}
       </div>
 
-      {/* Out-of-credits top-up modal */}
-      <BuyCreditsModal
-        open={buyCredits !== null}
-        onClose={() => setBuyCredits(null)}
-        needed={buyCredits?.needed}
-        balance={buyCredits?.balance}
+      {/*
+        * SAVING IS BROKEN — said out loud, directly above the scenes, so it
+        * sits beside the work at risk. It stays until a save succeeds.
+        */}
+      {saveError && (
+        <div role="alert" className="kit-note kit-note--warn">
+          <div className="kit-note-body"><p>{saveError}</p></div>
+        </div>
+      )}
+
+      {story === 'writing' && (
+        <div className="cf-card cf-reading" style={{ alignItems: 'center', textAlign: 'center' }}>
+          <div className="spinner" />
+          <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, color: 'var(--ink)' }}>
+            {scenes.length > 0 ? 'Writing the story again…' : 'Writing your story…'}
+          </div>
+          <p className="cf-hint">
+            This usually takes about a minute. It keeps going if you leave — come back to this project and it will be here.
+          </p>
+        </div>
+      )}
+
+      {!booting && draftData && story === 'idle' && scenes.length === 0 && !briefBuilding && !answering && !brief?.clarifyingQuestions?.length && (
+        <div className="cf-card cf-quick">
+          <span className="cf-hint">Ready when you are.</span>
+          <button type="button" className="kit-btn kit-btn--secondary" onClick={() => void writeStory()}>Write the story</button>
+        </div>
+      )}
+
+      {error && (
+        <div id="s2-error" role="alert" className="kit-note kit-note--stop">
+          <div className="kit-note-body"><p>{error}</p></div>
+          {story === 'failed' && (
+            <div className="kit-note-action">
+              <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={() => void writeStory()}>Try again</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {story !== 'writing' && scenes.length > 0 && (
+        <>
+          <ol className="cf-scenes" aria-label="The scenes">
+            {scenes.map((scene: any, i: number) => {
+              const role = scene._role as ('cover' | 'closing' | undefined)
+              const bookend = role === 'cover' || role === 'closing'
+              const open = editIdx === i
+              return (
+                <Fragment key={i}>
+                  <li
+                    className={`cf-card cf-scene ${dragIdx === i ? 'is-dragging' : ''} ${open ? 'is-open' : ''}`}
+                    draggable={!bookend}
+                    data-scene={i + 1}
+                    onDragStart={() => { if (!bookend) setDragIdx(i) }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => dropOn(i)}
+                    onDragEnd={() => setDragIdx(null)}
+                    title={bookend ? undefined : 'Drag to move this scene'}
+                  >
+                    <span className="cf-scene-n">{i + 1}</span>
+                    <span className="cf-scene-title">
+                      {bookend ? <small>{role === 'cover' ? 'Opening' : 'Closing'}</small> : null}
+                      {scene.title || 'Untitled scene'}
+                    </span>
+                    <button
+                      type="button"
+                      className="cf-scene-edit"
+                      aria-expanded={open}
+                      aria-label={open ? `Close scene ${i + 1}` : `Edit scene ${i + 1}`}
+                      onClick={() => { setEditIdx(open ? null : i); setOpenIdx(null) }}
+                    >
+                      {open ? 'Done' : 'Edit'}
+                    </button>
+                  </li>
+                  {open ? (
+                    <li className="cf-scene-editor">
+                      <SceneCard
+                        scene={scene}
+                        index={i}
+                        outputType={outputType}
+                        saved={savedScene === i}
+                        open={openIdx === i}
+                        onToggle={() => setOpenIdx(openIdx === i ? null : i)}
+                        onChange={(s, instant) => updateScene(i, s, instant)}
+                        onPreview={() => handlePreviewSlide(i)}
+                        sourceData={draftData?.extractedData}
+                        dragging={false}
+                        noDrag
+                        onDragStart={() => {}}
+                        onDrop={() => {}}
+                        onDragEnd={() => {}}
+                      />
+                    </li>
+                  ) : null}
+                </Fragment>
+              )
+            })}
+          </ol>
+          <p className="cf-hint">
+            Drag a card to move a scene.{' '}
+            <button type="button" className="cf-link" onClick={startOver} style={{ fontWeight: 500, color: 'var(--ink-light)' }}>
+              Write it again from the start
+            </button>
+          </p>
+        </>
+      )}
+
+      <AskPanel
+        messages={chat}
+        busy={asking}
+        disabledNote={askNote}
+        onSend={(t) => void ask(t)}
+        canUndo={!!undoRef.current}
+        onUndo={undoAsk}
       />
 
-      {/* Preview modal */}
+      {/* Slide preview */}
       {previewIdx !== null && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }} onClick={() => { setPreviewIdx(null); setPreviewImg(null) }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => { setPreviewIdx(null); setPreviewImg(null) }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
           <div onClick={e => e.stopPropagation()} style={{
-            position: 'relative', background: 'white', borderRadius: 10, padding: 24,
-            maxWidth: 700, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            position: 'relative', background: 'var(--bg-card)', borderRadius: 10, padding: 24,
+            maxWidth: 700, width: 'calc(100% - 32px)', boxShadow: 'var(--shadow-lg)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Slide {(previewIdx ?? 0) + 1} Preview</div>
-                <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>{scenes[previewIdx ?? 0]?.title}</div>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700 }}>Slide {previewIdx + 1} preview</div>
+                <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>{scenes[previewIdx]?.title}</div>
               </div>
-              <button onClick={() => { setPreviewIdx(null); setPreviewImg(null) }} style={{
-                background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--ink-light)', padding: 4,
-              }}>&times;</button>
+              <button type="button" aria-label="Close" onClick={() => { setPreviewIdx(null); setPreviewImg(null) }}
+                style={{ background: 'none', border: 'none', fontSize: 'var(--fs-h3)', cursor: 'pointer', color: 'var(--ink-light)', padding: 4 }}>&times;</button>
             </div>
             {previewLoading ? (
               <div style={{ aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="spinner" style={{ marginRight: 8 }} /> Generating preview...
+                <div className="spinner" style={{ marginRight: 8 }} /> Making a preview&hellip;
               </div>
             ) : previewImg ? (
               <img src={previewImg} alt="Slide preview" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 10 }} />
             ) : (
               <div style={{ aspectRatio: '16/9', borderRadius: 10, background: 'var(--bg-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-light)' }}>
-                Preview failed — try again
+                The preview didn&rsquo;t work — try again
               </div>
             )}
-            <p style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 10, textAlign: 'center' }}>
-              This is an approximate preview. Final slides may vary slightly.
+            <p style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 10, textAlign: 'center' }}>
+              A rough preview. The look you pick next changes the final slides.
             </p>
           </div>
         </div>
       )}
+
+      <BottomBar
+        label="Next step"
+        info="Free"
+        sub="Changes cost nothing"
+        onMain={() => void goToLook()}
+        mainLabel={submitting ? 'Saving…' : 'Pick a look →'}
+        disabled={submitting}
+        busy={submitting}
+        missing={missing}
+      />
     </div>
   )
-}
-
-const pageStyles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: '100vh',
-    background: '#F4F1EC',
-    padding: '24px 16px 48px',
-    fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)',
-  },
-  container: {
-    maxWidth: 720,
-    margin: '0 auto',
-  },
-  loadingText: {
-    textAlign: 'center' as const,
-    padding: 48,
-    fontSize: 15,
-    color: 'var(--ink-light, #8899AA)',
-  },
 }

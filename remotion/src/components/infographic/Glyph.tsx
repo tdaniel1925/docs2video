@@ -4,9 +4,9 @@
  * sized by `size`. Keyed by semantic name so the generator/layout-picker can
  * request one by intent ("shield" for protection, "growth" for value, etc.).
  */
-export type GlyphName =
-  | 'shield' | 'growth' | 'coin' | 'doc' | 'clock' | 'check' | 'heart'
-  | 'chart' | 'lock' | 'star' | 'flow' | 'people' | 'spark' | 'dot'
+// The names live in glyph-names.ts (no React) so pure modules can use them.
+import type { GlyphName } from './glyph-names'
+export type { GlyphName }
 
 const PATHS: Record<GlyphName, React.ReactNode> = {
   shield: <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z" />,
@@ -23,6 +23,7 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
   people: <><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0112 0" /><path d="M16 6a3 3 0 010 6M21 20a6 6 0 00-5-5.9" /></>,
   spark: <path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3" />,
   dot: <circle cx="12" cy="12" r="4" />,
+  calendar: <><rect x="4" y="5" width="16" height="15" rx="1.5" /><path d="M4 10h16M8 3v4M16 3v4" /><path d="M8 14h2M12 14h2M16 14h0M8 17h2M12 17h2" /></>,
 }
 
 export const Glyph: React.FC<{ name: GlyphName; size?: number; color: string; strokeWidth?: number }> = ({

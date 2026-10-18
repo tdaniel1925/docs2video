@@ -174,7 +174,7 @@ export default function DemoForm() {
               Generate demo
             </button>
           </div>
-          <div className="demo-hint">We&apos;ll create a branded explainer video for your company in about 90 seconds</div>
+          <div className="demo-hint">We&apos;ll create a branded explainer video for your company</div>
         </form>
       )}
 
@@ -191,7 +191,7 @@ export default function DemoForm() {
                 </span>
               </div>
               <div style={{maxWidth:400,margin:'0 auto 16px',height:3,background:'var(--border)',borderRadius:10,overflow:'hidden'}}>
-                <div style={{width:`${progressPct}%`,height:'100%',background:'var(--mint)',borderRadius:10,transition:'width 0.6s ease'}} />
+                <div style={{width:`${progressPct}%`,height:'100%',background:'var(--accent-ink)',borderRadius:10,transition:'width 0.6s ease'}} />
               </div>
             </>
           )}
@@ -199,7 +199,7 @@ export default function DemoForm() {
           {/* Countdown notice — appears when demo is ready but product video still playing */}
           {countdown !== null && countdown > 0 && (
             <div style={{
-              background:'#C03A1F', color:'white', padding:'10px 20px',
+              background:'var(--error)', color:'var(--on-ink)', padding:'10px 20px',
               borderRadius:10, marginBottom:12, fontSize:15, fontWeight:700,
               display:'flex', alignItems:'center', justifyContent:'center', gap:8,
               animation:'demo-pulse 1s ease infinite',
@@ -246,12 +246,12 @@ export default function DemoForm() {
             <video src={videoUrl} controls autoPlay playsInline style={{width:'100%',borderRadius:10,display:'block'}} />
           </div>
           <p style={{fontSize:13,color:'var(--ink-soft)',marginTop:14,textAlign:'center',lineHeight:1.6}}>
-            This is a rough draft demo version. With full access you can select from 28 different themes, create your own custom styles, and share polished HD videos with anyone.
+            This is a rough draft demo. With an account you can pick from all the video styles, add your own logo and colors, and share your videos with anyone.
           </p>
           <div className="demo-result-cta">
             <div className="demo-result-text">
               {brandName && <p className="demo-result-brand">Your {brandName} demo is ready!</p>}
-              <p className="demo-result-sub">Sign up to unlock all themes, remove the watermark, and create unlimited videos</p>
+              <p className="demo-result-sub">Sign up to unlock every style and start making videos with your free credits</p>
             </div>
             <Link href="/signup" className="btn btn-primary btn-lg">Sign up free &rarr;</Link>
           </div>

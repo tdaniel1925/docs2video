@@ -1,12 +1,27 @@
 import { useCurrentFrame, useVideoConfig, spring } from 'remotion'
 import { TEXT_SHADOW } from './tokens'
+import { Fit } from './lib/fit'
 
 /**
  * Word-by-word kinetic reveal that PERFORMS: each word springs up (with a slight
  * overshoot) + un-blurs + fades in, staggered. The accent word gets an extra
  * scale-punch just after it lands so it pops on its beat. Reads as produced
  * motion graphics, not a fade-in.
+ *
+ * `fit` (optional): keep the headline inside its box. `fontSize` becomes the
+ * size it would LIKE to be; a long headline (or one very long word) shrinks
+ * until it fits the parent's width and `fit.lines`. The PARENT must have a
+ * bounded width. Without `fit` it behaves exactly as before.
  */
+export type KineticFit = {
+  /** Most lines before it shrinks instead of wrapping again. */
+  lines?: number
+  /** Smallest it should normally go (it still goes smaller rather than overflow — QA warns). */
+  min?: number
+  /** Hard height limit in px. */
+  maxHeight?: number
+}
+
 export const KineticText: React.FC<{
   text: string
   startFrame: number
@@ -19,7 +34,8 @@ export const KineticText: React.FC<{
   accentWordIndex?: number
   align?: 'left' | 'center' | 'right'
   lineHeight?: number
-}> = ({ text, startFrame, perWordFrames = 2.5, fontFamily, fontWeight, fontSize, color, accentColor, accentWordIndex, align = 'left', lineHeight = 1.05 }) => {
+  fit?: KineticFit
+}> = ({ text, startFrame, perWordFrames = 2.5, fontFamily, fontWeight, fontSize, color, accentColor, accentWordIndex, align = 'left', lineHeight = 1.05, fit }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const words = text.split(' ')
@@ -36,8 +52,9 @@ export const KineticText: React.FC<{
       accentIdx = best >= 0 ? best : words.length - 1
     }
   }
-  return (
-    <div style={{ fontFamily, fontWeight, fontSize, lineHeight, textShadow: TEXT_SHADOW, letterSpacing: '-0.01em', textAlign: align }}>
+  const typeStyle: React.CSSProperties = { fontFamily, fontWeight, lineHeight, letterSpacing: '-0.01em', textAlign: align }
+  const body = (
+    <div style={{ ...typeStyle, fontSize: fit ? '1em' : fontSize, textShadow: TEXT_SHADOW }}>
       {words.map((w, i) => {
         const delay = startFrame + i * perWordFrames
         // Spring with overshoot for the rise (snappy, alive) ...
@@ -55,7 +72,7 @@ export const KineticText: React.FC<{
         // (flex `gap` was rendering as zero at this size). Last word: no margin.
         const isLast = i === words.length - 1
         // inline-block word + a literal non-breaking space text node after it.
-        // A real   between inline-blocks always renders a gap (no flex/gap
+        // A real   between inline-blocks always renders a gap (no flex/gap
         // quirk, no zero-width spacer span ambiguity).
         return (
           <span key={i}>
@@ -67,10 +84,29 @@ export const KineticText: React.FC<{
             }}>
               {w}
             </span>
-            {!isLast ? ' ' : ''}
+            {!isLast ? ' ' : ''}
           </span>
         )
       })}
     </div>
+  )
+  if (!fit) return body
+  // Sized against a still copy of the words, not the moving ones: the rise and
+  // the accent punch are transforms, and measuring them mid-flight would give a
+  // different size on every frame. Each gap is measured as an en space + a space
+  // (a little WIDER than the 0.3em margin + space it renders as), so the real
+  // headline always wraps into no more lines than the copy that was measured.
+  // The copy is set at a roomy line-height: at a tight one the letters poke past
+  // the last line and read as "too tall" at every size. (The visible headline
+  // keeps its own line-height; a maxHeight is converted to match.)
+  // No letter-spacing on the copy: a negative "em" spacing there would be
+  // worked out at the largest size and make the copy too narrow.
+  const measureLH = Math.max(lineHeight, 1.3)
+  return (
+    <Fit max={fontSize} min={fit.min} lines={fit.lines}
+      maxHeight={fit.maxHeight != null ? (fit.maxHeight * measureLH) / lineHeight : undefined}
+      sizeFor={words.join('  ')} style={{ fontFamily, fontWeight, textAlign: align, lineHeight: measureLH }}>
+      {body}
+    </Fit>
   )
 }

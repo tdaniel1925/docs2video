@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
+import { AlertCircle, Bell, CheckCircle2, Coins, type LucideIcon } from 'lucide-react'
+import { bellItems, bellLabel, unreadLines } from '../_lib/bell'
 
 interface Notification {
   id: string
@@ -24,22 +26,26 @@ interface Job {
   created_at: string
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  video_complete: '🎬',
-  video_failed: '❌',
-  course_progress: '🎓',
-  social_kit_ready: '📱',
-  campaign_ready: '📅',
-  credits_low: '⚠️',
-  system: '💡',
+// One icon set (lucide). A failed project always shows the warning sign.
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  video_complete: CheckCircle2,
+  video_ready: CheckCircle2,
+  credits_low: Coins,
 }
 
-export default function NotificationBell() {
+/** `icon` lets the Docs2Video bar use its one icon set (lucide); Text2Art's
+ *  frozen classic bar passes nothing and keeps the drawn bell. */
+export default function NotificationBell({ icon }: { icon?: ReactNode } = {}) {
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [activeJobs, setActiveJobs] = useState<Job[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
+  // What the bell lists: last 30 days, duplicates folded, "Didn't finish"
+  // wording, failed ones linked to their result page (app/_lib/bell.ts).
+  const items = useMemo(() => bellItems(notifications), [notifications])
+  // The badge counts the LINES you'd see, so it never says 5 when the list
+  // shows 2 (older / repeated notices used to inflate it).
+  const unreadShown = unreadLines(items)
 
   // Poll for updates
   useEffect(() => {
@@ -49,7 +55,6 @@ export default function NotificationBell() {
         .then(data => {
           if (data.notifications) setNotifications(data.notifications)
           if (data.activeJobs) setActiveJobs(data.activeJobs)
-          if (typeof data.unreadCount === 'number') setUnreadCount(data.unreadCount)
         })
         .catch(() => {})
     }
@@ -75,33 +80,29 @@ export default function NotificationBell() {
       body: JSON.stringify({ action: 'mark-all-read' }),
     })
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    setUnreadCount(0)
   }
 
-  async function markRead(id: string) {
-    await fetch('/api/notifications', {
+  // A line can stand for several notices (repeats folded) — act on all.
+  async function markRead(ids: string[]) {
+    setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, read: true } : n))
+    await Promise.all(ids.map(id => fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'mark-read', notificationId: id }),
-    })
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-    setUnreadCount(prev => Math.max(0, prev - 1))
+    }).catch(() => {})))
   }
 
-  async function deleteOne(id: string) {
-    const wasUnread = notifications.find(n => n.id === id)?.read === false
-    setNotifications(prev => prev.filter(n => n.id !== id)) // optimistic
-    if (wasUnread) setUnreadCount(prev => Math.max(0, prev - 1))
-    await fetch('/api/notifications', {
+  async function deleteOne(ids: string[]) {
+    setNotifications(prev => prev.filter(n => !ids.includes(n.id))) // optimistic
+    await Promise.all(ids.map(id => fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', notificationId: id }),
-    }).catch(() => {})
+    }).catch(() => {})))
   }
 
   async function clearAll() {
     setNotifications([]) // optimistic
-    setUnreadCount(0)
     await fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -139,23 +140,28 @@ export default function NotificationBell() {
           background: 'none', border: 'none', cursor: 'pointer',
           position: 'relative', padding: 6, display: 'flex', alignItems: 'center',
         }}
-        aria-label="Notifications"
+        aria-label={bellLabel(unreadShown, hasActiveJobs)}
+        aria-expanded={open}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        {(unreadCount > 0 || hasActiveJobs) && (
+        {icon ?? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+        )}
+        {(unreadShown > 0 || hasActiveJobs) && (
           <span style={{
             position: 'absolute', top: 2, right: 2,
             width: 16, height: 16, borderRadius: '50%',
-            background: hasActiveJobs ? 'var(--mint)' : '#ef4444',
-            color: hasActiveJobs ? 'var(--ink)' : 'white',
-            fontSize: 9, fontWeight: 800,
+            // The unread count sits on the stop red (white numbers 5.4:1). Text2Art
+            // keeps its brighter red through --count-badge (see globals.css).
+            background: hasActiveJobs ? 'var(--accent)' : 'var(--count-badge, var(--error))',
+            color: hasActiveJobs ? 'var(--ink)' : 'var(--on-ink)',
+            fontSize: 'var(--fs-caption)', fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '2px solid white',
+            border: '2px solid var(--bg-card)',
           }}>
-            {hasActiveJobs ? '⟳' : unreadCount > 9 ? '9+' : unreadCount}
+            {hasActiveJobs ? '⟳' : unreadShown > 9 ? '9+' : unreadShown}
           </span>
         )}
       </button>
@@ -164,7 +170,7 @@ export default function NotificationBell() {
         <div style={{
           position: 'absolute', top: '100%', right: 0, marginTop: 8,
           width: 380, maxHeight: 480, overflowY: 'auto',
-          background: 'white', border: '1px solid var(--border-light)',
+          background: 'var(--bg-card)', border: '1px solid var(--border-light)',
           borderRadius: 10, boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
           zIndex: 300,
         }}>
@@ -173,12 +179,12 @@ export default function NotificationBell() {
             padding: '14px 18px', borderBottom: '1px solid var(--border-light)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Notifications</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {unreadCount > 0 && (
+            <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)' }}>Notifications</div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              {unreadShown > 0 && (
                 <button onClick={markAllRead} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: 'var(--mint-darker, #2d7a4f)', fontWeight: 600,
+                  fontSize: 'var(--fs-caption)', color: 'var(--mint-darker)', fontWeight: 600,
                 }}>
                   Mark all read
                 </button>
@@ -186,13 +192,13 @@ export default function NotificationBell() {
               {notifications.length > 0 && (
                 <button onClick={clearAll} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: '#b91c1c', fontWeight: 600,
+                  fontSize: 'var(--fs-caption)', color: 'var(--error-text)', fontWeight: 600,
                 }}>
                   Clear all
                 </button>
               )}
               <Link href="/activity" onClick={() => setOpen(false)} style={{
-                fontSize: 12, color: 'var(--ink-soft)', textDecoration: 'none', fontWeight: 600,
+                fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', textDecoration: 'none', fontWeight: 600,
               }}>
                 View all
               </Link>
@@ -202,18 +208,18 @@ export default function NotificationBell() {
           {/* Active Jobs */}
           {activeJobs.length > 0 && (
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-light)', background: 'rgba(168,240,212,0.06)' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: 8 }}>
+              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: 8 }}>
                 In Progress
               </div>
               {activeJobs.map(job => (
                 <div key={job.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title ?? job.type}</span>
-                    <span style={{ fontSize: 11, color: 'var(--ink-light)' }}>{job.progress}%</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 'var(--space-2)' }}>
+                    <span style={{ fontSize: 'var(--fs-small)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title ?? job.type}</span>
+                    <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>{job.progress}%</span>
                     <button
                       onClick={() => dismissJob(job.id)}
                       title="Dismiss"
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-light)', fontSize: 'var(--fs-ui)', lineHeight: 1, padding: '0 2px' }}
                     >
                       &times;
                     </button>
@@ -221,13 +227,13 @@ export default function NotificationBell() {
                   <div style={{ height: 6, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', borderRadius: 10,
-                      background: 'linear-gradient(90deg, var(--mint), #34d399)',
+                      background: 'var(--accent-ink)',
                       width: `${job.progress}%`,
                       transition: 'width 1s ease',
                     }} />
                   </div>
                   {job.result_url && (
-                    <Link href={job.result_url} style={{ fontSize: 11, color: 'var(--mint-darker)', fontWeight: 600, marginTop: 4, display: 'inline-block' }}>
+                    <Link href={job.result_url} style={{ fontSize: 'var(--fs-caption)', color: 'var(--mint-darker)', fontWeight: 600, marginTop: 4, display: 'inline-block' }}>
                       View result →
                     </Link>
                   )}
@@ -237,55 +243,57 @@ export default function NotificationBell() {
           )}
 
           {/* Notifications list */}
-          {notifications.length === 0 && activeJobs.length === 0 ? (
+          {items.length === 0 && activeJobs.length === 0 ? (
             <div style={{ padding: '40px 18px', textAlign: 'center', color: 'var(--ink-light)' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>No notifications yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>You'll see updates here when your creations are ready.</div>
+              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Bell size={24} aria-hidden /></div>
+              <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600 }}>Nothing new</div>
+              <div style={{ fontSize: 'var(--fs-caption)', marginTop: 4 }}>You&apos;ll see a note here when something you made is ready. Older notes are in <Link href="/activity" onClick={() => setOpen(false)} style={{ color: 'var(--link)' }}>Activity</Link>.</div>
             </div>
           ) : (
-            notifications.map(n => {
+            items.map(n => {
               const Wrapper = n.link ? Link : 'div'
-              const wrapperProps = n.link ? { href: n.link, onClick: () => { markRead(n.id); setOpen(false) } } : {}
+              const wrapperProps = n.link ? { href: n.link, onClick: () => { markRead(n.ids); setOpen(false) } } : {}
+              const Icon = n.failed ? AlertCircle : (TYPE_ICONS[n.type] ?? Bell)
               return (
-                <div key={n.id} style={{ position: 'relative', borderBottom: '1px solid var(--border-light)', background: n.read ? 'white' : 'rgba(168,240,212,0.06)' }}>
+                <div key={n.key} data-testid="bell-item" data-failed={n.failed || undefined} style={{ position: 'relative', borderBottom: '1px solid var(--border-light)', background: n.read ? 'var(--bg-card)' : 'rgba(168,240,212,0.06)' }}>
                   <Wrapper
                     {...wrapperProps as any}
                     style={{
-                      display: 'flex', gap: 12, padding: '12px 40px 12px 18px',
+                      display: 'flex', gap: 'var(--space-3)', padding: '12px 40px 12px 18px',
                       textDecoration: 'none', color: 'var(--ink)',
                       cursor: n.link ? 'pointer' : 'default',
                     }}
                   >
-                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>
-                      {TYPE_ICONS[n.type] ?? '📋'}
+                    <span style={{ flexShrink: 0, marginTop: 2, color: n.failed ? 'var(--error-text)' : 'var(--ink-soft)', display: 'flex' }}>
+                      <Icon size={18} aria-hidden />
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 'var(--fs-small)', fontWeight: n.read ? 500 : 700, lineHeight: 1.4 }}>
                         {n.title}
                       </div>
                       {n.message && (
-                        <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
+                        <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2, lineHeight: 1.4 }}>
                           {n.message}
                         </div>
                       )}
-                      <div style={{ fontSize: 11, color: 'var(--ink-light)', marginTop: 4 }}>
-                        {timeAgo(n.created_at)}
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 4 }}>
+                        {timeAgo(n.created_at)}{n.count > 1 ? ` · ${n.count} times` : ''}
+                        {n.failed && n.link ? <span style={{ color: 'var(--link)', fontWeight: 600 }}> · Open to try again</span> : null}
                       </div>
                     </div>
                     {!n.read && (
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint)', flexShrink: 0, marginTop: 6 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-ink)', flexShrink: 0, marginTop: 6 }} />
                     )}
                   </Wrapper>
                   {/* Delete this notification (sits above the Link so it's clickable). */}
                   <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteOne(n.id) }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteOne(n.ids) }}
                     title="Delete"
                     aria-label="Delete notification"
                     style={{
                       position: 'absolute', top: 10, right: 12,
                       border: 'none', background: 'none', cursor: 'pointer',
-                      color: 'var(--ink-light)', fontSize: 16, lineHeight: 1, padding: 2,
+                      color: 'var(--ink-light)', fontSize: 'var(--fs-body)', lineHeight: 1, padding: 2,
                     }}
                   >
                     &times;

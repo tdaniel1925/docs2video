@@ -35,15 +35,15 @@ export default function QuickPreview({
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '14px 20px', marginBottom: 24, borderRadius: 10,
-        background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
-        border: '1px solid #bbf7d0',
+        background: 'var(--success-bg)',
+        border: '1px solid var(--accent)',
       }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2" style={{ flexShrink: 0 }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" style={{ flexShrink: 0 }}>
           <circle cx="12" cy="12" r="10" />
           <path d="M12 16v-4" />
           <path d="M12 8h.01" />
         </svg>
-        <div style={{ fontSize: 13, color: '#166534' }}>
+        <div style={{ fontSize: 13, color: 'var(--success)' }}>
           <strong>Quick Preview</strong> — Showing {scenes.length} of {totalScenes} scenes. Your full video will have all {totalScenes} scenes.
         </div>
       </div>
@@ -85,7 +85,7 @@ export default function QuickPreview({
             onClick={() => setActiveSlide(i)}
             style={{
               flex: 1, cursor: 'pointer', borderRadius: 10,
-              border: activeSlide === i ? '2px solid var(--mint)' : '1px solid var(--border-light)',
+              border: activeSlide === i ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)',
               background: activeSlide === i ? 'rgba(168,240,212,0.08)' : 'white',
               overflow: 'hidden', transition: 'all 0.15s',
             }}

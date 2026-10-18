@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
+import { recordCronRun } from '../../../_lib/cron-heartbeat'
 import { Resend } from 'resend'
 
 export const runtime = 'nodejs'
@@ -59,6 +60,8 @@ export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Heartbeat: the health cron emails Trent if this stops running (audit 2026-10-09).
+  await recordCronRun('weekly-report')
 
   const admin = createAdminClient()
   const resend = getResend()
@@ -161,12 +164,15 @@ export async function GET(request: Request) {
           '<a href="https://docs2video.com/privacy" style="color:#aaa;">Privacy Policy</a> &bull;',
           `<a href="https://docs2video.com/privacy" style="color:#aaa;">Privacy Policy</a> &bull;\n      <a href="https://docs2video.com/api/email-prefs?uid=${profile.id}" style="color:#aaa;">Unsubscribe</a> &bull;`
         )
-        await resend.emails.send({
+        // Resend returns failures instead of throwing — throw it ourselves so
+        // the catch below records it instead of counting it as sent.
+        const { error: sendError } = await resend.emails.send({
           from: 'Docs2Video <reports@docs2video.com>',
           to: profile.email,
           subject: `Weekly Report: ${totalViews} view${totalViews !== 1 ? 's' : ''} on your videos`,
           html,
         })
+        if (sendError) throw new Error(sendError.message)
         sentCount++
         console.log(`[cron/weekly-report] Sent to ${profile.email} (${totalViews} views)`)
       } catch (sendErr) {

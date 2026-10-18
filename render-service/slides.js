@@ -13,6 +13,7 @@ const { join } = require('path')
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const GEMINI_KEY = process.env.GEMINI_API_KEY
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY
+const { falSpeak } = require('./fal-tts')
 const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_TOKEN = process.env.CLOUDFLARE_API_KEY   // Workers AI API token (named _API_KEY in env)
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
@@ -218,13 +219,14 @@ async function elevenTimed(text, outPath) {
   return { words, durationSec: words.length ? words[words.length - 1].end : 0, voice: 'elevenlabs' }
 }
 
-async function openaiTimed(text, outPath) {
+const OPENAI_VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
+async function openaiTimed(text, outPath, voice) {
   if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not set')
   const spoken = speakable(text)
   const r = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: { authorization: `Bearer ${OPENAI_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice: OPENAI_TTS_VOICE, input: spoken, response_format: 'mp3', speed: 0.95 }),
+    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice: OPENAI_VOICES.includes(voice) ? voice : OPENAI_TTS_VOICE, input: spoken, response_format: 'mp3', speed: 0.95 }),
   })
   if (!r.ok) throw new Error(`OpenAI TTS ${r.status}: ${(await r.text()).slice(0, 160)}`)
   const buf = Buffer.from(await r.arrayBuffer())
@@ -235,7 +237,49 @@ async function openaiTimed(text, outPath) {
   return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'openai' }
 }
 
-async function ttsTimed(text, outPath) {
+/**
+ * THE CHOSEN VOICE (audit H2). The wizard offers six voices (OpenAI ids:
+ * nova = Sarah, the female default, plus shimmer/onyx/echo/alloy/fable). The
+ * deck used to ignore the choice and always speak as ElevenLabs "Rachel".
+ *  - default (nova, or nothing sent): ElevenLabs first, exactly as before —
+ *    Rachel is the female default voice and gives exact word timings.
+ *  - any OTHER voice the user picked: that OpenAI voice speaks, so a user who
+ *    chose "James" hears James. Word timings are then estimated (close, not
+ *    exact); if OpenAI fails, ElevenLabs still speaks rather than silence.
+ */
+function wantsChosenVoice(voiceId) {
+  return typeof voiceId === 'string' && OPENAI_VOICES.includes(voiceId) && voiceId !== 'nova'
+}
+/**
+ * fal FIRST (2026-10-09): the same ElevenLabs turbo-v2.5 voices on the fal
+ * bill, in the voice the customer picked (fal-tts.js FAL_VOICE_MAP — Sarah/nova
+ * = Rachel, the voice these videos always had). fal returns per-character
+ * timings, so words are EXACT like ElevenLabs-direct; if a reply ever comes
+ * without them, the words are estimated from the measured mp3 length (the
+ * same estimate the OpenAI path uses).
+ */
+async function falTimed(text, outPath, voiceId) {
+  const spoken = speakable(text)
+  const r = await falSpeak(spoken, { voiceId, timestamps: true, settings: { stability: 0.55, similarity_boost: 0.8, style: 0.25 } })
+  await writeFile(outPath, r.audio)
+  if (r.words && r.words.length) return { words: r.words, durationSec: r.words[r.words.length - 1].end, voice: 'fal' }
+  const durationSec = await audioDurationSec(outPath)
+  if (!durationSec) throw new Error('fal TTS: no timings and could not measure audio duration (ffprobe)')
+  return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'fal' }
+}
+// fal first, then the old chain (ElevenLabs direct / OpenAI, by voice choice).
+async function ttsTimed(text, outPath, voiceId) {
+  if (process.env.FAL_KEY) {
+    try { return await falTimed(text, outPath, voiceId) } catch (err) {
+      console.warn(`[tts] fal voice failed (${err && err.message}) — falling back to ElevenLabs/OpenAI`)
+    }
+  }
+  if (wantsChosenVoice(voiceId)) {
+    try { return await openaiTimed(text, outPath, voiceId) } catch (err) {
+      console.warn(`[tts] OpenAI voice "${voiceId}" failed (${err && err.message}) — falling back to ElevenLabs`)
+      return await elevenTimed(text, outPath)
+    }
+  }
   try {
     return await elevenTimed(text, outPath)
   } catch (err) {
@@ -243,7 +287,7 @@ async function ttsTimed(text, outPath) {
     // investigated as an outage. This exact message is what turns a silent
     // video into a five-minute fix.
     console.warn(`[tts] ElevenLabs failed (${err && err.message}) — falling back to OpenAI`)
-    return await openaiTimed(text, outPath)
+    return await openaiTimed(text, outPath, voiceId)
   }
 }
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9$%]/g, '')
@@ -283,7 +327,20 @@ RULES: Cover EVERY distinct audience and offering. Capture pricing ranges and fr
   return extractJson(await claude(sys, `SOURCE TYPE: ${kindHint}\n\nFULL SOURCE TEXT:\n${sourceText.slice(0, 48000)}`, 6000, { model: claude.MODELS.REASON, cache: true }))
 }
 
-async function writerFromUnderstanding(u, shotPaths, regulated, brief) {
+// THE LENGTH THE USER PAID FOR (audit H2). Quick / Standard / Detailed are
+// priced differently, but the writer always made 10-14 scenes, so the choice
+// changed only the price. The count now follows the choice. Standard keeps the
+// original 10-14 exactly. Lives in the dynamic suffix so the cached prompt
+// prefix never changes.
+const SCENE_RANGE = { quick: '6-8', standard: '10-14', detailed: '15-18' }
+function sceneCountRule(detailLevel) {
+  const range = SCENE_RANGE[detailLevel]
+  if (!range || detailLevel === 'standard') return ''
+  const secs = detailLevel === 'quick' ? '~60s' : '~3 minutes'
+  return `\n- LENGTH OVERRIDE (the user chose a ${detailLevel.toUpperCase()} video, ${secs}): write ${range} scenes, not 10-14. Scene 1 = intro, last = cta.`
+}
+
+async function writerFromUnderstanding(u, shotPaths, regulated, brief, detailLevel) {
   // BRIEF PARITY: if the user approved a brief on the Review step, it is the
   // authoritative steering — mirror the block generateScript uses so the slides
   // deck matches the preview (angle / must-cover / avoid / tone).
@@ -325,16 +382,28 @@ RULES:
   // same combined prompt as before.
   const dynamicSuffix = '\n' +
     (shotPaths.length ? `- SCREENSHOTS (REQUIRED): use "screenshot" blocks on 2-3 slides. Page paths (use EXACTLY): ${shotPaths.join(', ')}. 1-2 pins each (x,y % 0-100) with label+cue.` : `- NO screenshots available (document/text source) — do NOT emit screenshot blocks.`) +
-    briefBlock + (regulated ? SLIDE_COMPLIANCE_CLAUSE : '')
+    sceneCountRule(detailLevel) + briefBlock + (regulated ? SLIDE_COMPLIANCE_CLAUSE : '')
   // writer = creative/structured slide-plan generation → WRITE tier. The big static
   // director/schema prefix is prompt-cached; the small dynamic suffix rides plain.
   return extractJson(await claude({ staticPrefix, dynamicSuffix }, 'UNDERSTANDING:\n' + JSON.stringify(u, null, 2), 12000, { model: claude.MODELS.WRITE, cache: true }))
 }
 
+// A big rolling-number FIGURE only when the value IS a number ("$448,627",
+// "6.35%", "$212/mo", "15k"). It used to pull the first number out of anything:
+// "100% High Cap Rate Acct (S&P 500 Index)" became "100%", "Oct 10, 2026 – Oct
+// 10, 2027" became "10", "$1.2M" became "$1.2" — the rest silently dropped.
+// Anything else returns null and is shown as written, on a card.
+// ⚠ Same rule as parseNum() in remotion/src/slides/Slides.tsx — keep in sync.
+const PURE_NUMBER = /^(~?\$?)\s?(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s?(%|\/mo|\/yr|\/year|\/month|k|K|M|s|x|\+)?$/
 function figFromKeyNumber(kn) {
   if (!kn) return null
-  const raw = String(kn.value); const m = raw.replace(/,/g, '').match(/-?\d+(\.\d+)?/); if (!m) return null
-  return { value: parseFloat(m[0]), prefix: /\$/.test(raw) ? '$' : '', suffix: /%/.test(raw) ? '%' : /\/mo|per month/i.test(raw) ? '/mo' : /sec/i.test(raw) ? 's' : '', label: kn.label }
+  const m = String(kn.value == null ? '' : kn.value).trim().match(PURE_NUMBER)
+  if (!m) return null
+  const value = parseFloat(m[2].replace(/,/g, ''))
+  if (!isFinite(value)) return null
+  // shown with the decimals it was written with ($1.2M stays $1.2M, not $1.20M)
+  const decimals = Math.min(2, (m[2].split('.')[1] || '').length)
+  return { value, prefix: m[1] || '', suffix: m[3] || '', label: kn.label, decimals }
 }
 
 // ---------- COMPLIANCE (regulated financial / insurance content) ----------
@@ -382,9 +451,12 @@ const CARRIER_BLOCKLIST = [
 ]
 // pull branded product tokens (CamelCase / Capitalized) from the understanding so
 // a novel product name (not in the blocklist) is still stripped.
+// Ordinary words that are never a product name — same list as
+// app/_lib/compliance.ts. "Term" was taken for one, then cut out of "terminal".
+const PRODUCT_STOP = /^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best|Policy|Value|Rate|Index|Living|Benefit|Benefits|Growth|Market|Retirement|Illustration|Insurance|Premium|Fixed|Interest|Flexible|Individual|Universal|Adjustable|Annual|Monthly|Daily|Income|Protection|Coverage|Client|Options|Summary|Overview|Guaranteed|Illustrated|Underwriting|Preferred|Tobacco|Term|Long|Whole|Short|Level|Final|Total|Family|Estate|Account|Rider|Riders|Critical|Chronic|Terminal|Illness|Care|Loan|Loans|Surrender|Accumulation)$/i
 function productTokens(u) {
   const names = new Set()
-  const add = (s) => { if (typeof s === 'string') for (const w of s.split(/[\s,.—:;()]+/)) { const t = w.trim(); if (t.length >= 4 && /^[A-Z]/.test(t) && !/^(The|And|For|Your|With|Ask|Get|How|Why|You|Our|This|That|Plan|Life|Death|Cash|From|Into|When|What|Will|More|Less|Best)$/i.test(t)) names.add(t) } }
+  const add = (s) => { if (typeof s === 'string') for (const w of s.split(/[\s,.—:;()]+/)) { const t = w.trim(); if (t.length >= 4 && /^[A-Z]/.test(t) && !PRODUCT_STOP.test(t)) names.add(t) } }
   const hay = [u && u.what_it_is, u && u.core_promise, ...(u && u.notable_features || []), ...((u && u.key_numbers || []).map(k => k && k.label)), ...((u && u.audiences || []).map(a => a && a.name))].filter(Boolean).join(' ')
   for (const m of String(hay).matchAll(/\b([A-Z][a-z]+[A-Z][A-Za-z]*|[A-Z][a-zA-Z]{3,})\b/g)) add(m[1])
   return [...names].slice(0, 8)
@@ -401,7 +473,13 @@ function scrubSlidePlan(w, u) {
   const strip = new Set(CARRIER_BLOCKLIST)
   for (const n of productTokens(u)) if (n && n.length >= 4) strip.add(n.toLowerCase())
   const terms = [...strip].filter(Boolean).sort((a, b) => b.length - a.length)
-  const res = terms.map((t) => new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
+  // Whole words only: stops "term" being cut out of "terminal". A token detected
+  // from the source also treats a hyphenated word as one ("Long-Term" stays);
+  // a blocklisted carrier doesn't ("AIG-backed" still loses "AIG"). Same rule
+  // as app/_lib/compliance.ts.
+  const blocked = new Set(CARRIER_BLOCKLIST)
+  const edge = (t) => (blocked.has(t) ? 'a-z0-9' : 'a-z0-9-')
+  const res = terms.map((t) => new RegExp(`(?<![${edge(t)}])` + t.replace(/[.*+?^${}()|[\]\\&]/g, '\\$&') + `(?![${edge(t)}])` + '(?:\\s?(?:iul|life insurance company|life insurance|life|insurance company|insurance|company|policy|group|financial|iii|ii|iv|vi|v(?![a-z])|\\u2120|\\u00ae|\\u2122))*', 'ig'))
   // guarantee language: soften/strip so nothing implies a guaranteed result.
   // "guaranteed minimum floor" → "minimum floor" (keeps the concept, drops the
   // promise word); bare "guaranteed"/"risk-free"/"no risk" removed outright.
@@ -541,11 +619,110 @@ function complianceLeaks(w) {
  * render + upload. `deps` injects the VPS's existing helpers (gemini image, tts
  * limiter) so we don't duplicate them.
  */
-async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, brief, deps, log }) {
+/**
+ * THE USER'S OWN SCRIPT → a deck plan (audit H2).
+ *
+ * The wizard's script step lets the user edit every scene (by hand or with the
+ * AI), and the app sends those scenes here. They used to be thrown away: this
+ * pipeline re-read the document and wrote a brand-new script, so none of the
+ * user's edits reached the video. Now, when scenes are supplied, they ARE the
+ * deck: each becomes a slide with the user's heading, narration, bullets and
+ * figures. The writer model runs only when nothing was supplied.
+ *
+ * Scene shape from the app: { role: 'cover'|'content'|'closing', title,
+ * narration, beat?, slideData?: { headline, bullets[], stats[{label,value}], cta } }.
+ * Returns the same shape the writer returns ({ title, look, intro, cta, scenes }).
+ */
+function planFromSuppliedScenes(supplied) {
+  const clean = (supplied || []).filter((s) => s && typeof s.narration === 'string' && s.narration.trim())
+  const cover = clean.find((s) => s.role === 'cover')
+  const closing = clean.find((s) => s.role === 'closing')
+  const content = clean.filter((s) => s !== cover && s !== closing)
+  // The first n words, verbatim (for cue matching only — never shown).
+  const lead = (s, n) => String(s || '').trim().split(/\s+/).slice(0, n).join(' ')
+  // ON-SCREEN text: shorten WITHOUT breaking a sentence. The renderer shrinks
+  // any length to fit its box (remotion lib/fit), so this is only a tidy-up:
+  // text within `n` words stays whole; longer text is cut at the last clause
+  // break (, ; : . — –) in the second half of the limit, and kept WHOLE if there
+  // is none. It used to chop at exactly n words, which put "Here's the one
+  // thing to take with you: your business is your" on a customer's slide.
+  const words = (s, n) => {
+    const all = String(s || '').trim().split(/\s+/).filter(Boolean)
+    if (all.length <= n) return all.join(' ')
+    for (let i = n - 1; i >= Math.ceil(n / 2); i--) {
+      const w = all[i]
+      if (/^[—–-]+$/.test(w)) return all.slice(0, i).join(' ')
+      if (/[,;:.!?]$/.test(w)) return all.slice(0, i + 1).join(' ').replace(/[,;:]$/, '')
+    }
+    return all.join(' ')
+  }
+  // a cue is a short verbatim piece of the narration; when the bullet's words
+  // aren't spoken, leave it empty and the timing spreads the bullets evenly.
+  const cueFor = (narration, text) => {
+    const l = lead(text, 3)
+    return l && narration.toLowerCase().includes(l.toLowerCase()) ? l : ''
+  }
+  const heading = (s, fallback) => words((s.slideData && s.slideData.headline) || s.title || fallback, 12)
+  const blocksFor = (s) => {
+    const sd = s.slideData || {}
+    const narration = s.narration || ''
+    const stats = Array.isArray(sd.stats) ? sd.stats.filter((x) => x && x.value) : []
+    const bullets = Array.isArray(sd.bullets) ? sd.bullets.map((b) => (typeof b === 'string' ? b : b && b.text)).filter(Boolean) : []
+    const blocks = []
+    if (stats.length === 1 && !bullets.length) {
+      const f = figFromKeyNumber({ label: stats[0].label, value: stats[0].value })
+      if (f) blocks.push({ type: 'figure', figure: f })
+    }
+    if (!blocks.length && stats.length) {
+      blocks.push({ type: 'cards', vs: stats.length === 2, cards: stats.slice(0, 4).map((st, i) => ({ label: words(st.label, 8) || `#${i + 1}`, value: String(st.value), accent: i === 0, cue: cueFor(narration, st.label) })) })
+    }
+    if (bullets.length) {
+      blocks.push({ type: 'bullets', items: bullets.slice(0, 4).map((t) => ({ text: words(t, 20), highlight: '', cue: cueFor(narration, t) })) })
+    }
+    if (!blocks.length) {
+      // No on-screen points were written — lift up to three short lines from
+      // the narration so the slide is never a bare heading.
+      const lines = narration.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => x.length > 12).slice(0, 3)
+      if (lines.length) blocks.push({ type: 'bullets', items: lines.map((t) => ({ text: words(t, 20), highlight: '', cue: lead(t, 3) })) })
+    }
+    return blocks
+  }
+  const scenes = []
+  let id = 1
+  const title = heading(cover || content[0] || {}, 'Your presentation')
+  if (cover) scenes.push({ id: id++, beat: 'intro', kind: 'intro', narration: cover.narration.trim(), layout: { heading: title, align: 'center', media: 'full' }, blocks: [] })
+  for (const s of content) {
+    const blocks = blocksFor(s)
+    const isFigure = blocks.length === 1 && blocks[0].type === 'figure'
+    scenes.push({ id: id++, beat: 'benefit', kind: isFigure ? 'figure' : 'slide', narration: s.narration.trim(), layout: { heading: heading(s, `Part ${id - 1}`), align: 'left', media: 'right' }, blocks, backdrop_prompt: `abstract dark cinematic backdrop evoking "${heading(s, 'the topic')}"` })
+  }
+  const ctaLine = closing && closing.slideData && closing.slideData.cta ? words(closing.slideData.cta, 16) : ''
+  if (closing) scenes.push({ id: id++, beat: 'cta', kind: 'cta', narration: closing.narration.trim(), layout: { heading: heading(closing, 'Thank you'), align: 'center', media: 'full' }, blocks: [] })
+  // No cover supplied → the first content scene opens the deck.
+  if (!cover && scenes.length) scenes[0].beat = 'intro'
+  return {
+    title,
+    look: 'noir',
+    intro: { line1: title, line2: '' },
+    cta: { line: ctaLine || 'Get in touch to take the next step', contact: null },
+    scenes,
+  }
+}
+
+async function generateSlidePlan({ pub, source, preparer, recipient, music, glass, footer, forcedAccent, shots, presenter, photoPlacement, photos, brief, deps, log, suppliedScenes, voiceId, detailLevel }) {
   const say = log || (() => {})
   const kind = source.kind // 'website' | 'pdf' | 'text'
-  say(`comprehending ${kind} (${source.text.length} chars)...`)
-  const u = await comprehend(source.text, kind)
+  const useSupplied = Array.isArray(suppliedScenes) && suppliedScenes.length > 0
+  // With the user's own script there is nothing to comprehend — their scenes
+  // are the content. Regulated detection still reads the source text.
+  let u
+  if (useSupplied) {
+    say(`using your script (${suppliedScenes.length} scenes)...`)
+    u = { what_it_is: String(source.text || '').slice(0, 20000), audiences: [], key_numbers: [] }
+  } else {
+    say(`comprehending ${kind} (${source.text.length} chars)...`)
+    u = await comprehend(source.text, kind)
+  }
 
   const shotByPath = new Map(); const shotPaths = []
   ;(shots || []).forEach((sh) => { const p = (sh.path || '/').replace(/\/$/, '') || '/'; shotByPath.set(p, sh); shotPaths.push(p) })
@@ -555,15 +732,27 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   const regulated = isRegulated(u)
   if (regulated) say('⚖ regulated content detected — compliance mode ON')
 
-  say('writing slide deck...')
-  if (brief && (brief.angle || (brief.keyPoints && brief.keyPoints.length))) say('honoring approved brief')
-  let w = await writerFromUnderstanding(u, shotPaths, regulated, brief)
+  let w
+  if (useSupplied) {
+    // The app already ran its compliance scrub on these scenes (the same one
+    // every other style gets); the scrub below runs again as a safety net.
+    // The length is already in the script — the user chose it on the script step.
+    w = planFromSuppliedScenes(suppliedScenes)
+    if (!w.scenes.length) throw new Error('The supplied script had no scenes with narration.')
+  } else {
+    say('writing slide deck...')
+    if (brief && (brief.angle || (brief.keyPoints && brief.keyPoints.length))) say('honoring approved brief')
+    w = await writerFromUnderstanding(u, shotPaths, regulated, brief, detailLevel)
+  }
 
   // CODE-LEVEL SCRUB (belt-and-suspenders): strip carrier/product names + specific
   // dollar figures + rate % from EVERY on-screen + spoken string, BEFORE VO is
   // generated (so the voice never speaks them either). Then assert nothing leaked.
   if (regulated) {
-    w = scrubSlidePlan(w, u)
+    // For the user's own script, scrub with the fixed carrier/product list
+    // only: harvesting "product names" from the whole raw document would pick
+    // up ordinary capitalized words and cut them out of the user's sentences.
+    w = scrubSlidePlan(w, useSupplied ? {} : u)
     // name removal is word-level, so a scrubbed sentence can lose a word and read
     // broken ("an strategy", "so let's it up"). Re-smooth ONLY the changed lines
     // with a cheap model pass BEFORE VO, so the voice never speaks a stumble.
@@ -602,7 +791,9 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
     // this guards the case where they diverge).
     const agentName = preparer || (presenter && presenter.name)
     const introScene = scenes.find((s) => s.beat === 'intro') || scenes[0]
-    if (clientFirst && agentName && introScene) {
+    // The user's own script already carries the app's personal opening (or the
+    // words the user chose instead) — never add a second greeting on top.
+    if (!useSupplied && clientFirst && agentName && introScene) {
       const doc = regulated ? 'illustration summary' : 'summary'
       const greet = `${clientFirst}, thank you for letting ${agentName} share this ${doc} with you.`
       let body = introScene.narration || ''
@@ -632,7 +823,7 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // fire VO + backdrops for every scene at once; await all.
   await Promise.all(scenes.map(async (s) => {
     // VO (pooled) — capture duration + resolve this scene's cues
-    const voP = deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`))).then((timed) => {
+    const voP = deps.tts(() => ttsTimed(s.narration, join(pub, `dir-vo-${s.id}.mp3`), voiceId)).then((timed) => {
       const durF = Math.round(timed.durationSec * FPS)
       s._voFrames = durF
       const toFrame = (cue) => { const sec = cueSec(timed.words, cue); return sec == null ? null : Math.round(sec * FPS) }
@@ -687,8 +878,12 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
   // (app) builds `footer` from the agent's profile (website/calendly/phone/email/
   // company). Fall back to the agent's own company/name — never docs2video.com,
   // which is our brand and has no business on a client-facing insurance video.
-  const agentContact = footer || preparer || (u.brand && u.brand.company) || null
-  const chrome = { company: preparer, logo, recipient: chromeRecipient, footer: agentContact, glass: glass || 'vivid' }
+  // (On a regulated illustration the document's own company is the CARRIER —
+  // never put that on the closing card.) `preparer` is the agent's brand or
+  // own name, or empty — never our platform name (the cover then shows the
+  // title alone).
+  const agentContact = footer || preparer || (!regulated && u.brand && u.brand.company) || null
+  const chrome = { company: preparer || undefined, logo, recipient: chromeRecipient, footer: agentContact, glass: glass || 'vivid' }
   // Closing CTA contact: prefer a real contact the writer found in the source,
   // then the agent's own footer/contact — but NEVER the source URL if it is ours
   // or empty. This is what stops "docs2video.com" appearing on the last slide.
@@ -705,6 +900,10 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
       onCover: pl === 'cover' || pl === 'both' || pl === 'auto', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
   }
   if (palette) doc.palette = palette
+  // Insurance / financial illustration → the renderer plays its quieter sound set.
+  if (regulated) doc.regulated = true
+  // Remember the voice so Fix-a-Scene re-records a scene in the SAME voice.
+  if (voiceId) doc.voiceId = voiceId
   // SFX safety: the renderer's Sfx component loads sfx/*.wav and a missing file
   // cancels the render. If the wavs aren't present, disable SFX in the plan so
   // the render never crashes on them (deploy should provide them, this is a net).
@@ -732,14 +931,14 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
  * by injecting it into the speakable pass for this clip only. Returns the timed
  * result ({words, durationSec}) so cues can be re-resolved.
  */
-async function generateSceneVO({ pub, text, outName, pronounce, tts }) {
+async function generateSceneVO({ pub, text, outName, pronounce, tts, voiceId }) {
   // apply an ad-hoc pronunciation override on top of the standard normalization
   let spoken = text
   if (pronounce && pronounce.word && pronounce.say) {
     try { spoken = spoken.replace(new RegExp(pronounce.word.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), pronounce.say) } catch {}
   }
-  const run = () => ttsTimed(spoken, join(pub, outName))
+  const run = () => ttsTimed(spoken, join(pub, outName), voiceId)
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
+module.exports = { planFromSuppliedScenes, sceneCountRule, wantsChosenVoice, estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }

@@ -1,31 +1,33 @@
 'use client'
 
 import Link from 'next/link'
+import { CREDIT_COSTS } from '../../../_lib/credits'
+import { NAMES } from '../../../_lib/names'
 
 const STEP_CIRCLE = {
-  width: 36, height: 36, borderRadius: '50%', background: 'var(--ink)', color: 'var(--mint)',
+  width: 36, height: 36, borderRadius: 10, background: 'var(--ink)', color: 'var(--accent)',
   display: 'flex' as const, alignItems: 'center' as const, justifyContent: 'center' as const,
-  fontWeight: 700, fontSize: 15, flexShrink: 0,
+  fontWeight: 700, fontSize: 'var(--fs-body)', flexShrink: 0,
 }
 
-const step: React.CSSProperties = { display: 'flex', gap: 16, marginBottom: 28, alignItems: 'flex-start' }
-const body: React.CSSProperties = { fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6 }
+const step: React.CSSProperties = { display: 'flex', gap: 'var(--space-4)', marginBottom: 28, alignItems: 'flex-start' }
+const body: React.CSSProperties = { fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6 }
 
 export default function CommercialsHelpPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>Creating Commercials</span>
+        <span>Creating commercials</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>Creating Commercials</h1>
+          <h1>Creating commercials</h1>
           <p>Turn a website, a document, your own text, or just an idea into a fully-directed, brand-matched commercial — with a written script, professional voiceover, custom visuals, and music.</p>
         </div>
       </div>
@@ -36,8 +38,8 @@ export default function CommercialsHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Start a commercial</h3>
           <p style={body}>
-            From your dashboard, click <strong>Create</strong>, then choose the <strong>🎥 Commercial</strong> card.
-            You&rsquo;ll land on a single page where you set everything up.
+            Click <strong>{NAMES.newButton}</strong> in the top bar. On the first screen, find <strong>Making something else?</strong>{' '}
+            and click <strong>A commercial</strong>. You&rsquo;ll land on a single page where you set everything up.
           </p>
         </div>
       </div>
@@ -83,7 +85,7 @@ export default function CommercialsHelpPage() {
         <div>
           <h3 style={{ margin: '4px 0 8px' }}>Generate</h3>
           <p style={body}>
-            Each commercial costs <strong>600 credits</strong> and takes about <strong>2&ndash;3 minutes</strong> to produce.
+            Each commercial costs <strong>{CREDIT_COSTS.commercial.toLocaleString('en-US')} credits</strong> and takes about <strong>2&ndash;3 minutes</strong> to produce.
             Click <strong>Generate Commercial</strong>. You&rsquo;ll see a live progress screen — you can safely leave the page and
             we&rsquo;ll notify you when it&rsquo;s ready. If anything goes wrong, your credits are automatically refunded.
           </p>
@@ -103,11 +105,11 @@ export default function CommercialsHelpPage() {
       </div>
 
       {/* Note */}
-      <div style={{ marginTop: 8, padding: '16px 20px', borderRadius: 10, background: 'rgba(199, 232, 168, 0.14)', border: '1.5px solid var(--mint)' }}>
+      <div style={{ marginTop: 8, padding: '16px 20px', borderRadius: 10, background: 'var(--accent-soft)', border: '1.5px solid var(--accent)' }}>
         <p style={{ ...body, margin: 0 }}>
           <strong>Tip:</strong> For regulated industries (like insurance and financial services), the director automatically
           applies compliance safeguards — it avoids guarantees and keeps the messaging generic. See{' '}
-          <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', fontWeight: 600, textDecoration: 'none' }}>Insurance Illustrations</Link>{' '}
+          <Link href="/help/insurance" style={{ color: 'var(--mint-darker)', fontWeight: 600, textDecoration: 'none' }}>Insurance illustrations</Link>{' '}
           for how compliance works.
         </p>
       </div>

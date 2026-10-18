@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../../_lib/supabase/server'
 import type { VideoBrief, WizardDraft } from '../../../_lib/types'
 import { scrubPlaceholderNamesInText } from '../../../_lib/text-format'
+import { cardlessPrepGate } from '../../../_lib/cardless-prep'
 
 export const runtime = 'nodejs'
 export const maxDuration = 45
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  // LIGHT START: free for everyone, but an account with no card yet gets a
+  // daily ceiling on this AI work (cardless-prep.ts). Cards: never counted.
+  const capped = await cardlessPrepGate(user.id)
+  if (capped) return capped
 
   const { videoId, message } = (await request.json().catch(() => ({}))) as { videoId?: string; message?: string }
   if (!videoId || !message || message.length > 1500) {

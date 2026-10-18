@@ -1,4 +1,5 @@
 import { createAdminClient } from './supabase/admin'
+import { isSafePublicUrl } from './brand-scraper'
 
 /**
  * If a job was created via the public API with a webhook_url, POST the final
@@ -36,10 +37,17 @@ export async function fireApiWebhook(videoId: string): Promise<void> {
       created_at: data.created_at,
     }
 
+    // SSRF (audit 2026-10-09): the webhook address comes from the API caller.
+    // Never POST to our own network, and never follow a redirect there.
+    if (!(await isSafePublicUrl(url))) {
+      console.error(`[api-webhook] refused unsafe webhook address for video ${videoId}`)
+      return
+    }
     await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'user-agent': 'docs2video-webhook/1' },
       body: JSON.stringify(payload),
+      redirect: 'manual',
       signal: AbortSignal.timeout(10000),
     }).catch((e) => console.error(`[api-webhook] callback to ${url} failed:`, e))
   } catch (e) {

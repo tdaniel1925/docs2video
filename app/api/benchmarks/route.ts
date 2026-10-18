@@ -18,7 +18,7 @@ export async function GET() {
   // Get user's videos
   const { data: userVideos } = await admin
     .from('videos')
-    .select('id, view_count, created_at')
+    .select('id, created_at') // views come from video_views; videos.view_count does not exist (it failed this whole query)
     .eq('user_id', user.id)
 
   if (!userVideos || userVideos.length === 0) {

@@ -2,369 +2,346 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, type ComponentType } from 'react'
+import { ArrowLeft, Bell, Check, CircleHelp, Coins, LibraryBig, Menu as MenuIcon, Palette, Plus, Users, X, type LucideProps } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import BuyCreditsModal from './BuyCreditsModal'
+import ClassicHeader from './ClassicHeader'
+import HowToUseDialog from './HowToUse'
+import { ThemeIconButton, ThemeToggle } from './theme'
+import { Button, Chip } from './kit'
 import { logout } from '../_actions/auth'
 import type { Profile } from '../_lib/types'
 import { DOCS2VIDEO, type Brand } from '../_lib/brand'
+import { NAMES, planLabel } from '../_lib/names'
+import { ACCOUNT_MENU, OPEN_HELP_EVENT, SIGN_OUT, creditLevel, focusTitle, isCurrent, isFocusPath } from '../_lib/top-bar'
+import { STEPS, stepHref, stepIndexFor } from '../(dashboard)/create/_components/workspace/steps'
 
-const TOOLS_ITEMS = [
-  { href: '/create', icon: '\uD83C\uDFAC', title: 'Pro Mode', desc: 'Full control over every detail' },
-  { href: '/design', icon: '\uD83D\uDCC4', title: 'Custom Graphics', desc: 'Flyers, ads, banners & business cards' },
-  { href: '/brands', icon: '\uD83C\uDFA8', title: 'Brands', desc: 'Manage colors, logos, brand guides' },
-  { href: '/brands/new', icon: '\uD83C\uDF10', title: 'New Brand from URL', desc: 'Scrape website for brand identity' },
-]
+/* ONE ICON SET (round A): lucide, the set VidWiz uses. Two sizes only — 16 in
+   buttons and menus, 20 for the bell and the phone menu button. Icons sit
+   next to words, so they are decoration: lucide marks them aria-hidden. */
+const NAV_ICONS: Record<string, ComponentType<LucideProps>> = {
+  '/videos': LibraryBig,
+  '/clients': Users,
+  '/brands': Palette,
+}
 
-// Tools dropdown hidden from the nav per product decision (kept for re-enable).
-// The flyer tool still works at /flyers directly; it's just not surfaced in nav.
-const SHOW_TOOLS_NAV = false
+/*
+ * THE TOP BAR. Which bar a storefront wears is its brand's choice
+ * (brand.topBar): Docs2Video has the overhaul bar below; Text2Art keeps the
+ * classic one, untouched, in ClassicHeader.tsx.
+ */
+export default function Header({ profile, brand = DOCS2VIDEO, lowCreditsAt = 0 }: {
+  profile: Profile
+  brand?: Brand
+  /** Below this many credits the chip turns amber (from credits.ts). */
+  lowCreditsAt?: number
+}) {
+  if (brand.topBar === 'classic') return <ClassicHeader profile={profile} brand={brand} />
+  return <KitHeader profile={profile} brand={brand} lowCreditsAt={lowCreditsAt} />
+}
 
-// Which links appear here is a per-STOREFRONT decision and now lives in
-// app/_lib/brand.ts. `brand` defaults to Docs2Video, whose nav is exactly what
-// it always was, so every existing caller is unaffected.
-export default function Header({ profile, brand = DOCS2VIDEO }: { profile: Profile; brand?: Brand }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [toolsOpen, setToolsOpen] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [credits, setCredits] = useState<{ balance: number; monthly: number } | null>(null)
-  const [showBuyCredits, setShowBuyCredits] = useState(false)
-  const pathname = usePathname()
-  const toolsRef = useRef<HTMLDivElement>(null)
+/** Making something gets the quiet focus header; everything else the full bar. */
+function KitHeader({ profile, brand, lowCreditsAt }: { profile: Profile; brand: Brand; lowCreditsAt: number }) {
+  const pathname = usePathname() ?? ''
+  if (isFocusPath(pathname)) return <FocusHeader brand={brand} pathname={pathname} lowCreditsAt={lowCreditsAt} />
+  return <TopBar profile={profile} brand={brand} lowCreditsAt={lowCreditsAt} />
+}
 
-  // Fetch credit balance on mount
+/** The balance, read once per page. Null until it arrives (no chip flashes 0). */
+function useCredits(): number | null {
+  const [credits, setCredits] = useState<number | null>(null)
   useEffect(() => {
-    fetch('/api/credits/balance')
+    const load = () => fetch('/api/credits/balance')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && typeof d.balance === 'number') setCredits({ balance: d.balance, monthly: d.monthly }) })
+      .then(d => { if (d && typeof d.balance === 'number') setCredits(d.balance) })
       .catch(() => {})
+    load()
+    // An in-app purchase (top-up, plan) says so, and the chip catches up.
+    window.addEventListener('d2v:credits-changed', load)
+    return () => window.removeEventListener('d2v:credits-changed', load)
   }, [])
+  return credits
+}
 
-  const creditColor = credits && credits.monthly > 0
-    ? credits.balance / credits.monthly > 0.25 ? '#22c55e'
-      : credits.balance / credits.monthly > 0.10 ? '#eab308'
-      : '#ef4444'
-    : credits ? '#22c55e' : undefined
+/** The gold credit chip — the same one in both headers. Press it to top up. */
+function CreditChip({ credits, lowCreditsAt, onTopUp }: { credits: number; lowCreditsAt: number; onTopUp: () => void }) {
+  const level = creditLevel(credits, lowCreditsAt)
+  const balance = credits.toLocaleString('en-US')
+  return (
+    <button
+      type="button"
+      className="kit-credit"
+      data-level={level}
+      onClick={onTopUp}
+      aria-label={`${balance} credits${level === 'low' ? ', running low' : ''}. Top up`}
+      title={level === 'low' ? 'Not enough left for a standard video — top up' : 'Your credits — press to top up'}
+    >
+      <Coins size={16} />
+      <span>{balance}<span className="kit-credit-long"> credits</span></span>
+      <span className="kit-credit-top">
+        <span className="kit-credit-long">+ Top up</span>
+        <span className="kit-credit-short">+</span>
+      </span>
+    </button>
+  )
+}
 
-  const showAdmin = profile.is_admin === true
-
-  // Close the Tools dropdown on click outside
+/*
+ * THE FOCUS HEADER — VidWiz's header while you make something:
+ *   ← Home     (1) Your content  (2) The story  (3) The look     How to use · credits
+ * The steps come from steps.ts. A step already done links back to it for
+ * the same draft; on the making screen all three show done. Leaving is safe:
+ * drafts are saved as you go and wait on Home.
+ * On a phone: the arrow, the numbers with the CURRENT step's name beside
+ * them (audit 2026-10-09), one help button and the balance.
+ */
+function FocusHeader({ brand, pathname, lowCreditsAt }: { brand: Brand; pathname: string; lowCreditsAt: number }) {
+  const credits = useCredits()
+  const [howToOpen, setHowToOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
+  const helpRef = useRef<HTMLDivElement>(null)
+  const closeHowTo = useCallback(() => setHowToOpen(false), [])
+  const active = stepIndexFor(pathname)
+  // The draft this screen is working on (?id=…), so a step already done can
+  // link back to it. Read once the page is in the browser (the header sits in
+  // the layout, outside any page's search params).
+  const [draftId, setDraftId] = useState<string | null>(null)
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) setToolsOpen(false)
-    }
-    if (toolsOpen) {
-      document.addEventListener('mousedown', handleClick)
-      return () => document.removeEventListener('mousedown', handleClick)
-    }
-  }, [toolsOpen])
-
-  // Close dropdowns on route change
-  useEffect(() => {
-    setToolsOpen(false)
-    setMenuOpen(false)
-    setMobileOpen(false)
+    try { setDraftId(new URLSearchParams(window.location.search).get('id')) } catch { setDraftId(null) }
   }, [pathname])
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
-  const isCreateActive = pathname === '/create' || pathname.startsWith('/create/')
-  const isToolsActive = TOOLS_ITEMS.some(
-    (item) => pathname === item.href || pathname.startsWith(item.href + '/')
-  )
+  useEffect(() => { setHelpOpen(false) }, [pathname])
+  useEffect(() => {
+    if (!helpOpen) return
+    const onDown = (e: MouseEvent) => { if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setHelpOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [helpOpen])
 
   return (
-    <header className="app-header">
-      <div className="app-header-inner">
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Link href={brand.home} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-            {brand.logoSrc
-              ? <img src={brand.logoSrc} alt={brand.name} style={{ height: 64 }} />
-              : <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--ink)' }}>{brand.name}</span>}
-          </Link>
-          <nav className="app-nav">
-            {/* First nav item (Dashboard on Docs2Video, Designs on Text2Art). */}
-            {brand.nav[0] && (
-              <Link
-                href={brand.nav[0].href}
-                className={pathname === brand.nav[0].href ? 'active' : ''}
-              >
-                {brand.nav[0].label}
-              </Link>
-            )}
+    <header className="app-header kit-topbar kit-focusbar" data-testid="focus-header">
+      <div className="kit-topbar-inner">
+        <Link href={brand.home} className="kit-focusbar-exit" aria-label="Home" title="Your work is saved as you go — it waits on Home">
+          <ArrowLeft size={16} />
+          <span>Home</span>
+        </Link>
 
-            {/* Create — ONE door. /create/start presents all output types (Video /
-                Slides / Commercial) so we don't need a parallel dropdown that
-                deep-links past the output-type choice. Brands with a single tool
-                set create to null and get no button. */}
-            {brand.create && (
-              <Link
-                href={brand.create.href}
-                className={isCreateActive ? 'active' : ''}
-                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: 'var(--ink-soft)' }}
-              >
-                {brand.create.label}
-              </Link>
-            )}
-
-            {/* Tools dropdown — hidden from nav per product decision (kept in code). */}
-            {SHOW_TOOLS_NAV && (
-            <div ref={toolsRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <button
-                onClick={() => setToolsOpen(!toolsOpen)}
-                className={isToolsActive ? 'active' : ''}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 500, color: 'var(--ink-soft)' }}
-              >
-                Tools
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {toolsOpen && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, marginTop: 8,
-                  width: 280, background: 'var(--bg-card)', border: '1px solid var(--border-light)',
-                  borderRadius: 10, padding: 6, boxShadow: '0 8px 30px rgba(0,0,0,0.12)', zIndex: 200,
-                }}>
-                  {TOOLS_ITEMS.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setToolsOpen(false)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                        borderRadius: 8, textDecoration: 'none', color: 'var(--ink)',
-                        transition: 'background 0.1s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-soft)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span style={{ fontSize: 20, width: 32, textAlign: 'center' }}>{item.icon}</span>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{item.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{item.desc}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            )}
-
-            {/* Other nav links */}
-            {brand.nav.slice(1).map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={isActive(link.href) ? 'active' : ''}
-              >
-                {link.label}
-              </Link>
-            ))}
-
-          </nav>
-        </div>
-
-        {/* Mobile hamburger */}
-        <button
-          className="mobile-menu-btn"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          type="button"
-          aria-label="Menu"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2">
-            {mobileOpen ? (
-              <>
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </>
-            ) : (
-              <>
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </>
-            )}
-          </svg>
-        </button>
-
-        {credits && (
-          <button
-            onClick={() => setShowBuyCredits(true)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, color: creditColor,
-              background: 'var(--bg-soft)', border: '1px solid var(--border-light)',
-              fontFamily: 'inherit',
-            }}
-            title="Credit balance — click to top up"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={creditColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v12M15 9.5c0-1.38-1.34-2.5-3-2.5s-3 1.12-3 2.5 1.34 2.5 3 2.5 3 1.12 3 2.5-1.34 2.5-3 2.5" />
-            </svg>
-            {credits.balance.toLocaleString()} credits
-            <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--mint-darker, #2d8a4e)' }}>+ Top Up</span>
-          </button>
+        {active >= 0 ? (
+          <ol className="kit-focusbar-steps" aria-label="Progress">
+            {STEPS.map((step, i) => {
+              const state = i < active ? 'done' : i === active ? 'now' : 'todo'
+              // Back to a step already done — not from the making screen,
+              // where the project has already started.
+              const href = state === 'done' && active < STEPS.length ? stepHref(i, draftId) : null
+              const inner = (
+                <>
+                  <span className="kit-focusbar-num" aria-hidden="true">{state === 'done' ? <Check size={14} strokeWidth={3} /> : i + 1}</span>
+                  <span className="kit-focusbar-word">{step.label}</span>
+                </>
+              )
+              return (
+                <li key={step.label} aria-current={state === 'now' ? 'step' : undefined}>
+                  {href
+                    ? <Link href={href} className={`kit-focusbar-step is-${state}`} aria-label={`Back to step ${i + 1}: ${step.label}`}>{inner}</Link>
+                    : <span className={`kit-focusbar-step is-${state}`}>{inner}</span>}
+                </li>
+              )
+            })}
+          </ol>
+        ) : (
+          <span className="kit-focusbar-title">{focusTitle(pathname)}</span>
         )}
 
-        <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
-
-        <NotificationBell />
-
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="app-user"
-            style={{ background: 'none', border: 'none' }}
-          >
-            <div className="app-avatar">
-              {profile.full_name?.[0]?.toUpperCase() ?? profile.email[0].toUpperCase()}
-            </div>
-          </button>
-
-          {menuOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: '100%',
-                marginTop: 4,
-                width: 200,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 10,
-                padding: '4px 0',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-                zIndex: 200,
-              }}
-            >
-              <div style={{ padding: '8px 14px', fontSize: 13, color: 'var(--muted)' }}>
-                {profile.full_name || profile.email}
-              </div>
-              <div style={{ padding: '0 14px 6px', fontSize: 12, color: 'var(--ink-light)' }}>
-                {['pro', 'professional', 'active', 'agency'].includes(profile.subscription_status?.toLowerCase() ?? '') ? 'Pro Member' : 'Free Account'}
-              </div>
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
-
-              {/* Credits balance section */}
-              <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Credits</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>
-                    {credits ? credits.balance.toLocaleString() : '—'}
-                  </div>
-                </div>
-                <button
-                  onClick={() => { setMenuOpen(false); setShowBuyCredits(true) }}
-                  className="btn btn-sm"
-                  style={{ background: 'var(--mint)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  Top Up
+        <div className="kit-topbar-end">
+          <span className="kit-topbar-howto">
+            <Button variant="quiet" size="sm" onClick={() => setHowToOpen(true)} aria-haspopup="dialog">
+              <CircleHelp size={16} />{NAMES.howToUse}
+            </Button>
+          </span>
+          {/* Phone: one help button holding both kinds of help (the ☰ menu
+              that holds them on other screens isn't in this header). */}
+          <div className="kit-menu-anchor kit-focusbar-help" ref={helpRef}>
+            <button type="button" className="kit-icon-btn" aria-label="Help" aria-haspopup="true" aria-expanded={helpOpen} onClick={() => setHelpOpen(!helpOpen)}>
+              <CircleHelp size={20} />
+            </button>
+            {helpOpen && (
+              <div className="kit-menu">
+                <button type="button" className="kit-menu-item" onClick={() => { setHelpOpen(false); setHowToOpen(true) }} aria-haspopup="dialog">
+                  {NAMES.howToUse} this screen
+                </button>
+                <button type="button" className="kit-menu-item" onClick={() => { setHelpOpen(false); window.dispatchEvent(new Event(OPEN_HELP_EVENT)) }} aria-haspopup="dialog">
+                  Ask the help assistant
                 </button>
               </div>
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
-              {/* Share-page analytics only mean something where there are
-                  share pages — i.e. the video product. */}
-              {brand.showVideoFeatures && (
-                <Link
-                  href="/analytics"
-                  onClick={() => setMenuOpen(false)}
-                  style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
-                >
-                  Analytics
-                </Link>
-              )}
-              <Link
-                href="/settings"
-                onClick={() => setMenuOpen(false)}
-                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
-              >
-                Settings
-              </Link>
-              <Link
-                href="/affiliate"
-                onClick={() => setMenuOpen(false)}
-                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
-              >
-                Affiliate Program
-              </Link>
-              <Link
-                href="/help"
-                onClick={() => setMenuOpen(false)}
-                style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none' }}
-              >
-                Help Center
-              </Link>
-              {showAdmin && (
-                <>
-                  <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
-                  <Link
-                    href="/admin"
-                    onClick={() => setMenuOpen(false)}
-                    style={{ display: 'block', padding: '8px 14px', fontSize: 14, color: 'var(--ink)', textDecoration: 'none', fontWeight: 600 }}
-                  >
-                    Admin
-                  </Link>
-                </>
-              )}
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: 0 }} />
-              <form action={logout}>
-                <button
-                  type="submit"
-                  style={{
-                    width: '100%',
-                    padding: '8px 14px',
-                    textAlign: 'left',
-                    fontSize: 14,
-                    color: 'var(--ink)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Sign Out
-                </button>
-              </form>
-            </div>
-          )}
+            )}
+          </div>
+          {credits != null && <CreditChip credits={credits} lowCreditsAt={lowCreditsAt} onTopUp={() => setShowBuyCredits(true)} />}
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="mobile-menu">
-          {brand.nav[0] && (
-            <Link href={brand.nav[0].href} className={pathname === brand.nav[0].href ? 'active' : ''}>{brand.nav[0].label}</Link>
-          )}
-          {brand.create && (
-            <Link href={brand.create.href} className={isCreateActive ? 'active' : ''}>{brand.create.label}</Link>
-          )}
-          {SHOW_TOOLS_NAV && (
-            <>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Tools</div>
-              {TOOLS_ITEMS.map((item) => (
-                <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
-                  {item.icon} {item.title}
-                </Link>
-              ))}
-            </>
-          )}
-          <div style={{ height: 8 }} />
-          {brand.nav.slice(1).map((link) => (
-            <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : ''}>{link.label}</Link>
-          ))}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-light)', padding: '12px 0 4px' }}>Account</div>
-          {brand.showVideoFeatures && (
-            <Link href="/analytics" className={pathname === '/analytics' ? 'active' : ''}>Analytics</Link>
-          )}
-          <Link href="/settings" className={pathname === '/settings' ? 'active' : ''}>Settings</Link>
-          <Link href="/help" className={pathname.startsWith('/help') ? 'active' : ''}>Help Center</Link>
-          {showAdmin && (
-            <Link href="/admin" className={pathname.startsWith('/admin') ? 'active' : ''}>Admin</Link>
-          )}
-        </div>
-      )}
+      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
+      <HowToUseDialog open={howToOpen} onClose={closeHowTo} />
     </header>
   )
 }
+
+/*
+ * Docs2Video's bar — the sibling apps' calm one:
+ *   logo (Home) · + New · Library · Clients · Brands
+ *                         How to use · credits (gold) · bell · your initial
+ * On a phone the four words and How to use move into the ☰ menu.
+ */
+function TopBar({ profile, brand, lowCreditsAt }: { profile: Profile; brand: Brand; lowCreditsAt: number }) {
+  const pathname = usePathname() ?? ''
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [phoneOpen, setPhoneOpen] = useState(false)
+  const [howToOpen, setHowToOpen] = useState(false)
+  const [showBuyCredits, setShowBuyCredits] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const closeHowTo = useCallback(() => setHowToOpen(false), [])
+
+  const credits = useCredits()
+
+  // A new screen closes the menus.
+  useEffect(() => { setMenuOpen(false); setPhoneOpen(false) }, [pathname])
+
+  // The account menu closes on a click elsewhere or Escape (it used to stay
+  // open until you pressed the avatar again).
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
+
+  const hasSocialAddon = !!(profile as Profile & { social_addon_active?: boolean }).social_addon_active
+  const initial = profile.full_name?.[0]?.toUpperCase() ?? profile.email[0].toUpperCase()
+
+  return (
+    <header className="app-header kit-topbar">
+      <div className="kit-topbar-inner">
+        <Link href={brand.home} className="kit-topbar-logo" aria-label={`${brand.name} — Home`}>
+          {brand.logoSrc
+            ? <img src={brand.logoSrc} alt="" />
+            : <span className="kit-card-title">{brand.name}</span>}
+        </Link>
+
+        <nav className="kit-topbar-nav" aria-label="Main">
+          {brand.create && (
+            <Button href={brand.create.href} size="sm" aria-label={brand.create.label}><Plus size={16} strokeWidth={2.5} />{brand.create.label.replace(/^\+\s*/, '')}</Button>
+          )}
+          {brand.nav.map((link) => {
+            const Icon = NAV_ICONS[link.href]
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="kit-topbar-link"
+                aria-current={isCurrent(pathname, link.href) ? 'page' : undefined}
+              >
+                {Icon && <Icon size={16} />}
+                {link.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="kit-topbar-end">
+          <span className="kit-topbar-howto">
+            <Button variant="quiet" size="sm" onClick={() => setHowToOpen(true)} aria-haspopup="dialog">
+              <CircleHelp size={16} />{NAMES.howToUse}
+            </Button>
+          </span>
+
+          {credits != null && <CreditChip credits={credits} lowCreditsAt={lowCreditsAt} onTopUp={() => setShowBuyCredits(true)} />}
+
+          {/* Phones keep the switch in the account menu; the bar is full there. */}
+          <span className="kit-topbar-howto"><ThemeIconButton /></span>
+
+          <NotificationBell icon={<Bell size={20} color="var(--ink)" />} />
+
+          <div className="kit-menu-anchor" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="app-user kit-avatar-btn"
+              aria-haspopup="true"
+              aria-expanded={menuOpen}
+              aria-label="Account menu"
+            >
+              <span className="app-avatar">{initial}</span>
+            </button>
+
+            {menuOpen && (
+              <div className="kit-menu">
+                <div className="kit-menu-head">
+                  <div className="kit-menu-name">{profile.full_name || profile.email}</div>
+                  {/* The real plan name from pricing.ts (names.ts). */}
+                  <div className="kit-menu-plan">{planLabel(profile.subscription_status)}</div>
+                </div>
+                <hr className="kit-menu-sep" />
+                {ACCOUNT_MENU.filter((item) => !item.adminOnly || profile.is_admin === true).map((item) => (
+                  <Link key={item.href} href={item.href} className="kit-menu-item" onClick={() => setMenuOpen(false)}>
+                    <span>{item.label}</span>
+                    {item.addOnBadge && !hasSocialAddon && <Chip>Add-on</Chip>}
+                  </Link>
+                ))}
+                <hr className="kit-menu-sep" />
+                {/* Light / dark (round C). System · Light · Dark is in Settings → Profile. */}
+                <ThemeToggle onDone={() => setMenuOpen(false)} />
+                <form action={logout}>
+                  <button type="submit" className="kit-menu-item">{SIGN_OUT}</button>
+                </form>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="kit-icon-btn kit-topbar-menu-btn"
+            onClick={() => setPhoneOpen(!phoneOpen)}
+            aria-label="Menu"
+            aria-expanded={phoneOpen}
+          >
+            {phoneOpen ? <X size={20} /> : <MenuIcon size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Phone menu: the four words and How to use. Your account stays behind
+          your initial, as on a computer. */}
+      {phoneOpen && (
+        <nav className="kit-phone-menu" aria-label="Phone menu">
+          {brand.create && <Link href={brand.create.href} className="kit-menu-item">{brand.create.label}</Link>}
+          {brand.nav.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="kit-menu-item"
+              aria-current={isCurrent(pathname, link.href) ? 'page' : undefined}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <button type="button" className="kit-menu-item" onClick={() => { setPhoneOpen(false); setHowToOpen(true) }} aria-haspopup="dialog">
+            {NAMES.howToUse} this screen
+          </button>
+          {/* On a phone the help assistant lives here, not as a round button
+              floating over the page (HelpChatWidget). */}
+          <button type="button" className="kit-menu-item" onClick={() => { setPhoneOpen(false); window.dispatchEvent(new Event(OPEN_HELP_EVENT)) }} aria-haspopup="dialog">
+            Ask the help assistant
+          </button>
+        </nav>
+      )}
+
+      <BuyCreditsModal open={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
+      <HowToUseDialog open={howToOpen} onClose={closeHowTo} />
+    </header>
+  )
+}
+

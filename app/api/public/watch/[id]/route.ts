@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
+import { safeHttpsUrl } from '../../../../_lib/client-email'
 
 export const runtime = 'nodejs'
 
@@ -27,13 +28,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // NOTE: allow_source_download / source_pdf_* / agent_note / recipient_name were
   // added by migration 20260716_share_page_options.sql — that MUST be applied in
   // prod before this line ships, or the whole select 400s and 404s every link.
+  //
+  // REVIEWED AGAIN (audit 2026-09-26): the share page reads none of the brand
+  // row and none of the infographic row, yet both were joined in — including
+  // the extracted policy_data (the client's policy details) and the full brand
+  // guide. Both joins are gone. user_id is needed here to find the agent, but
+  // is removed before the response goes out.
   const VIDEO_COLS = 'id, user_id, title, status, video_url, thumbnail_url, music_url, script, preview_thumbs, created_at, updated_at, allow_source_download, source_pdf_name, agent_note, recipient_name, output_type'
-  const BRAND_COLS = 'id, name, logo_url, logo_light_url, logo_dark_url, logo_chip, primary_color, secondary_color, accent_color, background_color, text_color, tagline, fonts, profile_type, person_role, photo_url, intro_line, show_logo, show_name_on_slides, photo_placement, brand_guide_data'
-  // Fetch by id only (no brittle exact status match). Use maybeSingle so a
-  // to-many join (e.g. >1 infographic row) can't throw and 404 a real video.
   const { data: video, error: videoErr } = await admin
     .from('videos')
-    .select(`${VIDEO_COLS}, brand:brands(${BRAND_COLS}), infographic:infographics(policy_data, source_pdf_url)`)
+    .select(VIDEO_COLS)
     .eq('id', id)
     .maybeSingle()
   if (videoErr) {
@@ -65,24 +69,38 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // document text that the generator stashed there (audit H3).
   const script = (video as any).script
   if (script && typeof script === 'object' && script._pipeline_input) {
-    const pd = script._pipeline_input.policyData || {}
+    const pi = script._pipeline_input
+    const pd = pi.policyData || {}
+    // The per-video booking / payment links ARE shown on the share page, so
+    // they pass through — but only when they are real https links. The agent
+    // types them, and a "javascript:" link in a button would run code in the
+    // client's browser. The page checks again before drawing any button.
+    const bookingUrl = safeHttpsUrl(pi.bookingUrl)
+    const paymentLink = safeHttpsUrl(pi.paymentLink)
     script._pipeline_input = {
       policyData: {
         deathBenefit: pd.deathBenefit,
         industry: pd.industry,
         disclaimers: pd.disclaimers,
       },
+      ...(bookingUrl ? { bookingUrl } : {}),
+      ...(paymentLink ? { paymentLink } : {}),
     }
   }
 
-  const [{ data: agent }, { data: quote }] = await Promise.all([
+  const ownerId = (video as { user_id: string }).user_id
+  const [{ data: profile }, { data: quote }] = await Promise.all([
     // Only SAFE, intentionally-public profile columns — never the whole row.
+    // subscription_status is read to decide branding but NOT sent out: which
+    // plan an agent pays for is their business, not their client's.
     admin.from('profiles')
-      .select('id, full_name, company_name, photo_url, email, phone, calendly_url, payment_link_url, subscription_status')
-      .eq('id', video.user_id)
+      .select('full_name, company_name, photo_url, email, phone, calendly_url, payment_link_url, subscription_status')
+      .eq('id', ownerId)
       .single(),
+    // No stripe_payment_intent_id — a payment reference has no place on a
+    // public page.
     admin.from('quotes')
-      .select('id, video_id, client_name, line_items, subtotal, tax, total, currency, status, stripe_payment_intent_id')
+      .select('id, video_id, client_name, line_items, subtotal, tax, total, currency, status, paid_at, created_at')
       .eq('video_id', id)
       .neq('status', 'draft')
       .order('created_at', { ascending: false })
@@ -90,5 +108,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .maybeSingle(),
   ])
 
-  return NextResponse.json({ video, agent: agent ?? null, quote: quote ?? null })
+  const plan = String(profile?.subscription_status ?? '').toLowerCase()
+  const agent = profile ? {
+    full_name: profile.full_name,
+    company_name: profile.company_name,
+    photo_url: profile.photo_url,
+    email: profile.email,
+    phone: profile.phone,
+    // Same rule for the agent's saved links: https only, or nothing.
+    calendly_url: safeHttpsUrl(profile.calendly_url) || null,
+    payment_link_url: safeHttpsUrl(profile.payment_link_url) || null,
+    white_label: WHITELABEL_PLANS.includes(plan),
+    free_tier: !PAID_PLANS.includes(plan),
+  } : null
+
+  const { user_id: _omit, ...publicVideo } = video as Record<string, unknown>
+  void _omit
+  return NextResponse.json({ video: publicVideo, agent, quote: quote ?? null })
 }
+
+// Same lists the share page used when it received the raw plan.
+const WHITELABEL_PLANS = ['enterprise', 'business']
+const PAID_PLANS = ['active', 'professional', 'pro', 'business', 'enterprise', 'starter']

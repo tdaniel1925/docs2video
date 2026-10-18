@@ -34,6 +34,7 @@ describe('tts', () => {
     vi.clearAllMocks()
     // Reset env
     delete process.env.STRICT_MODE
+    vi.stubEnv('FAL_KEY', '') // fal (the primary since 2026-10-09) is tested in fal-tts.test.ts; never bill fal here
   })
 
   it('calls OpenAI once for text under 4000 chars', async () => {

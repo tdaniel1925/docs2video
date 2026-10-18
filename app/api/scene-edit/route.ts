@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '../../_lib/supabase/server'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -33,15 +34,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
   }
 
-  const COST = CREDIT_COSTS['scene-edit']
-  const credit = await checkCredits(user.id, COST)
-  if (!credit.allowed) {
-    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
-  }
-  if (!(await deductCredits(user.id, COST, 'scene-edit'))) {
-    return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
-  }
-
   const { scene, instruction, sourceData, history, outputType } = await request.json() as {
     scene: any
     instruction: string
@@ -53,6 +45,10 @@ export async function POST(request: Request) {
   if (!scene || !instruction?.trim()) {
     return NextResponse.json({ error: 'Missing scene or instruction' }, { status: 400 })
   }
+
+  // Charge only once the request is valid, and give the credits back if the
+  // AI call or the parse fails (audit H5).
+  return runCharged({ userId: user.id, amount: CREDIT_COSTS['scene-edit'], action: 'scene-edit' }, async () => {
 
   const role = scene._role as 'cover' | 'closing' | undefined
   const isBookend = role === 'cover' || role === 'closing'
@@ -121,4 +117,5 @@ ${sourceRef ? `\nSOURCE DATA (ground truth — do not contradict):\n${sourceRef}
   if (isBookend) { delete merged.slideData.stats; delete merged.slideData.bullets }
 
   return NextResponse.json({ scene: merged, reply: 'Done — applied your edit to this scene.' })
+  })
 }

@@ -1,0 +1,364 @@
+/* Step 3 — "Make it yours". Colors come from the app's variables in
+   app/globals.css (--ink, --mint, --border…) so this screen matches the rest
+   of the app. Corners stay at 10px or less. */
+
+.page {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 32px 24px 56px;
+  box-sizing: border-box;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* Phone and small tablet: the price panel drops below the choices. */
+@media (max-width: 900px) {
+  .page { padding: 24px 16px 48px; }
+  .layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+}
+
+.back {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-ui);
+  color: var(--ink-light);
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: clamp(32px, 5vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+.title em {
+  font-family: var(--font-serif, 'Instrument Serif', serif);
+  font-style: italic;
+  font-weight: 400;
+}
+.lead {
+  font-size: var(--fs-body);
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin: 0 0 28px;
+}
+
+.section { margin-bottom: 30px; }
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: 12px;
+}
+.sectionTitle {
+  font-size: var(--fs-lead);
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0;
+}
+.sectionHint { font-size: var(--fs-small); color: var(--ink-light); }
+
+/* ── Brand line ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 12px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-card);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.brandLogo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+.brandDots { display: flex; gap: var(--space-1); }
+.brandDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.brandText { flex: 1; min-width: 160px; font-size: var(--fs-ui); color: var(--ink-soft); line-height: 1.4; }
+.brandText strong { color: var(--ink); }
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--fs-ui);
+  font-weight: 700;
+  color: var(--mint-darker, var(--ink));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Looks ── */
+.looks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+.look {
+  position: relative;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  transition: border-color 0.15s;
+}
+.look:hover { border-color: var(--border); }
+.lookOn { border: 2px solid var(--ink); }
+.lookThumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--bg-soft);
+}
+.lookSwatch {
+  aspect-ratio: 16 / 9;
+  padding: 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.lookName { padding: 8px 10px 10px; font-size: var(--fs-small); font-weight: 800; color: var(--ink); }
+.lookBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--accent);
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+.lookDetail {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+.lookDetail p { margin: 0 0 10px; font-size: var(--fs-small); color: var(--ink-soft); line-height: 1.5; }
+.samples { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.sample {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  cursor: zoom-in;
+  display: block;
+  padding: 0;
+  background: none;
+}
+.sample img { width: 100%; display: block; border-radius: 6px; }
+
+/* ── Output cards ── */
+.outputs { display: grid; gap: var(--space-3); }
+.output {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+/* Selected = navy edge on the soft mint tint (the light cyan was left over from the old palette). */
+.outputOn { border: 2px solid var(--ink); background: var(--accent-soft); }
+.radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-sizing: border-box;
+}
+.radioOn { border: 5px solid var(--ink); }
+/* The output's picture (lucide). */
+.outputIcon { display: inline-grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; margin-top: -6px; border-radius: 8px; background: var(--surface); color: var(--ink); }
+.outputIconOn { background: var(--accent); }
+.outputBody { flex: 1; min-width: 0; }
+.outputName { font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
+.outputDesc { font-size: var(--fs-small); color: var(--ink-soft); margin-top: 2px; line-height: 1.4; }
+.outputPrice { font-size: var(--fs-small); font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+.note { font-size: var(--fs-small); color: var(--ink-light); margin-top: 8px; line-height: 1.5; }
+
+/* ── Voice + length chips ── */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: var(--fs-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+.chipOn { border: 2px solid var(--ink); background: var(--accent-soft); font-weight: 700; }
+.chipSub { font-size: var(--fs-caption); color: var(--ink-light); font-weight: 500; }
+.play {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-size: var(--fs-caption);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  cursor: pointer;
+  margin-top: 10px;
+}
+.toggleRow input { margin-top: 3px; width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+.toggleTitle { font-size: var(--fs-ui); font-weight: 700; color: var(--ink); }
+.toggleDesc { display: block; font-size: var(--fs-small); color: var(--ink-soft); margin-top: 2px; line-height: 1.4; }
+
+.details {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 12px 14px;
+}
+.details summary { cursor: pointer; font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
+.textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: var(--fs-ui);
+  font-family: inherit;
+  color: var(--ink);
+  resize: vertical;
+  box-sizing: border-box;
+  background: var(--bg-card);
+}
+
+/* ── The price panel ── */
+.panel {
+  /* Sits in the workspace's right column, which stays in view itself. */
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 20px;
+}
+.panelTitle {
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin: 0 0 14px;
+}
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-ui);
+  color: var(--ink-soft);
+  padding: 6px 0;
+}
+.line span:last-child { white-space: nowrap; }
+.total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-lead);
+  font-weight: 800;
+  color: var(--ink);
+  border-top: 1px solid var(--border-light);
+  margin-top: 8px;
+  padding-top: 12px;
+}
+.balance { font-size: var(--fs-small); color: var(--ink-soft); margin: 12px 0 16px; line-height: 1.5; }
+.warn {
+  font-size: var(--fs-small);
+  color: var(--ink);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+.error {
+  font-size: var(--fs-small);
+  color: var(--error-text);
+  background: var(--error-bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+.makeNote { font-size: var(--fs-caption); color: var(--ink-light); margin-top: 10px; line-height: 1.5; text-align: center; }
+.muted { color: var(--ink-light); }
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 12, 16, 0.88);
+  padding: 24px;
+  cursor: zoom-out;
+}
+.lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 8px; }
+
+/* Phones: the output names need the room more than the picture does. */
+@media (max-width: 520px) {
+  .outputIcon { display: none; }
+}

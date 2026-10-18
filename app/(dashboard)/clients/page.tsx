@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { CLIENT_STATUSES, statusTone, statusWords } from './client-status'
+import ReviewDueLine, { useReviewsState } from '../../_components/answers-reviews/ReviewDueLine'
 
 interface Client {
   id: string
@@ -18,15 +20,16 @@ interface Client {
   last_activity_at: string | null
   created_at: string
   recent_activity_count: number
+  /** Policy anniversary (annual reviews) — only once its migration has run. */
+  anniversary_date?: string | null
+  anniversary_confirmed?: boolean | null
 }
 
-const STATUS_OPTIONS = ['all', 'lead', 'active', 'engaged', 'converted', 'inactive'] as const
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  lead: { bg: '#f3f4f6', color: '#374151' },
-  active: { bg: '#dbeafe', color: '#1e40af' },
-  engaged: { bg: 'var(--mint, #d4f5e9)', color: '#166534' },
-  converted: { bg: '#fef3c7', color: '#92400e' },
-  inactive: { bg: '#fecaca', color: '#991b1b' },
+const STATUS_OPTIONS = ['all', ...CLIENT_STATUSES] as const
+
+/** A client's status as a soft chip in plain words (client-status.ts). */
+function StatusChip({ status }: { status: string }) {
+  return <span className="cl-status" data-tone={statusTone(status)}>{statusWords(status)}</span>
 }
 
 export default function ClientsPage() {
@@ -48,6 +51,9 @@ export default function ClientsPage() {
   const [newCompany, setNewCompany] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newIndustry, setNewIndustry] = useState('')
+  const [newAnniv, setNewAnniv] = useState('')
+  // Annual reviews (hidden until switched on).
+  const reviews = useReviewsState()
 
   const loadClients = useCallback(async () => {
     try {
@@ -87,6 +93,7 @@ export default function ClientsPage() {
           company: newCompany || undefined,
           phone: newPhone || undefined,
           industry: newIndustry || undefined,
+          ...(newAnniv ? { anniversary_date: newAnniv, anniversary_tz: Intl.DateTimeFormat().resolvedOptions().timeZone } : {}),
         }),
       })
       const data = await res.json()
@@ -99,6 +106,7 @@ export default function ClientsPage() {
         setNewCompany('')
         setNewPhone('')
         setNewIndustry('')
+        setNewAnniv('')
         setShowAddForm(false)
         loadClients()
       }
@@ -148,7 +156,6 @@ export default function ClientsPage() {
     }
   }
 
-  const totalRevenue = clients.reduce((sum, c) => sum + (c.total_revenue ?? 0), 0)
   const activeCount = clients.filter(c => c.status === 'active' || c.status === 'engaged').length
   const engagedThisWeek = clients.filter(c => c.recent_activity_count > 0).length
 
@@ -157,43 +164,41 @@ export default function ClientsPage() {
       <div className="page-head">
         <div>
           <h1>Clients</h1>
-          <p>Manage your clients and track engagement across all interactions.</p>
+          <p>The people you make videos for — and who has watched.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* "Add a client" first: it's the thing people come here to do. */}
+        <div className="cl-actions">
+          <button className="btn btn-primary btn-sm" onClick={() => { setShowAddForm(!showAddForm); setShowImport(false) }}>Add a client</button>
+          <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(!showImport); setShowAddForm(false) }}>Import a CSV file</button>
           <button className="btn btn-soft btn-sm" onClick={handleExport}>Export CSV</button>
-          <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(!showImport); setShowAddForm(false) }}>Import CSV</button>
-          <button className="btn btn-primary btn-sm" onClick={() => { setShowAddForm(!showAddForm); setShowImport(false) }}>Add Client</button>
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
+      {/* Three counts. The "Total revenue $0" tile is gone: nothing records a
+          client's payments here, so it only ever said $0 (audit 2026-10-09). */}
+      <div className="cl-stats">
+        <div className="stat-card">
           <div className="stat-value">{clients.length}</div>
-          <div className="stat-label">Total Clients</div>
+          <div className="stat-label">Clients</div>
         </div>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
+        <div className="stat-card">
           <div className="stat-value">{activeCount}</div>
-          <div className="stat-label">Active Clients</div>
+          <div className="stat-label">In touch</div>
         </div>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
+        <div className="stat-card">
           <div className="stat-value">{engagedThisWeek}</div>
-          <div className="stat-label">Engaged This Week</div>
-        </div>
-        <div className="stat-card" style={{ flex: 1, minWidth: 140 }}>
-          <div className="stat-value">${(totalRevenue / 100).toLocaleString()}</div>
-          <div className="stat-label">Total Revenue</div>
+          <div className="stat-label">Active this week</div>
         </div>
       </div>
 
       {/* Success/Error messages */}
       {formSuccess && (
-        <div style={{ padding: '10px 16px', background: 'var(--mint, #d4f5e9)', borderRadius: 8, marginBottom: 16, fontSize: 14, color: '#166534' }}>
+        <div style={{ padding: '10px 16px', background: 'var(--success-bg)', borderRadius: 8, marginBottom: 16, fontSize: 'var(--fs-ui)', color: 'var(--success)' }}>
           {formSuccess}
         </div>
       )}
       {formError && (
-        <div style={{ padding: '10px 16px', background: '#fecaca', borderRadius: 8, marginBottom: 16, fontSize: 14, color: '#991b1b' }}>
+        <div style={{ padding: '10px 16px', background: 'var(--error-bg)', borderRadius: 8, marginBottom: 16, fontSize: 'var(--fs-ui)', color: 'var(--error-text)' }}>
           {formError}
         </div>
       )}
@@ -201,9 +206,9 @@ export default function ClientsPage() {
       {/* Add Client Form */}
       {showAddForm && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
-          <h3>Add New Client</h3>
+          <h3>Add a client</h3>
           <form onSubmit={handleAddClient}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
               <div className="form-group">
                 <label className="input-label">Name *</label>
                 <input className="input" value={newName} onChange={e => setNewName(e.target.value)} required placeholder="Client name" />
@@ -224,10 +229,17 @@ export default function ClientsPage() {
                 <label className="input-label">Industry</label>
                 <input className="input" value={newIndustry} onChange={e => setNewIndustry(e.target.value)} placeholder="e.g. Insurance, Real Estate" />
               </div>
+              {reviews?.available && (
+                <div className="form-group">
+                  <label className="input-label" htmlFor="new-anniv">Policy date <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
+                  <input id="new-anniv" className="input" type="date" value={newAnniv} onChange={e => setNewAnniv(e.target.value)} />
+                  <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>The day their policy started. We remind you a month before each anniversary.</span>
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 12 }}>
               <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Save Client'}
+                {submitting ? 'Saving...' : 'Save client'}
               </button>
               <button type="button" className="btn btn-soft btn-sm" onClick={() => setShowAddForm(false)}>Cancel</button>
             </div>
@@ -235,7 +247,7 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Import CSV */}
+      {/* Import a CSV file */}
       {showImport && (
         <div className="settings-card" style={{ marginBottom: 20 }}>
           <h3>Import Clients from CSV</h3>
@@ -246,20 +258,20 @@ export default function ClientsPage() {
             value={importCsv}
             onChange={e => setImportCsv(e.target.value)}
             placeholder={"email,name,company,phone\njohn@example.com,John Doe,Acme Corp,(555) 123-4567"}
-            style={{ fontFamily: 'monospace', fontSize: 13 }}
+            style={{ fontFamily: 'monospace', fontSize: 'var(--fs-small)' }}
           />
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 12 }}>
             <button className="btn btn-primary btn-sm" onClick={handleImport} disabled={submitting || !importCsv.trim()}>
               {submitting ? 'Importing...' : 'Import'}
             </button>
             <button className="btn btn-soft btn-sm" onClick={() => { setShowImport(false); setImportResult(null) }}>Cancel</button>
           </div>
           {importResult && (
-            <div style={{ marginTop: 12, fontSize: 13 }}>
-              <p style={{ color: '#166534' }}>Imported: {importResult.imported}</p>
-              {importResult.skipped > 0 && <p style={{ color: '#92400e' }}>Skipped (duplicates): {importResult.skipped}</p>}
+            <div style={{ marginTop: 12, fontSize: 'var(--fs-small)' }}>
+              <p style={{ color: 'var(--success)' }}>Imported: {importResult.imported}</p>
+              {importResult.skipped > 0 && <p style={{ color: 'var(--warning-text)' }}>Skipped (duplicates): {importResult.skipped}</p>}
               {importResult.errors.length > 0 && (
-                <div style={{ color: '#991b1b', marginTop: 4 }}>
+                <div style={{ color: 'var(--error-text)', marginTop: 4 }}>
                   {importResult.errors.map((e, i) => <p key={i}>{e}</p>)}
                 </div>
               )}
@@ -269,7 +281,7 @@ export default function ClientsPage() {
       )}
 
       {/* Search + Filter */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           className="input"
           placeholder="Search clients..."
@@ -277,15 +289,15 @@ export default function ClientsPage() {
           onChange={e => setSearch(e.target.value)}
           style={{ maxWidth: 320 }}
         />
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)', minWidth: 0 }}>
           {STATUS_OPTIONS.map(s => (
             <button
               key={s}
               className={`btn btn-sm ${statusFilter === s ? 'btn-primary' : 'btn-soft'}`}
               onClick={() => setStatusFilter(s)}
-              style={{ textTransform: 'capitalize' }}
+              aria-pressed={statusFilter === s}
             >
-              {s === 'all' ? 'All' : s}
+              {s === 'all' ? 'All' : statusWords(s)}
             </button>
           ))}
         </div>
@@ -295,28 +307,52 @@ export default function ClientsPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}>
           <div className="spinner lg" />
-          <p style={{ marginTop: 16, color: 'var(--ink-light)', fontSize: 14 }}>Loading clients...</p>
+          <p style={{ marginTop: 16, color: 'var(--ink-light)', fontSize: 'var(--fs-ui)' }}>Loading clients...</p>
         </div>
       ) : clients.length === 0 ? (
         <div style={{
-          background: 'white',
+          background: 'var(--bg-card)',
           border: '1px dashed var(--border)',
           borderRadius: 10,
           padding: 48,
           textAlign: 'center',
         }}>
-          <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 8 }}>
+          <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', marginBottom: 8 }}>
             {search || statusFilter !== 'all' ? 'No clients match your filters.' : 'No clients yet.'}
           </p>
           {!search && statusFilter === 'all' && (
-            <p style={{ fontSize: 13, color: 'var(--ink-light)' }}>
+            <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
               Add your first client using the button above, or import a CSV list.
             </p>
           )}
         </div>
       ) : (
-        <div style={{
-          background: 'white',
+        <>
+        {/* Phones: one card per client (the table scrolled sideways). */}
+        <ul className="cl-cards" aria-label="Your clients">
+          {clients.map(client => (
+            <li key={client.id} className="cl-card">
+              <div className="cl-card-head">
+                <div style={{ minWidth: 0 }}>
+                  <Link href={`/clients/${client.id}`} className="cl-card-name">{client.name}</Link>
+                  {client.company && <div className="cl-card-sub">{client.company}</div>}
+                  <ReviewDueLine client={client} reviews={reviews} />
+                </div>
+                <StatusChip status={client.status} />
+              </div>
+              <div className="cl-card-meta">
+                {client.email ?? 'No email'} · {client.total_videos_sent} {client.total_videos_sent === 1 ? 'video' : 'videos'} sent · {client.last_activity_at ? formatRelativeTime(client.last_activity_at) : 'No activity yet'}
+              </div>
+              <div className="cl-card-actions">
+                <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm">View</Link>
+                <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm">Send a video</Link>
+                {client.email && <a href={`mailto:${client.email}`} className="btn btn-soft btn-sm">Email</a>}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="cl-table" style={{
+          background: 'var(--bg-card)',
           border: '1px solid var(--border-light)',
           borderRadius: 10,
           overflow: 'hidden',
@@ -330,7 +366,7 @@ export default function ClientsPage() {
                       padding: '10px 14px',
                       fontWeight: 700,
                       color: 'var(--ink-soft)',
-                      fontSize: 12,
+                      fontSize: 'var(--fs-caption)',
                       textTransform: 'uppercase',
                       letterSpacing: '0.05em',
                       textAlign: 'left',
@@ -341,44 +377,39 @@ export default function ClientsPage() {
               </thead>
               <tbody>
                 {clients.map(client => {
-                  const sc = STATUS_COLORS[client.status] ?? STATUS_COLORS.lead
                   return (
                     <tr key={client.id} className="activity-row">
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)' }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{client.name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>{client.name}</div>
                         {client.company && (
-                          <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>{client.company}</div>
+                          <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2 }}>{client.company}</div>
                         )}
+                        <ReviewDueLine client={client} reviews={reviews} />
                       </td>
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 14 }}>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 'var(--fs-ui)' }}>
                         {client.email ?? '--'}
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)' }}>
-                        <span className="tag" style={{
-                          background: sc.bg,
-                          color: sc.color,
-                          borderColor: sc.bg,
-                          textTransform: 'capitalize',
-                        }}>{client.status}</span>
+                        <StatusChip status={client.status} />
                       </td>
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 14, fontWeight: 700 }}>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 'var(--fs-ui)', fontWeight: 700 }}>
                         {client.total_videos_sent}
                       </td>
-                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 13, color: 'var(--ink-soft)' }}>
+                      <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)', fontSize: 'var(--fs-small)', color: 'var(--ink-soft)' }}>
                         {client.last_activity_at
                           ? formatRelativeTime(client.last_activity_at)
                           : 'Never'}
                       </td>
                       <td style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-light)' }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm" style={{ fontSize: 12, textDecoration: 'none' }}>
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          <Link href={`/clients/${client.id}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
                             View
                           </Link>
-                          <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 12, textDecoration: 'none' }}>
-                            Send Video
+                          <Link href={`/create/client${client.id ? `?clientId=${client.id}` : ''}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
+                            Send a video
                           </Link>
                           {client.email && (
-                            <a href={`mailto:${client.email}`} className="btn btn-soft btn-sm" style={{ fontSize: 12, textDecoration: 'none' }}>
+                            <a href={`mailto:${client.email}`} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)', textDecoration: 'none' }}>
                               Email
                             </a>
                           )}
@@ -391,6 +422,7 @@ export default function ClientsPage() {
             </table>
           </div>
         </div>
+        </>
       )}
     </div>
   )

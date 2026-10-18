@@ -42,6 +42,29 @@ export function resolveAgentName(opts: {
   return (opts.preparer || opts.brandName || opts.presenter?.name || '').trim()
 }
 
+/** Our own product names. These never appear as the preparer/company/brand on a
+ *  client's video ("Docs2Video — Prepared for David Reese" was the bug). */
+export const PLATFORM_NAME_RE = /^\s*(docs\s*2\s*video|text\s*2\s*art)(\.(com|app))?\s*$/i
+
+/**
+ * The name shown as "prepared by" / company on the cover, footer and closing
+ * card. The agent's brand, else the company typed for this video, else the
+ * agent's own profile (company, then full name) — else NOTHING. Never our
+ * platform name. `hideName` = a person who opted out of their name on slides.
+ */
+export function resolvePreparerName(opts: {
+  brandName?: string | null
+  companyName?: string | null
+  profile?: { company_name?: string | null; full_name?: string | null } | null
+  hideName?: boolean
+}): string | null {
+  if (opts.hideName) return null
+  const pick = [opts.brandName, opts.companyName, opts.profile?.company_name, opts.profile?.full_name]
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .find((v) => v && !PLATFORM_NAME_RE.test(v))
+  return pick || null
+}
+
 /** True when the content is a regulated insurance/financial illustration — used
  *  to pick "illustration summary" vs plain "summary" in the greeting. */
 export function isRegulatedContent(...sources: unknown[]): boolean {

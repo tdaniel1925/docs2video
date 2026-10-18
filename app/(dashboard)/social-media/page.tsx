@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '../../_lib/supabase/client'
 import type { Brand } from '../../_lib/types'
+import InlineCheckout from '../../_components/billing/InlineCheckout'
 
 type SocialTab = 'brand' | 'create' | 'content'
 
@@ -32,6 +33,7 @@ export default function SocialMediaPage() {
   const [hasProfile, setHasProfile] = useState(false)
   const [addonActive, setAddonActive] = useState(false)
   const [addonLoading, setAddonLoading] = useState(false)
+  const [addonPaid, setAddonPaid] = useState(false)
   const [brandSaving, setBrandSaving] = useState(false)
   const [brandSaved, setBrandSaved] = useState(false)
 
@@ -164,15 +166,9 @@ export default function SocialMediaPage() {
     )
   }
 
-  async function subscribeToAddon() {
+  // Paid right here in the in-app checkout (2026-10-14) — no Stripe page.
+  function subscribeToAddon() {
     setAddonLoading(true)
-    try {
-      const res = await fetch('/api/social-addon/checkout', { method: 'POST' })
-      const data = await res.json()
-      if (data.url) { window.location.href = data.url; return }
-      alert(data.error || 'Could not start checkout')
-    } catch { alert('Could not start checkout') }
-    setAddonLoading(false)
   }
 
   async function generateCaptions() {
@@ -283,18 +279,24 @@ export default function SocialMediaPage() {
           Connect your social accounts and let AI create captions + branded images
           (and post your videos) straight to all your channels — scheduled automatically.
         </p>
-        <div style={{ background: 'var(--bg-soft, #f7f6f2)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'left' }}>
+        <div style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'left' }}>
           <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 6 }}>$50<span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-light)' }}>/month</span></div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
             <li>Connect X, Instagram, Facebook, LinkedIn, YouTube + more</li>
             <li>AI writes captions; AI generates branded images</li>
             <li>Auto-post your videos (incl. YouTube) on a schedule</li>
-            <li>Content generation uses your normal credits</li>
+            <li>Captions and images use your normal credits</li>
+            <li>Each post costs 25 credits per platform (e.g. 3 platforms = 75 credits)</li>
           </ul>
         </div>
-        <button onClick={subscribeToAddon} disabled={addonLoading} className="btn btn-primary btn-lg">
-          {addonLoading ? 'Starting checkout…' : 'Add AI Social — $50/mo'}
+        <button onClick={subscribeToAddon} className="btn btn-primary btn-lg">
+          Add AI Social — $50/mo
         </button>
+        <InlineCheckout
+          purchase={addonLoading ? { kind: 'social' } : null}
+          onClose={() => { setAddonLoading(false); if (addonPaid) setAddonActive(true) }}
+          onPaid={() => setAddonPaid(true)}
+        />
       </div>
     )
   }
@@ -323,7 +325,7 @@ export default function SocialMediaPage() {
       </div>
 
       {statusMsg && (
-        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? '#fde8e8' : 'rgba(199,232,168,0.2)', color: statusMsg.type === 'error' ? '#b91c1c' : '#2d8a4e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ borderRadius: 10, padding: '10px 16px', fontSize: 13, marginBottom: 12, fontWeight: 600, background: statusMsg.type === 'error' ? 'var(--error-bg)' : 'var(--success-bg)', color: statusMsg.type === 'error' ? 'var(--error-text)' : 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {statusMsg.text}
           <button onClick={() => setStatusMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'inherit', lineHeight: 1 }}>&times;</button>
         </div>
@@ -395,7 +397,7 @@ export default function SocialMediaPage() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '4px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                    background: 'rgba(199,232,168,0.2)', color: 'var(--ink)',
+                    background: 'var(--accent-soft)', color: 'var(--ink)',
                   }}
                 >
                   {topic}
@@ -474,13 +476,13 @@ export default function SocialMediaPage() {
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '8px 14px', borderRadius: 10,
                       border: isSelected ? `2px solid ${meta.color}` : '1px solid var(--border-light)',
-                      background: isSelected ? `${meta.color}10` : 'white',
+                      background: isSelected ? `${meta.color}10` : 'var(--bg-card)',
                       cursor: isConnected ? 'pointer' : 'not-allowed',
                       opacity: isConnected ? 1 : 0.4,
                       fontSize: 13, fontWeight: 600, color: 'var(--ink)',
                     }}
                   >
-                    <span style={{ width: 24, height: 24, borderRadius: 6, background: `${meta.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: meta.color }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 6, background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>
                       {meta.icon}
                     </span>
                     {meta.label}
@@ -497,7 +499,7 @@ export default function SocialMediaPage() {
             <div className="settings-card" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={fromDesign.url} alt={fromDesign.title}
-                style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)' }} />
+                style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-light)' }} />
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontWeight: 700, marginBottom: 2 }}>Posting your design</div>
                 <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: 0 }}>
@@ -543,7 +545,7 @@ export default function SocialMediaPage() {
                 return (
                   <div key={platform} className="settings-card">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 7, background: `${meta?.color || '#666'}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: meta?.color || '#666' }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 7, background: meta?.color || '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>
                         {meta?.icon || platform[0].toUpperCase()}
                       </span>
                       <span style={{ fontWeight: 700, fontSize: 14 }}>{meta?.label || platform}</span>
@@ -571,8 +573,8 @@ export default function SocialMediaPage() {
           {postResult && (
             <div style={{
               marginTop: 16, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              background: postResult.includes('success') ? 'rgba(199,232,168,0.2)' : '#fde8e8',
-              color: postResult.includes('success') ? 'var(--mint-darker)' : '#c03a1f',
+              background: postResult.includes('success') ? 'var(--success-bg)' : 'var(--error-bg)',
+              color: postResult.includes('success') ? 'var(--mint-darker)' : 'var(--error)',
             }}>
               {postResult}
             </div>

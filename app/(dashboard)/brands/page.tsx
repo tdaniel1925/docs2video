@@ -1,21 +1,36 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useBrand } from '../../_components/BrandProvider'
 import { createClient } from '../../_lib/supabase/client'
+import { useToast } from '../../_components/Toast'
 import type { Brand } from '../../_lib/types'
+import { NAMES } from '../../_lib/names'
+import { groupBrands } from '../../_lib/brand-dupes'
 
 export default function BrandsPage() {
   // Which storefront this is. A Text2Art customer has no presenter and no
-  // video, so the copy explaining what a "profile" is has to say something true.
+  // video, so the copy explaining what a brand is has to say something true.
+  // A saved logo-and-colours is a "brand" everywhere (names.ts) — this page
+  // used to call the same thing a "profile".
   const storefront = useBrand()
+  const notify = useToast()
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<string | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null) // brand id or 'bulk'
+  // Same-name brands fold into one card + "N copies" (brand-dupes.ts).
+  const groups = useMemo(() => groupBrands(brands), [brands])
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
+  const toggleGroup = (key: string) => setOpenGroups(prev => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  })
 
   useEffect(() => {
     async function load() {
@@ -33,22 +48,28 @@ export default function BrandsPage() {
   async function handleDelete(id: string) {
     setDeleting(id)
     const supabase = createClient()
-    await supabase.from('brands').delete().eq('id', id)
-    setBrands(prev => prev.filter(b => b.id !== id))
-    setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
+    const { error } = await supabase.from('brands').delete().eq('id', id)
     setDeleting(null)
     setConfirmDelete(null)
+    // Only take it off the screen once it is really gone.
+    if (error) { notify('Couldn’t delete that brand. Please try again.', 'error'); return }
+    setBrands(prev => prev.filter(b => b.id !== id))
+    setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
   }
 
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return
     setBulkDeleting(true)
     const supabase = createClient()
+    const gone = new Set<string>()
     for (const id of selectedIds) {
-      await supabase.from('brands').delete().eq('id', id)
+      const { error } = await supabase.from('brands').delete().eq('id', id)
+      if (!error) gone.add(id)
     }
-    setBrands(prev => prev.filter(b => !selectedIds.has(b.id)))
-    setSelectedIds(new Set())
+    setBrands(prev => prev.filter(b => !gone.has(b.id)))
+    setSelectedIds(prev => new Set([...prev].filter(id => !gone.has(id))))
+    const failed = selectedIds.size - gone.size
+    if (failed > 0) notify(`Couldn’t delete ${failed} brand${failed > 1 ? 's' : ''}. Please try again.`, 'error')
     setBulkDeleting(false)
     setConfirmDelete(null)
   }
@@ -78,30 +99,30 @@ export default function BrandsPage() {
     <div>
       <div className="page-head">
         <div>
-          <h1>Your profiles</h1>
+          <h1>{NAMES.brands}</h1>
           <p>{storefront.showVideoFeatures
-            ? 'Manage all your profiles here — a Company (logo + colors) or a Person (presenter photo + intro). Your default profile is applied automatically to every video; add more if you work under multiple companies or present as different people.'
+            ? 'Each brand is a Company (logo + colors) or a Person (your photo + intro). Your default brand is used automatically on every video; add more if you work under several companies or present as different people.'
             : 'Your logo, your colours and your contact details, saved. The default one is applied to everything you make; add more if you design for more than one business.'}</p>
         </div>
-        <Link href="/brands/new" className="btn btn-primary btn-lg">+ New profile</Link>
+        <Link href="/brands/new" className="btn btn-primary btn-lg">{NAMES.newBrand}</Link>
       </div>
 
       {!brands.length ? (
-        <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No profiles yet</p>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 18 }}>{storefront.showVideoFeatures ? 'Create a profile to customize your presentation colors, logo, or presenter' : 'Save a logo and a set of colours once, and every design comes back in them'}</p>
-          <Link href="/brands/new" className="btn btn-primary">Create your first profile</Link>
+        <div style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: 10, padding: '64px 32px', textAlign: 'center' }}>
+          <p style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, marginBottom: 6 }}>No brands yet</p>
+          <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', marginBottom: 18 }}>{storefront.showVideoFeatures ? 'Save your logo and colors (or your photo and intro) once, and every video uses them' : 'Save a logo and a set of colours once, and every design comes back in them'}</p>
+          <Link href="/brands/new" className="btn btn-primary">Create your first brand</Link>
         </div>
       ) : (
         <>
           {/* Bulk actions bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div className="section-eyebrow" style={{ margin: 0 }}>Saved profiles ({brands.length})</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="section-eyebrow" style={{ margin: 0 }}>Saved brands ({brands.length})</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               {brands.length > 1 && (
                 <button
                   onClick={toggleSelectAll}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-small)', fontWeight: 600, color: 'var(--ink-soft)' }}
                 >
                   {selectedIds.size === brands.length ? 'Deselect all' : 'Select all'}
                 </button>
@@ -110,8 +131,8 @@ export default function BrandsPage() {
                 <button
                   onClick={() => setConfirmDelete('bulk')}
                   style={{
-                    padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                    background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5',
+                    padding: '6px 14px', borderRadius: 8, fontSize: 'var(--fs-small)', fontWeight: 600,
+                    background: 'var(--error-bg)', color: 'var(--error-text)', border: '1px solid var(--error-border)',
                     cursor: 'pointer',
                   }}
                 >
@@ -119,12 +140,12 @@ export default function BrandsPage() {
                 </button>
               )}
               {confirmDelete === 'bulk' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#b91c1c' }}>Delete {selectedIds.size} brand{selectedIds.size > 1 ? 's' : ''}?</span>
-                  <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#b91c1c', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '4px 12px', borderRadius: 8, background: 'var(--error-bg)', border: '1px solid var(--error-border)' }}>
+                  <span style={{ fontSize: 'var(--fs-small)', fontWeight: 600, color: 'var(--error-text)' }}>Delete {selectedIds.size} brand{selectedIds.size > 1 ? 's' : ''}?</span>
+                  <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: 'var(--error-text)', color: 'var(--on-ink)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer' }}>
                     {bulkDeleting ? 'Deleting...' : 'Yes, delete'}
                   </button>
-                  <button onClick={() => setConfirmDelete(null)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}>
+                  <button onClick={() => setConfirmDelete(null)} style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}>
                     Cancel
                   </button>
                 </div>
@@ -133,13 +154,14 @@ export default function BrandsPage() {
           </div>
 
           <div className="brands-grid">
-            {brands.map((brand) => (
+            {groups.flatMap((g) => [g.lead, ...(openGroups.has(g.key) ? g.copies : [])].map((brand) => (
               <div
                 key={brand.id}
+                data-copy={brand !== g.lead || undefined}
                 className="brand-card"
                 style={{
                   position: 'relative',
-                  border: selectedIds.has(brand.id) ? '2px solid var(--mint)' : undefined,
+                  border: selectedIds.has(brand.id) ? '2px solid var(--accent-ink)' : undefined,
                 }}
               >
                 {/* Select checkbox */}
@@ -148,10 +170,11 @@ export default function BrandsPage() {
                     onClick={(e) => { e.stopPropagation(); toggleSelect(brand.id) }}
                     style={{
                       position: 'absolute', top: 8, left: 8, width: 22, height: 22,
-                      borderRadius: 6, border: selectedIds.has(brand.id) ? '2px solid var(--mint)' : '2px solid var(--border)',
-                      background: selectedIds.has(brand.id) ? 'var(--mint)' : 'white',
+                      // A ticked box is filled dark green so the white tick stays readable.
+                      borderRadius: 6, border: selectedIds.has(brand.id) ? '2px solid var(--accent-ink)' : '2px solid var(--border)',
+                      background: selectedIds.has(brand.id) ? 'var(--accent-ink)' : 'var(--bg-card)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', zIndex: 2, fontSize: 12, color: 'white', fontWeight: 700,
+                      cursor: 'pointer', zIndex: 2, fontSize: 'var(--fs-caption)', color: 'var(--on-ink)', fontWeight: 700,
                     }}
                   >
                     {selectedIds.has(brand.id) && '\u2713'}
@@ -164,22 +187,22 @@ export default function BrandsPage() {
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       position: 'absolute', top: 6, right: 6, zIndex: 3,
-                      background: 'white', borderRadius: 8, padding: '6px 10px',
-                      border: '1px solid #fca5a5', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
+                      background: 'var(--bg-card)', borderRadius: 8, padding: '6px 10px',
+                      border: '1px solid var(--error-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-caption)',
                     }}
                   >
-                    <span style={{ color: '#b91c1c', fontWeight: 600 }}>Delete?</span>
+                    <span style={{ color: 'var(--error-text)', fontWeight: 600 }}>Delete?</span>
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(brand.id) }}
                       disabled={deleting === brand.id}
-                      style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: '#b91c1c', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: 'var(--error-text)', color: 'var(--on-ink)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer' }}
                     >
                       {deleting === brand.id ? '...' : 'Yes'}
                     </button>
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(null) }}
-                      style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}
+                      style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: 'var(--fs-caption)', fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)' }}
                     >
                       No
                     </button>
@@ -190,12 +213,12 @@ export default function BrandsPage() {
                     style={{
                       position: 'absolute', top: 8, right: 8, width: 26, height: 26,
                       borderRadius: '50%', border: '1px solid var(--border-light)',
-                      background: 'white', cursor: 'pointer', display: 'flex',
+                      background: 'var(--bg-card)', cursor: 'pointer', display: 'flex',
                       alignItems: 'center', justifyContent: 'center', zIndex: 2,
-                      fontSize: 14, color: 'var(--ink-light)', transition: 'all 0.15s',
+                      fontSize: 'var(--fs-ui)', color: 'var(--ink-light)', transition: 'all 0.15s',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#b91c1c'; e.currentTarget.style.borderColor = '#fca5a5' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = 'var(--ink-light)'; e.currentTarget.style.borderColor = 'var(--border-light)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--error-bg)'; e.currentTarget.style.color = 'var(--error-text)'; e.currentTarget.style.borderColor = 'var(--error-border)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--ink-light)'; e.currentTarget.style.borderColor = 'var(--border-light)' }}
                     title="Delete brand"
                   >
                     {'\u00D7'}
@@ -218,7 +241,7 @@ export default function BrandsPage() {
                   <div style={{ marginTop: 4, marginBottom: 2 }}>
                     <span style={{
                       display: 'inline-block', padding: '3px 10px', borderRadius: 8,
-                      fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+                      fontSize: 'var(--fs-caption)', fontWeight: 700, letterSpacing: '0.02em',
                       background: brand.profile_type === 'person' ? 'rgba(199, 232, 168, 0.25)' : 'var(--bg-soft)',
                       color: 'var(--ink-soft)',
                     }}>
@@ -248,8 +271,25 @@ export default function BrandsPage() {
                     )}
                   </div>
                 </Link>
+                {/* Same name saved more than once: say so, and let the copies
+                    open underneath. Nothing is deleted for you. */}
+                {brand === g.lead && g.copies.length > 0 && (
+                  <button
+                    type="button"
+                    className="brand-copies-btn"
+                    aria-expanded={openGroups.has(g.key)}
+                    onClick={() => toggleGroup(g.key)}
+                  >
+                    {openGroups.has(g.key) ? 'Hide copies' : `${g.copies.length} ${g.copies.length === 1 ? 'copy' : 'copies'} with this name`}
+                  </button>
+                )}
+                {brand !== g.lead && <div className="brand-copy-note">A copy of {g.lead.name}</div>}
+                {/* The look screen for this brand (colours, fonts, feel of its videos). */}
+                <Link href={`/brands/${brand.id}/look`} className="brand-look-link" data-testid="brand-look-link">
+                  {(brand.brand_guide_data as { video_look?: unknown } | null)?.video_look ? 'Video look ✓' : 'Video look'}
+                </Link>
               </div>
-            ))}
+            )))}
           </div>
         </>
       )}

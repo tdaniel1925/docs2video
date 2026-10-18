@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
+import { recordCronRun } from '../../../_lib/cron-heartbeat'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Heartbeat: the health cron emails Trent if this stops running (audit 2026-10-09).
+  await recordCronRun('referral-prompt')
 
   const supabase = createAdminClient()
   let sentCount = 0
@@ -68,7 +71,9 @@ export async function GET(request: Request) {
 
         // Send referral prompt email
         if (resend && profile.email) {
-          await resend.emails.send({
+          // Resend returns failures instead of throwing. Throw it ourselves so a
+          // failed send is logged and the user is NOT marked as already prompted.
+          const { error: sendError } = await resend.emails.send({
             from: 'Docs2Video <support@docs2video.com>',
             to: profile.email,
             subject: 'Love Docs2Video? Share it with a colleague',
@@ -81,7 +86,7 @@ export async function GET(request: Request) {
                   You've already created ${count} videos with Docs2Video. Know someone who could use it too?
                 </p>
                 <p style="font-size: 15px; line-height: 1.6; color: #444;">
-                  Share your personal referral link and <strong>you both get 2 free video credits</strong> when they sign up and create their first video.
+                  Here is your personal referral link to share with them.
                 </p>
                 <div style="background: #F0F4F8; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
                   <div style="font-size: 12px; color: #7A8FA3; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
@@ -97,7 +102,7 @@ export async function GET(request: Request) {
                   </a>
                 </div>
                 <p style="font-size: 13px; color: #7A8FA3; line-height: 1.5; margin-top: 24px;">
-                  Just send this link to a colleague. When they sign up and create their first video, you'll both automatically receive 2 free video credits.
+                  Just send this link to a colleague who explains documents to their clients.
                 </p>
                 <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
                 <p style="font-size: 11px; color: #999; text-align: center;">
@@ -108,6 +113,7 @@ export async function GET(request: Request) {
               </div>
             `,
           })
+          if (sendError) throw new Error(sendError.message)
         }
 
         // Mark user as prompted

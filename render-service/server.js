@@ -9,6 +9,9 @@ const { Readable } = require('stream')
 const { pipeline } = require('stream/promises')
 const { createClient } = require('@supabase/supabase-js')
 const WebSocket = require('ws')
+// Audit 2026-10-09: finish only still-running rows; fetch outside URLs only to public addresses.
+const { completeIfRunning, guardedFetch } = require('./job-guards')
+const { uploadVideo } = require('./video-upload')
 
 const app = express()
 app.use(express.json({ limit: '200mb' }))
@@ -44,6 +47,22 @@ async function reportError({ source, videoId, userId, stage, message, detail }) 
   }
 }
 
+// Crashes and job errors nobody caught (audit 2026-10-09): a background job
+// that throws outside its own try/catch used to die silently in the logs.
+// Now the owner gets the same alert email. An uncaught exception still ends
+// the process (state is unknown) — after the alert has had a moment to send.
+process.on('unhandledRejection', (reason) => {
+  const msg = reason && reason.message ? reason.message : String(reason)
+  console.error('[render-service] unhandled job error:', msg)
+  reportError({ source: 'render-service', stage: 'unhandled-rejection', message: msg.slice(0, 1000), detail: reason && reason.stack ? String(reason.stack).slice(0, 4000) : undefined }).catch(() => {})
+})
+process.on('uncaughtException', (err) => {
+  console.error('[render-service] CRASH:', err && err.message)
+  const done = () => process.exit(1)
+  reportError({ source: 'render-service', stage: 'crash', message: `Render service crashed: ${err && err.message}`.slice(0, 1000), detail: err && err.stack ? String(err.stack).slice(0, 4000) : undefined }).then(done, done)
+  setTimeout(done, 8000).unref()
+})
+
 // Auth middleware — constant-time compare (review S2: `!==` short-circuits on
 // the first differing byte, leaking a timing side-channel on the shared secret).
 const SECRET_BUF = Buffer.from(API_SECRET)
@@ -72,7 +91,8 @@ app.get('/health', (req, res) => {
     checks.ffmpeg = true
   } catch { checks.ffmpeg = false }
   const ok = Object.values(checks).every(Boolean)
-  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', checks })
+  // Optional keys: reported, never fail health (Drawn slides fall back to Gemini without FAL_KEY).
+  res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'degraded', checks, optional: { falKey: !!process.env.FAL_KEY } })
 })
 
 // Self-test — runs ONE real slide through the EXACT production path plus probes
@@ -111,11 +131,17 @@ app.post('/selftest', authCheck, async (req, res) => {
     if (!parts.some(p => p.inlineData)) throw new Error('No image in Gemini response')
   })
 
-  // TTS: exercise the REAL chain (ElevenLabs primary → OpenAI fallback), so a
+  // TTS: exercise the REAL chain (fal primary → ElevenLabs → OpenAI), so a
   // green check means renders can actually voice scenes regardless of provider.
   await time('tts', async () => {
     const b = await ttsToBuffer('System check.', 'nova')
     if (b.length < 100) throw new Error(`TTS returned ${b.length} bytes`)
+  })
+  // fal on its own, so a green 'tts' that quietly came from a fallback (or a
+  // fallback that is about to run dry) is visible. ~$0.001 per run.
+  await time('tts_fal', async () => {
+    const r = await require('./fal-tts').falSpeak('System check.', { voiceId: 'nova', attempts: 1 })
+    if (!r.audio || r.audio.length < 1024) throw new Error(`fal returned ${r.audio ? r.audio.length : 0} bytes`)
   })
 
   // Supabase read/write + storage upload/delete
@@ -149,28 +175,95 @@ app.post('/selftest', authCheck, async (req, res) => {
   res.status(ok ? 200 : 500).json({ ok, checks, errors, ms: Date.now() - t0 })
 })
 
-// Generate a simple fallback slide when OpenAI fails
-// Returns an SVG buffer — FFmpeg handles SVG via lavfi or we convert during clip encoding
-async function generateFallbackSlide(title, slideNum, totalSlides) {
-  const safeTitle = (title || 'Slide').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  const words = safeTitle.split(' ')
-  const lines = []
-  let current = ''
-  for (const word of words) {
-    if ((current + ' ' + word).length > 40 && current) { lines.push(current); current = word }
-    else { current = current ? current + ' ' + word : word }
+// Advance widths of Arial Bold for characters 32-126, in 1/1000 of the font
+// size. Liberation Sans (the render image's stand-in for Arial) has the same
+// widths. Each character counts as the WIDER of that (+4% for hinting) and
+// 620 — the width of a monospace face, in case a machine without Arial
+// answers with one — and anything outside 32-126 as a full 1000. So the
+// estimate can only be too big, never too small.
+const ARIAL_BOLD_WIDTHS = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584]
+const boldTextWidth = (text, size) => {
+  let units = 0
+  for (const ch of text) { const c = ch.codePointAt(0); units += c >= 32 && c < 127 ? Math.max(ARIAL_BOLD_WIDTHS[c - 32] * 1.04, 620) : 1000 }
+  return units * size / 1000
+}
+
+/**
+ * Wrap a title into a box and pick the biggest size (max → min) at which every
+ * line fits the width and all lines fit the height. The title can be anything
+ * a model or a user wrote, so nothing here assumes it is short. A single word
+ * wider than the box is broken inside only once the size is already at the
+ * floor. Returns the size and the lines (raw text, not yet XML-escaped).
+ */
+function fitTitleToBox(text, { boxW, boxH, max, min, lineHeight, maxChars = Infinity }) {
+  const words = String(text).split(/\s+/).filter(Boolean)
+  const wrap = (size, breakWords) => {
+    const lines = []
+    let current = ''
+    for (let word of words) {
+      if (breakWords) {
+        // Split an over-wide word into pieces that each fit on a line.
+        while (boldTextWidth(word, size) > boxW && word.length > 1) {
+          let n = word.length - 1
+          while (n > 1 && boldTextWidth(word.slice(0, n), size) > boxW) n--
+          if (current) { lines.push(current); current = '' }
+          lines.push(word.slice(0, n))
+          word = word.slice(n)
+        }
+      }
+      const next = current ? `${current} ${word}` : word
+      if (current && (next.length > maxChars || boldTextWidth(next, size) > boxW)) { lines.push(current); current = word }
+      else current = next
+    }
+    if (current) lines.push(current)
+    return lines
   }
-  if (current) lines.push(current)
+  const fits = (lines, size) => lines.every((l) => boldTextWidth(l, size) <= boxW) && lines.length * size * lineHeight <= boxH
+  for (let size = max; size >= min; size--) {
+    const lines = wrap(size, false)
+    if (fits(lines, size)) return { size, lines }
+  }
+  // At the floor: break long words, then keep shrinking if it is still too tall.
+  for (let size = min; size >= 10; size--) {
+    const lines = wrap(size, true)
+    if (fits(lines, size)) return { size, lines }
+  }
+  // Beyond thousands of characters: keep the lines that fit rather than draw off the slide.
+  const lines = wrap(10, true)
+  const keep = Math.max(1, Math.floor(boxH / (10 * lineHeight)))
+  console.warn(`[fallback-slide] title too long for the slide even at 10px — showing ${keep} of ${lines.length} lines`)
+  return { size: 10, lines: lines.slice(0, keep) }
+}
+
+// Generate a simple fallback slide when the slide image model fails.
+// The title is fitted into the frame (wrapped and, only if needed, shrunk) so it
+// can never run past the edges, however long it is.
+async function generateFallbackSlide(title, slideNum, totalSlides) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  // Title area: inside the 60px frame line with another 60px of padding. The
+  // "n / total" line sits 30px under the last title line and needs ~34px.
+  const W = 1536, H = 1024, LINE = 56 / 44, MAX = 44, BOX_TOP = 120, BOX_BOTTOM = 904, PAGE = 34
+  // Lines break at ~40 characters as they always have; the width and height
+  // limits only take over when that is not enough.
+  const { size, lines } = fitTitleToBox(title || 'Slide', { boxW: W - 240, boxH: BOX_BOTTOM - BOX_TOP - PAGE - MAX, max: MAX, min: 22, lineHeight: LINE, maxChars: 40 })
+  const lineH = size * LINE
+  // Same place as always for a short title (first line at y=460); a long one
+  // is centred in the frame instead, page number included, so it stays inside.
+  const blockH = size + lines.length * lineH + PAGE
+  const firstY = 460 + lines.length * lineH + PAGE <= BOX_BOTTOM
+    ? 460
+    : Math.max(BOX_TOP + size, (BOX_TOP + BOX_BOTTOM - blockH) / 2 + size)
+  const pageY = firstY + lines.length * lineH + 30
 
   const titleSvg = lines.map((line, i) =>
-    `<text x="768" y="${460 + i * 56}" text-anchor="middle" font-size="44" font-weight="bold" fill="white" font-family="Arial, sans-serif">${line}</text>`
+    `<text x="${W / 2}" y="${(firstY + i * lineH).toFixed(1)}" text-anchor="middle" font-size="${size}" font-weight="bold" fill="white" font-family="Arial, sans-serif">${esc(line)}</text>`
   ).join('\n')
 
-  const svg = `<svg width="1536" height="1024" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1536" height="1024" fill="#1B365D"/>
-    <rect x="60" y="60" width="1416" height="904" rx="12" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="#1B365D"/>
+    <rect x="60" y="60" width="1416" height="904" rx="10" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
     ${titleSvg}
-    <text x="768" y="${460 + lines.length * 56 + 30}" text-anchor="middle" font-size="18" fill="rgba(255,255,255,0.5)" font-family="Arial, sans-serif">${slideNum} / ${totalSlides}</text>
+    <text x="${W / 2}" y="${pageY.toFixed(1)}" text-anchor="middle" font-size="18" fill="rgba(255,255,255,0.5)" font-family="Arial, sans-serif">${slideNum} / ${totalSlides}</text>
   </svg>`
 
   // Convert SVG to PNG using ffmpeg
@@ -194,7 +287,7 @@ async function generateFallbackSlide(title, slideNum, totalSlides) {
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
     console.log(`[ffmpeg] Running: ${args.join(' ').slice(0, 200)}...`)
-    execFile('ffmpeg', args, { maxBuffer: 100 * 1024 * 1024, timeout: 600000 }, (err, stdout, stderr) => {
+    execFile('ffmpeg', args, { maxBuffer: 100 * 1024 * 1024, timeout: 1200000 }, (err, stdout, stderr) => {
       if (err) {
         console.error(`[ffmpeg] Error:`, err.message)
         console.error(`[ffmpeg] Stderr:`, stderr?.slice(0, 500))
@@ -437,34 +530,16 @@ app.post('/assemble', authCheck, async (req, res) => {
     if (musicUrl) {
       try {
         console.log(`[${videoId}] Downloading background music from: ${musicUrl}`)
-        const musicRes = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
+        const musicRes = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
         console.log(`[${videoId}] Music fetch status: ${musicRes.status} ${musicRes.statusText}`)
         if (musicRes.ok) {
           const musicPath = join(workDir, 'bgmusic.mp3')
           const musicBuf = Buffer.from(await musicRes.arrayBuffer())
           await writeFile(musicPath, musicBuf)
 
-          const totalDuration = durations.reduce((sum, d) => sum + d, 0)
-          const fadeOutStart = Math.max(0, totalDuration - 3)
-
           const mixedPath = join(workDir, 'output_with_music.mp4')
-          await runFfmpeg([
-            '-i', outputPath,
-            '-stream_loop', '-1',
-            '-i', musicPath,
-            '-filter_complex',
-            // normalize=0 stops amix from auto-ducking the narration; narration stays
-            // at full volume and music sits as a quiet bed underneath at ~4%.
-            `[0:a]volume=1.0[narr];[1:a]volume=0.04,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[narr][music]amix=inputs=2:duration=first:normalize=0[out]`,
-            '-map', '0:v',
-            '-map', '[out]',
-            '-c:v', 'copy',
-            '-c:a', 'aac',
-            '-b:a', '192k',
-            '-movflags', '+faststart',
-            '-y',
-            mixedPath,
-          ])
+          // Voice at full level, music ducked under it and looped (audio-mix.js).
+          await mixMusicUnderVoice({ videoIn: outputPath, musicPath, outPath: mixedPath })
           finalPath = mixedPath
           console.log(`[${videoId}] Music mixed`)
           await updateProgress('Music added, finalizing...', 93)
@@ -490,11 +565,7 @@ app.post('/assemble', authCheck, async (req, res) => {
       })
 
       const videoStoragePath = `${userId}/${videoId}.mp4`
-      const { error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-
-      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+      await uploadVideo(supabase, 'videos', videoStoragePath, videoBuffer, 'save-video')
 
       const { data: urlData } = supabase.storage.from('videos').getPublicUrl(videoStoragePath)
 
@@ -518,7 +589,7 @@ app.post('/assemble', authCheck, async (req, res) => {
 
       // Mark video as completed directly — don't rely on Vercel (it may have timed out)
       const totalDuration = durations.reduce((s, d) => s + d, 0)
-      await supabase.from('videos').update({
+      await completeIfRunning(supabase, videoId, {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
@@ -527,7 +598,7 @@ app.post('/assemble', authCheck, async (req, res) => {
         status: 'completed',
         progress_detail: null,
         progress_pct: 100,
-      }).eq('id', videoId)
+      }, { tag: 'assemble', report: reportError })
 
       console.log(`[${videoId}] Marked as completed in database`)
 
@@ -565,6 +636,9 @@ app.post('/assemble', authCheck, async (req, res) => {
 // PPTX/PPT to PDF conversion (for Gemini extraction)
 // Presentation -> MP4 export (interactive presentations; HTML-first pipeline)
 const { exportPresentation } = require('./present-export')
+// Music under the voice: voice at full level (amix normalize=0), music ducked
+// 0.20 between lines / 0.08 under them, looped to the video's full length.
+const { mixMusicUnderVoice } = require('./audio-mix')
 app.post('/export-presentation', authCheck, (req, res) => {
   const sUrl = process.env.SUPABASE_URL, sKey = process.env.SUPABASE_SERVICE_KEY
   if (!sUrl || !sKey) return res.status(500).json({ error: 'Supabase not configured' })
@@ -732,6 +806,154 @@ app.post('/convert', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// READ A DOCUMENT'S TEXT — one reader for every path that takes a file
+// (/extract-document for the create flow, readDocText for slide videos).
+//
+// Audit 2026-10-15 ("make sure we don't have any more document reading or
+// uploading issues"). What this fixes, all found by sending real files to the
+// live service:
+//   - Word and Excel files ALWAYS failed: the image only had LibreOffice's
+//     Impress part, so .docx/.doc/.xlsx/.xls converted to nothing and the user
+//     saw "Could not read text from this document". (Dockerfile now installs
+//     Writer + Calc; a missing PDF after conversion is now a clear message.)
+//   - A PDF with a typed cover and scanned pages lost the scanned pages: the
+//     picture-reading only ran when the WHOLE file had under 40 characters. It
+//     now runs whenever there is little text per page, and the longer read wins.
+//   - A scanned PDF over ~14 MB was skipped by the whole-PDF read (Gemini's
+//     inline limit is ~20 MB after base64). Large files now go through the
+//     Gemini Files API.
+//   - Photos of a document (jpg/png/webp/heic) are read directly.
+//   - Excel CSV exports in Windows-1252 came out garbled; now decoded right.
+//   - Password-protected PDFs say so instead of a generic failure.
+// Errors the user must act on are DocReadError -> HTTP 422, so the app does
+// not retry them (a retry re-ran the slow picture-reading for nothing).
+// ============================================================
+class DocReadError extends Error {}
+
+const OCR_PROMPT = 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
+  + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
+  + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
+  + 'not comment, and do not add anything that is not on the page. Output the text only.'
+const IMAGE_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif' }
+const OFFICE_TYPES = new Set(['doc', 'docx', 'rtf', 'odt', 'ppt', 'pptx', 'odp', 'xls', 'xlsx', 'ods'])
+const INLINE_MAX = 14 * 1024 * 1024 // raw bytes; base64 makes it ~19 MB, under Gemini's ~20 MB request cap
+
+function decodeTextFile(buf) {
+  const utf8 = buf.toString('utf-8')
+  // Lots of U+FFFD means it was not UTF-8 — almost always a Windows-1252
+  // export from Excel. latin1 is the right bytes for everything but a few
+  // punctuation marks, which is far better than garbage.
+  const bad = (utf8.match(/�/g) || []).length
+  return bad > 2 && bad > utf8.length / 500 ? buf.toString('latin1') : utf8.replace(/^﻿/, '')
+}
+
+const run = (cmd, args, timeout) => new Promise((resolve, reject) =>
+  execFile(cmd, args, { timeout }, (err, stdout, stderr) => err ? reject(Object.assign(err, { stderr: String(stderr || '') })) : resolve(String(stdout || ''))))
+
+async function pdfPageCount(pdfPath) {
+  try { const m = (await run('pdfinfo', [pdfPath], 20000)).match(/^Pages:\s+(\d+)/m); return m ? Number(m[1]) : 0 } catch { return 0 }
+}
+
+async function geminiRead(parts, tag, what) {
+  const { GoogleGenAI } = require('@google/genai')
+  const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
+  const r = await vision.models.generateContent({ model: 'gemini-2.5-flash', contents: [{ role: 'user', parts: [{ text: OCR_PROMPT }, ...parts] }] })
+  const read = (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
+  if (read) console.log(`[${tag}] read ${read.length} characters from ${what}`)
+  else console.error(`[${tag}] ${what} read came back empty: finish=${r.candidates?.[0]?.finishReason} block=${JSON.stringify(r.promptFeedback || {})}`)
+  return read
+}
+
+/** Read text off a file Gemini can see directly (a PDF or a photo), inline or via the Files API. */
+async function geminiReadFile(path, mimeType, tag, what) {
+  const bytes = await readFile(path)
+  if (bytes.length <= INLINE_MAX) return geminiRead([{ inlineData: { mimeType, data: bytes.toString('base64') } }], tag, what)
+  const { GoogleGenAI } = require('@google/genai')
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 300000 } })
+  const up = await ai.files.upload({ file: path, config: { mimeType } })
+  try {
+    let f = up
+    for (let i = 0; i < 30 && f.state === 'PROCESSING'; i++) { await new Promise(r => setTimeout(r, 2000)); f = await ai.files.get({ name: up.name }) }
+    return await geminiRead([{ fileData: { fileUri: f.uri, mimeType } }], tag, `${what} (uploaded, ${(bytes.length / 1e6).toFixed(1)} MB)`)
+  } finally {
+    ai.files.delete({ name: up.name }).catch(() => {})
+  }
+}
+
+/** Page pictures as the last resort: small JPEGs, at most 12 pages, kept under the request cap. */
+async function geminiReadPages(pdfPath, workDir, tag) {
+  await run('pdftoppm', ['-jpeg', '-jpegopt', 'quality=80', '-r', '130', '-l', '12', pdfPath, join(workDir, 'page')], 120000)
+  const { readdir } = require('fs/promises')
+  const pages = (await readdir(workDir)).filter(f => f.startsWith('page') && f.endsWith('.jpg')).sort()
+  const parts = []; let total = 0
+  for (const p of pages) {
+    const b = await readFile(join(workDir, p)); total += b.length
+    if (total > INLINE_MAX) break
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: b.toString('base64') } })
+  }
+  return parts.length ? geminiRead(parts, tag, `${parts.length} page picture(s)`) : ''
+}
+
+/**
+ * Returns the document's text (up to `max` characters). Throws DocReadError
+ * with a message written for the user when the file cannot be read.
+ */
+async function readDocumentText(inputPath, ext, workDir, { tag = 'read-doc', max = 60000 } = {}) {
+  if (ext === 'txt' || ext === 'csv' || ext === 'md') return decodeTextFile(await readFile(inputPath)).slice(0, max)
+
+  if (IMAGE_TYPES[ext]) {
+    const t = await geminiReadFile(inputPath, IMAGE_TYPES[ext], tag, 'the photo').catch(e => { console.error(`[${tag}] photo read failed:`, e.message?.slice(0, 200)); return '' })
+    if (!t.trim()) throw new DocReadError('I could not read any text in that picture. Try a sharper, well-lit photo of the page — or upload the PDF.')
+    return t.slice(0, max)
+  }
+
+  let pdfPath = inputPath
+  if (ext !== 'pdf') {
+    if (!OFFICE_TYPES.has(ext)) throw new DocReadError(`I can't read .${ext} files. Please upload a PDF, Word, PowerPoint, Excel, text file or a photo of the page.`)
+    try {
+      await run('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], 120000)
+    } catch (e) {
+      console.error(`[${tag}] LibreOffice error:`, e.message?.slice(0, 160), e.stderr?.slice(0, 200))
+    }
+    pdfPath = join(workDir, 'input.pdf')
+    const made = await readFile(pdfPath).then(b => b.length > 0).catch(() => false)
+    if (!made) throw new DocReadError(`I couldn't open that ${ext.toUpperCase()} file. It may be damaged or password-protected. Save it as a PDF and upload that instead.`)
+  }
+
+  const txtPath = join(workDir, 'out.txt')
+  try {
+    await run('pdftotext', ['-layout', pdfPath, txtPath], 60000)
+  } catch (e) {
+    const why = `${e.stderr || ''} ${e.message || ''}`
+    if (/password|encrypt/i.test(why)) throw new DocReadError('That PDF is password-protected. Remove the password (or print it to a new PDF) and upload it again.')
+    console.error(`[${tag}] pdftotext failed:`, why.slice(0, 200))
+    // Damaged text layer — the picture-reading below may still rescue it.
+  }
+  let text = (await readFile(txtPath, 'utf-8').catch(() => '')).slice(0, max)
+
+  // Scanned or partly scanned: little text per page. A real typed page has
+  // hundreds of characters; a scanned page has none, so a typed cover plus
+  // scanned pages averages very low. Read the pictures and keep the longer.
+  const pages = await pdfPageCount(pdfPath)
+  const thin = text.trim().length < 40 || (pages >= 2 && text.trim().length / pages < 200)
+  if (thin) {
+    console.log(`[${tag}] little text (${text.trim().length} chars over ${pages || '?'} pages) — reading the pages as pictures`)
+    let read = ''
+    try { read = await geminiReadFile(pdfPath, 'application/pdf', tag, 'the whole PDF') } catch (e) { console.error(`[${tag}] whole-PDF read failed:`, e.message?.slice(0, 200)) }
+    if (!read) {
+      try { read = await geminiReadPages(pdfPath, workDir, tag) } catch (e) { console.error(`[${tag}] page-picture read failed:`, e.message?.slice(0, 200)) }
+    }
+    if (read.trim().length > text.trim().length) text = read.slice(0, max)
+  }
+
+  if (!text.trim()) {
+    if (pages === 0) throw new DocReadError('That PDF looks damaged — I could not open its pages. Try saving or exporting it again, then upload the new copy.')
+    throw new DocReadError('I could not find any text in that file, even after reading the pages as pictures. If it is a photo of a document, try a clearer scan — or paste the text in instead.')
+  }
+  return text
+}
+
+// ============================================================
 // EXTRACT-DOCUMENT — parse an uploaded doc into structured ExtractedData.
 // (Was missing on the VPS; the app calls this for PDF/DOCX/PPTX/etc. uploads.)
 // Flow: write file -> convert to PDF if needed (libreoffice) -> pull text
@@ -755,92 +977,8 @@ app.post('/extract-document', authCheck, async (req, res) => {
     const inputPath = join(workDir, `input.${ext || 'bin'}`)
     await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
 
-    // 1) Get plain text. .txt/.csv read directly; everything else -> PDF -> pdftotext.
-    let text = ''
-    if (ext === 'txt' || ext === 'csv') {
-      text = (await readFile(inputPath, 'utf-8')).slice(0, 60000)
-    } else {
-      let pdfPath = inputPath
-      if (ext !== 'pdf') {
-        await new Promise((resolve, reject) => {
-          execFile('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], { timeout: 120000 }, (err, stdout, stderr) => {
-            if (err) { console.error('[extract-document] LibreOffice error:', err.message, stderr?.slice(0, 200)); return reject(new Error('Could not convert this file type.')) }
-            resolve(stdout)
-          })
-        })
-        pdfPath = join(workDir, 'input.pdf')
-      }
-      const txtPath = join(workDir, 'out.txt')
-      await new Promise((resolve, reject) => {
-        execFile('pdftotext', ['-layout', pdfPath, txtPath], { timeout: 60000 }, (err) => {
-          if (err) return reject(new Error('Could not read text from this document.'))
-          resolve(null)
-        })
-      })
-      text = (await readFile(txtPath, 'utf-8').catch(() => '')).slice(0, 60000)
-
-      /**
-       * READ THE PAGES AS PICTURES WHEN THERE IS NO TEXT LAYER.
-       *
-       * pdftotext only sees text that is stored AS text. A quote that was
-       * printed and scanned, exported with the type converted to outlines, or
-       * produced by an insurer's ancient print system, has no text layer at
-       * all — so it came back empty and the customer was told "no readable
-       * text found, paste it instead".
-       *
-       * They uploaded a document to avoid retyping it. Asking them to retype it
-       * is the app failing at the exact job they came for.
-       *
-       * pdftoppm ships in the same poppler-utils package as pdftotext, so the
-       * pages become images with nothing new installed — and Gemini reads text
-       * off an image perfectly well. It is already loaded a few lines below.
-       */
-      if (text.trim().length < 40) {
-        console.log('[extract-document] no text layer — reading the pages as images')
-        try {
-          // 150 dpi is enough for body type and keeps the payload sane. Twelve
-          // pages at most: past that it is a book, not a quote, and both the
-          // cost and the wait stop being reasonable.
-          await new Promise((resolve, reject) => {
-            execFile('pdftoppm', ['-png', '-r', '150', '-l', '12', pdfPath, join(workDir, 'page')],
-              { timeout: 120000 }, (err) => err ? reject(err) : resolve(null))
-          })
-          const { readdir } = require('fs/promises')
-          const pages = (await readdir(workDir)).filter(f => f.startsWith('page') && f.endsWith('.png')).sort()
-
-          if (pages.length) {
-            const { GoogleGenAI } = require('@google/genai')
-            const vision = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 180000 } })
-            const parts = [{
-              text: 'Transcribe ALL of the text in these document pages, in reading order, exactly as written. '
-                + 'Keep numbers, dates, money amounts and names precise — this is a real business document, and a '
-                + 'wrong figure is worse than a missing one. Preserve table rows as lines. Do not summarise, do '
-                + 'not comment, and do not add anything that is not on the page. Output the text only.',
-            }]
-            for (const p of pages) {
-              parts.push({ inlineData: { mimeType: 'image/png', data: (await readFile(join(workDir, p))).toString('base64') } })
-            }
-            const r = await vision.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: [{ role: 'user', parts }],
-            })
-            const read = (r.text || '').trim() || (r.candidates?.[0]?.content?.parts ?? []).map(p => p.text || '').join('').trim()
-            if (read) {
-              text = read.slice(0, 60000)
-              console.log(`[extract-document] read ${text.length} characters off ${pages.length} page image(s)`)
-            }
-          }
-        } catch (e) {
-          // Never fatal by itself. If this cannot rescue the file, the message
-          // below still fires — and it now says something you can act on.
-          console.error('[extract-document] reading pages as images failed:', e.message?.slice(0, 160))
-        }
-      }
-    }
-
-    if (!text.trim()) {
-      throw new Error('I could not find any text in that file, even after reading the pages as pictures. If it is a photo of a document, try a clearer scan — or paste the text in instead.')
-    }
+    // 1) Get the text (shared reader: office files, scans, photos, CSV encodings).
+    const text = await readDocumentText(inputPath, ext, workDir, { tag: 'extract-document' })
 
     // 2) Gemini structures the text into ExtractedData.
     const { GoogleGenAI } = require('@google/genai')
@@ -900,7 +1038,7 @@ ${text}`
     res.json(result)
   } catch (err) {
     console.error(`[extract-document] Error:`, err.message)
-    res.status(500).json({ error: err.message || 'Document extraction failed' })
+    res.status(err instanceof DocReadError ? 422 : 500).json({ error: err.message || 'Document extraction failed' })
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
@@ -1033,8 +1171,40 @@ function speakable(text) {
   return t
 }
 
+// THE CHOSEN VOICE. ttsToBuffer speaks for Aurora, Cinematic, Infographic,
+// Editorial and Explainer. It used to ALWAYS try ElevenLabs Rachel first, so
+// the voice the customer picked on step 3 was only heard when ElevenLabs was
+// down. Now it follows the Slide Deck rule (slides.js wantsChosenVoice):
+// Sarah (nova) or nothing picked → ElevenLabs first, as before; any other
+// voice → that OpenAI voice first, ElevenLabs only if OpenAI fails.
+const OPENAI_TTS_VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
+
+async function openaiSpeak(spoken, voiceId) {
+  const OpenAI = require('openai')
+  const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+  const resp = await openai.audio.speech.create({
+    model: 'tts-1-hd', voice: OPENAI_TTS_VOICES.includes(voiceId) ? voiceId : 'nova', input: spoken, response_format: 'mp3', speed: 0.98,
+  })
+  return Buffer.from(await resp.arrayBuffer())
+}
+
 async function ttsToBuffer(text, voiceId) {
   const spoken = speakable(text) || ' '
+  // PRIMARY (2026-10-09): fal.ai — the same ElevenLabs voices on the fal bill,
+  // in the voice the customer picked (fal-tts.js FAL_VOICE_MAP). Retries +
+  // real-audio check live in falSpeak; any failure drops to the old chain.
+  if (process.env.FAL_KEY && spoken.trim()) {
+    try { return (await require('./fal-tts').falSpeak(spoken, { voiceId })).audio } catch (e) {
+      console.warn(`[tts] fal voice failed (${e.message}) — falling back to ElevenLabs/OpenAI`)
+    }
+  }
+  if (require('./slides').wantsChosenVoice(voiceId)) {
+    try { return await openaiSpeak(spoken, voiceId) } catch (e) {
+      if (!ELEVEN_API_KEY) throw e
+      console.warn(`[tts] OpenAI voice "${voiceId}" failed (${e.message}) — falling back to ElevenLabs`)
+      return await elevenSpeak(spoken)
+    }
+  }
   // PRIMARY: ElevenLabs — retry once with backoff before falling back (review
   // B7: parallel scene fan-out can trip the plan's concurrency limit with a
   // transient 429; without the retry each such scene silently ships with the
@@ -1052,13 +1222,8 @@ async function ttsToBuffer(text, voiceId) {
       }
     }
   }
-  // FALLBACK: OpenAI TTS-HD (honors the user's selected voice).
-  const OpenAI = require('openai')
-  const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
-  const resp = await openai.audio.speech.create({
-    model: 'tts-1-hd', voice: voiceId || 'nova', input: spoken, response_format: 'mp3', speed: 0.98,
-  })
-  return Buffer.from(await resp.arrayBuffer())
+  // FALLBACK: OpenAI TTS-HD (Sarah — this branch is only reached for the default).
+  return await openaiSpeak(spoken, voiceId)
 }
 
 async function v3Tts(text, voiceId, outPath) {
@@ -1088,10 +1253,37 @@ const ttsLimit = makeLimiter(3)
 // crashed at 16. Jobs are already async-ACKed, so queueing is invisible to the
 // app — the second job just starts when the first's Chrome fleet exits.
 let renderQueueTail = Promise.resolve()
-function withRenderSlot(fn) {
-  const result = renderQueueTail.then(fn)
+// While a job WAITS for its turn, nothing else writes to its row — so to the
+// app's stuck-video cron it looked dead: after 10 quiet minutes the cron failed
+// it, refunded it and told the user it failed... and then it rendered anyway
+// and was charged again (audit H3). A queued job now stamps its row every two
+// minutes ("still here, waiting in line") until its turn comes. Only rows that
+// are still running are touched, so a finished video is never disturbed.
+const QUEUE_BEAT_MS = 2 * 60 * 1000
+const RUNNING_STATUSES = ['pending', 'starting', 'scripting', 'generating_slides', 'generating_audio', 'assembling', 'queued', 'processing', 'rendering']
+function queueHeartbeat(videoId) {
+  if (!videoId || !SUPABASE_URL || !SUPABASE_KEY) return () => {}
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const stamp = () => sb.from('videos').update({
+    progress_updated_at: new Date().toISOString(),
+    progress_detail: 'Waiting in line for the video server — it will start automatically.',
+  }).eq('id', videoId).in('status', RUNNING_STATUSES).then(() => {}, () => {})
+  // First stamp after a few seconds, so a job that starts right away never
+  // flashes a "waiting" message; then every two minutes until its turn.
+  const first = setTimeout(stamp, 5000)
+  const every = setInterval(stamp, QUEUE_BEAT_MS)
+  return () => { clearTimeout(first); clearInterval(every) }
+}
+function withRenderSlot(fn, videoId) {
+  const stopBeat = queueHeartbeat(videoId)
+  const result = renderQueueTail.then(() => { stopBeat(); return fn() })
   renderQueueTail = result.then(() => {}, () => {}) // keep the chain unbroken on failure
+  result.then(stopBeat, stopBeat)
   return result
+}
+/** withRenderSlot for a job that has a videos row to keep alive while queued. */
+function withRenderSlotFor(videoId) {
+  return (fn) => withRenderSlot(fn, videoId)
 }
 
 // Minimum on-screen hold so a SHORT narration can't produce a flash-by slide
@@ -1264,7 +1456,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-v3 ${videoId}] theme=${theme} comp=${COMP} scenes=${scenes.length}`)
     await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
-    await setProgress(25, 'Generating narration...')
+    await setProgress(25, isInfo || isAurora ? 'Recording the voice' : 'Recording the voice and making the pictures')
 
     // Infographic theme: ONE ambient background image for the whole video (not
     // per-scene). Heavily darkened behind the data so it adds depth without
@@ -1327,43 +1519,11 @@ app.post('/render-v3', authCheck, async (req, res) => {
     const assets = settled.map((r) => r.value)
     // Live filmstrip previews (best-effort, cheap) — after assets exist.
     for (let i = 0; i < assets.length; i++) { if (assets[i].haveImg) await pushPreview(i, join(pub, assets[i].imgName)) }
-    await setProgress(70, 'Composing scenes...')
+    await setProgress(70, 'Laying out your scenes')
 
-    const outScenes = []
-    for (let i = 0; i < scenes.length; i++) {
-      const s = scenes[i]
-      const { audioName, imgName, durationInFrames, haveImg } = assets[i]
-      if (isInfo) {
-        outScenes.push({ title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, ...(s.heroMetric && s.heroMetric.value ? { heroMetric: s.heroMetric } : {}), audio: audioName, durationInFrames })
-      } else {
-        const placement = (i === 0 || i === scenes.length - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
-        // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
-        // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
-        const isEnd = i === 0 || i === scenes.length - 1
-        const isLast = i === scenes.length - 1
-        const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
-        // Build PowerPoint-style bullets for middle scenes: each metric becomes a
-        // bullet "label: value", plus any text bullets without numbers. This is
-        // what triggers the glass-panel layout and shows ALL the numbers.
-        const textBullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 2).map((b) => ({ text: String(b) }))
-        const metricBullets = sceneMetrics.map((x) => ({ text: x.label, value: x.value }))
-        const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : undefined
-        // Last scene = branded CLOSING CARD: logo + company + contact + value.
-        let closing
-        if (isLast) {
-          const hasContact = contact && (contact.phone || contact.email || contact.website)
-          closing = {
-            headline: s.title || 'Thank You',
-            cta: s.bullets?.[0] || 'Reach out with any questions — we\'re here to help.',
-            ...(closingValue ? { value: closingValue } : {}),
-            ...(hasContact ? { contact } : {}),
-          }
-        }
-        // A hero-number scene shows ONE giant figure instead of bullets/metrics.
-        const heroMetric = s.heroMetric && s.heroMetric.value ? s.heroMetric : undefined
-        outScenes.push({ title: s.title || '', ...(haveImg ? { image: imgName } : {}), audio: audioName, durationInFrames, placement, ...(heroMetric ? { heroMetric } : (bullets && bullets.length ? { bullets } : {})), ...(closing ? { closing } : {}) })
-      }
-    }
+    // One scene's props each, from the helper the free preview also uses
+    // (v3OutScene, in the PURE HELPERS block) — so a preview can't drift from this.
+    const outScenes = scenes.map((s, i) => v3OutScene(s, i, scenes.length, { isInfo, ...assets[i], contact, closingValue }))
 
     // Logo variants arrive as REMOTE Supabase URLs, but Remotion's staticFile()
     // resolves LOCAL public/ files only — so download each into public/ and pass
@@ -1373,7 +1533,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       const dl = async (url, name) => {
         if (!url) return undefined
         try {
-          const r = await fetch(url, { signal: AbortSignal.timeout(15000) })
+          const r = await guardedFetch(url, { signal: AbortSignal.timeout(15000) })
           if (!r.ok) return undefined
           await writeFile(join(pub, name), Buffer.from(await r.arrayBuffer()))
           return name
@@ -1392,7 +1552,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
       let photoName
       if (presenter.photo) {
         try {
-          const r = await fetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
+          const r = await guardedFetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
           if (r.ok) { photoName = `r3-${videoId}-presenter.png`; await writeFile(join(pub, photoName), Buffer.from(await r.arrayBuffer())) }
         } catch { /* no photo → name/role still render */ }
       }
@@ -1419,12 +1579,12 @@ app.post('/render-v3', authCheck, async (req, res) => {
       scenes: outScenes,
     }
     await writeFile(PROPS, JSON.stringify(props))
-    await setProgress(72, 'Rendering video...')
+    await setProgress(72, `Drawing scene 1 of ${outScenes.length}`)
 
     // Stream Remotion's frame progress so the bar moves during the long render
     // (otherwise it parks at 72% for minutes). Map rendered-frames -> 72..89%.
     // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
-    await withRenderSlot(() => new Promise((resolve, reject) => {
+    await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       // --concurrency=12: ONE Chrome tab per worker. --concurrency=100% on the
       // 16-core box opened 16 tabs and crashed Chrome mid-render (WebSocket died /
@@ -1439,23 +1599,15 @@ app.post('/render-v3', authCheck, async (req, res) => {
       const child = spawn(...renderCmd(COMP, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
       let stderrBuf = ''
-      let lastPct = 72, lastWrite = 0
+      // Remotion prints "Rendered frames 1840/3527" (and an Encoding phase);
+      // the customer reads "Drawing scene 4 of 9", then "Putting it together".
+      // Scene starts mirror v3Total: a title card first when there is a name.
+      const v3Lead = !isInfo && (props.brandName || outScenes[0]?.title) ? PREVIEW_V3_LEAD_IN : 0
+      const progress = makeRenderProgress({ from: 72, to: 89, starts: startsFromDurations(outScenes.map((s) => s.durationInFrames), v3Lead), report: setProgress })
       const onChunk = (buf) => {
         const text = buf.toString()
         stderrBuf = (stderrBuf + text).slice(-2000)
-        // Remotion prints "Rendered frames 1840/3527" (and an Encoding phase).
-        const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
-        if (m) {
-          const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
-          if (total > 0 && done <= total) {
-            const pct = 72 + Math.round((done / total) * 17) // 72 -> 89
-            const now = Date.now()
-            if (pct > lastPct && now - lastWrite > 1500) { // throttle DB writes
-              lastPct = pct; lastWrite = now
-              setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`)
-            }
-          }
-        }
+        progress(text)
       }
       child.stdout.on('data', onChunk)
       child.stderr.on('data', onChunk)
@@ -1474,11 +1626,11 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // failure we keep the music-less render rather than failing the whole video.
     if (musicUrl || aiMusic || musicPrompt) {
       try {
-        await setProgress(88, 'Adding music...')
+        await setProgress(88, 'Adding the music')
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`)
         let haveMusic = false
         if (musicUrl) {
-          const mr = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
+          const mr = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' })
           if (mr.ok) { await writeFile(musicPath, Buffer.from(await mr.arrayBuffer())); haveMusic = true }
         } else {
           // Lyria generate — EXACT same model + call shape as the /generate
@@ -1496,12 +1648,8 @@ app.post('/render-v3', authCheck, async (req, res) => {
         }
         if (haveMusic) {
           const mixedPath = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
-          await new Promise((resolve, reject) => {
-            execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath,
-              '-filter_complex', '[0:a]volume=1.0[narr];[1:a]volume=0.024,afade=t=in:st=0:d=2[bg];[narr][bg]amix=inputs=2:duration=first:dropout_transition=3[a]',
-              '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixedPath],
-              { timeout: 120000 }, (e) => e ? reject(e) : resolve())
-          })
+          // Voice at full level, music ducked under it and looped (audio-mix.js).
+          await mixMusicUnderVoice({ videoIn: outFile, musicPath, outPath: mixedPath })
           await rm(outFile, { force: true }).catch(() => {})
           outFile = mixedPath
           console.log(`[render-v3 ${videoId}] music mixed`)
@@ -1509,10 +1657,10 @@ app.post('/render-v3', authCheck, async (req, res) => {
       } catch (e) { console.error(`[render-v3 ${videoId}] music skipped: ${e.message}`) }
     }
 
-    await setProgress(90, 'Uploading...')
+    await setProgress(90, 'Saving your video')
     const videoBuffer = await readFile(outFile)
     const videoStoragePath = `${userId}/${videoId}.mp4`
-    await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    await uploadVideo(sb, 'videos', videoStoragePath, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
     const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
     // Poster/thumbnail: grab a frame ~2.5s IN, past the cold-open fade-from-black,
@@ -1534,13 +1682,13 @@ app.post('/render-v3', authCheck, async (req, res) => {
     // Labels come from the script (titles) the UI already reads — store them on
     // the script too so the panel shows chapter names per thumbnail.
     const scriptForPanel = outScenes.map((s) => ({ title: s.title || '', headline: s.title || '' }))
-    await sb.from('videos').update({
+    await completeIfRunning(sb, videoId, {
       status: 'completed', video_url: urlData.publicUrl,
       ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       ...(slideUrls.length ? { slide_urls: slideUrls } : {}),
       slide_durations: slideDurations, script: scriptForPanel,
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-    }).eq('id', videoId)
+    }, { tag: 'render-v3', userId, report: reportError })
     console.log(`[render-v3 ${videoId}] DONE -> ${urlData.publicUrl}`)
   } catch (err) {
     console.error(`[render-v3 ${videoId}] error:`, err.message)
@@ -1598,36 +1746,34 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     await Promise.all(entries.map(async ([sub, url]) => {
       const dest = join(assetDir, sub)
       await mkdir(dirname(dest), { recursive: true })
-      const r = await fetch(url, { signal: AbortSignal.timeout(60000) })
+      const r = await guardedFetch(url, { signal: AbortSignal.timeout(60000) })
       if (!r.ok) throw new Error(`asset fetch ${sub}: ${r.status}`)
       await writeFile(dest, Buffer.from(await r.arrayBuffer()))
     }))
     console.log(`[render-commercial ${videoId}] staged ${entries.length} assets`)
 
     await writeFile(PROPS, JSON.stringify(props))
-    await setProgress(60, 'Rendering commercial...')
+    await setProgress(60, 'Drawing your commercial')
 
-    await withRenderSlot(() => new Promise((resolve, reject) => {
+    await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       const child = spawn(...renderCmd(template, outFile, PROPS),
         { cwd: REMOTION_DIR, env: { ...process.env } })
-      let stderrBuf = '', lastPct = 60, lastWrite = 0
+      let stderrBuf = ''
+      const progress = makeRenderProgress({ from: 60, to: 90, report: setProgress })
       const onChunk = (buf) => {
         const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-2000)
-        const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
-        if (m) { const done = +m[1], total = +m[2]
-          if (total > 0 && done <= total) { const pct = 60 + Math.round((done / total) * 30); const now = Date.now()
-            if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } }
+        progress(text)
       }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
       child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`remotion exit ${code}: ${stderrBuf.slice(-400)}`)))
       child.on('error', reject)
     }))
 
-    await setProgress(92, 'Uploading...')
+    await setProgress(92, 'Saving your video')
     const videoBuffer = await readFile(outFile)
     const videoStoragePath = `${userId}/${videoId}.mp4`
-    await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    await uploadVideo(sb, 'videos', videoStoragePath, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
     const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
     const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
@@ -1635,11 +1781,11 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     let thumbUrl = null
     try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
 
-    await sb.from('videos').update({
+    await completeIfRunning(sb, videoId, {
       status: 'completed', video_url: urlData.publicUrl,
       ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-    }).eq('id', videoId)
+    }, { tag: 'render-commercial', userId, report: reportError })
     console.log(`[render-commercial ${videoId}] DONE -> ${urlData.publicUrl}`)
   } catch (err) {
     console.error(`[render-commercial ${videoId}] error:`, err.message)
@@ -1688,7 +1834,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
   const staged = []
   let assetDirAbs = null, propsPath = null
 
-  await withRenderSlot(async () => {
+  await withRenderSlotFor(videoId)(async () => {
     try {
       await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
       await setProgress(8, 'Studying the brand...')
@@ -1708,7 +1854,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         // SILENT mp3 so the file exists and the render never dies — we retry
         // rather than ship a generic bed on a paid commercial.
         stageMusic: async (_mood, outPath) => {
-          if (musicUrl) { try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {} }
+          if (musicUrl) { try { const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {} }
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
       }
@@ -1724,12 +1870,12 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       staged.push(propsPath, ...assetNames.map((n) => join(assetDirAbs, n)))
       console.log(`[generate-commercial ${videoId}] style=${styleId} beats=${props.beats.length} ~${totalSec.toFixed(1)}s`)
 
-      await setProgress(58, 'Rendering commercial...')
+      await setProgress(58, 'Drawing your commercial')
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
         const child = spawn(...renderCmd('TemplateCommercial', outFile, propsPath), { cwd: REMOTION_DIR, env: { ...process.env } })
-        let stderrBuf = '', lastPct = 58, lastWrite = 0
-        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 58 + Math.round((done / total) * 32); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 58, to: 90, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
@@ -1775,9 +1921,9 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
         console.warn(`[generate-commercial ${videoId}] QA scan error (non-blocking): ${qaErr.message}`)
       }
 
-      await setProgress(92, 'Uploading...')
+      await setProgress(92, 'Saving your video')
       const videoBuffer = await readFile(outFile)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
 
       const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
@@ -1786,11 +1932,11 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
       try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
       await rm(thumbPath, { force: true }).catch(() => {})
 
-      await sb.from('videos').update({
+      await completeIfRunning(sb, videoId, {
         status: 'completed', video_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-      }).eq('id', videoId)
+      }, { tag: 'generate-commercial', userId, report: reportError })
       // Mirror the finished result into prospect_demos → 'ready_for_review' (the
       // status the admin dashboard shows before an admin sends it to the lead).
       await mirrorProspect({
@@ -1826,24 +1972,42 @@ const { generateSlidePlan } = require('./slides')
 async function readDocText(fileBase64, fileName) {
   const workDir = join(tmpdir(), `d2v-slides-${randomUUID()}`)
   await mkdir(workDir, { recursive: true })
-  const ext = (fileName.split('.').pop() || '').toLowerCase()
-  const inputPath = join(workDir, `input.${ext || 'bin'}`)
-  await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
-  if (ext === 'txt' || ext === 'csv') return (await readFile(inputPath, 'utf-8')).slice(0, 120000)
-  let pdfPath = inputPath
-  if (ext !== 'pdf') {
-    await new Promise((resolve, reject) => execFile('libreoffice', ['--headless', '--convert-to', 'pdf', '--outdir', workDir, inputPath], { timeout: 120000 }, (err) => err ? reject(new Error('Could not convert this file type.')) : resolve()))
-    pdfPath = join(workDir, 'input.pdf')
+  try {
+    const ext = (fileName.split('.').pop() || '').toLowerCase()
+    const inputPath = join(workDir, `input.${ext || 'bin'}`)
+    await writeFile(inputPath, Buffer.from(fileBase64, 'base64'))
+    return await readDocumentText(inputPath, ext, workDir, { tag: 'slides-read', max: 120000 })
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {})
   }
-  const txtPath = join(workDir, 'out.txt')
-  await new Promise((resolve, reject) => execFile('pdftotext', ['-layout', pdfPath, txtPath], { timeout: 60000 }, (err) => err ? reject(new Error('Could not read text from this document.')) : resolve()))
-  return (await readFile(txtPath, 'utf-8')).slice(0, 120000)
+}
+
+// AI background music for the slide deck — same Lyria model + call shape as
+// /render-v3. Written as a real mp3 (ffmpeg re-encodes whatever Lyria returns),
+// because the deck renderer reads dir-music.mp3 by name. Throws on no audio so
+// the caller can fall back to the silent track.
+async function lyriaMusicToMp3(prompt, outPath) {
+  const { GoogleGenAI } = require('@google/genai')
+  const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } })
+  const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: prompt })
+  const parts = mr?.candidates?.[0]?.content?.parts ?? []
+  const part = parts.find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg')))
+  if (!part) throw new Error(`lyria returned no audio (${parts.length} parts)`)
+  const rawPath = `${outPath}.raw`
+  await writeFile(rawPath, Buffer.from(part.inlineData.data, 'base64'))
+  try {
+    await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', rawPath, '-vn', '-c:a', 'libmp3lame', '-q:a', '4', outPath], { timeout: 60000 }, (e) => e ? reject(e) : resolve()))
+  } finally { await rm(rawPath, { force: true }).catch(() => {}) }
 }
 
 app.post('/generate-slides', authCheck, async (req, res) => {
-  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement, photos, brief } = req.body || {}
+  // scenes / voiceId / aiMusic / musicPrompt / detailLevel (audit H2): the user's
+  // own script, chosen voice, music choice and paid-for length. They used to be
+  // dropped here, so the deck ignored every edit and always used one voice.
+  const { videoId, userId, fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl, presenter, photoPlacement, photos, brief, scenes, voiceId, aiMusic, musicPrompt, detailLevel } = req.body || {}
+  const suppliedScenes = Array.isArray(scenes) && scenes.some((s) => s && typeof s.narration === 'string' && s.narration.trim()) ? scenes : null
   if (!videoId) return res.status(400).json({ error: 'Missing videoId' })
-  if (!fileBase64 && !text && !url) return res.status(400).json({ error: 'Provide fileBase64, text, or url' })
+  if (!fileBase64 && !text && !url && !suppliedScenes) return res.status(400).json({ error: 'Provide fileBase64, text, url, or scenes' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on VPS' })
   res.json({ success: true })
 
@@ -1854,13 +2018,17 @@ app.post('/generate-slides', authCheck, async (req, res) => {
   const PROPS = join(pub, `dv-${videoId}-props.json`)
   const staged = []
 
-  await withRenderSlot(async () => {
+  await withRenderSlotFor(videoId)(async () => {
     try {
       await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
       await setProgress(10, 'Reading source...')
       // 1) get source text
       let source
-      if (url) {
+      if (suppliedScenes) {
+        // The user's own script IS the content. The source text (when sent)
+        // still rides along for regulated-content detection + brand palette.
+        source = { kind: 'text', text: String(text || suppliedScenes.map((s) => `${s.title || ''}\n${s.narration || ''}`).join('\n\n')).slice(0, 120000) }
+      } else if (url) {
         // URL crawl needs Playwright/Chrome-navigation — not wired yet on the VPS.
         throw new Error('URL sources not yet supported on the VPS (Playwright pending); use a document or pasted text.')
       } else if (fileBase64) {
@@ -1868,14 +2036,14 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       } else {
         source = { kind: 'text', text: String(text).slice(0, 120000) }
       }
-      if (!source.text || source.text.trim().length < 60) throw new Error('Not enough readable text in the source.')
+      if (!suppliedScenes && (!source.text || source.text.trim().length < 60)) throw new Error('Not enough readable text in the source.')
 
       // stage logo if provided (so the plan can reference brand-logo.png)
-      if (logoUrl) { try { const r = await fetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
+      if (logoUrl) { try { const r = await guardedFetch(logoUrl, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-logo.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p) } } catch {} }
       // stage presenter headshot if provided → brand-presenter.png (real agent photo)
       let presenterForPlan = null
       if (presenter && (presenter.photoUrl || presenter.photo) && (presenter.photoUrl || presenter.photo).startsWith('http')) {
-        try { const r = await fetch(presenter.photoUrl || presenter.photo, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-presenter.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p); presenterForPlan = { name: presenter.name, role: presenter.role, photo: 'brand-presenter.png' } } } catch {}
+        try { const r = await guardedFetch(presenter.photoUrl || presenter.photo, { signal: AbortSignal.timeout(30000) }); if (r.ok) { const p = join(pub, 'brand-presenter.png'); await writeFile(p, Buffer.from(await r.arrayBuffer())); staged.push(p); presenterForPlan = { name: presenter.name, role: presenter.role, photo: 'brand-presenter.png' } } } catch {}
       }
 
       await setProgress(20, 'Understanding your document...')
@@ -1896,34 +2064,48 @@ app.post('/generate-slides', authCheck, async (req, res) => {
         // the file exists (useBeats handles a silent/empty track gracefully).
         stageMusic: async (_mood, outPath) => {
           if (musicUrl) {
-            try { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {}
+            try { const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(45000) }); if (r.ok) { await writeFile(outPath, Buffer.from(await r.arrayBuffer())); return } } catch {}
+          }
+          // The user turned music ON in the wizard → generate it (the setting
+          // used to be dropped, so the deck was always silent).
+          if (aiMusic || musicPrompt) {
+            try {
+              await lyriaMusicToMp3(musicPrompt || 'Create background music. Instrumental only, no vocals. Calm, polished, modern presentation music — soft piano, light synth pads, gentle percussion. Fade out at the end.', outPath)
+              return
+            } catch (e) { console.warn(`[generate-slides ${videoId}] music skipped: ${e.message}`) }
           }
           // silent fallback (ffmpeg is on the box): 5s of quiet, looped by the renderer.
           await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '5', '-q:a', '9', outPath], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
         },
       }
-      const { plan, assetNames, sceneMeta } = await generateSlidePlan({
-        pub, source, preparer: preparer || 'docs2video', recipient, music, glass, footer, forcedAccent: accent,
-        shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps, log: (m) => setProgress(40, m),
+      const { plan, assetNames, sceneMeta, starts: slideStarts } = await generateSlidePlan({
+        // The agent's brand or own name (the app sends it), else nothing —
+        // NEVER our platform name on a client's cover ("Docs2Video — Prepared for …").
+        pub, source, preparer: (preparer || '').trim(), recipient, music, glass, footer, forcedAccent: accent,
+        shots: [], presenter: presenterForPlan, photoPlacement, photos: !!photos, brief, deps,
+        // The pipeline's log lines are for us ("comprehending pdf (48210 chars)...");
+        // the customer gets plain words for the step it is on.
+        log: (m) => { console.log(`[generate-slides ${videoId}] ${m}`); const w = slidesStepWords(m); if (w) setProgress(40, w) },
+        suppliedScenes, voiceId, detailLevel,
       })
       staged.push(...assetNames.map((n) => join(pub, n)))
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
 
-      await setProgress(55, 'Rendering slides...')
+      await setProgress(55, `Drawing scene 1 of ${plan.scenes.length}`)
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
         const child = spawn(...renderCmd('DirectedVideo', outFile, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
-        let stderrBuf = '', lastPct = 55, lastWrite = 0
-        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); const m = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const done = parseInt(m[1], 10), total = parseInt(m[2], 10); if (total > 0 && done <= total) { const pct = 55 + Math.round((done / total) * 34); const now = Date.now(); if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) } } } }
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 55, to: 89, starts: slideStarts, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
         child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
         child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
-      await setProgress(90, 'Uploading...')
+      await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
 
       // POSTER — a frame past the cover fade-in.
@@ -1936,7 +2118,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       // PER-SCENE THUMBNAILS for the SLIDES panel — grab one frame per scene from
       // the finished mp4 at each scene's midpoint (no extra render). Uploads to
       // storage; slide_urls drives the clickable panel + the Fix-a-Scene picker.
-      await setProgress(93, 'Building slide panel...')
+      await setProgress(93, 'Making the slide previews')
       const slideUrls = []
       for (const m of (sceneMeta || [])) {
         try {
@@ -1971,13 +2153,13 @@ app.post('/generate-slides', authCheck, async (req, res) => {
       // MAIN update: only CONFIRMED-existing columns, so a missing optional column
       // can never fail the whole completion write (a known footgun — a bad column
       // 400s the entire update, leaving the video stuck 'processing').
-      await sb.from('videos').update({
+      await completeIfRunning(sb, videoId, {
         status: 'completed', video_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         ...(slideUrlsClean.length ? { slide_urls: slideUrlsClean } : {}),
         slide_durations: slideDurations, script: scriptForPanel,
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-      }).eq('id', videoId)
+      }, { tag: 'generate-slides', userId, report: reportError })
       // OPTIONAL columns (may not exist in this schema) — separate best-effort
       // writes so their absence never breaks the completion above.
       sb.from('videos').update({ total_scenes: (sceneMeta || []).length }).eq('id', videoId).then(() => {}, () => {})
@@ -1990,6 +2172,118 @@ app.post('/generate-slides', authCheck, async (req, res) => {
     } finally {
       for (const f of staged) await rm(f, { force: true }).catch(() => {})
       await rm(outFile, { force: true }).catch(() => {})
+    }
+  })
+})
+
+// ============================================================
+// THE SCENE KIT — /generate-kit (videoStyle 'kit'). The app has already
+// planned the video (app/_lib/kit-planner.ts: one kit scene per beat, checked,
+// compliance-clean) and sends the plan. Here: voice per scene with word
+// timings + real logo/photo + music (render-service/kit.js) → render KitVideo
+// → upload, poster, one picture per scene, the plan kept for later.
+// No Claude call here, so no ANTHROPIC_API_KEY needed.
+// ============================================================
+app.post('/generate-kit', authCheck, async (req, res) => {
+  const { videoId, userId, plan, assets, voiceId, musicUrl, aiMusic, musicPrompt } = req.body || {}
+  if (!videoId || !userId) return res.status(400).json({ error: 'Missing videoId/userId' })
+  if (!plan || !Array.isArray(plan.scenes) || !plan.scenes.length) return res.status(400).json({ error: 'Missing kit plan' })
+  if (plan.scenes.some((s) => !s || typeof s.narration !== 'string' || !s.narration.trim())) return res.status(400).json({ error: 'Every kit scene needs narration' })
+  res.json({ success: true })
+
+  const kit = require('./kit')
+  const slides = require('./slides')
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const pub = join(REMOTION_DIR, 'public')
+  const outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const PROPS = join(pub, `kit-${videoId}-props.json`)
+  let kitDir = null
+
+  await withRenderSlotFor(videoId)(async () => {
+    try {
+      await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      // Safety net: the app checked compliance; check the words once more here.
+      const removed = kit.scrubKitPlan(plan, slides.CARRIER_BLOCKLIST)
+      if (removed.length) console.warn(`[generate-kit ${videoId}] ⚠ compliance net removed: ${[...new Set(removed)].join(', ')}`)
+      await setProgress(20, 'Recording the voice')
+      const fetchTo = async (url, outPath) => {
+        const r = await guardedFetch(url, { signal: AbortSignal.timeout(45000) })
+        if (!r.ok) throw new Error(`download ${r.status}`)
+        await writeFile(outPath, Buffer.from(await r.arrayBuffer()))
+      }
+      const prepared = await kit.prepareKitPlan({
+        pub, videoId, plan, assets: assets || {}, voiceId,
+        music: { url: musicUrl, ai: !!aiMusic, prompt: musicPrompt },
+        deps: { ttsTimed: slides.ttsTimed, tts: (fn) => ttsLimit(fn), fetchTo, aiMusic: lyriaMusicToMp3, audioDurationSec: slides.audioDurationSec, normalize: kit.normalizeVoice },
+        log: (m) => console.log(`[generate-kit ${videoId}] ${m}`),
+      })
+      kitDir = prepared.dir
+      // `assetDir` makes the Lambda uploader take the whole per-video folder;
+      // every file is ALSO named in the plan, so nothing depends on one or the other.
+      await writeFile(PROPS, JSON.stringify({ plan: prepared.plan, assetDir: prepared.dirName }))
+
+      await setProgress(50, `Drawing scene 1 of ${prepared.plan.scenes.length}`)
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn(...renderCmd('KitVideo', outFile, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 50, to: 89, starts: prepared.timeline.starts, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
+      })
+
+      await setProgress(90, 'Saving your video')
+      const videoBuffer = await readFile(outFile)
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+
+      // POSTER — the cover once its words have landed.
+      const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+      await grabPoster(outFile, thumbPath, 2.6)
+      let thumbUrl = null
+      try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+      await rm(thumbPath, { force: true }).catch(() => {})
+
+      // One picture per scene for the scenes panel (from the finished video).
+      await setProgress(93, 'Making the scene previews')
+      const slideUrls = []
+      for (const m of prepared.sceneMeta) {
+        try {
+          const fp = join(REMOTION_DIR, 'out', `${videoId}-slide-${m.index}.jpg`)
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-ss', String(m.midSec), '-i', outFile, '-frames:v', '1', '-q:v', '4', fp], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+          const path = `${userId}/${videoId}_slide_${m.index}.jpg`
+          await sb.storage.from('videos').upload(path, await readFile(fp), { contentType: 'image/jpeg', upsert: true })
+          slideUrls[m.index] = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+          await rm(fp, { force: true }).catch(() => {})
+        } catch (e) { console.error(`[generate-kit ${videoId}] scene picture ${m.index} failed: ${e.message}`) }
+      }
+      // Keep the finished plan (engine 'kit') next to the video. NOT written to
+      // slide_plan_url: Fix-a-Scene re-renders DirectedVideo plans only.
+      try {
+        await sb.storage.from('videos').upload(`${userId}/${videoId}_kit_plan.json`, Buffer.from(JSON.stringify({ engine: 'kit', plan: prepared.plan, sceneMeta: prepared.sceneMeta })), { contentType: 'application/json', upsert: true })
+      } catch (e) { console.error(`[generate-kit ${videoId}] plan persist failed: ${e.message}`) }
+
+      await completeIfRunning(sb, videoId, {
+        status: 'completed', video_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(slideUrls.filter(Boolean).length ? { slide_urls: slideUrls.filter(Boolean) } : {}),
+        slide_durations: prepared.sceneMeta.map((m) => Math.round((m.endSec - m.startSec) * 10) / 10),
+        script: prepared.sceneMeta.map((m) => ({ title: m.label, headline: m.label })),
+        progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+      }, { tag: 'generate-kit', userId, report: reportError })
+      sb.from('videos').update({ total_scenes: prepared.sceneMeta.length }).eq('id', videoId).then(() => {}, () => {})
+      console.log(`[generate-kit ${videoId}] DONE -> ${urlData.publicUrl} (${prepared.sceneMeta.length} scenes, look ${prepared.plan.look && prepared.plan.look.id})`)
+    } catch (err) {
+      console.error(`[generate-kit ${videoId}] error:`, err.message)
+      reportError({ source: 'generate-kit', videoId, userId, stage: 'kit', message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'failed', error_message: 'Video generation failed. Your credits were refunded.', progress_detail: `[fail] generate-kit: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      await rm(PROPS, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+      await require('./kit').cleanupKit(kitDir)
     }
   })
 })
@@ -2105,7 +2399,9 @@ RULES:
       // optional pronunciation override.
       if (!previewOnly) await setProgress(15, 'Re-recording the scene...')
       const voName = `dir-vo-${scene.id}.mp3`
-      const timed = await generateSceneVO({ pub, text: narration, outName: voName, pronounce, tts: (fn) => ttsLimit(fn) })
+      // Same voice the deck was made with (stored on the plan), so a fixed
+      // scene never switches narrator mid-video.
+      const timed = await generateSceneVO({ pub, text: narration, outName: voName, pronounce, tts: (fn) => ttsLimit(fn), voiceId: plan && plan.voiceId })
       staged.push(join(pub, voName))
       // re-resolve this scene's block cues against the NEW timings
       const FPS = 30, durF = Math.round(timed.durationSec * FPS)
@@ -2156,7 +2452,7 @@ RULES:
       await writeFile(PROPS, JSON.stringify({ plan })); staged.push(PROPS)
       await setProgress(45, 'Re-rendering...')
       const reOut = join(REMOTION_DIR, 'out', `${videoId}-reedit.mp4`)
-      await withRenderSlot(() => new Promise((resolve, reject) => {
+      await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
         const child = spawn(...renderCmd('DirectedVideo', reOut, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
         let stderrBuf = '', lastPct = 45, lastWrite = 0
@@ -2172,12 +2468,12 @@ RULES:
       // update the persisted plan + the edited scene's stored VO clip.
       await setProgress(92, 'Publishing...')
       const vbuf = await readFile(reOut)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, vbuf, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, vbuf, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
       // persist the edited scene's new VO + the updated plan
       try { const vb = await readFile(join(pub, voName)); await sb.storage.from('videos').upload(`${userId}/${videoId}_${voName}`, vb, { contentType: 'audio/mpeg', upsert: true }) } catch {}
       try { saved.plan = plan; await sb.storage.from('videos').upload(planKey, Buffer.from(JSON.stringify(saved)), { contentType: 'application/json', upsert: true }) } catch {}
-      await sb.from('videos').update({ status: 'completed', video_url: urlData.publicUrl, progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+      await completeIfRunning(sb, videoId, { status: 'completed', video_url: urlData.publicUrl, progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString() }, { tag: 're-render-scene', userId, report: reportError })
       console.log(`[re-render-scene ${videoId}] scene ${sceneId} re-rendered -> ${urlData.publicUrl}`)
     } catch (err) {
       console.error(`[re-render-scene ${videoId}] error:`, err.message)
@@ -2227,7 +2523,7 @@ app.post('/render-visual-director', authCheck, async (req, res) => {
     await setJob({ status: 'running', stage: 'Downloading source video', progress: 5, attempts: 1, started_at: new Date().toISOString(), lease_expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() })
     await sb.from('vd_projects').update({ status: 'rendering' }).eq('id', projectId).eq('user_id', userId)
 
-    const sourceResponse = await fetch(sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(180000) })
+    const sourceResponse = await guardedFetch(sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(180000) })
     if (!sourceResponse.ok || !sourceResponse.body) throw new Error(`source download failed: ${sourceResponse.status}`)
     const mime = String(sourceResponse.headers.get('content-type') || '').split(';')[0]
     const extension = mime === 'video/webm' ? 'webm' : mime === 'video/quicktime' ? 'mov' : 'mp4'
@@ -2239,7 +2535,7 @@ app.post('/render-visual-director', authCheck, async (req, res) => {
     if (logo?.sourceUrl) {
       const parsedLogo = new URL(logo.sourceUrl)
       if (parsedLogo.protocol !== 'https:') throw new Error('Logo URL must use HTTPS')
-      const logoResponse = await fetch(logo.sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(60000) })
+      const logoResponse = await guardedFetch(logo.sourceUrl, { redirect: 'follow', signal: AbortSignal.timeout(60000) })
       if (!logoResponse.ok) throw new Error(`logo download failed: ${logoResponse.status}`)
       const logoBytes = Buffer.from(await logoResponse.arrayBuffer())
       if (logoBytes.length > 10 * 1024 * 1024) throw new Error('Logo exceeds the 10 MB export limit')
@@ -2320,8 +2616,7 @@ app.post('/render-visual-director', authCheck, async (req, res) => {
       exportBucket = String(exportUpload.bucket)
       storagePath = String(exportUpload.key)
     } else {
-      const { error: uploadError } = await sb.storage.from('visual-director-exports').upload(storagePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-      if (uploadError) throw uploadError
+      await uploadVideo(sb, 'visual-director-exports', storagePath, videoBuffer, 'save-video')
     }
     const dimensions = aspect === '9:16' ? [1080, 1920] : aspect === '1:1' ? [1080, 1080] : [1920, 1080]
     const { error: renderError } = await sb.from('vd_renders').upsert({
@@ -2379,19 +2674,19 @@ app.post('/render-directed', authCheck, async (req, res) => {
 
   // Everything from staging through cleanup runs INSIDE the render slot so no
   // other DirectedVideo render can touch the fixed dir-* filenames concurrently.
-  await withRenderSlot(async () => {
+  await withRenderSlotFor(videoId)(async () => {
     try {
       await mkdir(pub, { recursive: true })
       await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
       console.log(`[render-directed ${videoId}] scenes=${plan.scenes.length} assets=${(assets || []).length}`)
-      await setProgress(30, 'Staging assets...')
+      await setProgress(30, 'Getting your files ready')
 
       // Download each asset into public/ under its EXACT plan filename (dir-vo-1.mp3,
       // dir-bd-2.png, dir-music.mp3, brand-logo.png, dir-img-3.png, ...).
       for (const a of (assets || [])) {
         if (!a || !a.name || !a.url) continue
         const dest = join(pub, a.name)
-        const r = await fetch(a.url, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
+        const r = await guardedFetch(a.url, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
         if (!r.ok) throw new Error(`asset ${a.name} download failed: ${r.status}`)
         await writeFile(dest, Buffer.from(await r.arrayBuffer()))
         staged.push(dest)
@@ -2399,7 +2694,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       // A separate musicUrl (optional) overrides/fills dir-music.mp3.
       if (musicUrl) {
         const dest = join(pub, 'dir-music.mp3')
-        const r = await fetch(musicUrl, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
+        const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(45000), redirect: 'follow' })
         if (r.ok) { await writeFile(dest, Buffer.from(await r.arrayBuffer())); if (!staged.includes(dest)) staged.push(dest) }
       }
 
@@ -2413,7 +2708,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       // accepts { plan } via props and never falls back to the staticFile fetch.
       await writeFile(PROPS, JSON.stringify({ plan }))
       staged.push(PROPS)
-      await setProgress(50, 'Rendering slides...')
+      await setProgress(50, 'Drawing your slides')
 
       await new Promise((resolve, reject) => {
         const { spawn } = require('child_process')
@@ -2421,18 +2716,13 @@ app.post('/render-directed', authCheck, async (req, res) => {
         // via /dev/shm). --props isolation: never rely on staticFile fetch.
         const child = spawn(...renderCmd('DirectedVideo', outFile, PROPS),
           { cwd: REMOTION_DIR, env: { ...process.env } })
-        let stderrBuf = '', lastPct = 50, lastWrite = 0
+        let stderrBuf = ''
+        // Scene starts are worked out inside the renderer here (from the voice
+        // lengths), so the words say how far along, not which scene.
+        const progress = makeRenderProgress({ from: 50, to: 89, report: setProgress })
         const onChunk = (buf) => {
           const text = buf.toString(); stderrBuf = (stderrBuf + text).slice(-2000)
-          const m = [...text.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
-          if (m) {
-            const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
-            if (total > 0 && done <= total) {
-              const pct = 50 + Math.round((done / total) * 39) // 50 -> 89
-              const now = Date.now()
-              if (pct > lastPct && now - lastWrite > 1500) { lastPct = pct; lastWrite = now; setProgress(pct, `Rendering — frame ${done.toLocaleString()} of ${total.toLocaleString()}`) }
-            }
-          }
+          progress(text)
         }
         child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
         const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} ; reject(new Error('remotion render: timeout (>60min)')) }, 60 * 60 * 1000)
@@ -2440,10 +2730,10 @@ app.post('/render-directed', authCheck, async (req, res) => {
         child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`remotion render exit ${code}: ${crashReason(stderrBuf)}`)) })
       })
 
-      await setProgress(90, 'Uploading...')
+      await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
       const videoStoragePath = `${userId}/${videoId}.mp4`
-      await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', videoStoragePath, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
       // Poster (past the cover fade-in).
@@ -2457,11 +2747,11 @@ app.post('/render-directed', authCheck, async (req, res) => {
       } catch { /* best-effort */ }
       await rm(thumbPath, { force: true }).catch(() => {})
 
-      await sb.from('videos').update({
+      await completeIfRunning(sb, videoId, {
         status: 'completed', video_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-      }).eq('id', videoId)
+      }, { tag: 'render-directed', userId, report: reportError })
       console.log(`[render-directed ${videoId}] DONE -> ${urlData.publicUrl}`)
     } catch (err) {
       console.error(`[render-directed ${videoId}] error:`, err.message)
@@ -2570,7 +2860,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
     console.log(`[render-editorial ${videoId}] ${scenes.length} scenes`)
     await sb.from('videos').update({ total_scenes: scenes.length, preview_thumbs: [] }).eq('id', videoId).then(() => {}, () => {})
-    await setProgress(25, 'Writing your report...')
+    await setProgress(25, 'Recording the voice')
 
     // Build every scene's assets (TTS + optional Gemini image) IN PARALLEL.
     // These were serial per-scene AND serial-within-scene, so a 6-scene report
@@ -2597,10 +2887,14 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       ])
       const durationInFrames = floorDuration(durRaw, i === 0)
       assetsDone++
-      await setProgress(30 + Math.round((assetsDone / scenes.length) * 42), `Composing page ${assetsDone}/${scenes.length}...`)
+      await setProgress(30 + Math.round((assetsDone / scenes.length) * 42), `Recording the voice — ${assetsDone} of ${scenes.length} pages done`)
       return {
         archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
         quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
+        // Timeline, chart and table pages carry their data here. They were
+        // dropped (only /preview-editorial passed them), so in the finished
+        // video those pages showed a title and nothing else.
+        timeline: s.timeline, chart: s.chart, matrix: s.matrix,
         ...(image ? { image } : {}), audio: audioName, durationInFrames,
       }
     }))
@@ -2615,7 +2909,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       let photoName
       if (presenter.photo) {
         try {
-          const r = await fetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
+          const r = await guardedFetch(presenter.photo, { signal: AbortSignal.timeout(15000) })
           if (r.ok) { photoName = `ed-${videoId}-presenter.png`; await writeFile(join(pub, photoName), Buffer.from(await r.arrayBuffer())) }
         } catch { /* name/role still render */ }
       }
@@ -2638,17 +2932,17 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       ...(recipient ? { recipient } : {}),   // "Prepared for {client}" on the cover
       ...(edPresenter ? { presenter: edPresenter, presenterOnCover: edOnCover, presenterOnClosing: edOnClosing } : {}),
     }))
-    await setProgress(72, 'Rendering...')
+    await setProgress(72, `Drawing scene 1 of ${out.length}`)
     // withRenderSlot: ONE render's Chrome fleet at a time (review B9).
-    await withRenderSlot(() => new Promise((resolve, reject) => {
+    await withRenderSlotFor(videoId)(() => new Promise((resolve, reject) => {
       const { spawn } = require('child_process')
       // Pass the real props explicitly so the render NEVER depends on a fragile
       // staticFile fetch inside calculateMetadata. Without this the render can
       // fall back to composition defaultProps (the "Run the editorial generator
       // first" placeholder).
       const child = spawn(...renderCmd('EditorialVideo', outFile, edProps), { cwd: REMOTION_DIR, env: { ...process.env } })
-      let err = '', lastPct = 72, lastW = 0
-      const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); const m = [...x.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop(); if (m) { const d = +m[1], tot = +m[2]; if (tot > 0 && d <= tot) { const p = 72 + Math.round((d / tot) * 17); const now = Date.now(); if (p > lastPct && now - lastW > 1500) { lastPct = p; lastW = now; setProgress(p, `Rendering — frame ${d.toLocaleString()} of ${tot.toLocaleString()}`) } } } }
+      let err = ''; const progress = makeRenderProgress({ from: 72, to: 89, starts: startsFromDurations(out.map((s) => s.durationInFrames)), report: setProgress })
+      const onChunk = (b) => { const x = b.toString(); err = (err + x).slice(-2000); progress(x) }
       child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
       const kt = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
       child.on('error', (e) => { clearTimeout(kt); reject(new Error(`render: ${e.message}`)) })
@@ -2658,13 +2952,13 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     // Optional music mix (reuses the same Lyria + ffmpeg path as /render-v3).
     if (musicUrl || aiMusic || musicPrompt) {
       try {
-        await setProgress(88, 'Adding music...')
+        await setProgress(88, 'Adding the music')
         const musicPath = join(REMOTION_DIR, 'out', `${videoId}-music.mp3`); let have = false
-        if (musicUrl) { const r = await fetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
+        if (musicUrl) { const r = await guardedFetch(musicUrl, { signal: AbortSignal.timeout(30000), redirect: 'follow' }); if (r.ok) { await writeFile(musicPath, Buffer.from(await r.arrayBuffer())); have = true } }
         else { const { GoogleGenAI } = require('@google/genai'); const g = new GoogleGenAI({ apiKey: GEMINI_API_KEY, httpOptions: { timeout: 120000 } }); const mr = await g.models.generateContent({ model: 'lyria-3-pro-preview', contents: musicPrompt || 'Refined, understated instrumental background music for a premium report. No vocals. Fade out.' }).catch(() => null); const part = mr && (mr.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData && (p.inlineData.mimeType?.includes('audio') || p.inlineData.mimeType?.includes('mpeg'))); if (part) { await writeFile(musicPath, Buffer.from(part.inlineData.data, 'base64')); have = true } }
         if (have) {
           const mixed = join(REMOTION_DIR, 'out', `${videoId}-mixed.mp4`)
-          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-i', outFile, '-stream_loop', '-1', '-i', musicPath, '-filter_complex', '[0:a]volume=1.0[n];[1:a]volume=0.02,afade=t=in:st=0:d=2[b];[n][b]amix=inputs=2:duration=first:dropout_transition=3[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', mixed], { timeout: 120000 }, (e) => e ? reject(e) : resolve()))
+          await mixMusicUnderVoice({ videoIn: outFile, musicPath, outPath: mixed })   // voice at full level, music ducked + looped
           await rm(outFile, { force: true }).catch(() => {}); outFile = mixed
         }
       } catch (e) { console.error(`[render-editorial ${videoId}] music skipped: ${e.message}`) }
@@ -2676,7 +2970,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     // (90s-capped), minutes of extra wall-clock for pixel-identical images that
     // are already in the video. The music mix uses -c:v copy, so the video
     // stream (and frame timing) is unchanged — extracting from outFile is exact.
-    await setProgress(89, 'Rendering page thumbnails...')
+    await setProgress(89, 'Making the page previews')
     {
       let acc = 0
       for (let i = 0; i < out.length; i++) {
@@ -2693,10 +2987,10 @@ app.post('/render-editorial', authCheck, async (req, res) => {
       }
     }
 
-    await setProgress(92, 'Uploading...')
+    await setProgress(92, 'Saving your video')
     const buf = await readFile(outFile)
     const path = `${userId}/${videoId}.mp4`
-    await sb.storage.from('videos').upload(path, buf, { contentType: 'video/mp4', upsert: true })
+    await uploadVideo(sb, 'videos', path, buf, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
     const url = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
     const thumb = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
     await grabPoster(outFile, thumb)
@@ -2708,12 +3002,12 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     const slideUrls = out.map((_, i) => previews.find((p) => p.idx === i)?.url).filter(Boolean)
     const slideDurations = out.map((s) => Math.round((s.durationInFrames || 0) / 30 * 10) / 10)
     const scriptForPanel = out.map((s) => ({ title: s.title || '', headline: s.title || '' }))
-    await sb.from('videos').update({
+    await completeIfRunning(sb, videoId, {
       status: 'completed', video_url: url, ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       ...(slideUrls.length ? { slide_urls: slideUrls } : {}),
       slide_durations: slideDurations, script: scriptForPanel,
       progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
-    }).eq('id', videoId)
+    }, { tag: 'render-editorial', userId, report: reportError })
     console.log(`[render-editorial ${videoId}] DONE -> ${url}`)
   } catch (err) {
     console.error(`[render-editorial ${videoId}] error:`, err.message)
@@ -2753,10 +3047,16 @@ app.post('/generate', authCheck, async (req, res) => {
     realtime: { transport: WebSocket },
   })
 
+  // Every progress write stamps progress_updated_at (so the stuck-video cron
+  // sees a slow drawn job is alive) and only touches a row that is still
+  // running (so it can never revive a video the app already failed/refunded).
   async function updateStatus(status, detail, pct) {
-    try { await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct }).eq('id', videoId) } catch(e) { console.error('Progress update failed:', e.message) }
+    try { await supabase.from('videos').update({ status, progress_detail: detail, progress_pct: pct, progress_updated_at: new Date().toISOString() }).eq('id', videoId).in('status', RUNNING_STATUSES) } catch(e) { console.error('Progress update failed:', e.message) }
   }
 
+  // The one render queue every other route uses (withRenderSlotFor): a waiting
+  // job stamps its row every two minutes, so it is not failed while in line.
+  await withRenderSlotFor(videoId)(async () => {
   try {
     console.log(`[${videoId}] FULL PIPELINE: ${scenes.length} scenes, voice=${voiceId}, ${slidePrompts.length} prompts`)
 
@@ -2813,7 +3113,7 @@ app.post('/generate', authCheck, async (req, res) => {
     let logoBase64 = null
     if (logoUrl) {
       try {
-        const logoRes = await fetch(logoUrl, { signal: AbortSignal.timeout(8000) })
+        const logoRes = await guardedFetch(logoUrl, { signal: AbortSignal.timeout(8000) })
         if (logoRes.ok) logoBase64 = Buffer.from(await logoRes.arrayBuffer()).toString('base64')
       } catch (e) { console.log(`[${videoId}] Logo fetch failed:`, e.message) }
     }
@@ -2824,7 +3124,7 @@ app.post('/generate', authCheck, async (req, res) => {
     if (templateRefUrl) {
       try {
         console.log(`[${videoId}] Downloading template reference from ${templateRefUrl}`)
-        const tRes = await fetch(templateRefUrl, { signal: AbortSignal.timeout(10000) })
+        const tRes = await guardedFetch(templateRefUrl, { signal: AbortSignal.timeout(10000) })
         if (tRes.ok) {
           templateRefBase64 = Buffer.from(await tRes.arrayBuffer()).toString('base64')
           console.log(`[${videoId}] Template reference loaded (${Math.round(templateRefBase64.length / 1024)}KB)`)
@@ -2842,7 +3142,53 @@ app.post('/generate', authCheck, async (req, res) => {
     // Track slides that fell back to the plain navy card, with the reason, so we
     // can send ONE summary alert instead of one email per failed slide.
     const slideFallbacks = []
+    // "DRAWN SLIDES" look (imageEngine:'fal'): every slide is drawn whole by
+    // OpenAI gpt-image-2.5 on fal (fal-image.js). One slide is drawn first and
+    // handed to the rest as a style reference, so the set looks like one deck.
+    // A slide fal can't draw drops through to the Gemini loop below — a worse
+    // picture beats a failed video. Old app builds never send imageEngine.
+    const useFal = req.body.imageEngine === 'fal'
+    let falStyleRef = null
+    async function drawOneWithFal(idx, opts = {}) {
+      const { drawWithFal } = require('./fal-image')
+      let lastErr = null
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const raw = await drawWithFal(slidePrompts[idx], { refImage: opts.noRef || process.env.DRAWN_SLIDE_REF === 'off' ? null : falStyleRef })
+          const sharp = require('sharp')
+          return await sharp(raw).resize(1920, 1080, { fit: 'cover', position: 'centre' }).png().toBuffer()
+        } catch (e) {
+          lastErr = e
+          console.error(`[${videoId}] FAL SLIDE FAIL slide=${idx + 1} attempt=${attempt}/2:`, e?.message || e)
+          if (attempt < 2) await new Promise(r => setTimeout(r, 2000))
+        }
+      }
+      console.error(`[${videoId}] slide ${idx + 1}: fal failed (${lastErr?.message}) — falling back to Gemini`)
+      return null
+    }
+
+    // SPELL-CHECK (slide-spellcheck.js): read the drawn slide back with Gemini
+    // 2.5 Flash (~0.1c) and compare with the words the prompt asked for. A
+    // dropped / wrong word or number, or words squeezed together ("toyou") →
+    // redraw once with the same prompt (WITHOUT the style reference — the
+    // near-copy layout is what squeezed "to you"); still wrong → keep the one
+    // with fewer problems. A check that can't run accepts the slide.
+    async function drawCheckedWithFal(idx) {
+      const { drawChecked, expectedFromPrompt } = require('./slide-spellcheck')
+      const res = await drawChecked({
+        expected: expectedFromPrompt(slidePrompts[idx]),
+        draw: (attempt) => drawOneWithFal(idx, { noRef: attempt === 2 }),
+        log: (m) => console.warn(`[${videoId}] slide ${idx + 1}: ${m}`),
+        label: `slide ${idx + 1}`,
+      })
+      return res.buf
+    }
+
     async function generateOneSlide(idx) {
+      if (useFal) {
+        const drawn = await drawCheckedWithFal(idx)
+        if (drawn) return drawn
+      }
       const prompt = slidePrompts[idx]
       // Cover (first) and closing (last) are title cards — no header band on them
       // (the brand name is already the focal point of those designs).
@@ -2899,8 +3245,11 @@ app.post('/generate', authCheck, async (req, res) => {
                 )
                 const bandComposites = [{ input: await sharp(bandSvg).png().toBuffer(), top: 0, left: 0 }]
                 if (logoBase64) {
+                  // Height sets the size; the width cap keeps a very wide wordmark
+                  // inside the band (48px margin each side) instead of failing
+                  // the composite and throwing the whole slide away.
                   const logoResized = await sharp(Buffer.from(logoBase64, 'base64'))
-                    .resize(null, BAND_H - 28, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .resize({ width: SLIDE_W - 96, height: BAND_H - 28, fit: 'inside' })
                     .png().toBuffer()
                   bandComposites.push({ input: logoResized, top: 14, left: 48 })
                 } else {
@@ -2963,19 +3312,41 @@ app.post('/generate', authCheck, async (req, res) => {
       } catch { /* best-effort */ }
     }
 
-    const BATCH_SIZE = 2
-    for (let i = 0; i < slidePrompts.length; i += BATCH_SIZE) {
-      const batch = []
-      for (let j = i; j < Math.min(i + BATCH_SIZE, slidePrompts.length); j++) {
-        batch.push(generateOneSlide(j).then(buf => { slideBuffers[j] = buf }))
-      }
-      await Promise.all(batch)
-      const done = Math.min(i + BATCH_SIZE, slidePrompts.length)
+    // Drawn slides: draw the first CONTENT slide alone, then use it as the
+    // style reference for every other slide (cover and closing included).
+    let order = slidePrompts.map((_, i) => i)
+    if (useFal && slidePrompts.length > 2) {
+      const first = 1
+      const buf = await generateOneSlide(first)
+      slideBuffers[first] = buf
+      if (buf && !slideFallbacks.some(f => f.slide === first + 1)) falStyleRef = buf
+      await pushClassicPreview(first, buf)
+      order = order.filter(i => i !== first)
+    }
+    // fal draws in ~12-25s and isn't rate-bound like Gemini here: 4 at a time.
+    const BATCH_SIZE = useFal ? 4 : 2
+    let done = slidePrompts.length - order.length
+    for (let i = 0; i < order.length; i += BATCH_SIZE) {
+      const idxs = order.slice(i, i + BATCH_SIZE)
+      await Promise.all(idxs.map(j => generateOneSlide(j).then(buf => { slideBuffers[j] = buf })))
+      done += idxs.length
       // Live filmstrip: upload each newly-built slide as a preview.
-      for (let j = i; j < done; j++) if (slideBuffers[j]) await pushClassicPreview(j, slideBuffers[j])
+      for (const j of idxs) if (slideBuffers[j]) await pushClassicPreview(j, slideBuffers[j])
       console.log(`[${videoId}] Slides ${done}/${slidePrompts.length} done`)
       const slidePct = 22 + Math.round((done / slidePrompts.length) * 43)
       await updateStatus('generating_slides', `Designing slide ${done} of ${slidePrompts.length}... (audio ${audiosDone}/${scenes.length})`, slidePct)
+    }
+
+    // Drawn slides: the contact line on the closing slide is added HERE as
+    // plain text — never drawn by the image model (it would invent or misspell
+    // phone numbers and addresses).
+    const closingLine = useFal && typeof req.body.closingContactLine === 'string' ? req.body.closingContactLine.trim().slice(0, 140) : ''
+    const lastIdx = slideBuffers.length - 1
+    if (closingLine && slideBuffers[lastIdx]) {
+      try {
+        slideBuffers[lastIdx] = await require('./fal-image').addContactStrip(slideBuffers[lastIdx], closingLine)
+        await pushClassicPreview(lastIdx, slideBuffers[lastIdx])
+      } catch (e) { console.error(`[${videoId}] contact strip failed (slide kept as drawn):`, e.message) }
     }
     console.log(`[${videoId}] Slides complete: ${slideBuffers.length}`)
 
@@ -3029,8 +3400,21 @@ app.post('/generate', authCheck, async (req, res) => {
 
     const outputPath = join(workDir, 'output.mp4')
     let durations = []
+    let voiceSegments = null   // exact voice times (Drawn slides) → music ducking
 
-    if (process.env.ASSEMBLY_V2 === 'true') {
+    if (useFal) {
+      // ── Drawn slides: slow Ken Burns zoom on every slide + 0.5 s cross-fades
+      // instead of hard cuts (drawn-assembly.js). Same per-slide timing.
+      const { assembleDrawnSlides } = require('./drawn-assembly')
+      await updateStatus('assembling', 'Assembling your video...', 72)
+      const drawn = await assembleDrawnSlides({
+        workDir, slideCount: slideBuffers.length, audioBuffers, outputPath, runFfmpeg, probeAudioDuration,
+        onClip: (i) => updateStatus('assembling', `Animating slide ${i + 1} of ${slideBuffers.length}...`, 72 + Math.round(((i + 1) / slideBuffers.length) * 13)),
+        onJoin: () => updateStatus('assembling', 'Joining the slides together...', 86),
+      })
+      durations = drawn.durations
+      voiceSegments = drawn.voice
+    } else if (process.env.ASSEMBLY_V2 === 'true') {
       // ── V2: single-filtergraph assembly (one ffmpeg pass, no concat seams) ──
       await updateStatus('assembling', 'Assembling your video...', 75)
       console.log(`[${videoId}] ASSEMBLY_V2: single-filtergraph for ${slideBuffers.length} slides`)
@@ -3141,25 +3525,11 @@ app.post('/generate', authCheck, async (req, res) => {
 
             // Mix music under narration
             await updateStatus('assembling', 'Mixing background music...', 91)
-            const fadeOutStart = Math.max(0, totalDurationEst - 3)
             const mixedPath = join(workDir, 'output_with_music.mp4')
-            await runFfmpeg([
-              '-i', outputPath,
-              '-stream_loop', '-1',
-              '-i', musicPath,
-              '-filter_complex',
-              // normalize=0 stops amix from auto-ducking the narration; narration stays
-              // at full volume and music sits as a quiet bed underneath at ~4%.
-              `[0:a]volume=1.0[narr];[1:a]volume=0.04,afade=t=in:st=0:d=2,afade=t=out:st=${fadeOutStart}:d=3[music];[narr][music]amix=inputs=2:duration=first:normalize=0[out]`,
-              '-map', '0:v',
-              '-map', '[out]',
-              '-c:v', 'copy',
-              '-c:a', 'aac',
-              '-b:a', '192k',
-              '-movflags', '+faststart',
-              '-y',
-              mixedPath,
-            ])
+            // Voice at full level, music ducked under it and looped (audio-mix.js).
+            // Drawn slides know exactly when each slide's voice plays; the
+            // classic path finds the lines in the narration itself.
+            await mixMusicUnderVoice({ videoIn: outputPath, musicPath, outPath: mixedPath, segments: voiceSegments || undefined })
             finalPath = mixedPath
             musicSaved = true
             console.log(`[${videoId}] Music mixed successfully`)
@@ -3177,13 +3547,12 @@ app.post('/generate', authCheck, async (req, res) => {
     }
 
     // Read and upload
-    await updateStatus('assembling', 'Uploading video...', 94)
+    await updateStatus('assembling', 'Saving your video...', 94)
     const videoBuffer = await readFile(finalPath)
     console.log(`[${videoId}] Video: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`)
 
     const videoStoragePath = `${userId}/${videoId}.mp4`
-    const { error: uploadError } = await supabase.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-    if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+    await uploadVideo(supabase, 'videos', videoStoragePath, videoBuffer, 'save-video')
     const { data: urlData } = supabase.storage.from('videos').getPublicUrl(videoStoragePath)
 
     // Upload thumbnail
@@ -3204,7 +3573,7 @@ app.post('/generate', authCheck, async (req, res) => {
     // Mark complete — with explicit error logging
     const totalDuration = totalDurationEst
     try {
-      const { error: updateError } = await supabase.from('videos').update({
+      const marked = await completeIfRunning(supabase, videoId, {
         video_url: urlData.publicUrl,
         thumbnail_url: thumbUrlData.publicUrl,
         duration: Math.round(totalDuration),
@@ -3217,12 +3586,9 @@ app.post('/generate', authCheck, async (req, res) => {
         status: 'completed',
         progress_detail: null,
         progress_pct: 100,
-      }).eq('id', videoId)
-      if (updateError) {
-        console.error(`[${videoId}] DB UPDATE ERROR:`, updateError.message, updateError.details, updateError.hint)
-      } else {
-        console.log(`[${videoId}] Database updated to completed`)
-      }
+        progress_updated_at: new Date().toISOString(),
+      }, { tag: 'generate', userId, report: reportError })
+      if (marked) console.log(`[${videoId}] Database updated to completed`)
     } catch (dbErr) {
       console.error(`[${videoId}] DB UPDATE CRASHED:`, dbErr.message)
     }
@@ -3243,6 +3609,7 @@ app.post('/generate', authCheck, async (req, res) => {
       }).eq('id', videoId)
     } catch(e2) { console.error('Failed to update failure status:', e2.message) }
   }
+  }) // end withRenderSlotFor (classic /generate shares the one render queue)
 })
 
 
@@ -3278,6 +3645,351 @@ app.post('/style-preview', authCheck, async (req, res) => {
   } catch (err) {
     console.error('[style-preview] Error:', err)
     res.status(500).json({ error: err.message || 'Failed' })
+  }
+})
+
+// ============================================================
+// FIRST-SCENE PREVIEW + HONEST PROGRESS WORDS
+// ============================================================
+// ==== PURE HELPERS (BEGIN) ====
+// Nothing in this block reads a file, the network or anything outside it.
+// tests/preview-still-server.test.ts cuts this block out of server.js and runs
+// it, so the code that is tested is the code that ships. Keep it that way:
+// load no modules and use no names defined elsewhere in this file.
+
+/** Which scene is on screen at `frame`, given the first frame of each scene. */
+function sceneAtFrame(frame, starts) {
+  let idx = 0
+  for (let i = 0; i < starts.length; i++) if (frame >= starts[i]) idx = i
+  return idx
+}
+
+/** First frame of each scene, from the scenes' lengths (plus a lead-in such
+ *  as V3's title card, which plays before scene 1). */
+function startsFromDurations(durations, leadIn = 0) {
+  const starts = []
+  let t = leadIn
+  for (const d of durations) { starts.push(t); t += Math.max(0, d || 0) }
+  return starts
+}
+
+/** The words a customer sees while the video is being drawn. Says which scene
+ *  when we know where the scenes start; otherwise how far along it is. */
+function renderProgressWords({ done, total, starts, phase }) {
+  if (phase === 'encoding') return 'Putting it together'
+  if (Array.isArray(starts) && starts.length > 1 && total > 0) {
+    const i = sceneAtFrame(Math.min(done, total - 1), starts)
+    return `Drawing scene ${i + 1} of ${starts.length}`
+  }
+  const pct = total > 0 ? Math.min(99, Math.floor((done / total) * 100)) : 0
+  return `Drawing your video — ${pct}% done`
+}
+
+/**
+ * Turns Remotion's console output ("Rendered 1840/3527", and on Lambda
+ * "Rendered frames 1840/3527") into progress the customer can read. The bar
+ * moves from `from` to `to` while frames are drawn; once every frame is drawn,
+ * the "Encoded …" lines mean the file is being put together. Writes at most
+ * once per `minGapMs`, and only when the bar moved or the words changed.
+ */
+function makeRenderProgress({ from, to, starts, report, minGapMs = 1500, now = () => Date.now() }) {
+  let lastPct = from, lastWords = '', lastWrite = -Infinity, drawnAll = false
+  return (text) => {
+    for (const line of String(text).split(/\r\n|\r|\n/)) {
+      const m = [...line.matchAll(/(\d+)\s*\/\s*(\d+)/g)].pop()
+      if (!m) continue
+      const done = parseInt(m[1], 10), total = parseInt(m[2], 10)
+      if (!(total > 0) || done > total) continue
+      const encodingLine = /encod|stitch/i.test(line)
+      // Remotion encodes while it draws, so an "Encoded" line only means
+      // "putting it together" once every frame has been drawn.
+      if (encodingLine && !drawnAll) continue
+      if (!encodingLine && done >= total) drawnAll = true
+      const phase = encodingLine ? 'encoding' : 'drawing'
+      const pct = phase === 'encoding' ? to : from + Math.round((done / total) * (to - from))
+      const words = renderProgressWords({ done, total, starts, phase })
+      const t = now()
+      if ((pct > lastPct || words !== lastWords) && t - lastWrite >= minGapMs) {
+        lastPct = Math.max(lastPct, pct); lastWords = words; lastWrite = t
+        report(lastPct, words)
+      }
+    }
+  }
+}
+
+/** Plain words for a slide-deck pipeline log line (slides.js generateSlidePlan),
+ *  or null to keep showing the last ones. Its lines are written for us —
+ *  "comprehending pdf (48210 chars)...", "⚖ regulated content detected". */
+function slidesStepWords(line) {
+  const m = String(line || '')
+  if (/comprehend/i.test(m)) return 'Reading your document'
+  if (/writing slide deck/i.test(m)) return 'Writing your slides'
+  // The voice is recorded right after the script is settled.
+  if (/using your script|scrub clean|re-smoothed/i.test(m)) return 'Recording the voice'
+  return null
+}
+
+/**
+ * One scene of the V3 / Infographic props — shared by the real render
+ * (/render-v3) and the free preview, so the preview lays a scene out exactly
+ * the way the finished video does. `audioName`/`imgName` are absent in a
+ * preview (no voice, no AI picture).
+ */
+function v3OutScene(s, i, n, o) {
+  const { isInfo, audioName, imgName, haveImg, durationInFrames, contact, closingValue } = o
+  const audio = audioName ? { audio: audioName } : {}
+  if (isInfo) {
+    return { title: s.title || '', body: s.bullets?.[0], metrics: s.metrics, ...(s.heroMetric && s.heroMetric.value ? { heroMetric: s.heroMetric } : {}), ...audio, durationInFrames }
+  }
+  const placement = (i === 0 || i === n - 1) ? 'center' : ['bottom', 'left', 'right', 'bottom'][i % 4]
+  // Cinematic lower-thirds: show ALL the scene's real numbers (up to 3) so
+  // important figures aren't dropped — e.g. $176k death benefit AND $10k/yr.
+  const isEnd = i === 0 || i === n - 1
+  const isLast = i === n - 1
+  const sceneMetrics = (Array.isArray(s.metrics) ? s.metrics : []).filter((x) => x && x.label && x.value && /\d/.test(x.value)).slice(0, 3)
+  // Build PowerPoint-style bullets for middle scenes: each metric becomes a
+  // bullet "label: value", plus any text bullets without numbers. This is
+  // what triggers the glass-panel layout and shows ALL the numbers.
+  const textBullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 2).map((b) => ({ text: String(b) }))
+  const metricBullets = sceneMetrics.map((x) => ({ text: x.label, value: x.value }))
+  const bullets = !isEnd ? [...metricBullets, ...textBullets].slice(0, 4) : undefined
+  // Last scene = branded CLOSING CARD: logo + company + contact + value.
+  let closing
+  if (isLast) {
+    const hasContact = contact && (contact.phone || contact.email || contact.website)
+    closing = {
+      headline: s.title || 'Thank You',
+      cta: s.bullets?.[0] || 'Reach out with any questions — we\'re here to help.',
+      ...(closingValue ? { value: closingValue } : {}),
+      ...(hasContact ? { contact } : {}),
+    }
+  }
+  // A hero-number scene shows ONE giant figure instead of bullets/metrics.
+  const heroMetric = s.heroMetric && s.heroMetric.value ? s.heroMetric : undefined
+  return { title: s.title || '', ...(haveImg ? { image: imgName } : {}), ...audio, durationInFrames, placement, ...(heroMetric ? { heroMetric } : (bullets && bullets.length ? { bullets } : {})), ...(closing ? { closing } : {}) }
+}
+
+// A preview still is drawn from a short timeline: every scene gets 8 seconds
+// and the picture is taken 4 seconds into the first content scene — after
+// its words, cards and charts have finished arriving, before it fades out.
+const PREVIEW_SCENE_FRAMES = 240
+const PREVIEW_SHOT_AT = 120
+// Mirrors COLD_OPEN_FRAMES in remotion/src/v3/V3Video.tsx (the title card
+// V3 plays before scene 1 whenever there is a name or title to show).
+const PREVIEW_V3_LEAD_IN = 105
+
+/** Index of the first scene that is neither the cover nor the closing. */
+function firstContentIndex(roles) {
+  const i = roles.findIndex((r) => r !== 'cover' && r !== 'closing')
+  return i >= 0 ? i : 0
+}
+
+/**
+ * Slide Deck look (DirectedVideo). The deck is built from the user's scenes by
+ * the SAME planFromSuppliedScenes the real render uses (passed in, it lives in
+ * slides.js), then laid out the way generateSlidePlan lays it out — minus the
+ * voice: with no recording to time the reveals against, they are spread
+ * evenly, which is exactly what the real render does for a line the voice
+ * doesn't say word for word. Backdrops are the animated code background (the
+ * default; photo backdrops are an opt-in that costs money).
+ */
+function previewDirectedJob(body, deps) {
+  const { scenes, preparer, recipient, footer, logoUrl, presenter, photoPlacement } = body
+  const w = deps.planFromSuppliedScenes(scenes)
+  if (!w.scenes.length) throw new Error('No scene with narration to preview.')
+  const outScenes = w.scenes.map((s) => {
+    const k = s.kind || (s.beat === 'intro' ? 'intro' : s.beat === 'cta' ? 'cta' : 'slide')
+    const blocks = (s.blocks || []).map((b) => JSON.parse(JSON.stringify(b)))
+    const spread = (arr) => arr.forEach((it, i) => { it.cueFrame = Math.round(12 + (PREVIEW_SHOT_AT - 36) * (i / Math.max(1, arr.length))); delete it.cue })
+    for (const b of blocks) { if (b.type === 'bullets') spread(b.items || []); if (b.type === 'cards') spread(b.cards || []) }
+    const visual = (k === 'slide' || k === 'figure') ? { type: 'slide' } : { type: 'kinetic' }
+    return { id: s.id, beat: s.beat, narration: s.narration, on_screen: (s.layout && s.layout.heading) || s.on_screen || '', layout: s.layout, blocks, visual }
+  })
+  // The agent's brand or own name, else nothing — never our platform name.
+  const company = (preparer || '').trim() || undefined
+  const doc = {
+    title: w.title, look: ['noir', 'ledger', 'datamesh'].includes(w.look) ? w.look : 'noir',
+    chrome: { company, logo: logoUrl || undefined, recipient: recipient || null, footer: footer || company, glass: 'vivid' },
+    intro: { ...w.intro, preparer: company, recipient },
+    cta: { line: (w.cta && w.cta.line) || 'Get started today', contact: (w.cta && w.cta.contact) || footer || company || null },
+    scenes: outScenes,
+    noSfx: true,
+  }
+  if (presenter && presenter.photoUrl) {
+    const pl = photoPlacement || 'both'
+    doc.presenter = { name: presenter.name, role: presenter.role, photo: presenter.photoUrl, onCover: pl === 'cover' || pl === 'both' || pl === 'auto', onClosing: pl === 'closing' || pl === 'both' || pl === 'auto' }
+  }
+  const palette = deps.buildBrandPalette ? deps.buildBrandPalette(null, body.accent) : null
+  if (palette) doc.palette = palette
+  const starts = outScenes.map((_, i) => 15 + i * PREVIEW_SCENE_FRAMES)
+  const total = starts[starts.length - 1] + PREVIEW_SCENE_FRAMES
+  const idx = outScenes.findIndex((s) => s.beat !== 'intro' && s.beat !== 'cta')
+  const at = idx >= 0 ? idx : 0
+  return { comp: 'DirectedVideo', props: { plan: doc, starts, total, still: true }, frame: starts[at] + PREVIEW_SHOT_AT }
+}
+
+/**
+ * Aurora / Cinematic / Infographic looks (V3Video, InfographicVideo). Takes the
+ * payload the app's buildV3Payload made (the same builder the real video
+ * uses) and lays each scene out with v3OutScene. No AI pictures: Aurora never
+ * has any; Cinematic and Infographic show their code-drawn ground instead of
+ * the AI photo / AI backdrop the finished video adds (the app says so).
+ */
+function previewV3Job(body, deps) {
+  const p = body.payload || {}
+  const scenes = Array.isArray(p.scenes) ? p.scenes : []
+  if (!scenes.length) throw new Error('No scene to preview.')
+  const isInfo = p.theme === 'infographic'
+  const isAurora = p.theme === 'aurora'
+  const out = scenes.map((s, i) => v3OutScene(s, i, scenes.length, { isInfo, haveImg: false, durationInFrames: PREVIEW_SCENE_FRAMES, contact: p.contact, closingValue: p.closingValue }))
+  const logo = p.logo && (p.logo.light || p.logo.dark) ? { light: p.logo.light || p.logo.dark, dark: p.logo.dark || p.logo.light } : undefined
+  const props = {
+    __preview: true,
+    theme: deps.v3Theme(p.brandAccents),
+    brandName: p.brandName || undefined,
+    ...(p.recipient ? { recipient: p.recipient } : {}),
+    ...(p.frame ? { frame: p.frame } : {}),
+    ...(isAurora ? { look: 'aurora' } : {}),
+    ...(logo ? { logo, logoChip: !!p.logo.chip } : {}),
+    scenes: out,
+  }
+  const lead = !isInfo && (p.brandName || out[0]?.title) ? PREVIEW_V3_LEAD_IN : 0
+  const starts = startsFromDurations(out.map((s) => s.durationInFrames), lead)
+  // The app sends every scene the finished video will have (the layout of a
+  // scene depends on where it sits — first and last are title/closing cards)
+  // and says which one is the first content scene.
+  const at = Number.isInteger(body.sceneIndex) && body.sceneIndex >= 0 && body.sceneIndex < scenes.length ? body.sceneIndex : 0
+  return { comp: isInfo ? 'InfographicVideo' : 'V3Video', props, frame: starts[at] + PREVIEW_SHOT_AT }
+}
+
+/** Editorial / Explainer looks (EditorialVideo) — the same page props the
+ *  theme preview (/preview-editorial) has always rendered. */
+function previewEditorialJob(body) {
+  const { masthead, runningTitle, brandColor, variant, contactLine, recipient, scenes } = body
+  if (!Array.isArray(scenes) || !scenes.length) throw new Error('No scene to preview.')
+  const out = scenes.map((s) => ({
+    archetype: s.archetype, kicker: s.kicker, title: s.title || '', dek: s.dek, body: s.body,
+    quote: s.quote, attribution: s.attribution, items: s.items, metrics: s.metrics,
+    timeline: s.timeline, chart: s.chart, matrix: s.matrix,
+    durationInFrames: PREVIEW_SCENE_FRAMES,
+  }))
+  const props = { __preview: true, masthead, runningTitle, brandColor, variant: variant || 'time', ...(contactLine ? { contactLine } : {}), ...(recipient ? { recipient } : {}), scenes: out }
+  const at = firstContentIndex(scenes.map((s) => (s.archetype === 'cover' ? 'cover' : s.archetype === 'decision' ? 'closing' : 'content')))
+  return { comp: 'EditorialVideo', props, frame: at * PREVIEW_SCENE_FRAMES + PREVIEW_SHOT_AT }
+}
+// ==== PURE HELPERS (END) ====
+
+// Lambda function name, looked up once (same choice as scripts/lambda-render.mjs:
+// the biggest compatible function) unless REMOTION_FUNCTION_NAME pins it.
+let previewFunctionName = process.env.REMOTION_FUNCTION_NAME || null
+
+/**
+ * Draw ONE frame of a composition to a PNG buffer. With a deployed Lambda
+ * site (REMOTION_SERVE_URL — production) it is a single Lambda still: a few
+ * seconds, a fraction of a cent, and it never waits behind a customer's video
+ * render on this box. Without one (a laptop) it runs `remotion still` here.
+ */
+async function renderPreviewStill({ comp, props, frame }) {
+  if (process.env.REMOTION_SERVE_URL) {
+    const lambda = require(require.resolve('@remotion/lambda/client', { paths: [REMOTION_DIR] }))
+    const region = process.env.REMOTION_AWS_REGION || process.env.AWS_REGION || 'us-east-1'
+    if (!previewFunctionName) {
+      const fns = await lambda.getFunctions({ region, compatibleOnly: true })
+      previewFunctionName = fns.sort((a, b) => b.memorySizeInMb - a.memorySizeInMb)[0]?.functionName || null
+      if (!previewFunctionName) throw new Error('No compatible Remotion Lambda function deployed')
+    }
+    const r = await lambda.renderStillOnLambda({
+      region, functionName: previewFunctionName, serveUrl: process.env.REMOTION_SERVE_URL,
+      composition: comp, inputProps: props, frame, imageFormat: 'png', privacy: 'public',
+      maxRetries: 1, chromiumOptions: { gl: 'swangle' }, timeoutInMilliseconds: 60000,
+    })
+    const dl = await fetch(r.url, { signal: AbortSignal.timeout(20000) })
+    if (!dl.ok) throw new Error(`lambda still download ${dl.status}`)
+    return Buffer.from(await dl.arrayBuffer())
+  }
+  const dir = join(tmpdir(), `preview-${randomUUID()}`)
+  await mkdir(dir, { recursive: true })
+  const propsPath = join(dir, 'props.json'), outPath = join(dir, 'still.png')
+  try {
+    await writeFile(propsPath, JSON.stringify(props))
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process')
+      const win = process.platform === 'win32'
+      const c = spawn(win ? 'npx.cmd' : 'npx', ['remotion', 'still', comp, outPath, `--frame=${frame}`, `--props=${propsPath}`, '--gl=swiftshader', '--image-format=png'], { cwd: REMOTION_DIR, env: { ...process.env }, shell: win })
+      let err = ''
+      c.stderr.on('data', (b) => { err = (err + b.toString()).slice(-600) })
+      const kt = setTimeout(() => { try { c.kill('SIGKILL') } catch {} ; reject(new Error('still timeout')) }, 180000)
+      c.on('error', (e) => { clearTimeout(kt); reject(e) })
+      c.on('close', (code) => { clearTimeout(kt); code === 0 ? resolve() : reject(new Error(`still exit ${code}: ${err}`)) })
+    })
+    return await readFile(outPath)
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
+/**
+ * Interactive presentation / slide deck looks: the REAL page the customer will
+ * get (built by the app's buildPresentationHtml), opened in Chromium on its
+ * second slide (the first content slide) and photographed. Controls hidden.
+ */
+async function renderHtmlStill(html) {
+  const { chromium } = require('playwright')
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
+    await page.setContent(String(html), { waitUntil: 'networkidle', timeout: 20000 }).catch(() => {})
+    await page.evaluate(() => {
+      const nav = document.getElementById('nav'); if (nav) nav.style.display = 'none'
+      // eslint-disable-next-line no-undef
+      if (typeof go === 'function') go(1)
+    })
+    // The slide's words and count-ups animate in over ~1.5 s.
+    await page.waitForTimeout(2200)
+    return await page.screenshot({ type: 'png' })
+  } finally {
+    await browser.close().catch(() => {})
+  }
+}
+
+/**
+ * POST /preview-still — the picture half of the free first-scene preview on
+ * step 3 ("Make it yours"). Draws one frame in the look the customer picked,
+ * from their own first content scene, and stores it at
+ * {userId}/previews/still-{key}.png. Synchronous; no AI calls, no voice.
+ * Body: { userId, videoId, key, engine: 'directed'|'v3'|'editorial'|'html', … }
+ */
+app.post('/preview-still', authCheck, async (req, res) => {
+  const body = req.body || {}
+  const { userId, videoId, key, engine } = body
+  if (!userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) return res.status(400).json({ error: 'Missing userId' })
+  if (!key || !/^[a-f0-9]{16,64}$/.test(String(key))) return res.status(400).json({ error: 'Missing key' })
+  if (!['directed', 'v3', 'editorial', 'html', 'kit'].includes(engine)) return res.status(400).json({ error: 'Unknown engine' })
+  const t0 = Date.now()
+  try {
+    let png
+    if (engine === 'html') {
+      if (!body.html) return res.status(400).json({ error: 'Missing html' })
+      png = await renderHtmlStill(body.html)
+    } else {
+      const { planFromSuppliedScenes, buildBrandPalette } = require('./slides')
+      // Scene kit: the app sends the finished (no-AI) plan; the still is its first content scene.
+      const job = engine === 'kit' ? require('./kit').previewKitJob(body)
+        : engine === 'directed' ? previewDirectedJob(body, { planFromSuppliedScenes, buildBrandPalette })
+        : engine === 'v3' ? previewV3Job(body, { v3Theme })
+        : previewEditorialJob(body)
+      png = await renderPreviewStill(job)
+    }
+    const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+    const path = `${userId}/previews/still-${key}.png`
+    const up = await sb.storage.from('videos').upload(path, png, { contentType: 'image/png', upsert: true })
+    if (up.error) throw new Error(`upload: ${up.error.message}`)
+    const imageUrl = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+    console.log(`[preview-still ${videoId || '-'}] ${engine} in ${Date.now() - t0}ms`)
+    return res.json({ success: true, imageUrl, ms: Date.now() - t0 })
+  } catch (err) {
+    console.error(`[preview-still ${videoId || '-'}] ${engine} failed:`, err.message)
+    return res.status(500).json({ error: err.message })
   }
 })
 

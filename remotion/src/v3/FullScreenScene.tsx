@@ -7,6 +7,7 @@ import { CinematicGrade } from './CinematicGrade'
 import { LowerThird } from './LowerThird'
 import { HeroMetric } from './HeroMetric'
 import { settleProgress } from '../helpers'
+import { Fit } from '../lib/fit'
 
 export type Placement = 'bottom' | 'left' | 'right' | 'center' | 'top'
 
@@ -39,7 +40,10 @@ export const FullScreenScene: React.FC<{
    *  ONE continuous shared backdrop (mesh or single image) behind the Series
    *  show through, so every scene reads as the same world. */
   transparentBg?: boolean
-}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics, heroMetric, transparentBg }) => {
+  /** A logo sits in the bottom-right corner (V3Video's watermark): keep the
+   *  words above it. A long bottom-placed body ran its last line under the logo. */
+  clearOfLogo?: boolean
+}> = ({ image, placement, eyebrow, title, body, accentWordIndex, theme, durationInFrames, kenBurns = 'in', metric, metrics, heroMetric, transparentBg, clearOfLogo }) => {
   const frame = useCurrentFrame()
   // Speed-ramped Ken Burns: ease-in-out so the camera ACCELERATES through the
   // middle and settles — cinematic motion is about acceleration, not linear drift.
@@ -70,8 +74,22 @@ export const FullScreenScene: React.FC<{
     right: { justifyContent: 'center', alignItems: 'flex-end', textAlign: 'right', padding: '0 130px' },
     center: { justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '0 220px' },
   }
+  // The watermark's chip starts ~y 895; words stop at y 880. Centred and
+  // right-hand text gets the same room top and bottom, so it stays centred.
+  // (Left-hand text ends at x 1130, clear of the logo at x 1330+.)
+  if (clearOfLogo) {
+    align.bottom = { ...align.bottom, paddingBottom: 200 }
+    align.top = { ...align.top, paddingBottom: 200 }
+    align.right = { ...align.right, paddingTop: 200, paddingBottom: 200 }
+    align.center = { ...align.center, paddingTop: 200, paddingBottom: 200 }
+  }
   const textAlign: 'left' | 'right' | 'center' = placement === 'right' ? 'right' : (placement === 'left') ? 'left' : 'center'
   const maxW = placement === 'center' || placement === 'bottom' || placement === 'top' ? 1500 : 1000
+  // Most title lines per placement. The side placements are narrower (1000px),
+  // so they get one more line; with a lower-third on screen the title stays
+  // shorter so the two don't meet.
+  const hasLowerThird = !heroMetric && !!((metrics && metrics.length) || metric)
+  const titleLines = hasLowerThird ? 3 : placement === 'left' || placement === 'right' ? 5 : 4
   // Reveals cascade ~0.3-1.2s in so they land just AFTER the narration opens
   // (VO-synced feel), not the instant the cut happens.
   const ebP = settleProgress(frame, 8)
@@ -102,8 +120,10 @@ export const FullScreenScene: React.FC<{
         // The eyebrow still rides on top; an optional title sits above as a kicker.
         <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', padding: '0 130px' }}>
           {eyebrow ? (
-            <div style={{ opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, fontSize: TYPE.label, color: accent, textTransform: 'uppercase', marginBottom: 20, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
-              {eyebrow}
+            <div style={{ width: '100%', maxWidth: 1560, opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, marginBottom: 20 }}>
+              <Fit max={TYPE.label} min={18} lines={2} style={{ fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, color: accent, textTransform: 'uppercase', textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
+                {eyebrow}
+              </Fit>
             </div>
           ) : null}
           <HeroMetric value={heroMetric.value} label={heroMetric.label || title} caption={heroMetric.caption} tone={heroMetric.tone} theme={theme} />
@@ -112,16 +132,26 @@ export const FullScreenScene: React.FC<{
         <AbsoluteFill style={{ display: 'flex', flexDirection: 'column', ...align[placement] }}>
           {/* Inner block: textAlign applies to ALL children so eyebrow/title/body
               stack and align together (fixes "block centered but lines not centered"). */}
-          <div style={{ maxWidth: maxW, textAlign, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start' }}>
+          {/* width 100% (capped at maxW) gives every line below a bounded width
+              to fit in; the text itself still aligns by textAlign as before. */}
+          <div style={{ width: '100%', maxWidth: maxW, textAlign, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start' }}>
             {eyebrow ? (
-              <div style={{ opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, fontSize: TYPE.label, color: accent, textTransform: 'uppercase', marginBottom: 24, textAlign, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
-                {eyebrow}
+              <div style={{ width: '100%', opacity: ebP, transform: `translateY(${(1 - ebP) * 14}px)`, marginBottom: 24 }}>
+                <Fit max={TYPE.label} min={18} lines={2} style={{ fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 8, color: accent, textTransform: 'uppercase', textAlign, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>
+                  {eyebrow}
+                </Fit>
               </div>
             ) : null}
-            <KineticText text={title} startFrame={14} fontFamily={FONTS.display} fontWeight={900} fontSize={placement === 'center' ? TYPE.hero * 0.82 : TYPE.hero * 0.66} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align={textAlign} lineHeight={0.98} />
+            {/* Line budgets keep eyebrow + title + body between the letterbox
+                bars (90px top and bottom) in every placement: a longer headline
+                shrinks instead of adding lines. */}
+            <KineticText text={title} startFrame={14} fontFamily={FONTS.display} fontWeight={900} fontSize={placement === 'center' ? TYPE.hero * 0.82 : TYPE.hero * 0.66} color="#FFFFFF" accentColor={accent} accentWordIndex={accentWordIndex} align={textAlign} lineHeight={0.98}
+              fit={{ lines: titleLines, min: 56 }} />
             {body ? (
-              <div style={{ opacity: bodyP, transform: `translateY(${(1 - bodyP) * 14}px)`, fontFamily: FONTS.body, fontWeight: 500, fontSize: TYPE.subhead, color: '#FFFFFF', marginTop: 30, maxWidth: 980, textAlign, textShadow: '0 2px 14px rgba(0,0,0,0.6)' }}>
-                {body}
+              <div style={{ width: '100%', maxWidth: 980, opacity: bodyP, transform: `translateY(${(1 - bodyP) * 14}px)`, marginTop: 30 }}>
+                <Fit max={TYPE.subhead} min={24} lines={3} style={{ fontFamily: FONTS.body, fontWeight: 500, color: '#FFFFFF', textAlign, textShadow: '0 2px 14px rgba(0,0,0,0.6)' }}>
+                  {body}
+                </Fit>
               </div>
             ) : null}
           </div>

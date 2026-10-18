@@ -1,314 +1,641 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+// STEP 3 — "THE LOOK" (/create/theme). "Pick a look.": the look cards three
+// across, ONE settings line ("Sarah · music on · standard  Change") and a
+// "More options" fold (voice, music, video or presentation, length, photo
+// backgrounds, things for your client, the price lines). The bottom bar holds
+// the price, the free preview and Make it — the one button that spends.
+//
+// The price is never worked out here. It comes from /api/price-quote, which
+// uses the same functions generate-video and generate-presentation charge
+// with, reading the same saved draft. Before starting the job this page saves
+// every choice to the draft, re-reads the price, and stops if it changed.
+
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { Button, Note } from '../../../_components/kit'
 import { useRouter, useSearchParams } from 'next/navigation'
+import BuyCreditsModal from '../../../_components/BuyCreditsModal'
+import { createClient } from '../../../_lib/supabase/client'
+import { VOICE_OPTIONS } from '../../../_lib/types'
+// Types only — the price helper itself is server code and never runs here.
+import type { MakeOutput } from '../../../_lib/price-quote'
+import { LookPicker, OutputPicker, VoicePicker } from '../_components/make/Pickers'
+import { usePriceQuote, formatCredits } from '../_components/make/usePriceQuote'
+import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, type VideoLookId, type YourLook } from '../_components/make/looks'
+// The same list the story step chooses from — one set of names for both.
+import { LENGTHS, LENGTH_ANCHOR } from '../_components/story/lengths'
+import BottomBar from '../_components/workspace/BottomBar'
+import { settingsLine } from '../_components/workspace/facts'
+import FirstScenePreview, { useFirstScenePreview } from '../_components/make/FirstScenePreview'
+import AddBrandPiece from '../_components/make/AddBrandPiece'
+import { D2V_OUTPUTS, d2vOutputs } from '../../../_lib/videos-only'
+// Drawn slides' drawing styles (pure data — safe in the browser).
+import { DEFAULT_DRAW_STYLE, DRAW_STYLES, isDrawStyle, type DrawStyleId } from '../../../_lib/drawn-slides'
+// The new scene engine (KIT_ENGINE=on): which card saves which kit look (pure data).
+import { cardForDraft, previewLookFor, RETIRED_WITH_KIT, styleForCard } from '../../../_lib/kit-looks'
 
-type ThemeId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic'
+type Draft = Record<string, any>
+type BrandInfo = { id: string; name: string; logo_url: string | null; primary_color: string | null; secondary_color: string | null; accent_color: string | null; brand_guide_data?: Record<string, unknown> | null }
 
-// Static sample images live in /public/style-samples/<id>-{cover,data,closing}.png
-// (rendered once — no live preview, so picking a style is instant + adds no
-// production time). Newsmagazine ('time') exists in the engine but is no longer
-// offered (it overlapped Editorial too much).
-const THEMES: { id: ThemeId; name: string; tagline: string }[] = [
-  { id: 'slides', name: 'Slide Deck', tagline: 'Animated explainer deck — topic headings with bullets, data cards, charts, screenshots and icons that reveal in sync with the voice. Reads the whole document. (Recommended)' },
-  { id: 'aurora', name: 'Aurora', tagline: 'Modern motion-graphics — one flowing branded backdrop, kinetic type, no stock imagery. Clean, cohesive, premium.' },
-  { id: 'cinematic', name: 'Cinematic', tagline: 'Film-style imagery, kinetic text, motion. Best for story-led, emotive videos.' },
-  { id: 'editorial', name: 'Editorial', tagline: 'Clean, warm magazine layout. Refined serif typography on your brand color.' },
-  { id: 'explainer', name: 'Explainer', tagline: 'Friendly modern deck — navy + color accents, big rounded cards, charts. Great for how-it-works.' },
-  { id: 'infographic', name: 'Infographic', tagline: 'Animated data look — big hero numbers, KPI cards, timelines and charts on a clean branded ground, your logo pinned in the corner. Best for number-driven reports.' },
-]
-const SAMPLE_KINDS = ['cover', 'data', 'closing']
+/** A saved look (the look screen) as step 3 needs it: the whole settings object, copied at Make time. */
+type FullLook = YourLook & Record<string, unknown>
+const asLook = (v: unknown): FullLook | null => (v && typeof v === 'object' && !Array.isArray(v) && (v as YourLook).colors && typeof (v as YourLook).colors === 'object' ? v as FullLook : null)
 
-// Interactive Presentation / Slide Deck templates — pure token sets in the
-// presentation director; swatches render live (no sample images needed).
-const PRES_TEMPLATES: { id: string; name: string; tagline: string; swatch: [string, string, string] }[] = [
-  { id: 'heritage', name: 'Heritage', tagline: 'Engraved certificate — cream, navy & gold. Gravitas for financial documents.', swatch: ['#f7f5ee', '#1c2a44', '#a8842c'] },
-  { id: 'warm', name: 'Warm Editorial', tagline: 'Cozy modern — cream & terracotta. Friendly, human, approachable.', swatch: ['#faf9f5', '#3d3929', '#c96442'] },
-  { id: 'bold', name: 'Corporate Bold', tagline: 'Clean & confident — navy and red. Sharp business energy.', swatch: ['#f4f6fa', '#1e3a70', '#c0272d'] },
-  { id: 'midnight', name: 'Midnight', tagline: 'Premium dark — deep navy & luminous gold. Evening-wealth polish.', swatch: ['#0f1729', '#eef2fb', '#d9b64c'] },
-  { id: 'mint', name: 'Fresh Mint', tagline: 'The house style — warm cream & mint green. Light and optimistic.', swatch: ['#f4f1ec', '#2b3427', '#6da33f'] },
-  { id: 'certificate', name: 'Certificate', tagline: 'Engraved stock certificate — parchment, guilloché patterns & formal navy serif.', swatch: ['#f5f0e0', '#1a1a3a', '#8a6d2f'] },
-]
+const DEFAULT_VOICE = VOICE_OPTIONS[0].id // Sarah (nova) — CLAUDE.md rule 5
+
+// Docs2Video makes a narrated video or an interactive presentation (videos-only.ts).
+// An old draft saved as a slide deck / PowerPoint / PDF opens as a video.
+function normalizeOutput(v: unknown): MakeOutput | null {
+  return v === 'video' || v === 'interactive' ? v : null
+}
 
 export default function ThemePage() {
+  return (
+    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>}>
+      <MakeItYours />
+    </Suspense>
+  )
+}
+
+function MakeItYours() {
   const router = useRouter()
   const params = useSearchParams()
   const videoId = params.get('id')
 
-  const [draft, setDraft] = useState<any>(null)
-  const [outputType, setOutputType] = useState<'video' | 'pptx' | 'pdf' | 'interactive' | 'deck'>('video')
-  const [selected, setSelected] = useState<ThemeId>('slides')
-  const [presTemplate, setPresTemplate] = useState('heritage')
-  const [slidePhotos, setSlidePhotos] = useState(false)  // Slide Deck: photographic backdrops (opt-in; default off = ~2-3 min faster)
-  // Client options (share page): let the client download the source PDF + a note.
+  const { quote, error: quoteError, loading: quoteLoading, refresh } = usePriceQuote(videoId)
+
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [brand, setBrand] = useState<BrandInfo | null>(null)
+  // "Add your brand" inside the project (light start). Opens by itself when
+  // the person has no brand at all yet — their first project.
+  const [addingBrand, setAddingBrand] = useState(false)
+  // "Your look": this project's own copy (draft.kitLookCustom), else the brand's saved look.
+  const [yourLook, setYourLook] = useState<FullLook | null>(null)
+
+  const [output, setOutput] = useState<MakeOutput>('video')
+  const [videoLook, setVideoLook] = useState<VideoLookId>(RECOMMENDED_VIDEO_LOOK)
+  // Is the new scene engine on? (env KIT_ENGINE=on, asked once.) Off = the old looks, unchanged.
+  const [kitOn, setKitOn] = useState(false)
+  const [kitKnown, setKitKnown] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setKitOn(!!j?.on) }).catch(() => {}).finally(() => { if (alive) setKitKnown(true) })
+    return () => { alive = false }
+  }, [])
+  // With the kit on, Aurora / Cinematic / Infographic are no longer offered.
+  useEffect(() => {
+    if (kitOn && (RETIRED_WITH_KIT as readonly string[]).includes(videoLook)) setVideoLook(RECOMMENDED_VIDEO_LOOK)
+    // "Your look" is a scene-kit look: with the kit off it isn't offered.
+    if (kitKnown && !kitOn && videoLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
+  }, [kitOn, kitKnown, videoLook])
+  const chosenStyle = styleForCard(videoLook, kitOn)
+  const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
+  const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
+  const [aiMusic, setAiMusic] = useState(false)
+  const [slidePhotos, setSlidePhotos] = useState(false) // Animated slides look: photo backgrounds (opt-in, slower)
+  const [drawStyle, setDrawStyle] = useState<DrawStyleId>(DEFAULT_DRAW_STYLE) // Drawn slides look: 3D / Illustrated / Classic
   const [allowSourceDownload, setAllowSourceDownload] = useState(false)
   const [agentNote, setAgentNote] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
+  const [lightbox, setLightbox] = useState<string | null>(null)
+  // "More options" — voice, music, what to make, length, extras, the price lines.
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDetailsElement>(null)
+  const previewRef = useRef<HTMLElement>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const inFlight = useRef(false) // stops a double-click before React re-renders
+  const [error, setError] = useState<{ message: string; topUp?: boolean } | null>(null)
+  const [buyCredits, setBuyCredits] = useState<{ needed?: number; balance?: number } | null>(null)
+
+  // ── Load the draft (and restore every choice saved on it) ──
   useEffect(() => {
     if (!videoId) { setLoading(false); return }
-    fetch(`/api/videos/draft?videoId=${videoId}`).then(r => r.json()).then((v) => {
-      const d = v?.draft_data || v || {}
-      setDraft(d)
-      setOutputType(d.outputType || v?.output_type || 'video')
-      if (d.videoStyle && THEMES.some(t => t.id === d.videoStyle)) setSelected(d.videoStyle)
-      setAllowSourceDownload(!!d.allowSourceDownload)
-      setAgentNote(d.agentNote || '')
-      setLoading(false)
-    }).catch(() => { setError('Could not load your draft.'); setLoading(false) })
+    let alive = true
+    fetch(`/api/videos/draft?videoId=${encodeURIComponent(videoId)}`)
+      .then(async (r) => {
+        const v = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(v?.error || 'Could not load your project.')
+        return v
+      })
+      .then(async (v) => {
+        if (!alive) return
+        const d: Draft = v?.draft_data || {}
+        setDraft(d)
+        setOutput(normalizeOutput(v?.output_type) ?? normalizeOutput(d.outputType) ?? 'video')
+        { const card = cardForDraft(d.videoStyle, d.kitLook); if (isVideoLook(card)) setVideoLook(card) }
+        if (isPresLook(d.presentationTemplate)) setPresLook(d.presentationTemplate)
+        if (typeof d.voiceId === 'string' && VOICE_OPTIONS.some((o) => o.id === d.voiceId)) setVoiceId(d.voiceId)
+        if (typeof d.aiMusic === 'boolean') setAiMusic(d.aiMusic)
+        if (typeof d.slidePhotos === 'boolean') setSlidePhotos(d.slidePhotos)
+        if (isDrawStyle(d.drawStyle)) setDrawStyle(d.drawStyle)
+        setAllowSourceDownload(!!d.allowSourceDownload)
+        setAgentNote(typeof d.agentNote === 'string' ? d.agentNote : '')
+
+        // The brand this project will use. A brand picked on the brand page
+        // (or an explicit "no brand" — brandId: null) wins; otherwise it's the
+        // default brand on the person's profile. Whatever is shown here is
+        // saved to the draft and sent, so both make routes use the same one.
+        const supabase = createClient()
+        const cols = 'id, name, logo_url, primary_color, secondary_color, accent_color, brand_guide_data'
+        let found: BrandInfo | null = null
+        if (typeof d.brandId === 'string' && d.brandId) {
+          const { data } = await supabase.from('brands').select(cols).eq('id', d.brandId).maybeSingle()
+          found = (data as BrandInfo | null) ?? null
+        } else if (d.brandId === undefined) {
+          const { data: auth } = await supabase.auth.getUser()
+          if (auth.user) {
+            const { data } = await supabase.from('brands').select(cols)
+              .eq('user_id', auth.user.id)
+              .order('is_default', { ascending: false })
+              .order('created_at', { ascending: true })
+              .limit(1)
+            found = ((data as BrandInfo[] | null) ?? [])[0] ?? null
+          }
+        }
+        // Loading ends only now, so Make can never run before the brand is known.
+        if (alive) {
+          const own = d.kitLook === 'custom' ? asLook(d.kitLookCustom) : null
+          const mine = own ?? asLook(found?.brand_guide_data?.video_look)
+          setYourLook(mine)
+          // "Your look" is picked by default when the brand has one and nothing else was chosen yet.
+          if (mine && (d.kitLook === 'custom' || !d.videoStyle)) setVideoLook('custom')
+          else if (!mine && d.kitLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
+          setBrand(found)
+          setAddingBrand(!found && d.brandId === undefined)
+          setLoading(false)
+        }
+      })
+      .catch((e) => { if (alive) { setLoadError(e instanceof Error ? e.message : 'Could not load your project.'); setLoading(false) } })
+    return () => { alive = false }
   }, [videoId])
 
-  const isPres = outputType === 'interactive' || outputType === 'deck'
+  const isPres = output === 'interactive'
+  const isVideo = output === 'video'
+  const narrated = output === 'video' || output === 'interactive'
+  const shown = quote?.options?.[output] ?? null
 
-  async function handleGenerate() {
-    if (!videoId || !draft) return
-    setSubmitting(true); setError(null)
-    // ── Interactive Presentation / Slide Deck: the HTML-first path (Vercel-only) ──
-    if (isPres) {
-      try {
-        await fetch('/api/videos/draft', {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, updates: { presentationTemplate: presTemplate, allowSourceDownload, agentNote: agentNote.trim() || undefined } }),
-        })
+  // Only estimates the app already gives on the progress screen.
+  const timeNote = isVideo
+    ? (chosenStyle.videoStyle === 'kit'
+        ? 'Usually 5–10 minutes. You can leave while it works.'
+        : videoLook === 'slides'
+        ? `Usually about 10 minutes${slidePhotos ? ', plus 2–3 for photo backgrounds' : ''}. You can leave while it works.`
+        : videoLook === 'drawn'
+          ? 'Usually about 4–6 minutes. You can leave while it works.'
+          : 'Usually about 3–5 minutes. You can leave while it works.')
+    : null
+
+  async function handleMake() {
+    if (!videoId || !draft || !shown || inFlight.current) return
+    inFlight.current = true
+    setSubmitting(true)
+    setError(null)
+    const stop = (e: { message: string; topUp?: boolean } | null) => { setError(e); setSubmitting(false); inFlight.current = false }
+
+    try {
+      // Presentations don't report "add a card" on their own — send people to
+      // the card page first, and back here afterwards (the same place the video
+      // route's card_required answer sends them).
+      if (isPres && quote?.blockedReason === 'card_required') {
+        router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
+        return
+      }
+
+      // 1. Save every choice on the draft. The server prices from the draft,
+      //    so this is what makes the charge match what was chosen here.
+      const note = agentNote.trim()
+      const save = await fetch('/api/videos/draft', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          updates: {
+            outputType: output,
+            voiceId,
+            aiMusic,
+            videoStyle: chosenStyle.videoStyle,
+            // The scene kit's look ('animated-slides' | 'editorial' | 'bright'), when the kit engine is on.
+            ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
+            // "Your look": a COPY goes on this video now, so editing the look later never changes it.
+            ...(chosenStyle.kitLook === 'custom' && yourLook ? { kitLookCustom: yourLook } : {}),
+            // Drawn slides only: its drawing style (3D infographic / Illustrated / Classic).
+            ...(videoLook === 'drawn' ? { drawStyle } : {}),
+            presentationTemplate: presLook,
+            slidePhotos,
+            // Make the brand shown on this screen the draft's explicit choice.
+            ...(brand && draft.brandId === undefined ? { brandId: brand.id } : {}),
+            allowSourceDownload,
+            agentNote: note || undefined,
+          },
+        }),
+      })
+      if (!save.ok) {
+        const g = await save.json().catch(() => ({}))
+        return stop({ message: g.error || 'We couldn’t save your choices. Please try again.' })
+      }
+
+      // 2. Re-read the price from the saved draft. If it moved, show the new
+      //    one and let the person press again — never charge a surprise.
+      const fresh = await refresh()
+      const freshTotal = fresh?.options?.[output]?.total
+      if (freshTotal === undefined) return stop({ message: 'We couldn’t check the price just now. Please try again.' })
+      if (freshTotal !== shown.total) {
+        return stop({ message: `The price changed to ${formatCredits(freshTotal)}. Check it, then press Make it again.` })
+      }
+
+      // 3. Start the job.
+      if (isPres) {
         const res = await fetch('/api/generate-presentation', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, templateId: presTemplate, outputType }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, templateId: presLook, outputType: output }),
         })
         if (!res.ok) {
           const g = await res.json().catch(() => ({}))
-          if (res.status === 402) { setError(g.error || 'Not enough credits.'); setSubmitting(false); return }
-          throw new Error(g.error || 'Failed to start generation')
+          // No card yet (e.g. the quote was read before the card check): add
+          // one, then come back here.
+          if (g.code === 'card_required') {
+            router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
+            return
+          }
+          if (res.status === 402 && g.code === 'insufficient_credits') {
+            setBuyCredits({ needed: g.needed, balance: g.balance })
+            return stop({ message: g.error || 'Not enough credits.', topUp: true })
+          }
+          return stop({ message: g.error || 'We couldn’t start it. Please try again.' })
         }
-        router.push(`/create/generating?id=${videoId}&style=${presTemplate}`)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to generate')
-        setSubmitting(false)
+        router.push(`/create/generating?id=${videoId}&style=${presLook}`)
+        return
       }
-      return
-    }
-    try {
-      await fetch('/api/videos/draft', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, updates: { videoStyle: selected, allowSourceDownload, agentNote: agentNote.trim() || undefined } }),
-      })
+
       const genRes = await fetch('/api/generate-video', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId,
-          outputType,
-          videoStyle: selected,
+          outputType: output,
+          videoStyle: chosenStyle.videoStyle,
+          ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
+          ...(videoLook === 'drawn' ? { drawStyle } : {}),
           policyData: draft.extractedData || {},
           purpose: draft.purpose || 'Create a professional video',
           recipientName: draft.recipientName || undefined,
           preGeneratedScenes: draft.scenes || [],
-          brandId: draft.brandId || draft.selectedBrand || draft.autoBrandId || undefined,
-          voiceId: draft.voiceId || 'nova',
-          narrationStyle: draft.narrationStyle || 'solo',
+          // The brand shown on this screen (null = none).
+          brandId: brand?.id || undefined,
+          voiceId,
+          narrationStyle: 'solo',
           detailLevel: draft.detailLevel,
-          industry: (draft.extractedData as any)?.industry || 'general',
-          aiMusic: draft.aiMusic ?? false,
-          musicPrompt: draft.aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
+          industry: draft.extractedData?.industry || 'general',
+          aiMusic,
+          musicPrompt: aiMusic ? 'Professional ambient background music, subtle and warm' : undefined,
           styleId: draft.styleId || undefined,
           customStylePrompt: draft.customStylePrompt || undefined,
           presenterIntro: draft.presenterIntro || undefined,
           introduceInOpening: draft.introduceInOpening,
           showContactClosing: draft.showContactClosing,
           photoPlacement: draft.photoPlacement || undefined,
-          slidePhotos,   // Slide Deck: photographic backdrops (opt-in; default off = faster)
-          // Share-page client options
+          slidePhotos,
           allowSourceDownload,
-          agentNote: agentNote.trim() || undefined,
+          agentNote: note || undefined,
           sourcePdfPath: draft.sourcePdfPath || undefined,
           sourcePdfName: draft.sourcePdfName || undefined,
         }),
       })
       if (!genRes.ok) {
         const g = await genRes.json().catch(() => ({}))
-        // Free/trial users must save a card before producing — route to the
-        // card-capture page, returning here afterward to finish generation.
-        if (g.code === 'card_required' || genRes.status === 402) {
+        // Free/trial accounts must save a card first. ONLY for card_required —
+        // "not enough credits" used to go to the card page too, which sent
+        // people straight back here, forever.
+        if (g.code === 'card_required') {
           router.push(`/setup-payment?next=${encodeURIComponent(`/create/theme?id=${videoId}`)}`)
           return
         }
-        throw new Error(g.error || 'Failed to start generation')
+        if (g.code === 'insufficient_credits') {
+          setBuyCredits({ needed: g.needed, balance: g.balance })
+          return stop({ message: g.error || 'You don’t have enough credits for this.', topUp: true })
+        }
+        // One-at-a-time limit, "already being made", failed payment… the
+        // server's own words are written for people.
+        return stop({ message: g.error || 'We couldn’t start it. Please try again.' })
       }
-      router.push(`/create/generating?id=${videoId}&style=${selected}`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to generate')
-      setSubmitting(false)
+      router.push(`/create/generating?id=${videoId}&style=${videoLook}`)
+    } catch {
+      stop({ message: 'Connection lost. Please check your internet and try again.' })
     }
   }
 
-  if (loading) {
-    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>
+  // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
+  // account): the button sits in the bottom bar beside Make it, the picture
+  // on the page. It previews the choices on screen right now.
+  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : previewLookFor(videoLook, kitOn), drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId })
+  // Bring the preview into view when it starts, so the wait is seen.
+  useEffect(() => {
+    if (preview.busy) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [preview.busy])
+
+  function openMore() {
+    setMoreOpen(true)
+    // After the fold opens, bring it into view.
+    window.setTimeout(() => moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
-  const sel = THEMES.find(t => t.id === selected)!
+  // Wait for the engine answer too: until it comes, the cards (and what Make
+  // would send) could be the old engine's — a slow answer must never start a
+  // video on the wrong engine. A failed answer counts as known (kit off).
+  if (loading || !kitKnown) {
+    return (
+      <div className="cf-page">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div className="spinner" /></div>
+      </div>
+    )
+  }
+  if (!videoId || loadError) {
+    return (
+      <div className="cf-page">
+        <h1 className="cf-h1">We couldn’t find this project.</h1>
+        <p className="cf-hint">{loadError || 'Start a new one and it will be saved as you go.'}</p>
+        <div className="cf-buttons">
+          <button type="button" className="kit-btn kit-btn--secondary" onClick={() => router.push('/create')}>Start a project</button>
+        </div>
+      </div>
+    )
+  }
+
+  const started = quote && !quote.startable
+  const length = LENGTHS.find((l) => l.id === (quote?.detailLevel ?? draft?.detailLevel)) ?? null
+  const makeLabel = 'Make it'
+  const balance = quote?.balance ?? null
+  const total = shown?.total ?? null
+  const after = total !== null && balance !== null ? balance - total : null
+  const short = !shown?.free && after !== null && after < 0
+  const topUp = () => setBuyCredits((b) => b ?? { balance: quote?.balance })
+
+  // The bar's left side: the price in big words, from the server's quote.
+  const barInfo = shown
+    ? (shown.free ? 'Free' : formatCredits(shown.total))
+    : (quoteError ? 'No price yet' : '…')
+  const barSub = shown
+    ? (shown.free
+        ? 'Your account isn’t charged for this.'
+        : after !== null && after >= 0
+          ? `${formatCredits(after).replace(/ credits?$/, '')} left after`
+          : balance !== null ? `You have ${formatCredits(balance)}` : null)
+    : (quoteError || 'Working out the price…')
+
+  // One message beside the button at a time, the one that matters most.
+  const notice = started ? (
+    <Note tone="info" action={<button type="button" className="cf-link" onClick={() => router.push(`/create/generating?id=${videoId}`)}>See its progress</button>}>
+      This one has already been started. Open it to see how it’s going.
+    </Note>
+  ) : error ? (
+    <Note tone="stop">
+      {error.message}
+      {error.topUp ? (<> <button type="button" className="cf-link" onClick={topUp}>Top up credits</button></>) : null}
+    </Note>
+  ) : quote?.blockedReason === 'card_required' ? (
+    // LIGHT START: an account with no card reaches this screen and the free
+    // preview; the card is asked for only now, for the real thing.
+    <Note tone="warn">Add a card to start your free trial. We’ll take you there when you press Make it, then bring you back here. The free preview doesn’t need one.</Note>
+  ) : short ? (
+    <Note tone="warn">
+      You need {formatCredits(-(after as number))} more.{' '}
+      <button type="button" className="cf-link" onClick={topUp}>Top up credits</button>
+    </Note>
+  ) : null
+
+  const cards = lookCards(output, { kit: kitOn, yourLook: kitOn ? yourLook : null })
+  const openLookScreen = () => router.push(`/create/look?id=${encodeURIComponent(videoId)}`)
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 40px', maxWidth: 920, margin: '0 auto', width: '100%' }}>
+    <div className="cf-page">
+      <h1 className="cf-h1">Pick a <em>look.</em></h1>
 
-      <div style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
-        <button onClick={() => router.push(`/create/script?id=${videoId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink-light)', fontFamily: 'inherit', padding: 0 }}>&larr; Back</button>
-      </div>
-
-      <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 8, color: 'var(--ink)' }}>
-        {isPres ? 'Choose a template' : 'Choose a style'}
-      </h1>
-      <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 28, lineHeight: 1.6 }}>
-        {isPres
-          ? 'Pick the look for your presentation — you can switch templates any time after it’s generated, free.'
-          : 'Pick the look for your video. The samples below show how each style renders.'}
-      </p>
-
-      {/* Presentation template gallery (interactive / deck) */}
-      {isPres ? (
-        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-          {PRES_TEMPLATES.map((t) => {
-            const isSel = presTemplate === t.id
-            const [paper, ink, accent] = t.swatch
-            return (
-              <button key={t.id} onClick={() => setPresTemplate(t.id)} style={{
-                position: 'relative', padding: 0, borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', overflow: 'hidden',
-                border: isSel ? '2px solid var(--mint)' : '1.5px solid var(--border-light)', background: 'white', transition: 'all 0.15s',
-              }}>
-                {/* live swatch preview — a mini slide rendered from the template's tokens */}
-                <div style={{ background: paper, padding: '18px 16px 14px', borderBottom: '1px solid var(--border-light)' }}>
-                  <div style={{ width: 34, height: 3, background: accent, borderRadius: 2, marginBottom: 8 }} />
-                  <div style={{ fontSize: 15, fontWeight: 800, color: ink, lineHeight: 1.15 }}>Your Title<span style={{ color: accent }}>.</span></div>
-                  <div style={{ marginTop: 7, display: 'flex', gap: 4 }}>
-                    <span style={{ flex: 2, height: 5, background: ink, opacity: .25, borderRadius: 3 }} />
-                    <span style={{ flex: 1, height: 5, background: accent, opacity: .7, borderRadius: 3 }} />
-                  </div>
-                </div>
-                <div style={{ padding: '12px 16px 14px' }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.4 }}>{t.tagline}</div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {/* Theme cards */}
-      {isPres ? null : (
-      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
-        {THEMES.map((t) => {
-          const isSel = selected === t.id
-          const isNew = t.id === 'slides'
-          return (
-            <button key={t.id} onClick={() => setSelected(t.id)} style={{
-              position: 'relative', padding: '20px', borderRadius: 10, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-              border: isSel ? '2px solid var(--mint)' : '1.5px solid var(--border-light)',
-              background: isSel ? 'rgba(199, 232, 168, 0.10)' : 'white', transition: 'all 0.15s',
-            }}>
-              {isNew ? (
-                <span style={{
-                  position: 'absolute', top: 12, right: 12, fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
-                  textTransform: 'uppercase', color: 'var(--ink)', background: 'var(--mint)',
-                  padding: '3px 8px', borderRadius: 6, lineHeight: 1,
-                }}>New · Recommended</span>
-              ) : null}
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--ink)', marginBottom: 6, paddingRight: isNew ? 8 : 0 }}>{t.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.45 }}>{t.tagline}</div>
-              {isNew ? (
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-light)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span aria-hidden>⏱</span> Takes ~10 min — but the extra depth is worth it
-                </div>
-              ) : null}
-            </button>
-          )
-        })}
-      </div>
-      )}
-
-      {/* Static samples for the selected style */}
-      {isPres ? null : (
-      <div style={{ width: '100%', background: 'white', border: '1.5px solid var(--border-light)', borderRadius: 10, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-          {sel.name} — sample slides
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {SAMPLE_KINDS.map((kind) => {
-            const url = `/style-samples/${selected}-${kind}.png`
-            return (
-              <img
-                key={kind}
-                src={url}
-                alt={`${sel.name} ${kind}`}
-                onClick={() => setLightbox(url)}
-                style={{ width: '100%', borderRadius: 6, border: '1px solid var(--border-light)', cursor: 'zoom-in', display: 'block' }}
-              />
-            )
-          })}
-        </div>
-      </div>
-      )}
-
-      {/* Slide Deck: optional photographic backgrounds (default off = ~2-3 min faster) */}
-      {selected === 'slides' && !isPres ? (
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', maxWidth: 640, marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white', cursor: 'pointer' }}>
-          <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
-          <span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Add photographic backgrounds</span>
-            <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-soft)', marginTop: 2, lineHeight: 1.4 }}>
-              Generates cinematic photo backdrops behind each slide. Looks richer, but adds ~2–3 minutes. Off = a clean animated background (faster, and free).
-            </span>
-          </span>
-        </label>
-      ) : null}
-
-      {/* Client options (share page): optional source-PDF download + a personal note.
-          Slide Deck is private (no share page) — hide entirely. */}
-      {outputType === 'deck' ? null : (
-      <div style={{ width: '100%', maxWidth: 640, marginBottom: 16, padding: '16px', borderRadius: 10, border: '1.5px solid var(--border-light)', background: 'white' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>Client options</div>
-        {/* Only offer the source-PDF download when the source WAS a pdf we stored. */}
-        {draft?.sourcePdfPath ? (
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
-            <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} style={{ marginTop: 3, width: 18, height: 18, cursor: 'pointer' }} />
-            <span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Let the client download the original PDF</span>
-              <span style={{ display: 'block', fontSize: 13, color: 'var(--ink-soft)', marginTop: 2, lineHeight: 1.4 }}>
-                Adds a “Download original document” button on the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.
-              </span>
-            </span>
-          </label>
+      <LookPicker
+        cards={cards}
+        value={isPres ? presLook : videoLook}
+        onChange={(id) => {
+          if (isPres) { if (isPresLook(id)) setPresLook(id) }
+          else if (id === CREATE_LOOK_CARD) openLookScreen()
+          else if (isVideoLook(id)) setVideoLook(id)
+        }}
+        onZoom={setLightbox}
+        note={timeNote}
+      >
+        {isVideo && videoLook === 'custom' && yourLook ? (
+          <p className="cf-hint"><button type="button" className="cf-link" onClick={openLookScreen}>Change this look</button></p>
         ) : null}
-        <label style={{ display: 'block' }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>Note to your client <span style={{ fontWeight: 400, color: 'var(--ink-soft)' }}>(optional)</span></span>
-          <textarea
-            value={agentNote}
-            onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
-            placeholder="A short personal message shown above the video on the share page…"
-            rows={3}
-            style={{ display: 'block', width: '100%', marginTop: 6, padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border-light)', fontSize: 14, fontFamily: 'inherit', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box' }}
-          />
-          <span style={{ fontSize: 12, color: 'var(--ink-light)' }}>{agentNote.length}/400</span>
-        </label>
+        {isVideo && videoLook === 'drawn' ? (
+          <div className="cf-row cf-draw-styles">
+            <span className="cf-row-name">Drawing style</span>
+            <div className="cf-chips" role="radiogroup" aria-label="Drawing style">
+              {DRAW_STYLES.map((st) => (
+                <button key={st.id} type="button" role="radio" aria-checked={drawStyle === st.id} className="cf-chip" onClick={() => setDrawStyle(st.id)} title={st.hint}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a small sample of this style */}
+                  <img className="cf-chip-thumb" src={`/style-samples/drawn-${st.id}.png`} alt="" loading="lazy" />
+                  {st.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </LookPicker>
+
+      <FirstScenePreview ref={previewRef} preview={preview} />
+      {/* After the first free preview: offer the look screen (it can match their brand). */}
+      {kitOn && isVideo && preview.result && !preview.busy && videoLook !== 'custom' ? (
+        <Note tone="info" action={<button type="button" className="cf-link" onClick={openLookScreen}>Make it match</button>}>
+          Make it match your brand? Pick your colours, fonts and feel — the preview plays your own scenes.
+        </Note>
+      ) : null}
+
+      {/* Everything else, in one line. "Change" opens More options. */}
+      <div className="cf-card cf-quick">
+        <span data-testid="settings-line">{settingsLine({ output, voiceId, aiMusic, length: isVideo ? (length?.name ?? null) : null })}</span>
+        <button type="button" className="cf-link" onClick={openMore} aria-controls="more-options">Change</button>
       </div>
 
-      )}
+      {/* The brand in use, with a way to change it — one slim line. */}
+      <div className="cf-card cf-brand">
+        {brand?.logo_url ? <img className="cf-brand-logo" src={brand.logo_url} alt="" /> : null}
+        {brand ? (
+          <span className="cf-brand-dots" aria-hidden>
+            {[brand.primary_color, brand.secondary_color, brand.accent_color].filter(Boolean).map((c, i) => (
+              <span key={i} className="cf-brand-dot" style={{ background: c as string }} />
+            ))}
+          </span>
+        ) : null}
+        <span className="cf-brand-text">
+          {brand
+            ? <>Using <strong>{brand.name}</strong>’s logo and colors.</>
+            : <>No brand on this one yet — it will use plain colors.</>}
+        </span>
+        {brand ? (
+          <button type="button" className="cf-link" onClick={() => router.push(`/create/brand?id=${videoId}`)}>Change</button>
+        ) : (
+          <button type="button" className="cf-link" aria-expanded={addingBrand} onClick={() => setAddingBrand((o) => !o)}>Add your brand</button>
+        )}
+      </div>
+      {!brand && addingBrand && videoId ? (
+        <AddBrandPiece
+          videoId={videoId}
+          draft={draft}
+          onClose={() => setAddingBrand(false)}
+          onSaved={(b) => {
+            setBrand(b)
+            setDraft((d) => ({ ...(d ?? {}), brandId: b.id }))
+            setAddingBrand(false)
+          }}
+        />
+      ) : null}
 
-      {error ? <div style={{ color: '#b91c1c', fontSize: 14, marginBottom: 16 }}>{error}</div> : null}
+      <details
+        id="more-options"
+        ref={moreRef}
+        className="cf-card cf-more"
+        open={moreOpen}
+        onToggle={(e) => setMoreOpen((e.currentTarget as HTMLDetailsElement).open)}
+      >
+        <summary>More options</summary>
+        <div className="cf-more-in">
+          {narrated ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Voice</span>
+              <VoicePicker value={voiceId} onChange={setVoiceId} />
+            </div>
+          ) : null}
 
-      <button onClick={handleGenerate} disabled={submitting} style={{
-        width: '100%', maxWidth: 520, padding: '16px', borderRadius: 10, border: 'none',
-        background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer',
-        fontFamily: 'inherit', opacity: submitting ? 0.6 : 1,
-      }}>
-        {submitting ? 'Starting…' : isPres ? `Generate ${outputType === 'interactive' ? 'presentation' : 'deck'} with ${PRES_TEMPLATES.find(t => t.id === presTemplate)!.name} →` : `Generate with ${sel.name} →`}
-      </button>
+          {isVideo ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Music</span>
+              <div className="cf-chips" role="radiogroup" aria-label="Background music">
+                <button type="button" role="radio" aria-checked={aiMusic} className="cf-chip" onClick={() => setAiMusic(true)}>On <small>soft, under the voice</small></button>
+                <button type="button" role="radio" aria-checked={!aiMusic} className="cf-chip" onClick={() => setAiMusic(false)}>Off</button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="cf-row">
+            <span className="cf-row-name">Make</span>
+            <OutputPicker
+              offered={d2vOutputs(quote?.offered ?? D2V_OUTPUTS)}
+              value={output}
+              onChange={(o) => { setOutput(o); setError(null) }}
+              options={quote?.options ?? null}
+            />
+          </div>
+
+          {isVideo ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Length</span>
+              <span className="cf-hint" style={{ color: 'var(--ink)' }}>
+                {length ? <><strong>{length.name}</strong> · {length.minutes}</> : 'Standard'}
+              </span>
+              {/* Lands on the length choice on the story step, not the top of the page. */}
+              <button type="button" className="cf-link" onClick={() => router.push(`/create/script?id=${videoId}#${LENGTH_ANCHOR}`)}>Change the length</button>
+            </div>
+          ) : null}
+
+          {isVideo && videoLook === 'slides' && !kitOn ? (
+            <div className="cf-row">
+              <span className="cf-row-name">Photos</span>
+              <label className="cf-toggle">
+                <input type="checkbox" checked={slidePhotos} onChange={(e) => setSlidePhotos(e.target.checked)} />
+                <span>
+                  Add photo backgrounds
+                  <small>Photo backdrops behind each slide. Looks richer, but adds about 2–3 minutes. Same price.</small>
+                </span>
+              </label>
+            </div>
+          ) : null}
+
+          {/* Share-page extras (videos and presentations both have a share page). */}
+          <div className="cf-row" style={{ alignItems: 'flex-start' }}>
+            <span className="cf-row-name">For your client</span>
+            <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {draft?.sourcePdfPath ? (
+                <label className="cf-toggle">
+                  <input type="checkbox" checked={allowSourceDownload} onChange={(e) => setAllowSourceDownload(e.target.checked)} />
+                  <span>
+                    Let them download the original PDF
+                    <small>Adds a “Download original document” button to the share page{draft?.sourcePdfName ? ` (${draft.sourcePdfName})` : ''}.</small>
+                  </span>
+                </label>
+              ) : null}
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>A note to your client</span>
+                <textarea
+                  className="cf-input"
+                  value={agentNote}
+                  onChange={(e) => setAgentNote(e.target.value.slice(0, 400))}
+                  placeholder="A short personal message shown above it on the share page…"
+                  rows={3}
+                />
+                <span className="cf-hint" style={{ fontSize: 'var(--fs-small)' }}>{agentNote.length}/400</span>
+              </label>
+            </div>
+          </div>
+
+          {/* What's in the price — the server's own lines. */}
+          <div className="cf-row" style={{ alignItems: 'flex-start' }}>
+            <span className="cf-row-name">Price</span>
+            {shown ? (
+              <div className="cf-price-lines" aria-label="What’s in the price">
+                {shown.lines.map((l) => (
+                  <div key={l.label} className="cf-price-line"><span>{l.label}</span><span>{formatCredits(l.credits)}</span></div>
+                ))}
+                <div className="cf-price-line is-total"><span>Total</span><span>{formatCredits(shown.total)}</span></div>
+                {!shown.free && balance !== null ? <span className="cf-hint" style={{ fontSize: 'var(--fs-small)' }}>You have {formatCredits(balance)}.</span> : null}
+              </div>
+            ) : (
+              <span className="cf-hint">{quoteError || 'Working out the price…'}</span>
+            )}
+          </div>
+        </div>
+      </details>
+
+      <BuyCreditsModal
+        open={!!buyCredits}
+        onClose={() => { setBuyCredits(null); void refresh() }}
+        needed={buyCredits?.needed}
+        balance={buyCredits?.balance}
+      />
 
       {lightbox ? (
-        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(8,12,16,0.88)', padding: 24, cursor: 'zoom-out' }}>
-          <img src={lightbox} alt="Sample" style={{ maxWidth: '92vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 8 }} />
+        <div className="cf-lightbox" onClick={() => setLightbox(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a sample picture, larger */}
+          <img src={lightbox} alt="Sample" />
         </div>
       ) : null}
+
+      <BottomBar
+        label="The price"
+        info={barInfo}
+        sub={barSub}
+        notice={notice}
+        helper={
+          <span className="cf-main">
+            <Button
+              variant="secondary"
+              className="cf-helper-btn"
+              onClick={() => void preview.make()}
+              disabled={preview.busy || preview.noneLeft}
+              aria-busy={preview.busy || undefined}
+              disabledReason={preview.disabledReason}
+              title={preview.leftLabel ?? undefined}
+            >
+              {preview.label}
+            </Button>
+          </span>
+        }
+        onMain={handleMake}
+        mainLabel={submitting ? 'Starting…' : makeLabel}
+        disabled={submitting || !!started}
+        busy={submitting}
+        missing={submitting || started ? null : !shown || quoteLoading ? { reason: quoteError || 'Working out the price…' } : null}
+      />
     </div>
   )
 }

@@ -2,83 +2,130 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { PLANS, isSellablePlan } from '../../../_lib/pricing'
+import { CREDIT_COSTS, TIER_CREDITS, TIER_APPROX_VIDEOS } from '../../../_lib/credits'
+import { SMALLEST_PACK, packPrice, packsSentence } from '../../../_lib/credit-packs'
+import { NAMES } from '../../../_lib/names'
+
+// Prices, credit amounts and pack sizes below are read from pricing.ts,
+// credits.ts and credit-packs.ts, so an answer can't quote an old price.
+const n = (x: number) => x.toLocaleString('en-US')
+const PAID_PLANS = PLANS.filter(p => isSellablePlan(p.tier))
+  .map(p => `**${p.label}** $${Math.round(p.monthlyPrice / 100)}/mo (${n(p.monthlyCredits)} credits)`)
+  .join(', ')
 
 interface FaqItem {
   question: string
   answer: string[]
 }
 
+// Audited against the live UI on 2026-09-26.
 const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'How long does it take to generate a video?',
     answer: [
-      'Most videos are generated in 2-3 minutes. Detailed (longer) videos may take up to 5 minutes. You can leave the page while the video generates — it will continue in the background and appear in your Library when complete.',
+      'Most videos take 3–5 minutes. The **Animated slides** style takes about 10 minutes. You can leave the page while the video generates — it keeps going in the background and appears in your Library when complete.',
     ],
   },
   {
     question: 'Can I edit a video after it has been generated?',
     answer: [
-      'Yes. Open the video from your Library and use the AI editor to make changes. You can update narration text, regenerate individual slides, or adjust specific scenes without recreating the entire video.',
+      'Yes. Open it from your Library and use **Ask for a change** under Ready to send. Pick **This scene** or the whole thing, say what you want, and it opens the right editor for that project — with the price shown before anything is rebuilt. Each change is listed with **Undo**.',
+      'Presentations and slide decks open the slide editor; **Animated slides** look videos open **Fix a scene** (one scene, without redoing the rest); other looks with slide pictures open the **Scene editor**. A few looks can’t be changed in place — the bar offers **Make a changed copy** instead. See **Changing a finished project** in the Help Center.',
     ],
   },
   {
     question: 'What file formats can I upload?',
     answer: [
-      'You can upload PDF documents. You can also paste text directly, enter a webpage URL for the AI to scrape, or use the AI Research and Start from Idea options that do not require any file upload.',
+      'You can upload up to 5 files at once: **PDF**, **Word (DOCX)**, **PowerPoint (PPTX)**, **text (TXT)**, **CSV** and **Excel (XLSX)** — up to 50 MB each. Older **DOC**, **PPT** and **XLS** files work too.',
+      'Scanned PDFs work: we read the pages as pictures. You can also upload a **phone photo** of a printed page (**JPG**, **PNG** or **HEIC**) — take it in good light, straight on.',
+      'If a file can’t be read we say why (for example, a password-protected PDF) and what to do.',
+      'On step 1, under **Where should the content come from?**, you can also choose **Website URL**, **Paste text**, or **AI writes it** — none of those need a file.',
     ],
   },
   {
     question: 'Is there a limit on video length?',
     answer: [
-      'Standard videos are 2-3 minutes. Detailed videos are 5-7 minutes. The length is determined by the amount of content and the option you select during creation. There is no hard limit on the number of scenes.',
+      `On step 2, **The story**, you pick the **Length**: **Short** (under 1 minute), **Standard** (2–5 minutes) or **Detailed** (5–15 minutes). The final length also depends on how much content you give it. Longer videos cost more credits (${n(CREDIT_COSTS.videoQuick)} / ${n(CREDIT_COSTS.videoStandard)} / ${n(CREDIT_COSTS.videoDetailed)}); step 3 shows the exact price.`,
+      'Changing the length after the story is written offers **Rewrite at this length** — free. **Change the length** on step 3 takes you straight back to it.',
     ],
   },
   {
     question: 'Can I use my own voice for narration?',
     answer: [
-      'Currently, videos use AI-generated voices. You can choose from a variety of voices with different tones and styles. Custom voice cloning is not available at this time.',
+      'Not at the moment. Videos use AI voices. On step 3, **The look**, press **▶** next to a voice to hear it and pick the tone you like.',
     ],
   },
   {
     question: 'Do my clients need an account to watch my videos?',
     answer: [
-      'No. The share page is fully public. Anyone with the link can watch the video, use the AI chat, book a meeting (if you have Calendly connected), and download files. No login or account is required.',
+      'No. The share page is public. Anyone with the link can watch the video, see your contact details, book a call or make a payment (if you set those up), and download your original PDF (only if you turned that on). No login is needed.',
     ],
   },
   {
-    question: 'Can I remove the Docs2Video branding from my videos?',
+    question: 'Can I remove the Docs2Video branding?',
     answer: [
-      'Videos are branded with your logo, colors, and contact information. Docs2Video branding is minimal and appears only on the share page footer. Your brand is the primary identity shown throughout the video and share page.',
+      'Your own logo, colors and contact details are shown throughout. A small "Powered by Docs2Video" line appears at the top and bottom of the share page unless you are on **Business** or **Enterprise**, which remove it completely (white-label).',
     ],
   },
   {
     question: 'What happens to my videos if I cancel my subscription?',
     answer: [
-      'All your videos remain accessible. You can still view, share, and download them. You simply cannot create new videos at the subscription rate. You can always create new videos at the pay-per-project price.',
+      `All your videos stay in your Library and their share links keep working. Your monthly credits stop, but any top-up credits you bought stay in your account, and you can buy more anytime with **+ Top Up** (packs start at ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits).`,
     ],
   },
   {
     question: 'Can I create videos for multiple brands or clients?',
     answer: [
-      'Yes. Create a brand for each client in the Brands section. When making a video, select the appropriate brand and the output will use that brand\'s logo, colors, and contact info. There is no limit on the number of brands.',
+      `Yes. Click **${NAMES.brands}** in the top bar to create a brand for each company or person. You can also set one up while making a video: on step 3, click **Change** next to the brand.`,
+      'When making a video, pick the right one on the brand step (**Your brand**) and the video uses that logo, colors and contact info. There is no limit on the number of brands.',
     ],
   },
   {
-    question: 'How do I connect Calendly for meeting booking on share pages?',
+    question: 'How do I add a booking link to my share pages?',
     answer: [
-      'Go to Settings and look for the Calendly section. Enter your Calendly URL (e.g., https://calendly.com/yourname). Once saved, a booking widget will appear on all your video share pages so clients can schedule a meeting with you.',
+      'Open the account menu (top-right), click **Settings**, then **Email & sending** in the menu on the left. Choose Calendly, Cal.com or Google Calendar, paste your booking link, and press **Save**. A **Book a Call** button then appears on your share pages.',
+      'For **Google Calendar**, there is no direct connection — paste a link instead. In Google Calendar, create a booking page (an "Appointment schedule"), copy its link (it starts with https://calendar.app.google/) and paste that. You don’t have to type https:// — it is added for you — but the link must be a secure (https) one, or the button will not show.',
     ],
   },
   {
     question: 'Can I download my video as a PowerPoint file?',
     answer: [
-      'Yes. Every video can be downloaded in three formats: MP4 (video), PDF (slides), and PPTX (editable PowerPoint). The PPTX file can be opened in Microsoft PowerPoint or Google Slides for further customization.',
+      'Yes, when the video’s look keeps slide pictures (presentations always can). On its page, press **Download** and choose **PowerPoint** — or **MP4** or **PDF**. The PPTX opens in Microsoft PowerPoint or Google Slides. (These downloads are for you — your client\'s share page only offers your original PDF, and only if you turned that on.)',
     ],
   },
   {
-    question: 'What is the AI chat on the share page?',
+    question: 'I forgot my password. How do I reset it?',
     answer: [
-      'The AI chat assistant appears on every share page. It has full knowledge of the video content and your company information (from your website URL in brand settings). Clients can ask questions about anything in the video and get instant, relevant answers.',
+      'On the sign-in page, click **Forgot password?**, type your email and click **Send Reset Link**. Open the email (on any device) and click the link. On the **Set a new password** page, type a new password of at least 8 characters twice and click **Save new password**.',
+      'If the page says the link has expired, click **Send a new reset link** and use the newest email. Bought through Apex? Use the **Set up my account** button in your welcome email — it opens the same page.',
+    ],
+  },
+  {
+    question: 'How long are unfinished drafts kept?',
+    answer: [
+      'A draft you have started but not generated is kept for **24 hours** after you last changed it. Once it has a story (step 2, **The story**), it is kept for **14 days** after your last change, so a script you wrote is not lost over a weekend.',
+      'After that the draft and any file you uploaded for it are deleted. Finished videos are never deleted this way.',
+    ],
+  },
+  {
+    question: 'Will my client get automatic reminder emails?',
+    answer: [
+      'Only if you turn them on. Automatic follow-ups are **off** for every quote until you tick **Automatic follow-ups** under that quote on the video page. Then up to two short reminders go out (about day 3 and day 7) from your connected email, and they stop as soon as you mark the deal paid, accepted or declined, or the client unsubscribes.',
+    ],
+  },
+  {
+    question: 'Do I need a card to try it?',
+    answer: [
+      'No. Sign up with your name, email and a password and you land on **Home**. Make your first project, add your brand on step 3, and press **Free preview** to see the first scene and hear the voice — free, a few a day.',
+      'You add a card only when you press **Make it** on a real video or presentation. The card page opens and brings you back afterwards. Saving the card starts your free credits; nothing is charged until they run out.',
+    ],
+  },
+  {
+    question: 'How much does it cost?',
+    answer: [
+      `Everything uses credits. New accounts get **${n(TIER_CREDITS.free)} free credits** once, when a card is saved (about ${TIER_APPROX_VIDEOS.free.standard} standard videos). Plans: ${PAID_PLANS}.`,
+      `Anyone can buy top-up packs that never expire: ${packsSentence()}. See **Pricing & plans** for details.`,
     ],
   },
 ]
@@ -87,47 +134,48 @@ const TROUBLESHOOTING: FaqItem[] = [
   {
     question: 'My video is stuck on "Generating" and has not completed.',
     answer: [
-      'Videos typically complete within 2-5 minutes. If your video has been generating for more than 10 minutes:',
-      '1. Refresh the page and check your Library — the video may have completed but the status did not update on screen.',
-      '2. If it still shows as generating, wait a few more minutes. Server load can occasionally cause delays.',
-      '3. If the video has not completed after 30 minutes, contact support at support@docs2video.com with the video title and approximate time you started generation.',
+      'Most videos finish in 3–5 minutes (Animated slides about 10). If yours has been generating much longer than that:',
+      '1. Refresh the page and check your Library — the video may have finished but the screen did not update.',
+      '2. If it still shows as generating, wait a few more minutes. Busy times can cause delays.',
+      '3. After about 5 minutes the progress screen shows **Restart Generation**. It works once the video has shown no progress for 15 minutes (or has failed) — if it is still moving, you will see "This video is still being made" and should give it longer. When it restarts, it stops the stuck run, gives back the credits it took, and starts again — so you are only charged once.',
+      '4. If it has not finished after 30 minutes, email support@docs2video.com with the video title and roughly when you started it.',
     ],
   },
   {
     question: 'My video has no audio / narration is missing.',
     answer: [
-      'This can happen if voice generation encountered an error on one or more scenes. Try these steps:',
-      '1. Open the video and check if the narration text is present in each scene. If a scene has empty narration, the voice will be silent for that section.',
-      '2. Try regenerating the video. Open the AI editor, and re-generate the narration for the affected scenes.',
-      '3. Make sure your browser volume is not muted and that the video player volume slider is up.',
+      'This can happen if the voice failed on one or more scenes. Try these steps:',
+      '1. Make sure your device volume and the video player volume are turned up.',
+      '2. Open the video and use **Ask for a change**. For an **Animated slides** look video, pick the silent scene and press **The voice glitched** — re-recording is free.',
+      '3. For other looks, the bar opens the **Scene editor**: check each scene has narration text, then press **Save & Regenerate**.',
     ],
   },
   {
-    question: 'The AI extracted the wrong data from my document.',
+    question: 'The AI misunderstood my document.',
     answer: [
-      'After uploading, always review the extracted data on Step 2 of the creation flow. You can edit any field before proceeding.',
-      'If the extraction is significantly off, try uploading a cleaner version of the document (higher resolution PDF, or text-based rather than scanned images). You can also paste the content directly instead of uploading.',
+      'On step 2, **The one point** at the top shows what the AI understood. If it is off, type what to change under **Ask for a change** (for example "focus on the retirement income numbers") — it rewrites the story — before you press **Looks right — pick the look**.',
+      'If it is badly wrong, try a cleaner file (a text-based PDF rather than a scan), or paste the text in directly with **Paste text**.',
     ],
   },
   {
     question: 'My brand colors look different in the video than on my website.',
     answer: [
-      'Go to Brands and edit the brand in question. Check that the hex color codes match your official brand guidelines. Auto-scraped colors from a website URL are a best guess — the system reads CSS, which may include hover states, gradients, or background colors that differ from your primary brand palette.',
-      'Click "Advanced" to manually set all 5 color slots to your exact brand hex codes.',
+      `Click **${NAMES.brands}** in the top bar and edit that brand. Set the brand color to your exact color code.`,
+      'Colors picked up automatically from a website are a best guess and can grab a button or background color instead of your main brand color.',
     ],
   },
   {
-    question: 'I cannot see the download buttons on my video.',
+    question: 'I cannot find the downloads for my video.',
     answer: [
-      'Download buttons appear only after the video has fully completed generation. If the video is still processing, wait for it to finish.',
-      'On mobile devices, you may need to scroll down below the video player to see the download options.',
+      'The **Download** menu (top-right of the video page) appears once the video has finished. If it is still processing, wait for it to complete.',
+      'It only lists the files that video has: **PDF** and **PowerPoint** need slide pictures, which some looks don’t keep.',
     ],
   },
   {
     question: 'The share page link is not working.',
     answer: [
-      'Check that the video has completed generation. Share pages are only active for fully generated videos.',
-      'If the video is complete but the link returns an error, try copying the link again from the video detail page. Make sure the full URL is included when pasting.',
+      'Check that the video has finished. Share pages only work for completed videos.',
+      'If it is complete but the link shows an error, copy it again with **or copy the link** in the send panel on the video page, and make sure the whole address was pasted.',
     ],
   },
 ]
@@ -136,7 +184,7 @@ export default function FaqPage() {
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null)
 
   const renderFaqList = (items: FaqItem[], prefix: string) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       {items.map((item, index) => {
         const id = `${prefix}-${index}`
         const isExpanded = expandedFaq === id
@@ -144,7 +192,7 @@ export default function FaqPage() {
           <div
             key={id}
             style={{
-              background: 'white',
+              background: 'var(--bg-card)',
               border: '1px solid var(--border-light)',
               borderRadius: 10,
               overflow: 'hidden',
@@ -161,12 +209,12 @@ export default function FaqPage() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: 'var(--space-3)',
                 textAlign: 'left',
               }}
             >
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{item.question}</div>
+                <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{item.question}</div>
               </div>
               <svg
                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-light)" strokeWidth="2"
@@ -177,7 +225,7 @@ export default function FaqPage() {
             </button>
 
             {isExpanded && (
-              <div style={{ padding: '0 20px 20px 20px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
+              <div style={{ padding: '0 20px 20px 20px', fontSize: 'var(--fs-ui)', lineHeight: 1.7, color: 'var(--ink-soft)' }}>
                 {item.answer.map((paragraph, i) => (
                   <p key={i} style={{ margin: '8px 0' }} dangerouslySetInnerHTML={{
                     __html: paragraph
@@ -196,29 +244,29 @@ export default function FaqPage() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Breadcrumb */}
-      <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--ink-light)' }}>
+      <div style={{ marginBottom: 8, fontSize: 'var(--fs-small)', color: 'var(--ink-light)' }}>
         <Link href="/help" style={{ color: 'var(--mint-darker)', textDecoration: 'none', fontWeight: 600 }}>
           Help Center
         </Link>
         <span style={{ margin: '0 8px' }}>/</span>
-        <span>FAQ & Troubleshooting</span>
+        <span>FAQ & troubleshooting</span>
       </div>
 
       <div className="page-head" style={{ marginBottom: 32 }}>
         <div>
-          <h1>FAQ & Troubleshooting</h1>
+          <h1>FAQ & troubleshooting</h1>
           <p>Common questions and solutions to frequently encountered issues.</p>
         </div>
       </div>
 
       {/* Common Questions */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
         Common Questions
       </h2>
       {renderFaqList(FAQ_ITEMS, 'faq')}
 
       {/* Troubleshooting */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 36, marginBottom: 16, color: 'var(--ink)' }}>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginTop: 36, marginBottom: 16, color: 'var(--ink)' }}>
         Troubleshooting
       </h2>
       {renderFaqList(TROUBLESHOOTING, 'ts')}
@@ -226,14 +274,14 @@ export default function FaqPage() {
       {/* Still need help */}
       <div style={{
         marginTop: 32, padding: '24px 28px', borderRadius: 10,
-        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
-        <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
+        <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', margin: '0 0 12px' }}>
           Click the help button in the bottom-right corner to chat with our AI assistant, or contact support directly.
         </p>
-        <a href="mailto:support@docs2video.com" className="btn btn-soft">Email Support</a>
+        <a href="mailto:support@docs2video.com" className="btn btn-soft">Email support</a>
       </div>
 
       {/* Back link */}

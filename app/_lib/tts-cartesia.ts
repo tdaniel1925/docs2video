@@ -1,4 +1,5 @@
-import { synthesizeSpeech } from './tts'
+import { synthesizeSpeech, speakable } from './tts'
+import { falSpeak } from './fal-tts'
 
 // Same voice mapping the render service uses (render-service/server.js cartesiaTTS) so v2 narration
 // sounds identical to v1: Cartesia sonic-2 first, OpenAI TTS as fallback.
@@ -37,9 +38,14 @@ async function cartesiaTTS(text: string, voiceId: string): Promise<Buffer> {
   return buf
 }
 
-/** Cartesia first (matches render service voices), OpenAI fallback. */
+/** fal first (2026-10-09, same voices as the render service), then Cartesia, then tts.ts's chain. */
 export async function synthesizeNarration(text: string, voiceId: string): Promise<Buffer> {
   if (!text?.trim()) return synthesizeSpeech(text, voiceId) // brief-silence path
+  if (process.env.FAL_KEY) {
+    try { return (await falSpeak(speakable(text), { voiceId })).audio } catch (err) {
+      console.warn('[tts-cartesia] fal failed, trying Cartesia:', err instanceof Error ? err.message : err)
+    }
+  }
   try {
     return await cartesiaTTS(text, voiceId)
   } catch (err) {

@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
+import { lookup } from 'node:dns/promises'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { logError } from '../../_lib/error-logger'
 import { videoServiceUrl } from '../../_lib/video-service'
-import { isAdmin } from '../../_lib/admin'
+import { isSafePublicUrl } from '../../_lib/brand-scraper'
 import { isPaidTier } from '../../_lib/subscription'
 import { checkCredits, deductCredits, refundVideoCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { creditDeniedResponse } from '../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -38,20 +41,48 @@ export async function POST(request: Request) {
 
   let body: any
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const { url, text, brandName, music, style, musicUrl, logoUrl, goal } = body || {}
+  const { url: rawUrl, text, brandName, music, style, musicUrl, logoUrl, goal } = body || {}
+  // No one has to type https:// — "botmakers.ai" is fine. Cleaned BEFORE the
+  // name check below, so the check and the render get the same address.
+  const url = rawUrl ? normalizeUrl(rawUrl) : undefined
+  if (rawUrl && !url && !text) return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com', code: 'bad_url' }, { status: 400 })
   if (!url && !text) return NextResponse.json({ error: 'Provide a url or text' }, { status: 400 })
+
+  // A mistyped address ("botmakersa.ai") used to start the job, fail on the
+  // render service with "fetch failed", and show only "generation failed".
+  // Check the name exists first and say so in plain words — nothing charged.
+  if (url) {
+    let host = ''
+    try { host = new URL(url).hostname } catch { /* bad address */ }
+    const found = host ? await lookup(host).then(() => true, (e: NodeJS.ErrnoException) => e?.code !== 'ENOTFOUND') : false
+    if (!found) {
+      return NextResponse.json({ error: `We couldn't find ${host || 'that website'}. Check the address for a typo and try again — nothing was charged.`, code: 'site_not_found' }, { status: 400 })
+    }
+  }
+
+  // SSRF (audit 2026-10-09): the website, music and logo addresses are fetched
+  // by our servers. Refuse any that point at a private / loopback / link-local
+  // (cloud metadata) address before anything is charged or sent. The render
+  // service checks again on every redirect.
+  for (const [label, u] of [['website', url], ['music', musicUrl], ['logo', logoUrl]] as const) {
+    if (u == null || u === '') continue
+    if (typeof u !== 'string' || !(await isSafePublicUrl(u))) {
+      return NextResponse.json({ error: `That ${label} address can’t be used. Please use a normal public web address (https://…) — nothing was charged.`, code: 'blocked_url' }, { status: 400 })
+    }
+  }
 
   const admin = createAdminClient()
 
   // --- Credit gate (skip for admins/beta; paid + free users are charged) ---
   const { data: profile } = await admin.from('profiles').select('subscription_status, is_admin, is_beta').eq('id', user.id).single()
-  const isPrivileged = isAdmin(user.email) || profile?.is_admin === true || profile?.is_beta === true
+  // Free only for flagged admin/beta accounts (the email list alone no longer counts — audit 2026-10-09).
+  const isPrivileged = profile?.is_admin === true || profile?.is_beta === true
   let deductedCost = 0
   if (!isPrivileged) {
     const check = await checkCredits(user.id, COMMERCIAL_COST)
-    if (!check.allowed) {
-      return NextResponse.json({ error: `Not enough credits. Need ${COMMERCIAL_COST}, have ${check.remaining}.` }, { status: 402 })
-    }
+    // No card yet / failed payment / banned get their own words and code (the
+    // page sends 'card_required' to the card page) — not "not enough credits".
+    if (!check.allowed) return creditDeniedResponse(check, COMMERCIAL_COST)
   }
 
   // create the videos row the UI polls for progress.

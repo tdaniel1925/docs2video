@@ -56,7 +56,7 @@ export const InfographicDemo: React.FC = () => {
       <Series.Sequence durationInFrames={90}>
         <Scene>
           <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 120px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 48, width: '100%', maxWidth: 1600 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 48, width: '100%', maxWidth: 1600 }}>
               <Stat label="Client Age" value="40" theme={THEME} accent={THEME.accents[0]} />
               <Stat label="Index Allocation" value="100% S&P 500" theme={THEME} accent={THEME.accents[1]} />
               <Stat label="Target Premium" value="$3,018.18" theme={THEME} accent={THEME.accents[2]} />

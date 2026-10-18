@@ -4,6 +4,9 @@ import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { signup } from '../../_actions/auth'
+import { PLANS } from '../../_lib/pricing'
+
+const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
 
 export default function SignupPage() {
   return (
@@ -50,7 +53,7 @@ function SignupForm() {
   return (
     <>
       <h1>Create your account</h1>
-      <p className="auth-sub">Get 2 free short videos. Cancel anytime.</p>
+      <p className="auth-sub">Start with {FREE_PLAN.monthlyCredits.toLocaleString('en-US')} free credits — about {FREE_PLAN.approxStandardVideos} videos. Cancel anytime.</p>
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { cleanAnniversary, saveAnniversary } from '../../../_lib/annual-review-db'
 
 export const maxDuration = 30
 
@@ -92,6 +93,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
   }
 
+  // The policy date (annual reviews) is saved on its own: before its
+  // migration runs, the column is missing and must not fail the whole save.
+  const anniv = cleanAnniversary(body)
+  if (anniv && !anniv.ok) return NextResponse.json({ error: anniv.error }, { status: 400 })
+  let warning: string | undefined
+  if (anniv?.ok) {
+    const r = await saveAnniversary(admin, user.id, id, anniv.patch)
+    if (!r.ok) warning = r.missing ? 'Policy dates aren’t switched on yet — the rest was saved.' : 'The policy date couldn’t be saved — the rest was.'
+  }
+
   const { data: client, error } = await admin
     .from('clients')
     .update(updates)
@@ -104,7 +115,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Failed to update client' }, { status: 500 })
   }
 
-  return NextResponse.json({ client })
+  return NextResponse.json({ client, ...(warning ? { warning } : {}) })
 }
 
 export async function DELETE(_req: NextRequest, context: RouteContext) {

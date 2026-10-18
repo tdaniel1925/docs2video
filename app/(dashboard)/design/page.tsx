@@ -26,7 +26,7 @@ const STARTERS = [
  */
 // Sample tiles use REAL style thumbnails (via thumbUrl) so nothing 404s.
 const KINDS: { kind: Kind; label: string; blurb: string; sample: string }[] = [
-  { kind: 'print', label: 'Something to print', blurb: 'A flyer, poster, postcard, sign or card — one page, print-ready, artwork and words together.', sample: thumbUrl('corporate') },
+  { kind: 'print', label: 'Something to print', blurb: 'A flyer, poster, postcard, sign or card — one page, artwork and words together, ready to download and print.', sample: thumbUrl('corporate') },
   { kind: 'social', label: 'A social graphic', blurb: 'A post or cover for Instagram, Facebook, LinkedIn or the web — sized right for each place.', sample: thumbUrl('nightlife-garden-social') },
   { kind: 'deck', label: 'A slide deck', blurb: 'A whole presentation — every slide made to match, ready to present or share.', sample: thumbUrl('business-collage-network') },
   { kind: 'set', label: 'A set of sizes', blurb: 'The same design made in several sizes at once — flyer, post, banner, card — all matching.', sample: thumbUrl('retro') },

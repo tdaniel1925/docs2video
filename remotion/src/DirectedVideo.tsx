@@ -7,13 +7,16 @@ import { loadFont as loadMont } from '@remotion/google-fonts/Montserrat'
 import { loadFont as loadSans } from '@remotion/google-fonts/SourceSans3'
 import { EASE } from './motion/MotionKit'
 import { LineChart, BarPair, CountUp, legibleOn, type Series } from './charts/Charts'
-import { Odometer, fitOdometerSize } from './charts/Odometer'
+import { FitOdometer } from './charts/Odometer'
+import { Fit, FitBox } from './lib/fit'
 import { LOOKS, type LookName } from './looks/Looks'
 import { GlassPanel, PersistentFrame, LowerThird, type GlassStyle, type GPalette } from './cinematic/Glass'
 import { FilmGrade } from './cinematic/FilmGrade'
 import { LogoReveal, LogoClose } from './cinematic/LogoScenes'
 import { SlideHeading, BulletList, DataCards, ScreenshotFrame, SCALE, type Bullet, type Card, type Pin } from './slides/Slides'
 import { IconMotif, pickIcon } from './slides/IconMotif'
+import { MusicBed } from './lib/musicbed'
+import { explainerMusicDuck, type VoWindow } from './lib/audio'
 const SL = (n: number) => Math.round(n * SCALE)  // slide-scale helper (shares the global SCALE)
 import { loadFont as loadPlayfair } from '@remotion/google-fonts/PlayfairDisplay'
 
@@ -42,7 +45,7 @@ export type ChartSpec =
   | { kind: 'bars'; bars: { label: string; value: number; color: string }[]; yMax: number; unit?: string }
   | { kind: 'figure'; value: number; prefix?: string; suffix?: string; label?: string }
 
-export type FigureSpec = { value: number; prefix?: string; suffix?: string; label?: string }
+export type FigureSpec = { value: number; prefix?: string; suffix?: string; label?: string; decimals?: number }
 
 // A SLIDE BLOCK — the supporting content that sits under a scene's heading and
 // reveals in sync with the voice. This is what turns a "headline + talking"
@@ -82,7 +85,19 @@ export type DirPlan = {
   palette?: { bg: string; accent: string; accent2: string; text: string }   // legacy; look wins if present
   scenes: DirScene[]
 }
-export type DirectedProps = { assetBase?: string; plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number }
+export type DirectedProps = {
+  assetBase?: string; plan: DirPlan; starts: number[]; total: number; intensity?: 'calm' | 'premium' | 'highenergy'; bpm?: number
+  /** Each scene's voice length in frames (measured in calculateMetadata) — the
+   *  music ducks under exactly these windows. Missing → up to the next scene. */
+  voFrames?: number[]
+  /** The music file's length in frames, so MusicBed can loop it to cover the video. */
+  musicFrames?: number
+  /** A single PICTURE (the free first-scene preview), not a video: the caller
+   *  supplies `starts`/`total` itself, and there is no voice, music or sound
+   *  effect to load — so none is fetched. Without this a still would ask for
+   *  dir-vo-*.mp3 / dir-music.mp3 files that a preview never makes. */
+  still?: boolean
+}
 
 // SFX pack (synthesized, royalty-free). One <Audio> per hit at a given frame.
 const Sfx: React.FC<{ name: string; at: number; total: number; volume?: number }> = ({ name, at, total, volume = 0.6 }) => {
@@ -99,35 +114,46 @@ const CAM: Record<string, { from: [number, number, number]; to: [number, number,
 }
 
 export const directedMetadata: CalculateMetadataFunction<DirectedProps> = async ({ props }) => {
-  // The plan is passed via --props (dir-plan wrapped) OR fetched from public/.
-  let plan = props?.plan
-  if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
-    // No plan on props — try public/dir-plan.json. This is ABSENT during a bare
-    // `remotion compositions` listing (and before the generator runs), so guard
-    // every failure and fall back to safe placeholder metadata instead of
-    // throwing (a throwing calculateMetadata breaks the whole composition list).
-    try {
-      const res = await fetch(staticFile('dir-plan.json'))
-      if (res.ok) plan = (await res.json()) as DirPlan
-    } catch { /* no plan file — use placeholder below */ }
+  // On Lambda the per-video files (voice, photo, backdrops) live under
+  // props.assetBase. Set it before measuring the voice files, and hand it on in
+  // the props we return — Remotion REPLACES the props with ours, so leaving it
+  // out sent the photo lookup to the bundle's own folder and crashed the render.
+  setAssetBase(props?.assetBase)
+  const assetBase = props?.assetBase
+  // STILL (free preview): the caller worked out the timing and there is no
+  // voice file to measure, so use exactly what it sent.
+  if (props?.still && props.plan && Array.isArray(props.plan.scenes) && props.plan.scenes.length > 0
+    && Array.isArray(props.starts) && props.starts.length === props.plan.scenes.length && props.total > 0) {
+    return { durationInFrames: props.total, props: { ...props, intensity: props.intensity ?? 'premium', bpm: props.bpm ?? 128 }, fps: FPS, width: 1920, height: 1080 }
   }
+  // The plan is passed via --props (dir-plan wrapped).
+  const plan = props?.plan
+  // No plan on props → a placeholder. It used to read public/dir-plan.json,
+  // but that is whatever video was made last on the box — someone else's
+  // content (and their dir-vo-*.mp3 voice) could play. A real render always
+  // passes a full plan via --props.
   if (!plan || !Array.isArray(plan.scenes) || plan.scenes.length === 0) {
     // placeholder: a valid, renderable-but-empty composition so listing/preview
-    // never crash. A real render always passes a full plan via --props.
+    // never crash (a throwing calculateMetadata breaks the whole composition list).
     return { durationInFrames: 30, props: { plan: { title: '', scenes: [] } as unknown as DirPlan, starts: [], total: 30, intensity: 'premium', bpm: 128 }, fps: FPS, width: 1920, height: 1080 }
   }
   // Scene starts snap to the beat grid so every cut lands ON a beat. We give each
   // scene enough beats to cover its VO, rounding UP to a whole beat.
   const bpm = 128, BEATF = (60 / bpm) * FPS
   const starts: number[] = []; let t = Math.round(BEATF)   // start on beat 1
+  const voFrames: number[] = []
   for (const sc of plan.scenes) {
     starts.push(Math.round(t))
     const dur = Math.round((await getAudioDurationInSeconds(staticFile(`dir-vo-${sc.id}.mp3`))) * FPS)
+    voFrames.push(dur)
     const beatsNeeded = Math.max(2, Math.ceil((dur + GAP) / BEATF))   // whole beats
     t += beatsNeeded * BEATF
   }
   const total = Math.round(t + 4 * BEATF)
-  return { durationInFrames: total, props: { plan, starts, total, intensity: 'premium', bpm }, fps: FPS, width: 1920, height: 1080 }
+  // The music's own length → MusicBed loops it so it never runs out early.
+  let musicFrames = 0
+  try { musicFrames = Math.round((await getAudioDurationInSeconds(staticFile('dir-music.mp3'))) * FPS) } catch { /* no music file — the bed falls back to a plain loop */ }
+  return { durationInFrames: total, props: { assetBase, plan, starts, total, intensity: 'premium', bpm, voFrames, musicFrames }, fps: FPS, width: 1920, height: 1080 }
 }
 
 function useBeats(totalFrames: number) {
@@ -149,6 +175,10 @@ function useBeats(totalFrames: number) {
   if (!audioData) return { beats: [], spectrum: new Array(20).fill(0) }
   return { beats, spectrum: visualizeAudio({ fps, frame, audioData, numberOfSamples: 32 }).slice(0, 20) }
 }
+// The music analysis a real render has always run (it holds the render until
+// dir-music.mp3 has loaded). Its own little component so a STILL, which has no
+// music, can leave it out.
+const MusicAnalysis: React.FC<{ total: number }> = ({ total }) => { useBeats(total); return null }
 const snap = (f: number, b: number[]) => { for (const x of b) if (x >= f) return x; return f }
 
 // Living Ken-Burns photo (from Valor) — eases from→to then keeps drifting.
@@ -173,20 +203,45 @@ const KBPhoto: React.FC<{ file: string; move: string; localFrame: number; dur: n
 function hex(h: string, a: number) { const n = h.replace('#', ''); const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16); return `rgba(${r},${g},${b},${a})` }
 
 // Title with entrance chosen by the director. Kinetic backdrops get the big word.
+// Short titles keep the one-line look (as big as fits, up to `size`); a title
+// too long to read on one line gets up to three lines instead. Either way the
+// REAL rendered text is measured and shrunk to fit (lib/fit), sized against the
+// whole title so it doesn't change size while it types or assembles.
 const Title: React.FC<{ text: string; at: number; size: number; color: string; beats: number[]; maxW: number; entrance: string }> =
 ({ text, at, size, color, beats, maxW, entrance }) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig(); const start = snap(at, beats)
-  const { fontSize: fit } = fitText({ text, withinWidth: maxW, fontFamily: MONT, fontWeight: 800 })
-  const fontSize = Math.min(size, fit * 0.94)
+  // Only CHOOSES one line vs several — the fit itself is measured by <Fit>.
+  const { fontSize: oneLine } = fitText({ text: text || ' ', withinWidth: maxW, fontFamily: MONT, fontWeight: 800 })
+  const single = oneLine * 0.94 >= size * 0.5
+  const max = single ? Math.max(24, Math.min(size, Math.floor(oneLine * 0.94))) : size
+  const lines = single ? 1 : entrance === 'wipe' ? 2 : 3
   const s = spring({ frame: frame - start, fps, config: { damping: 16, stiffness: 150 } })
-  const base = { fontFamily: MONT, fontWeight: 800, fontSize, color, letterSpacing: '0.01em', lineHeight: 1.04, textShadow: '0 3px 26px rgba(0,0,0,0.6)' } as const
+  const base = { fontFamily: MONT, fontWeight: 800, color, letterSpacing: '0.01em', lineHeight: 1.04, textShadow: '0 3px 26px rgba(0,0,0,0.6)', textAlign: 'center' } as const
   const local = frame - start
-  if (entrance === 'wipe') return <div style={{ ...base, whiteSpace: 'nowrap', clipPath: `inset(0 ${(1 - s) * 100}% 0 0)`, opacity: s > 0.02 ? 1 : 0 }}>{text}</div>
-  if (entrance === 'punchIn') { const pop = spring({ frame: local, fps, config: { damping: 11, stiffness: 220 } }); return <div style={{ ...base, opacity: s, transform: `scale(${0.6 + pop * 0.4})` }}>{text}</div> }
-  if (entrance === 'typewriter') { const n = clamp(Math.floor(local / 1.6), 0, text.length); return <div style={{ ...base }}>{text.slice(0, n)}<span style={{ opacity: Math.round(local / 6) % 2 ? 0.2 : 0.9 }}>▍</span></div> }
-  if (entrance === 'wordPan') { const words = text.split(' '); return <div style={{ ...base, display: 'flex', gap: '0.3em', flexWrap: 'wrap', justifyContent: 'center' }}>{words.map((w, i) => { const ws = spring({ frame: local - i * 3, fps, config: { damping: 14, stiffness: 200 } }); return <span key={i} style={{ opacity: ws, transform: `translateX(${(1 - ws) * 40}px)` }}>{w}</span> })}</div> }
-  if (entrance === 'assemble') { const ch = text.split(''); return <div style={{ ...base, display: 'flex', justifyContent: 'center', flexWrap: 'wrap' }}>{ch.map((c, i) => { const cs = spring({ frame: local - i * 1.5, fps, config: { damping: 13, stiffness: 200 } }); return <span key={i} style={{ opacity: cs, transform: `translateY(${(1 - cs) * -30}px) rotate(${(1 - cs) * -8}deg)`, display: 'inline-block', whiteSpace: 'pre' }}>{c}</span> })}</div> }
-  return <div style={{ ...base, opacity: s, transform: `translateY(${(1 - s) * 26}px)` }}>{text}</div> // rise
+  const fit = (content: React.ReactNode, outer?: React.CSSProperties) => (
+    <div style={{ width: '100%', maxWidth: maxW, ...outer }}>
+      <Fit max={max} min={Math.round(size * 0.35)} lines={lines} sizeFor={text + (entrance === 'typewriter' ? '▍' : '')} style={base}>{content}</Fit>
+    </div>
+  )
+  if (entrance === 'wipe') return fit(text, { clipPath: `inset(0 ${(1 - s) * 100}% 0 0)`, opacity: s > 0.02 ? 1 : 0 })
+  if (entrance === 'punchIn') { const pop = spring({ frame: local, fps, config: { damping: 11, stiffness: 220 } }); return fit(text, { opacity: s, transform: `scale(${0.6 + pop * 0.4})` }) }
+  if (entrance === 'typewriter') { const n = clamp(Math.floor(local / 1.6), 0, text.length); return fit(<>{text.slice(0, n)}<span style={{ opacity: Math.round(local / 6) % 2 ? 0.2 : 0.9 }}>▍</span></>) }
+  // word-by-word and letter-by-letter entrances: inline pieces with real spaces,
+  // so the title wraps between WORDS exactly like the plain text it is sized by.
+  if (entrance === 'wordPan') { const words = text.split(' '); return fit(words.map((w, i) => { const ws = spring({ frame: local - i * 3, fps, config: { damping: 14, stiffness: 200 } }); return <React.Fragment key={i}><span style={{ display: 'inline-block', opacity: ws, transform: `translateX(${(1 - ws) * 40}px)` }}>{w}</span>{i < words.length - 1 ? ' ' : ''}</React.Fragment> })) }
+  if (entrance === 'assemble') {
+    let k = 0
+    const words = text.split(' ')
+    return fit(words.map((w, wi) => (
+      <React.Fragment key={wi}>
+        <span style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+          {w.split('').map((c) => { const i = k++; const cs = spring({ frame: local - i * 1.5, fps, config: { damping: 13, stiffness: 200 } }); return <span key={i} style={{ opacity: cs, transform: `translateY(${(1 - cs) * -30}px) rotate(${(1 - cs) * -8}deg)`, display: 'inline-block', whiteSpace: 'pre' }}>{c}</span> })}
+        </span>
+        {wi < words.length - 1 ? (k++, ' ') : ''}
+      </React.Fragment>
+    )))
+  }
+  return fit(text, { opacity: s, transform: `translateY(${(1 - s) * 26}px)` }) // rise
 }
 
 // Kinetic backdrop: animated gradient mesh in palette colors (no image needed).
@@ -203,11 +258,14 @@ const KineticBG: React.FC<{ palette: DirPlan['palette']; localFrame: number; pul
   )
 }
 
-// Dispatches a ChartSpec to the right animated chart component.
-const ChartVisual: React.FC<{ chart: ChartSpec; at: number; palette: DirPlan['palette'] }> = ({ chart, at, palette }) => {
-  if (chart.kind === 'line') return <LineChart series={chart.series} xMax={chart.xMax} yMax={chart.yMax} palette={palette} at={at} xTicks={chart.xTicks} xLabel={chart.xLabel} annotate={chart.annotate} />
-  if (chart.kind === 'bars') return <BarPair bars={chart.bars} yMax={chart.yMax} palette={palette} at={at} unit={chart.unit} />
-  return <CountUp value={chart.value} prefix={chart.prefix} suffix={chart.suffix} label={chart.label} at={at} palette={palette} />
+// Dispatches a ChartSpec to the right animated chart component, drawn at a
+// fixed `width` (px) so every label inside is sized against a known box.
+// `barsHeight` = the bar area's height (the bars grow into it).
+const ChartVisual: React.FC<{ chart: ChartSpec; at: number; palette: DirPlan['palette']; width: number; barsHeight?: number }> = ({ chart, at, palette, width, barsHeight }) => {
+  const P = palette!
+  if (chart.kind === 'line') return <LineChart series={chart.series || []} xMax={chart.xMax} yMax={chart.yMax} palette={P} at={at} xTicks={chart.xTicks} xLabel={chart.xLabel} annotate={chart.annotate} width={width} />
+  if (chart.kind === 'bars') return <BarPair bars={chart.bars || []} yMax={chart.yMax} palette={P} at={at} unit={chart.unit} width={width} height={barsHeight} />
+  return <div style={{ width }}><CountUp value={Number((chart as any).value) || 0} prefix={(chart as any).prefix} suffix={(chart as any).suffix} label={(chart as any).label} at={at} palette={P} /></div>
 }
 
 // resolve chart color tokens (__ACCENT__ etc.) against the active palette.
@@ -225,7 +283,21 @@ function resolveTokens(chart: any, pal: { accent: string; accent2: string; muted
 // voice. `sceneStart` is the scene's global start frame; block cueFrames are
 // stored ABSOLUTE (scene-relative + start) by the Director, so we pass them
 // straight through. Media (chart/figure/screenshot) sits to the RIGHT of the
-// text on wide slides, or BELOW for a stacked look. ----
+// text on wide slides, or BELOW for a stacked look.
+//
+// NOTHING ON A SLIDE CAN LEAVE IT. Every layout is two parts: the heading (it
+// fills the width and shrinks to fit at most 3 lines — lib/fit), then the rest
+// of the slide inside a <FitBox> that owns all the room left below it. When the
+// bullets / cards / panel are too tall for that room, the whole group shrinks
+// together (re-wrapping into the width that frees up). At normal lengths it
+// fits, and nothing changes size.
+//  - Inside a FitBox, every <Fit> sits in a box of FIXED pixel width (a card, a
+//    panel, a chart), never one that follows the FitBox's own width — so the
+//    sizes it measures are the same on every frame.
+//  - Each group ends with a little empty room: cards and panels slide in from
+//    slightly below, and that motion must not read as "too tall". ----
+const ENTRANCE_ROOM = SL(26)
+
 const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan['palette']; GP: GPalette; glassStyle: GlassStyle; MUTED: string }> =
 ({ sc, sceneStart, palette, GP, glassStyle, MUTED }) => {
   const P = palette!
@@ -233,8 +305,8 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   // to absolute here so block reveals land exactly on the spoken word.
   const off = (cf: number | undefined) => cf == null ? undefined : sceneStart + cf
   const blocks = (sc.blocks || []).map((b: any) => {
-    if (b.type === 'bullets') return { ...b, items: b.items.map((it: any) => ({ ...it, cueFrame: off(it.cueFrame) })) }
-    if (b.type === 'cards') return { ...b, cards: b.cards.map((c: any) => ({ ...c, cueFrame: off(c.cueFrame) })) }
+    if (b.type === 'bullets') return { ...b, items: (b.items || []).map((it: any) => ({ ...it, cueFrame: off(it.cueFrame) })) }
+    if (b.type === 'cards') return { ...b, cards: (b.cards || []).map((c: any) => ({ ...c, cueFrame: off(c.cueFrame) })) }
     if (b.type === 'screenshot') return { ...b, pins: (b.pins || []).map((p: any) => ({ ...p, cueFrame: off(p.cueFrame) })) }
     return b
   })
@@ -243,39 +315,39 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   // classify blocks
   const bulletB = blocks.find((b) => b.type === 'bullets') as any
   const cardsB = blocks.find((b) => b.type === 'cards') as any
-  const chartB = blocks.find((b) => b.type === 'chart') as any
-  const figB = blocks.find((b) => b.type === 'figure') as any
+  const chartB = blocks.find((b) => b.type === 'chart' && b.chart) as any
+  const figB = blocks.find((b) => b.type === 'figure' && b.figure) as any
   const shotB = blocks.find((b) => b.type === 'screenshot') as any
   const hStart = sceneStart + 6
   const alignItems = align === 'center' ? 'center' : 'flex-start'
 
   const Heading = sc.layout?.heading
-    ? <SlideHeading kicker={sc.layout?.kicker} heading={sc.layout.heading} at={hStart} palette={GP} align={align} />
+    ? <SlideHeading kicker={sc.layout?.kicker} heading={sc.layout.heading} at={hStart} palette={GP} align={align} lines={shotB || (cardsB && bulletB) ? 2 : 3} />
     : null
   const Bullets = bulletB ? <BulletList items={bulletB.items as Bullet[]} sceneStart={sceneStart} palette={GP} size={SL(38)} /> : null
   const Cards = cardsB ? <DataCards cards={cardsB.cards as Card[]} sceneStart={sceneStart} palette={GP} vs={cardsB.vs} /> : null
-  // COMPACT side-media (chart/figure) — these sit nicely beside bullets.
+  // COMPACT side-media (chart/figure) — these sit nicely beside bullets. Panel
+  // widths are OUTER widths (GlassPanel is border-box: its width includes its padding).
+  const besideBullets = !!bulletB && media !== 'below'
+  const figW = SL(440)                                         // figure panel
+  const chartPad = SL(44)
+  const chartW = besideBullets ? SL(640) : 1360 + chartPad * 2  // a chart needs more room than a number
   const SideMedia = chartB ? (
-    <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={SL(44)}>
-      <ChartVisual chart={resolveTokens(chartB.chart, { accent: P.accent, accent2: P.accent2, muted: MUTED })} at={sceneStart + 22} palette={{ ...P, muted: MUTED } as any} />
+    <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={chartPad} width={chartW}>
+      <ChartVisual chart={resolveTokens(chartB.chart, { accent: P.accent, accent2: P.accent2, muted: MUTED })} at={sceneStart + 22} palette={{ ...P, muted: MUTED } as any} width={chartW - chartPad * 2} barsHeight={besideBullets ? 340 : 460} />
     </GlassPanel>
   ) : figB ? (() => {
-    // AUTO-FIT the figure number to the panel's inner width so big values
-    // (e.g. $485,000) never spill outside the glass box. Measure the full
-    // rendered string and cap the Odometer size to what fits.
-    const figPad = SL(52), panelW = SL(440), figInner = panelW - figPad * 2
+    // The figure's number and label shrink to the panel's inside (lib/fit), so a
+    // big value ($1,234,567,890) or a long label can't spill the glass box.
+    const figPad = SL(52)
     const fg = figB.figure
-    // odometer true-width fit (fitText under-measures the flip-digit cells → clipping)
-    const figSize = fitOdometerSize(fg.value, fg.prefix, fg.suffix, Math.floor(figInner * 0.94), SL(130))
     return (
-    <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={figPad} width={panelW}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: MONT, fontWeight: 800, fontSize: SL(26), letterSpacing: '0.16em', textTransform: 'uppercase', color: P.accent, marginBottom: SL(18) }}>{fg.label}</div>
-        <div style={{ width: figInner, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
-          <Odometer value={fg.value} at={sceneStart + 18} size={figSize} color={P.text} prefix={fg.prefix} suffix={fg.suffix} />
+      <GlassPanel at={sceneStart + 10} style={glassStyle} palette={GP} pad={figPad} width={figW}>
+        <div style={{ textAlign: 'center', width: figW - figPad * 2 }}>
+          {fg.label ? <Fit max={SL(26)} min={16} lines={3} style={{ fontFamily: MONT, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: P.accent, marginBottom: SL(18), lineHeight: 1.2 }}>{fg.label}</Fit> : null}
+          <FitOdometer value={Number(fg.value) || 0} at={sceneStart + 18} max={SL(130)} min={SL(40)} color={P.text} prefix={fg.prefix} suffix={fg.suffix} decimals={fg.decimals} />
         </div>
-      </div>
-    </GlassPanel>
+      </GlassPanel>
     )
   })() : null
 
@@ -284,7 +356,8 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
 
   // (A) SCREENSHOT slide — collision-proof by construction:
   //  A) the heading sits in a RESERVED, fixed-height band at the top (bigger band
-  //     when bullets are present), so nothing can grow into it;
+  //     when bullets are present), so nothing can grow into it — and what's in
+  //     the band shrinks together to fit it;
   //  B) the screenshot is SIZED to the guaranteed leftover space (height-first),
   //     with its width derived from that height so it can't overflow either axis;
   //  F) a hard SAFE_GAP separates the band from the shot, always.
@@ -298,14 +371,19 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
     // screenshot dims: fit the box height (chrome bar ~46 + image), then derive
     // width from the source 1600:1000 ratio, capped to the frame width.
     const chromeH = 46
-    const imgH = Math.max(340, shotBoxH - chromeH)
+    // (no minimum: a forced minimum pushed the shot down over the footer)
+    const imgH = Math.max(200, shotBoxH - chromeH)
     const shotW = Math.min(1620, Math.round(imgH * (1600 / 1000)))
     return (
       <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', padding: `${PAD_TOP}px 90px ${PAD_BOTTOM}px`, overflow: 'hidden' }}>
         {/* reserved header band — fixed height; heading/bullets live INSIDE it */}
-        <div style={{ height: bandH, flexShrink: 0, width: '100%', maxWidth: 1740, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: align === 'center' ? 'center' : 'flex-start', gap: 14, overflow: 'hidden' }}>
-          {Heading}
-          {Bullets && <div style={{ maxWidth: 1560 }}>{Bullets}</div>}
+        <div style={{ height: bandH, flexShrink: 0, width: '100%', maxWidth: 1740 }}>
+          <FitBox valign="start" minScale={0.6}>
+            <div style={{ width: 1740, margin: align === 'center' ? '0 auto' : 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: 14, paddingBottom: ENTRANCE_ROOM }}>
+              {Heading}
+              {Bullets && <div style={{ width: '100%', maxWidth: 1560 }}>{Bullets}</div>}
+            </div>
+          </FitBox>
         </div>
         {/* hard safe gap, then the screenshot sized to the remaining room */}
         <div style={{ height: SAFE_GAP, flexShrink: 0 }} />
@@ -324,11 +402,16 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   // top-align so a tall heading grows DOWN into the empty middle, never up.
   if (cardsB) {
     return (
-      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: SL(40), padding: '150px 84px 96px', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: SL(26), alignItems, maxWidth: 1760, width: '100%' }}>
-          {Heading}{Bullets}
+      <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: Bullets ? SL(26) : SL(40), padding: '150px 84px 96px', overflow: 'hidden' }}>
+        {Heading && <div style={{ width: '100%', maxWidth: 1760, flexShrink: 0 }}>{Heading}</div>}
+        <div style={{ flex: '1 1 0', minHeight: 0, width: '100%' }}>
+          <FitBox valign="start" minScale={0.6}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems, gap: SL(40), paddingBottom: ENTRANCE_ROOM }}>
+              {Bullets && <div style={{ width: '100%', maxWidth: 1760 }}>{Bullets}</div>}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{Cards}</div>
+            </div>
+          </FitBox>
         </div>
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>{Cards}</div>
       </AbsoluteFill>
     )
   }
@@ -336,21 +419,32 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   // (C) BULLETS slide with a compact SIDE element / ICON MOTIF filling the space.
   // The bullet column is WIDE and the icon lives in a large zone anchored toward
   // the RIGHT EDGE, sized to match the text, so the two columns feel balanced
-  // (no floating gap). Icon grows with SCALE.
+  // (no floating gap). Icon grows with SCALE. The zone is exactly as wide as the
+  // panel it holds (it used to be narrower, and the panel stuck out of it).
   const isIcon = !SideMedia && !!bulletB
-  const Media = SideMedia ?? (bulletB ? <IconMotif iconKey={pickIcon(sc.layout?.heading, sc.layout?.kicker, sc.beat, (bulletB.items || []).map((i: any) => i.text).join(' '))} at={sceneStart + 12} palette={GP} size={SL(isIcon ? 400 : 340)} /> : null)
+  // Stacked BELOW the bullets the icon is pure decoration, so it is kept small:
+  // at full size (520px) it either ran off the bottom or, now that the slide
+  // shrinks to fit, made the words smaller. Beside the bullets it stays full size.
+  const Media = SideMedia ?? (bulletB ? <IconMotif iconKey={pickIcon(sc.layout?.heading, sc.layout?.kicker, sc.beat, (bulletB.items || []).map((i: any) => i.text).join(' '))} at={sceneStart + 12} palette={GP} size={SL(!isIcon ? 340 : media === 'below' ? 200 : 400)} /> : null)
+  const zoneW = isIcon ? SL(440) : chartB ? chartW : figW
+  // the icon "breathes" (±2%): keep a hair of room so it never pokes past the row
+  const iconRoom = isIcon ? 8 : 0
   const sideBySide = Media && bulletB && media !== 'below'
   if (sideBySide) {
     return (
       // TOP PAD 150 + top-align: clear the persistent chrome so the heading never
       // rides up into the agent name (see the cards-layout note).
       <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: SL(40), padding: '150px 100px 110px', overflow: 'hidden' }}>
-        {Heading}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: SL(56), width: '100%' }}>
-          {/* wide text column */}
-          <div style={{ flex: '1 1 0', minWidth: 0, maxWidth: SL(1000) }}>{Bullets}</div>
-          {/* icon anchored toward the right edge in a large zone, not floating */}
-          <div style={{ flexShrink: 0, display: 'flex', justifyContent: isIcon ? 'flex-end' : 'center', alignItems: 'center', width: SL(isIcon ? 440 : 400) }}>{Media}</div>
+        {Heading && <div style={{ width: '100%', flexShrink: 0 }}>{Heading}</div>}
+        <div style={{ flex: '1 1 0', minHeight: 0, width: '100%' }}>
+          <FitBox valign="start" minScale={0.6}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: SL(56), paddingBottom: ENTRANCE_ROOM }}>
+              {/* wide text column */}
+              <div style={{ flex: '1 1 0', minWidth: 0 }}>{Bullets}</div>
+              {/* icon anchored toward the right edge in a large zone, not floating */}
+              <div style={{ flexShrink: 0, boxSizing: 'border-box', display: 'flex', justifyContent: isIcon ? 'flex-end' : 'center', alignItems: 'center', width: zoneW, paddingRight: iconRoom }}>{Media}</div>
+            </div>
+          </FitBox>
         </div>
       </AbsoluteFill>
     )
@@ -360,16 +454,23 @@ const SlideScene: React.FC<{ sc: DirScene; sceneStart: number; palette: DirPlan[
   // TOP PAD 150 + top-align: clear the persistent chrome (see the cards note) so
   // the heading can't collide with the agent name top-left.
   return (
-    <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: SL(40), padding: '150px 90px 110px', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: SL(30), alignItems, maxWidth: 1760, width: '100%' }}>
-        {Heading}{Bullets}
-      </div>
-      {Media && <div style={{ flexShrink: 0 }}>{Media}</div>}
+    <AbsoluteFill style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems, gap: Bullets ? SL(30) : SL(40), padding: '150px 90px 110px', overflow: 'hidden' }}>
+      {Heading && <div style={{ width: '100%', maxWidth: 1760, flexShrink: 0 }}>{Heading}</div>}
+      {(Bullets || Media) && (
+        <div style={{ flex: '1 1 0', minHeight: 0, width: '100%' }}>
+          <FitBox valign="start" minScale={0.6}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems, gap: SL(40), paddingBottom: ENTRANCE_ROOM }}>
+              {Bullets && <div style={{ width: '100%', maxWidth: 1760 }}>{Bullets}</div>}
+              {Media && <div style={{ flexShrink: 0, padding: `0 ${iconRoom}px` }}>{Media}</div>}
+            </div>
+          </FitBox>
+        </div>
+      )}
     </AbsoluteFill>
   )
 }
 
-export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128 }) => {
+export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts, total, intensity = 'premium', bpm = 128, still = false, voFrames, musicFrames = 0 }) => {
   setAssetBase(assetBase)
   const frame = useCurrentFrame(); const { fps } = useVideoConfig()
   // LOOK drives the background STYLE; a brand palette (plan.palette, extracted
@@ -382,7 +483,6 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
   // the animated look-background renders in the brand palette when we have one
   const bgPalette = brandPal ? { ...look.palette, ...brandPal, muted: MUTED } : look.palette
   const glassStyle: GlassStyle = plan.chrome?.glass ?? 'vivid'
-  const { spectrum } = useBeats(total)
   const S = starts
   // KNOWN beat grid from the driving bed's BPM — exact, no detection guesswork.
   const BEATF = (60 / bpm) * fps
@@ -392,6 +492,17 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
   const reslamBeats = intensity === 'highenergy' ? 2 : intensity === 'premium' ? 4 : 0
   const idx = Math.max(0, S.filter((s) => frame >= s - 8).length - 1)
   const lastIdx = plan.scenes.length - 1
+  const regulated = (plan as { regulated?: boolean }).regulated === true
+  // MUSIC DUCKING — the commercial template's levels: 0.20 between lines, 0.08
+  // under the voice, short smooth ramps, fade in/out at the ends. Each voice
+  // window is the scene's measured voice length (voFrames); without it, up to
+  // the next scene's start.
+  const voWin: VoWindow[] = starts.map((st, i) => {
+    const next = i < starts.length - 1 ? starts[i + 1] : total
+    const len = voFrames && voFrames[i] > 0 ? voFrames[i] : Math.max(1, next - st - GAP)
+    return { start: st, end: Math.min(total, st + len) }
+  })
+  const musicDuck = explainerMusicDuck(voWin, total)
   // Interior scenes cross-fade at their next start; the LAST scene holds all the
   // way to `total` (no fade-out — otherwise the tail goes blank navy).
   const ends = [...S.slice(1), total]
@@ -467,16 +578,19 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
           still ducked under VO. Fades in/out at the ends. */}
       {/* loop the composed bed so music NEVER cuts out mid-video (the bed is
           ~130s; longer videos need it to repeat). Fades in/out at the ends. */}
-      <Audio loop src={staticFile('dir-music.mp3')} volume={(f) => { const fi = Math.min(30, total * 0.1); const fo = Math.max(fi + 1, total - Math.min(45, total * 0.15)); const fe = Math.max(fo + 1, total - 6); return interpolate(f, [0, fi, fo, fe], [0, 0.28, 0.28, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }} />
-      {S.map((st, i) => <Sequence key={i} from={st}><Audio src={staticFile(`dir-vo-${plan.scenes[i].id}.mp3`)} /></Sequence>)}
+      {!still && <MusicAnalysis total={total} />}
+      {!still && <MusicBed src="dir-music.mp3" musicFrames={musicFrames} volume={musicDuck} />}
+      {!still && S.map((st, i) => <Sequence key={i} from={st}><Audio src={staticFile(`dir-vo-${plan.scenes[i].id}.mp3`)} /></Sequence>)}
 
       {/* SFX layer — TASTEFUL and VARIED. Quiet accents, not slaps. Not every
           scene gets a hit (restraint makes the ones that do land). No two
           consecutive scenes use the same sound. Silent when intensity='calm'. */}
-      {intensity !== 'calm' && (plan as any).noSfx !== true && (() => {
+      {!still && intensity !== 'calm' && (plan as any).noSfx !== true && (() => {
         // base volume much lower than before (was 0.6) — accents, not slaps.
-        const VOL = intensity === 'highenergy' ? 0.34 : 0.24
-        const whooshCycle = ['whoosh-short', 'whoosh', 'whoosh-short']
+        // Insurance / financial illustrations (plan.regulated) get the QUIETER
+        // set: softer level, only the short whoosh + soft impact, no sub-drop.
+        const VOL = (intensity === 'highenergy' ? 0.34 : 0.24) * (regulated ? 0.6 : 1)
+        const whooshCycle = regulated ? ['whoosh-short'] : ['whoosh-short', 'whoosh', 'whoosh-short']
         let wi = 0
         return S.map((st, i) => {
           const s2 = plan.scenes[i]
@@ -496,7 +610,9 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
               {/* the number landing on a figure/odometer gets one soft impact */}
               {fig && <Sfx name="impact-soft" at={st + Math.round(1.6 * fps)} total={total} volume={VOL} />}
               {/* the final CTA gets a single sub-drop — the one big moment */}
-              {isLast && <Sfx name="subdrop" at={st + 6} total={total} volume={VOL * 1.3} />}
+              {isLast && (regulated
+                ? <Sfx name="impact-soft" at={st + 6} total={total} volume={VOL} />
+                : <Sfx name="subdrop" at={st + 6} total={total} volume={VOL * 1.3} />)}
             </React.Fragment>
           )
         })
@@ -520,20 +636,31 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
         {isIntro && (hasLogo ? (
           <LogoReveal logo={plan.chrome!.logo!} palette={GP} localFrame={localF} tagline={plan.intro?.line2} recipient={plan.intro?.recipient || plan.chrome?.recipient} />
         ) : (
+          // Every line sits in the 1600px column and shrinks to fit (lib/fit):
+          // the name to 2 lines, the tagline to 2, the client's name to 2 — so
+          // even the longest company + client names stay on the cover.
           <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '0 160px', flexDirection: 'column', gap: 30 }}>
             <AbsoluteFill style={{ background: `radial-gradient(760px 520px at 50% 46%, ${hex(P.accent, 0.14)}, transparent 62%)` }} />
             {/* optional presenter headshot on the cover (real agent, opt-in) */}
             {plan.presenter?.photo && plan.presenter?.onCover && (
-              <Img src={staticFile(plan.presenter.photo)} style={{ width: 168, height: 168, borderRadius: '50%', objectFit: 'cover', border: `5px solid ${P.text}`, outline: `2px solid ${P.accent}`, boxShadow: `0 0 32px ${hex(P.accent, 0.5)}`, opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 80 } }) }} />
+              <Img src={staticFile(plan.presenter.photo)} style={{ width: 168, height: 168, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: `5px solid ${P.text}`, outline: `2px solid ${P.accent}`, boxShadow: `0 0 32px ${hex(P.accent, 0.5)}`, opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 80 } }) }} />
             )}
-            <div style={{ fontFamily: SANS, fontWeight: 900, fontSize: 116, lineHeight: 1.02, letterSpacing: '0.01em', color: P.text, textShadow: '0 4px 30px rgba(0,0,0,0.6)', opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }), transform: `scale(${0.9 + spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }) * 0.1})` }}>{plan.chrome?.company || plan.intro?.line1}</div>
-            <div style={{ width: 260 * clamp((localF - 18) / 16, 0, 1), height: 3, background: `linear-gradient(90deg, transparent, ${legibleOn(P.accent, P.bg, P)}, transparent)`, boxShadow: `0 0 16px ${hex(P.accent, 0.6)}` }} />
-            <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 36, letterSpacing: '0.06em', color: MUTED, opacity: spring({ frame: localF - 20, fps, config: { damping: 18, stiffness: 100 } }), maxWidth: 1300 }}>{plan.intro?.line2 || plan.intro?.line1}</div>
+            {(plan.chrome?.company || plan.intro?.line1) && (
+              <div style={{ width: '100%', opacity: spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } }), transform: `scale(${0.9 + Math.min(1, spring({ frame: localF, fps, config: { damping: 20, stiffness: 70 } })) * 0.1})` }}>
+                <Fit max={116} min={52} lines={2} style={{ fontFamily: SANS, fontWeight: 900, lineHeight: 1.02, letterSpacing: '0.01em', color: P.text, textShadow: '0 4px 30px rgba(0,0,0,0.6)' }}>{plan.chrome?.company || plan.intro?.line1}</Fit>
+              </div>
+            )}
+            <div style={{ width: 260 * clamp((localF - 18) / 16, 0, 1), height: 3, flexShrink: 0, background: `linear-gradient(90deg, transparent, ${legibleOn(P.accent, P.bg, P)}, transparent)`, boxShadow: `0 0 16px ${hex(P.accent, 0.6)}` }} />
+            {(plan.intro?.line2 || plan.intro?.line1) && (
+              <div style={{ width: '100%', maxWidth: 1300, opacity: spring({ frame: localF - 20, fps, config: { damping: 18, stiffness: 100 } }) }}>
+                <Fit max={36} min={18} lines={2} style={{ fontFamily: SANS, fontWeight: 600, letterSpacing: '0.06em', color: MUTED, lineHeight: 1.2 }}>{plan.intro?.line2 || plan.intro?.line1}</Fit>
+              </div>
+            )}
             {/* "Prepared for [Client]" — personalized cover line (photo/title cover). */}
             {(plan.intro?.recipient || plan.chrome?.recipient) && (
-              <div style={{ marginTop: 18, opacity: spring({ frame: localF - 34, fps, config: { damping: 18, stiffness: 90 } }), textAlign: 'center' }}>
+              <div style={{ marginTop: 18, width: '100%', maxWidth: 1300, opacity: spring({ frame: localF - 34, fps, config: { damping: 18, stiffness: 90 } }), textAlign: 'center' }}>
                 <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 17, letterSpacing: '0.28em', textTransform: 'uppercase', color: P.accent }}>Prepared for</div>
-                <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 34, color: P.text, marginTop: 8, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>{plan.intro?.recipient || plan.chrome?.recipient}</div>
+                <Fit max={34} min={18} lines={2} style={{ fontFamily: SANS, fontWeight: 800, color: P.text, marginTop: 8, textShadow: '0 2px 12px rgba(0,0,0,0.6)', lineHeight: 1.2 }}>{plan.intro?.recipient || plan.chrome?.recipient}</Fit>
               </div>
             )}
           </AbsoluteFill>
@@ -542,18 +669,15 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
         {/* FIGURE scene: odometer number inside a GLASS panel on the photo bg
             (only for standalone figure scenes; slides handle their own figures) */}
         {isFigure && !isIntro && !isSlide && (() => {
-          // auto-fit the big number to a bounded panel so it can't spill the frame
+          // the big number and its label shrink to the panel's inside (lib/fit)
           const fg = sc.visual.figure!
-          const panelW = 1100, inner = panelW - 72 * 2
-          const figSize = fitOdometerSize(fg.value, fg.prefix, fg.suffix, Math.floor(inner * 0.94), 150)
+          const panelW = 1100
           return (
           <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '0 100px' }}>
             <GlassPanel at={(S[idx] ?? 0) + 8} style={glassStyle} palette={GP} pad={72} width={panelW}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 34, letterSpacing: '0.22em', textTransform: 'uppercase', color: P.accent, marginBottom: 22, opacity: spring({ frame: localF, fps, config: { damping: 16, stiffness: 150 } }) }}>{fg.label || sc.on_screen}</div>
-                <div style={{ width: inner, display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
-                  <Odometer value={fg.value} at={(S[idx] ?? 0) + 14} size={figSize} color={P.text} prefix={fg.prefix} suffix={fg.suffix} />
-                </div>
+              <div style={{ textAlign: 'center', width: panelW - 72 * 2 }}>
+                {(fg.label || sc.on_screen) ? <Fit max={34} min={18} lines={2} style={{ fontFamily: 'Montserrat', fontWeight: 800, letterSpacing: '0.22em', textTransform: 'uppercase', color: P.accent, marginBottom: 22, lineHeight: 1.2, opacity: spring({ frame: localF, fps, config: { damping: 16, stiffness: 150 } }) }}>{fg.label || sc.on_screen}</Fit> : null}
+                <FitOdometer value={Number(fg.value) || 0} at={(S[idx] ?? 0) + 14} max={150} min={48} color={P.text} prefix={fg.prefix} suffix={fg.suffix} decimals={fg.decimals} />
               </div>
             </GlassPanel>
           </AbsoluteFill>
@@ -571,11 +695,17 @@ export const DirectedVideo: React.FC<DirectedProps> = ({ assetBase, plan, starts
             (intro/figure/slide scenes are rendered above; skip the text dispatch here.) */}
         {sc && !isIntro && !isFigure && !isSlide && (isChart ? (
           // CHART inside a glass panel (title lives inside the glass header)
-          <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '90px 90px 120px' }}>
-            <GlassPanel at={(S[idx] ?? 0) + 8} style={glassStyle} palette={GP} pad={50}>
-              <div style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: 32, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.accent, marginBottom: 20, textAlign: 'center' }}>{sc.on_screen}</div>
-              <ChartVisual chart={resolveTokens(sc.visual.chart!, { accent: P.accent, accent2: P.accent2, muted: MUTED })} at={(S[idx] ?? 0) + 20} palette={{ ...P, muted: MUTED } as any} />
-            </GlassPanel>
+          // Fixed-width panel (the chart's own width); the title wraps to 2 lines
+          // and shrinks to it, and the whole panel shrinks if it's too tall.
+          <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', padding: '130px 90px 120px' }}>
+            <FitBox valign="center" minScale={0.6}>
+              <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 24 }}>
+                <GlassPanel at={(S[idx] ?? 0) + 8} style={glassStyle} palette={GP} pad={50} width={1360 + 50 * 2}>
+                  {sc.on_screen ? <Fit max={32} min={18} lines={2} style={{ fontFamily: 'Montserrat', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.accent, marginBottom: 20, textAlign: 'center', lineHeight: 1.2 }}>{sc.on_screen}</Fit> : null}
+                  <ChartVisual chart={resolveTokens(sc.visual.chart!, { accent: P.accent, accent2: P.accent2, muted: MUTED })} at={(S[idx] ?? 0) + 20} palette={{ ...P, muted: MUTED } as any} width={1360} barsHeight={460} />
+                </GlassPanel>
+              </div>
+            </FitBox>
           </AbsoluteFill>
         ) : isCta ? (
           // CTA sign-off (BACK slide): the LOGO CLOSE — logo if present, else the

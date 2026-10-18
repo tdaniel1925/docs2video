@@ -1,6 +1,8 @@
 import { useCurrentFrame, useVideoConfig, spring, interpolate, Easing } from 'remotion'
 import { FONTS, type Theme } from '../tokens'
 import { parseMetric, renderMetric } from '../components/infographic/format'
+import { Fit } from '../lib/fit'
+import { TightFit } from './TightFit'
 
 export type LTMetric = { label: string; value: string }
 
@@ -36,29 +38,42 @@ export const LowerThird: React.FC<{
   return (
     <div style={{
       position: 'absolute', left: 120, bottom: 130, zIndex: 4,
+      // Hugs its numbers, but never wider than 1100px (ends by x=1220, clear of
+      // the corner logo): a long value shrinks/wraps instead of running off.
+      maxWidth: 1100,
       transform: `translateX(${x}px)`, opacity,
       display: 'flex', alignItems: 'stretch', gap: 18,
     }}>
       {/* accent rule */}
-      <div style={{ width: 6, borderRadius: 3, background: accent, boxShadow: `0 0 16px ${accent}` }} />
+      <div style={{ width: 6, borderRadius: 3, background: accent, boxShadow: `0 0 16px ${accent}`, flexShrink: 0 }} />
       <div style={{
         background: 'rgba(8,12,20,0.62)', backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
         padding: '20px 30px', display: 'flex', flexDirection: 'column', gap: 14,
+        minWidth: 0,
       }}>
         {list.map((m, i) => {
           // Each metric's count-up staggers slightly after the panel arrives.
           const start = inAt + 4 + i * Math.round(0.18 * fps)
           const countP = interpolate(frame, [start, start + Math.round(1.0 * fps)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) })
-          const display = renderMetric(parseMetric(m.value), countP)
+          const parsed = parseMetric(m.value)
+          const display = renderMetric(parsed, countP)
+          const final = renderMetric(parsed, 1)
           const hero = i === 0
+          const valueType: React.CSSProperties = { fontFamily: FONTS.display, fontWeight: 900, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: -1 }
           return (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 3, fontSize: hero ? 22 : 18, color: accent, textTransform: 'uppercase' }}>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+              <Fit max={hero ? 22 : 18} min={14} lines={2} style={{ fontFamily: FONTS.body, fontWeight: 800, letterSpacing: 3, color: accent, textTransform: 'uppercase' }}>
                 {m.label}
-              </div>
-              <div style={{ fontFamily: FONTS.display, fontWeight: 900, fontSize: hero ? 72 : 44, lineHeight: 1, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums', letterSpacing: -1, whiteSpace: 'nowrap' }}>
-                {display}
+              </Fit>
+              {/* The panel is as wide as the FINAL value from the first frame (an
+                  invisible, zero-height copy holds the width), and the value is
+                  sized for the final text — so nothing resizes while it counts. */}
+              <div style={{ minWidth: 0 }}>
+                <div aria-hidden style={{ ...valueType, fontSize: hero ? 72 : 44, height: 0, overflow: 'hidden', visibility: 'hidden', whiteSpace: 'nowrap' }}>{final}</div>
+                <TightFit text={final} max={hero ? 72 : 44} min={hero ? 36 : 24} lines={2} lineHeight={1} style={{ ...valueType, lineHeight: undefined, color: '#FFFFFF' }}>
+                  {display}
+                </TightFit>
               </div>
             </div>
           )

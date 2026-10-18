@@ -1,4 +1,6 @@
 import type { EmailConnection } from './types'
+import { decryptSecret } from './secret-box'
+import { checkSmtpTarget } from './net-guard'
 
 // Build branded HTML email template
 export function buildEmailTemplate(options: {
@@ -13,7 +15,14 @@ export function buildEmailTemplate(options: {
   brandColors: { primary: string; secondary: string; accent: string }
   trackingPixelUrl?: string
 }): string {
-  const { videoUrl, infographicUrl, thumbnailUrl, title, clientName, agentName, agentPhoto, logoUrl, brandColors, trackingPixelUrl } = options
+  // Names and titles are typed by people — escape them before they go into HTML.
+  const esc = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const { videoUrl, infographicUrl, thumbnailUrl, brandColors, trackingPixelUrl } = options
+  const title = esc(options.title)
+  const clientName = esc(options.clientName)
+  const agentName = esc(options.agentName)
+  const agentPhoto = options.agentPhoto ? esc(options.agentPhoto) : options.agentPhoto
+  const logoUrl = options.logoUrl ? esc(options.logoUrl) : options.logoUrl
   const shareUrl = videoUrl ?? infographicUrl ?? ''
 
   return `<!DOCTYPE html>
@@ -76,6 +85,25 @@ ${trackingPixelUrl ? `<img src="${trackingPixelUrl}" width="1" height="1" style=
 </html>`
 }
 
+/**
+ * Send through whichever mailbox the agent connected (Gmail, Outlook, SMTP).
+ * Throws on failure, like the three senders it picks between — callers must
+ * catch and report, never assume it went.
+ */
+export async function sendViaConnection(
+  connection: EmailConnection,
+  to: string,
+  subject: string,
+  html: string
+): Promise<void> {
+  switch (connection.provider) {
+    case 'google': return sendViaGoogle(connection, to, subject, html)
+    case 'microsoft': return sendViaMicrosoft(connection, to, subject, html)
+    case 'smtp': return sendViaSMTP(connection, to, subject, html)
+    default: throw new Error(`Unknown email provider: ${String((connection as { provider?: string }).provider)}`)
+  }
+}
+
 // Send email via SMTP
 export async function sendViaSMTP(
   connection: EmailConnection,
@@ -83,15 +111,21 @@ export async function sendViaSMTP(
   subject: string,
   html: string
 ): Promise<void> {
+  // Saved hosts are re-checked at send time (rows saved before the SSRF check
+  // existed could point at internal addresses) and we connect to the checked
+  // address. The password may be encrypted at rest (secret-box.ts).
+  const target = await checkSmtpTarget(connection.smtp_host, connection.smtp_port ?? 587)
+  if (!target.ok) throw new Error(`Mail server not allowed: ${target.error}`)
   const nodemailer = require('nodemailer')
   const transport = nodemailer.createTransport({
-    host: connection.smtp_host,
+    host: target.address,
     port: connection.smtp_port ?? 587,
     secure: (connection.smtp_port ?? 587) === 465,
     auth: {
       user: connection.smtp_user,
-      pass: connection.smtp_pass,
+      pass: decryptSecret(connection.smtp_pass),
     },
+    tls: { servername: target.hostname },
   })
 
   await transport.sendMail({
@@ -109,10 +143,10 @@ export async function sendViaGoogle(
   subject: string,
   html: string
 ): Promise<void> {
-  // Refresh token if expired
-  let accessToken = connection.access_token
+  // Refresh token if expired (tokens may be encrypted at rest — secret-box.ts)
+  let accessToken = decryptSecret(connection.access_token)
   if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
-    accessToken = await refreshGoogleToken(connection.refresh_token!)
+    accessToken = await refreshGoogleToken(decryptSecret(connection.refresh_token)!)
   }
 
   const rawMessage = createMimeMessage(connection.email_address, to, subject, html)
@@ -140,9 +174,9 @@ export async function sendViaMicrosoft(
   subject: string,
   html: string
 ): Promise<void> {
-  let accessToken = connection.access_token
+  let accessToken = decryptSecret(connection.access_token)
   if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
-    accessToken = await refreshMicrosoftToken(connection.refresh_token!)
+    accessToken = await refreshMicrosoftToken(decryptSecret(connection.refresh_token)!)
   }
 
   const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
@@ -166,15 +200,45 @@ export async function sendViaMicrosoft(
   }
 }
 
-function createMimeMessage(from: string, to: string, subject: string, html: string): string {
+/**
+ * Encode a header value per RFC 2047 when it has anything outside plain ASCII.
+ *
+ * A raw "Subject: Your quote 🎉" or "Re: Café plan" is not a legal email
+ * header — Gmail showed these as garbled characters. The encoded form
+ * (=?UTF-8?B?...?=) is what every mail client expects. Long values are split
+ * into several encoded words so no single one breaks the 75-character limit,
+ * and never in the middle of a character.
+ */
+export function encodeMimeHeader(value: string): string {
+  const v = String(value ?? '').replace(/[\r\n]+/g, ' ')
+  if (/^[\x20-\x7e]*$/.test(v)) return v
+  const words: string[] = []
+  let chunk = ''
+  for (const ch of Array.from(v)) {
+    // 45 raw bytes → 60 base64 chars, + the 12-char wrapper = 72 (< 75).
+    if (Buffer.byteLength(chunk + ch, 'utf8') > 45) {
+      words.push(chunk)
+      chunk = ''
+    }
+    chunk += ch
+  }
+  if (chunk) words.push(chunk)
+  return words.map(w => `=?UTF-8?B?${Buffer.from(w, 'utf8').toString('base64')}?=`).join('\r\n ')
+}
+
+export function createMimeMessage(from: string, to: string, subject: string, html: string): string {
+  // Base64 body so accents, emoji and long lines survive every mail server
+  // (a raw 8-bit body with no transfer encoding is not guaranteed to).
+  const body = Buffer.from(html, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n')
   return [
     `From: ${from}`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodeMimeHeader(subject)}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
     '',
-    html,
+    body,
   ].join('\r\n')
 }
 

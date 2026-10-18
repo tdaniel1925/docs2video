@@ -1,11 +1,15 @@
 import { test, expect } from '@playwright/test'
+import { NO_AUTH } from './helpers/auth'
+
+// A public page: start signed out.
+test.use({ storageState: NO_AUTH })
 
 test.describe('Public Share Page', () => {
   test('nonexistent video shows not-found state', async ({ page }) => {
     await page.goto('/watch/nonexistent-id-000')
     // The component sets notFound=true which renders the wp-not-found block
     await expect(page.locator('.wp-not-found h1')).toHaveText(
-      'This presentation is no longer available',
+      "We can't find this video",
       { timeout: 10000 }
     )
   })

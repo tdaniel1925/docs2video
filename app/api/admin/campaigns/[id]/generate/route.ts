@@ -25,19 +25,20 @@ PROSPECT INFO:
 - Company: ${contact.company || 'their company'}
 - Industry: ${contact.industry || 'their industry'}
 
-PRODUCT: Docs2Video — turns any document into narrated explainer videos, slide decks, and infographics using AI.
+PRODUCT: Docs2Video — turns any document into narrated explainer videos, interactive presentations and commercials using AI.
 
 DISCOUNT OFFER: ${campaign.discount_pct}% off for ${campaign.discount_months} months, code: ${campaign.discount_code}
 
 BEAT STRUCTURE:
 1. HOOK: "Hi ${contact.name}. We built something for ${contact.industry || 'professionals'} like you at ${contact.company || 'your company'}."
 2. PROBLEM: Address a pain point specific to their industry (documents nobody reads, complex reports, client confusion)
-3. SOLUTION: Docs2Video does it in minutes — upload any document, get a narrated branded video
-4. PROOF: Mention industry-specific use cases
+3. SOLUTION: Docs2Video — upload a document, get a narrated branded video
+4. USE CASES: Name the kinds of documents in their industry it can explain (no results or numbers)
 5. OFFER: "We're offering ${contact.company || 'you'} an exclusive ${campaign.discount_pct}% discount for ${campaign.discount_months} months. Use code ${campaign.discount_code}."
-6. CTA: "Your first 2 videos are free. Click below to get started."
+6. CTA: "New accounts start with free credits. Click below to get started."
 
-Keep it under 90 seconds total. Warm, professional, personalized tone.`
+Keep it under 90 seconds total. Warm, professional, personalized tone.
+Never invent statistics, percentages, customer or user counts, speed or time claims, results, awards, certifications or testimonials.`
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

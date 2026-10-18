@@ -1,8 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import DOMPurify from 'dompurify'
 import { useBrand } from './BrandProvider'
+import { howToFor } from '../_lib/how-to-use'
+// The phone ☰ menu opens the help with this event.
+import { OPEN_HELP_EVENT } from '../_lib/top-bar'
 
 // Sanitize assistant HTML before injection (review S4): the prompt asks the
 // model for p/strong/ul/ol/li/a only, but model output is NOT a security
@@ -20,8 +24,20 @@ interface Message {
   content: string
 }
 
+/*
+ * THE HELP ASSISTANT — knows which screen it was opened on.
+ *
+ * It opens with suggestions for THIS screen (from its How-to-use guide,
+ * app/_lib/how-to-use.ts) and sends the screen's address with each question,
+ * so the answer fits where the person is (the server looks the guide up —
+ * app/api/help-chat). On a phone the round button would sit on top of the
+ * page (a start card on Home, the pinned button on the create steps), so on
+ * Docs2Video phones it lives in the ☰ menu instead ("Ask the help assistant").
+ */
 export default function HelpChatWidget() {
   const brand = useBrand()
+  const pathname = usePathname() ?? ''
+  const guide = howToFor(pathname)
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -32,6 +48,13 @@ export default function HelpChatWidget() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  // The phone menu's "Ask the help assistant" opens it.
+  useEffect(() => {
+    const openIt = () => setOpen(true)
+    window.addEventListener(OPEN_HELP_EVENT, openIt)
+    return () => window.removeEventListener(OPEN_HELP_EVENT, openIt)
+  }, [])
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && open) setOpen(false)
@@ -40,8 +63,10 @@ export default function HelpChatWidget() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [open])
 
-  async function send() {
-    const text = input.trim()
+  // `text` lets a suggestion send itself. (They used to set the box and then
+  // call send(), which still saw the old, empty box — so tapping one did nothing.)
+  async function send(asked?: string) {
+    const text = (asked ?? input).trim()
     if (!text || loading) return
     setInput('')
     const newMessages: Message[] = [...messages, { role: 'user', content: text }]
@@ -52,7 +77,8 @@ export default function HelpChatWidget() {
       const res = await fetch('/api/help-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        // The screen it was asked on, so the answer fits it.
+        body: JSON.stringify({ messages: newMessages, page: pathname }),
       })
       const data = await res.json()
       if (data.reply) {
@@ -66,13 +92,16 @@ export default function HelpChatWidget() {
 
   return (
     <>
-      {/* Toggle button */}
+      {/* Toggle button (on Docs2Video phones it is in the ☰ menu instead) */}
       <button
+        className={brand.showVideoFeatures ? 'help-fab help-fab--tucked' : 'help-fab'}
         onClick={() => setOpen(o => !o)}
         style={{
-          position: 'fixed', bottom: 24, right: 24,
+          // --bottom-bar = the cookie notice's height while it shows (0 after),
+          // so the button sits above the notice instead of under it.
+          position: 'fixed', bottom: 'calc(24px + var(--bottom-bar, 0px))', right: 24,
           width: 56, height: 56, borderRadius: '50%',
-          background: 'var(--ink, #1a1a2e)', color: 'white',
+          background: 'var(--ink)', color: 'var(--on-ink)',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
@@ -91,11 +120,11 @@ export default function HelpChatWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div style={{
-          position: 'fixed', bottom: 88, right: 24,
+        <div className="help-panel" role="dialog" aria-label="Help Assistant" style={{
+          position: 'fixed', bottom: 'calc(88px + var(--bottom-bar, 0px))', right: 24,
           width: 380, maxWidth: 'calc(100vw - 48px)',
           height: 500, maxHeight: 'calc(100vh - 140px)',
-          background: 'white', border: '1px solid var(--border-light, #e2e8f0)',
+          background: 'var(--bg-card)', border: '1px solid var(--border-light)',
           borderRadius: 10, display: 'flex', flexDirection: 'column',
           boxShadow: '0 12px 48px rgba(0,0,0,0.15)',
           zIndex: 99, overflow: 'hidden',
@@ -107,51 +136,63 @@ export default function HelpChatWidget() {
             .help-chat-html p:last-child { margin-bottom: 0; }
             .help-chat-html ul, .help-chat-html ol { margin: 4px 0 6px; padding-left: 18px; }
             .help-chat-html li { margin: 2px 0; }
-            .help-chat-html a { color: var(--mint-darker, #2d7a4f); font-weight: 600; }
+            .help-chat-html a { color: var(--mint-darker); font-weight: 600; }
             .help-chat-html strong { font-weight: 700; }`}</style>
           {/* Header */}
           <div style={{
-            padding: '14px 18px', borderBottom: '1px solid var(--border-light, #e2e8f0)',
-            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '14px 18px', borderBottom: '1px solid var(--border-light)',
+            display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
           }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mint, #A8F0D4)', boxShadow: '0 0 6px rgba(168,240,212,0.6)' }} />
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>Help Assistant</div>
-              <div style={{ fontSize: 11, color: 'var(--ink-light, #94a3b8)' }}>Ask anything about {brand.name}</div>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 'var(--fs-ui)' }}>Help Assistant</div>
+              <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
+                {guide.own ? <>On this screen: <strong style={{ color: 'var(--ink-soft)' }}>{guide.title}</strong></> : <>Ask anything about {brand.name}</>}
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close help"
+              style={{ background: 'none', border: 0, padding: 6, cursor: 'pointer', color: 'var(--ink-soft)', borderRadius: 8, lineHeight: 0 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
           {/* Messages */}
           <div style={{
             flex: 1, overflowY: 'auto', padding: 16,
-            display: 'flex', flexDirection: 'column', gap: 10,
+            display: 'flex', flexDirection: 'column', gap: 'var(--space-3)',
           }}>
             {messages.length === 0 && (
               <div style={{ textAlign: 'center', marginTop: 32, padding: '0 16px' }}>
-                <div style={{ fontSize: 28, marginBottom: 12 }}>&#128075;</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>How can I help?</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-light)', lineHeight: 1.5, marginBottom: 16 }}>
-                  {brand.showVideoFeatures
-                    ? 'Ask me anything about creating videos, infographics, logos, business cards, billing, or any feature.'
-                    : 'Ask me anything about making flyers, ads, social posts, banners or business cards — or about credits and billing.'}
+                <div style={{ fontSize: 'var(--fs-h2)', marginBottom: 12 }}>&#128075;</div>
+                <div style={{ fontSize: 'var(--fs-ui)', fontWeight: 600, marginBottom: 6 }}>How can I help?</div>
+                <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', lineHeight: 1.5, marginBottom: 16 }}>
+                  {!brand.showVideoFeatures
+                    ? 'Ask me anything about making flyers, ads, social posts, banners or business cards — or about credits and billing.'
+                    : guide.own
+                      ? `Questions people ask on ${guide.title}:`
+                      : 'Ask me anything about videos, presentations, commercials, billing, or any feature.'}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {(brand.showVideoFeatures
-                    ? ['How do I create a video?', 'What do credits cost?', 'How do I add my brand logo?', 'Can I download as PDF?']
+                    ? guide.asks
                     : ['How do I make a flyer?', 'What do credits cost?', 'Can I use my own photos?', 'What sizes can I get?']
                   ).map(q => (
                     <button
                       key={q}
-                      onClick={() => { setInput(q); setTimeout(() => send(), 0) }}
+                      onClick={() => { void send(q) }}
                       style={{
                         padding: '8px 12px', borderRadius: 8,
-                        border: '1px solid var(--border-light, #e2e8f0)',
-                        background: 'white', cursor: 'pointer',
-                        fontSize: 12, color: 'var(--ink)', textAlign: 'left',
+                        border: '1px solid var(--border-light)',
+                        background: 'var(--bg-card)', cursor: 'pointer',
+                        fontSize: 'var(--fs-caption)', color: 'var(--ink)', textAlign: 'left',
                         transition: 'background 0.1s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-soft, #f8fafc)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-soft)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-card)')}
                     >
                       {q}
                     </button>
@@ -164,10 +205,10 @@ export default function HelpChatWidget() {
                 <div
                   className={msg.role === 'assistant' ? 'help-chat-html' : undefined}
                   style={{
-                    padding: '10px 14px', borderRadius: 10, fontSize: 13, lineHeight: 1.55,
-                    background: msg.role === 'user' ? 'var(--mint, #A8F0D4)' : 'var(--bg-soft, #f8fafc)',
-                    color: msg.role === 'user' ? '#0a2e1a' : 'var(--ink, #1a1a2e)',
-                    border: msg.role === 'assistant' ? '1px solid var(--border-light, #e2e8f0)' : 'none',
+                    padding: '10px 14px', borderRadius: 10, fontSize: 'var(--fs-small)', lineHeight: 1.55,
+                    background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-soft)',
+                    color: msg.role === 'user' ? 'var(--ink)' : 'var(--ink)',
+                    border: msg.role === 'assistant' ? '1px solid var(--border-light)' : 'none',
                     ...(msg.role === 'user' ? { whiteSpace: 'pre-wrap' as const } : {}),
                   }}
                   // Assistant replies are HTML from our own constrained prompt
@@ -181,7 +222,7 @@ export default function HelpChatWidget() {
             ))}
             {loading && (
               <div style={{ alignSelf: 'flex-start' }}>
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-soft, #f8fafc)', border: '1px solid var(--border-light, #e2e8f0)', display: 'flex', gap: 4 }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-soft)', border: '1px solid var(--border-light)', display: 'flex', gap: 'var(--space-1)' }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out infinite' }} />
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out 0.2s infinite' }} />
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-light)', animation: 'helpPulse 1.2s ease-in-out 0.4s infinite' }} />
@@ -193,8 +234,8 @@ export default function HelpChatWidget() {
           </div>
 
           {/* Input */}
-          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-light, #e2e8f0)' }}>
-            <div style={{ display: 'flex', gap: 8, border: '1px solid var(--border, #cbd5e1)', borderRadius: 8, padding: '4px 4px 4px 12px' }}>
+          <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 4px 4px 12px' }}>
               <input
                 type="text"
                 placeholder="Ask a question..."
@@ -202,13 +243,13 @@ export default function HelpChatWidget() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                 disabled={loading}
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: 'var(--ink)' }}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 'var(--fs-small)', background: 'transparent', color: 'var(--ink)' }}
               />
               <button
-                onClick={send}
+                onClick={() => { void send() }}
                 disabled={loading || !input.trim()}
                 className="btn btn-primary"
-                style={{ padding: '6px 14px', fontSize: 12, borderRadius: 6, opacity: loading || !input.trim() ? 0.5 : 1 }}
+                style={{ padding: '6px 14px', fontSize: 'var(--fs-caption)', borderRadius: 6, opacity: loading || !input.trim() ? 0.5 : 1 }}
               >
                 Send
               </button>

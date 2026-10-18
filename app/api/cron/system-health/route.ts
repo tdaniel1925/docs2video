@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyCronAuth } from '../../../_lib/cron-auth'
+import { recordCronRun, checkCronHeartbeats } from '../../../_lib/cron-heartbeat'
 import { runSystemChecks } from '../../../_lib/system-checks'
 
 export const runtime = 'nodejs'
@@ -16,6 +17,11 @@ export async function GET(request: Request) {
   if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  // Heartbeat: the health cron emails Trent if this stops running (audit 2026-10-09).
+  await recordCronRun('system-health')
+
+  // Did every scheduled job run recently? Emails Trent if one stopped.
+  const staleCrons = await checkCronHeartbeats().catch(() => [])
 
   const result = await runSystemChecks('cron')
 
@@ -42,5 +48,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ overall_ok: result.overall_ok, checks: result.results.length, failed: result.results.filter(r => !r.ok).length })
+  return NextResponse.json({ overall_ok: result.overall_ok, checks: result.results.length, failed: result.results.filter(r => !r.ok).length, staleCrons: staleCrons.map((s) => s.name) })
 }

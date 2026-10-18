@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
 import { logAdminAction } from '../../../_lib/audit'
+import { siteUrl } from '../../../_lib/site-url'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -52,11 +53,12 @@ export async function POST(request: Request) {
   // Audit BEFORE issuing the link.
   await logAdminAction(user.id, 'impersonate', target.id, { email: target.email })
 
-  const origin = request.headers.get('origin') || (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com')
+  // Configured site address, not the request's Origin header (which the
+  // caller controls) — the sign-in link must land on our own site.
   const { data: link, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email: target.email,
-    options: { redirectTo: `${origin}/dashboard` },
+    options: { redirectTo: `${siteUrl()}/dashboard` },
   })
   if (error || !link?.properties?.action_link) {
     console.error('[admin/impersonate] generateLink failed:', error?.message)

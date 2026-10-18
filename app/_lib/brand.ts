@@ -11,10 +11,13 @@
 // instead — that is the whole point of this module. Scattered host checks are
 // how a second storefront quietly breaks the first one.
 //
-// This file imports NOTHING on purpose: it is read by client components AND by
-// server components, so it must not pull in next/headers. The server-side
-// "which brand is this request?" helper lives in ./brand-server.ts.
+// This file must stay safe for client components AND server components, so it
+// never pulls in next/headers. Its only import is ./names (the shared words for
+// the nav), which pulls in nothing server-side either. The server-side "which
+// brand is this request?" helper lives in ./brand-server.ts.
 // =============================================================================
+
+import { NAMES } from './names'
 
 export type BrandId = 'docs2video' | 'text2art'
 
@@ -40,14 +43,16 @@ export type Brand = {
   logoSrc: string | null
   /** The browser-tab icon. One shared favicon meant Text2Art wore Docs2Video's. */
   iconSrc: string
+  /** Default 1200×630 link-preview image in public/ (pages can override). */
+  ogImage: string
   /** Where a signed-in visitor belongs. */
   home: string
-  /** Dashboard navigation, in order. */
+  /** Dashboard navigation, in order. The 'kit' bar shows it after `create`. */
   nav: BrandNavItem[]
   /**
    * The one big "make something" button in the app header, or null when the
    * brand doesn't need one. Text2Art has a single tool and the tool IS the
-   * page, so "Designs" and "+ Create" would be the same link twice.
+   * page, so "Designs" and "+ New" would be the same link twice.
    */
   create: BrandNavItem | null
   /**
@@ -56,30 +61,43 @@ export type Brand = {
    * exist and still work — they are simply not linked from a Text2Art nav.
    */
   showVideoFeatures: boolean
+  /**
+   * Which top bar this storefront wears.
+   *  - 'kit': the 2026-10 overhaul bar — four words, gold credit chip, a
+   *    "How to use" button that explains the screen you're on.
+   *  - 'classic': the bar as it was before the overhaul, kept frozen. Text2Art
+   *    has its own nav and its screens aren't in the How-to-use guide, so it
+   *    must not change when Docs2Video's bar does.
+   */
+  topBar: 'kit' | 'classic'
 }
 
 export const DOCS2VIDEO: Brand = {
   id: 'docs2video',
   name: 'Docs2Video',
   domain: 'docs2video.com',
-  tagline: 'Turn any document into a professional explainer video',
-  title: 'Docs2Video — Turn Any Document Into a Professional Explainer Video',
+  tagline: 'Turn a long document into a short narrated video',
+  title: 'Docs2Video — Life Insurance & Annuity Illustrations as Short Videos',
   description:
-    'Upload a PDF, paste text, or describe an idea. Get a branded narrated video with a shareable client page — in minutes, not hours.',
+    'Built for life insurance and annuity agents, open to anyone. Turn an illustration, annuity contract or any document into a branded narrated video on a client page where they can book a call.',
   logoSrc: '/logo-big.png',
   iconSrc: '/favicon.png',
+  ogImage: '/og-docs2video.png',
   home: '/dashboard',
+  // FOUR WORDS: + New, Library, Clients, Brands (the sibling apps' calm bar).
+  // "Dashboard" is gone — the logo goes Home. Brands moved here from the
+  // account menu: every help article sends people there, and a menu item
+  // behind your initial is hard to find.
+  // Docs2Video makes videos, presentations and commercials only (2026-10-09,
+  // videos-only.ts): no slide-deck or graphics maker is linked anywhere here.
   nav: [
-    { href: '/dashboard', label: 'Dashboard' },
-    // Custom Graphics is NOT in this nav. It was added when the Tools dropdown
-    // was switched off and the maker became unreachable — but it is reachable
-    // now from + Create and from the Library, and a video product should not
-    // lead with a design tool. The route and the feature are untouched.
-    { href: '/videos', label: 'Library' },
-    { href: '/clients', label: 'Clients' },
+    { href: '/videos', label: NAMES.library },
+    { href: '/clients', label: NAMES.clients },
+    { href: '/brands', label: NAMES.brands },
   ],
-  create: { href: '/create/start', label: '+ Create' },
+  create: { href: '/create', label: NAMES.newButton },
   showVideoFeatures: true,
+  topBar: 'kit',
 }
 
 export const TEXT2ART: Brand = {
@@ -89,9 +107,10 @@ export const TEXT2ART: Brand = {
   tagline: 'Describe it. Get the finished design.',
   title: 'Text2Art — Describe It, Get the Finished Design',
   description:
-    'Type what your flyer, ad, social post, banner or business card needs to say. Get a print-ready design back — artwork and lettering both — in about a minute.',
+    'Type what your flyer, ad, social post, banner or business card needs to say. Get a finished design back, sized for print or social — artwork and lettering both — in about a minute.',
   logoSrc: '/text2art-logo.png',
   iconSrc: '/text2art-favicon.png',
+  ogImage: '/og-text2art.png',
   home: '/design',
   // Brands were unreachable on Text2Art: the scraper, the multi-brand store and
   // the whole editor already existed, and nothing in this storefront linked to
@@ -100,11 +119,13 @@ export const TEXT2ART: Brand = {
   // sizes → generate & spot-edit); the old one-page /flyer still works directly.
   nav: [
     { href: '/design', label: 'Designs' },
+    // "My Library" matches the heading on Text2Art's own library page.
     { href: '/library', label: 'My Library' },
-    { href: '/brands', label: 'Brands' },
+    { href: '/brands', label: NAMES.brands },
   ],
   create: null,
   showVideoFeatures: false,
+  topBar: 'classic',
 }
 
 export const BRANDS: Record<BrandId, Brand> = {

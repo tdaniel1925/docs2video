@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '../../../_lib/admin'
 import { getStripe } from '../../../_lib/stripe'
+import { CREDIT_PACKS } from '../../../_lib/credit-packs'
 export const maxDuration = 30
 
 export async function POST() {
@@ -12,12 +13,10 @@ export async function POST() {
   const results: Record<string, string> = {}
 
   try {
-    // 1. Create Credit Pack products + prices
-    const packs = [
-      { name: 'Starter Credit Pack', credits: 2500, price: 1000 },  // $10
-      { name: 'Power Credit Pack', credits: 7500, price: 2500 },    // $25
-      { name: 'Studio Credit Pack', credits: 18000, price: 5000 },  // $50
-    ]
+    // 1. Create Credit Pack products + prices — names, credits and prices from
+    // the one pack list, so Stripe can't call the $10 pack "Starter" again
+    // (renamed "Small" in Stripe on 2026-10-07; the retired plan was Starter).
+    const packs = CREDIT_PACKS.map(p => ({ name: `${p.name} Credit Pack`, credits: p.credits, price: p.priceCents }))
 
     for (const pack of packs) {
       const product = await stripe.products.create({

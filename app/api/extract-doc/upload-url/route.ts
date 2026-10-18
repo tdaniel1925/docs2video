@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
+import { docUploadExt, docUploadProblem } from '../../../_lib/doc-upload'
 
 export const runtime = 'nodejs'
 
 const BUCKET = 'creation-assets'
-const MAX_BYTES = 100 * 1024 * 1024 // 100MB hard cap
-const ALLOWED_EXT = ['pdf', 'docx', 'pptx', 'txt', 'csv', 'xlsx']
 
 /**
  * Mints a one-time signed upload URL so the browser uploads the document
@@ -22,13 +21,9 @@ export async function POST(request: Request) {
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
   const fileName = (body.fileName || '').trim()
-  const ext = fileName.split('.').pop()?.toLowerCase() || ''
-  if (!fileName || !ALLOWED_EXT.includes(ext)) {
-    return NextResponse.json({ error: `Unsupported file type. Allowed: ${ALLOWED_EXT.join(', ').toUpperCase()}` }, { status: 400 })
-  }
-  if (typeof body.size === 'number' && body.size > MAX_BYTES) {
-    return NextResponse.json({ error: `File too large. Maximum ${Math.round(MAX_BYTES / 1024 / 1024)}MB. Try a smaller file or paste the text.` }, { status: 413 })
-  }
+  const ext = docUploadExt(fileName)
+  const problem = fileName ? docUploadProblem(fileName, body.size) : 'No file name given.'
+  if (problem) return NextResponse.json({ error: problem }, { status: /MB/.test(problem) ? 413 : 400 })
 
   // userId FIRST so it satisfies the bucket RLS policy
   // (auth.uid() = foldername[1]); 'doc-uploads' subfolder for organization.

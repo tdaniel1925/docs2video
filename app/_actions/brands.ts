@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '../_lib/supabase/server'
+import { keepVideoLook } from '../_lib/look-wizard'
 
 /** Profile (Person | Company) fields shared by create + update. */
 function profileFields(formData: FormData) {
@@ -17,11 +18,10 @@ function profileFields(formData: FormData) {
   }
 }
 
-export async function createBrand(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
-
+/** The brands row for a new brand, from the brand form fields. Shared by the
+ *  Brands page (createBrand) and step 3's "Add your brand" (createProjectBrand)
+ *  so both save a brand exactly the same way. */
+function newBrandRow(formData: FormData, userId: string) {
   // Parse JSON fields from hidden inputs
   const parseJson = (key: string, fallback: unknown = null) => {
     const val = formData.get(key) as string | null
@@ -29,8 +29,8 @@ export async function createBrand(formData: FormData) {
     try { return JSON.parse(val) } catch { return fallback }
   }
 
-  const { error } = await supabase.from('brands').insert({
-    user_id: user.id,
+  return {
+    user_id: userId,
     name: formData.get('name') as string,
     logo_url: (formData.get('logo_url') as string) || null,
     logo_file_url: (formData.get('logo_file_url') as string) || null,
@@ -57,10 +57,40 @@ export async function createBrand(formData: FormData) {
     brand_guide_data: parseJson('brand_guide_data', null),
     is_default: formData.get('is_default') === 'true',
     ...profileFields(formData),
-  })
+  }
+}
+
+export async function createBrand(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error } = await supabase.from('brands').insert(newBrandRow(formData, user.id))
 
   if (error) return { error: error.message }
   redirect('/brands')
+}
+
+/**
+ * "Add your brand" from inside a project (step 3, Make it yours). Same row as
+ * the Brands page saves; stays on the page (no redirect) and hands back the
+ * new brand's id so the project can use it. A person's FIRST brand becomes
+ * their default, so their next project starts with it too.
+ */
+export async function createProjectBrand(formData: FormData): Promise<{ id: string } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Please sign in again.' }
+  const name = String(formData.get('name') ?? '').trim()
+  if (!name) return { error: 'Type your name or your company’s name.' }
+  formData.set('name', name.slice(0, 120))
+
+  const { data: existing } = await supabase.from('brands').select('id').eq('user_id', user.id).limit(1)
+  formData.set('is_default', (existing ?? []).length === 0 ? 'true' : 'false')
+
+  const { data, error } = await supabase.from('brands').insert(newBrandRow(formData, user.id)).select('id').single()
+  if (error || !data) return { error: 'We couldn’t save your brand. Please try again.' }
+  return { id: data.id as string }
 }
 
 export async function updateBrand(formData: FormData) {
@@ -76,6 +106,10 @@ export async function updateBrand(formData: FormData) {
     if (!val) return fallback
     try { return JSON.parse(val) } catch { return fallback }
   }
+
+  // The video look lives in the same guide-data box but is saved by the look
+  // screen, never by this form: keep the one stored now (look-wizard.ts).
+  const { data: stored } = await supabase.from('brands').select('brand_guide_data').eq('id', id).eq('user_id', user.id).maybeSingle()
 
   const { error } = await supabase
     .from('brands')
@@ -102,7 +136,7 @@ export async function updateBrand(formData: FormData) {
       content_themes: parseJson('content_themes', []),
       competitor_notes: (formData.get('competitor_notes') as string) || null,
       social_links: parseJson('social_links', {}),
-      brand_guide_data: parseJson('brand_guide_data', null),
+      brand_guide_data: keepVideoLook(parseJson('brand_guide_data', null), stored?.brand_guide_data),
       is_default: formData.get('is_default') === 'true',
       ...profileFields(formData),
     })

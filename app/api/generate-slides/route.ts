@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { normalizeUrl } from '../../_lib/normalize-url'
 import { VIDEO_WORKING } from '../../_lib/video-status'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
@@ -47,7 +48,10 @@ export async function POST(request: Request) {
 
   let body: any
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-  const { fileBase64, fileName, text, url, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl } = body || {}
+  const { fileBase64, fileName, text, url: rawUrl, preparer, recipient, music, glass, footer, accent, logoUrl, musicUrl } = body || {}
+  // A website with or without https:// (normalize-url.ts).
+  const url = rawUrl ? normalizeUrl(rawUrl) ?? undefined : undefined
+  if (rawUrl && !url && !fileBase64 && !text) return NextResponse.json({ error: 'That doesn’t look like a website — try something like yourcompany.com' }, { status: 400 })
   if (!fileBase64 && !text && !url) {
     return NextResponse.json({ error: 'Provide a document (fileBase64), text, or url' }, { status: 400 })
   }

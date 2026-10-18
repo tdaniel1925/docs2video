@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
-import { checkCredits, deductCredits, CREDIT_COSTS } from '../../_lib/credits'
+import { CREDIT_COSTS } from '../../_lib/credits'
+import { runCharged } from '../../_lib/credit-charge'
 import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { safeFetch } from '../../_lib/brand-scraper'
 import { GoogleGenAI } from '@google/genai'
@@ -25,15 +26,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rate limit exceeded. Please wait a bit before generating again.' }, { status: 429 })
   }
 
-  const COST = CREDIT_COSTS['upscale-logo']
-  const credit = await checkCredits(user.id, COST)
-  if (!credit.allowed) {
-    return NextResponse.json({ error: `Not enough credits. Need ${COST}, have ${credit.remaining}.` }, { status: 402 })
-  }
-  if (!(await deductCredits(user.id, COST, 'upscale-logo'))) {
-    return NextResponse.json({ error: 'Failed to deduct credits.' }, { status: 402 })
-  }
-
   const { logoImage, companyName } = await request.json() as {
     logoImage: string // base64 data URL or URL
     companyName?: string
@@ -43,6 +35,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Logo image required' }, { status: 400 })
   }
 
+  // Charge up front; a bad image, a failed fetch or an empty AI answer gives
+  // the credits back (audit H5).
+  return runCharged({ userId: user.id, amount: CREDIT_COSTS['upscale-logo'], action: 'upscale-logo' }, async () => {
   try {
     // Get the image as buffer
     let imageBuffer: Buffer
@@ -109,7 +104,10 @@ CRITICAL RULES:
         // Upload to Supabase
         const admin = createAdminClient()
         const path = `${user.id}/logos/upscaled-${Date.now()}.png`
-        await admin.storage.from('videos').upload(path, upscaledBuffer, { contentType: 'image/png', upsert: true })
+        const { error: upErr } = await admin.storage.from('videos').upload(path, upscaledBuffer, { contentType: 'image/png', upsert: true })
+        // A failed save must not look like success (the user would be charged
+        // for a link to nothing) — throwing refunds the credits.
+        if (upErr) throw new Error(`upload failed: ${upErr.message}`)
         const { data: urlData } = admin.storage.from('videos').getPublicUrl(path)
 
         return NextResponse.json({
@@ -124,4 +122,5 @@ CRITICAL RULES:
     console.error('[upscale-logo] Error:', err)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Upscaling failed' }, { status: 500 })
   }
+  })
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
+import { logAdminAction } from '../../../_lib/audit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -46,7 +47,8 @@ export async function GET() {
  * { action: 'mark-paid', batch }                       — approved -> paid for a batch label
  */
 export async function POST(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  const me = await requireAdmin()
+  if (!me) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const admin = createAdminClient()
   const body = await request.json() as { action: string; affiliateId?: string; status?: string; batch?: string }
 
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'bad params' }, { status: 400 })
     }
     await admin.from('affiliates').update({ status: body.status }).eq('id', body.affiliateId)
+    await logAdminAction(me.id, 'affiliate_set_status', undefined, { affiliateId: body.affiliateId, status: body.status })
     return NextResponse.json({ ok: true })
   }
 
@@ -67,6 +70,7 @@ export async function POST(request: Request) {
       .eq('status', 'pending')
       .lt('created_at', cutoff)
       .select('id')
+    await logAdminAction(me.id, 'affiliate_approve_pending', undefined, { approved: data?.length ?? 0 })
     return NextResponse.json({ ok: true, approved: data?.length ?? 0 })
   }
 
@@ -117,6 +121,7 @@ export async function POST(request: Request) {
       query = query.not('affiliate_id', 'in', `(${apexIds.join(',')})`)
     }
     const { data } = await query.select('id')
+    await logAdminAction(me.id, 'affiliate_mark_paid', undefined, { paid: data?.length ?? 0, batch })
     return NextResponse.json({ ok: true, paid: data?.length ?? 0, batch })
   }
 

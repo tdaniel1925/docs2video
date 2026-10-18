@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
   const fail = async (status: number, message: string, jobId?: string) => {
-    await refundApiCredits(caller.userId, COMMERCIAL_COST)
+    await refundApiCredits(caller.userId, COMMERCIAL_COST, jobId)
     await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/commercials', videoId: jobId ?? null, creditsCharged: 0, status: 'failed' })
     return NextResponse.json({ error: message, ...(jobId ? { job_id: jobId } : {}) }, { status })
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useToast } from '../../../_components/Toast'
+import { useConfirm } from '../_components/useConfirm'
 
 type DriftKind = 'flagged_paid_no_stripe_sub' | 'has_stripe_sub_not_flagged' | 'tier_mismatch' | 'past_due'
 
@@ -29,16 +30,17 @@ interface HealthData {
 }
 
 const KIND_META: Record<DriftKind, { label: string; color: string; bg: string }> = {
-  has_stripe_sub_not_flagged: { label: 'Paying but locked out', color: '#b91c1c', bg: 'rgba(220,38,38,0.08)' },
-  flagged_paid_no_stripe_sub: { label: 'Free paid features', color: '#b45309', bg: 'rgba(217,119,6,0.08)' },
-  past_due: { label: 'Past due', color: '#b91c1c', bg: 'rgba(220,38,38,0.06)' },
-  tier_mismatch: { label: 'Plan name mismatch', color: '#6b7280', bg: 'rgba(107,114,128,0.08)' },
+  has_stripe_sub_not_flagged: { label: 'Paying but locked out', color: 'var(--error-text)', bg: 'var(--error-bg)' },
+  flagged_paid_no_stripe_sub: { label: 'Free paid features', color: 'var(--warning-text)', bg: 'var(--warning-bg)' },
+  past_due: { label: 'Past due', color: 'var(--error-text)', bg: 'var(--error-bg)' },
+  tier_mismatch: { label: 'Plan name mismatch', color: 'var(--ink-light)', bg: 'var(--surface)' },
 }
 
 const money = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
 
 export default function AdminBillingHealthPage() {
   const notify = useToast()
+  const [ask, confirmDialog] = useConfirm()
   const [data, setData] = useState<HealthData | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -71,7 +73,9 @@ export default function AdminBillingHealthPage() {
       plan = row.stripePlan
       confirmMsg = `Set ${row.email} to ${plan?.toUpperCase()} to match Stripe?`
     }
-    if (!plan || !confirm(confirmMsg)) return
+    if (!plan) return
+    const ok = (await ask({ title: confirmMsg, body: 'This changes the plan in the app only — Stripe is not changed. Saved in the audit log.', confirmLabel: 'Change plan' })).ok
+    if (!ok) return
 
     setBusy(row.userId)
     try {
@@ -109,7 +113,7 @@ export default function AdminBillingHealthPage() {
     }
   }
 
-  const card: React.CSSProperties = { flex: 1, minWidth: 150, background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, padding: '16px 20px' }
+  const card: React.CSSProperties = { flex: 1, minWidth: 150, background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '16px 20px' }
   const th: React.CSSProperties = { textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-light)', padding: '10px 14px', whiteSpace: 'nowrap' }
   const td: React.CSSProperties = { padding: '10px 14px', fontSize: 13, borderTop: '1px solid var(--border-light)', verticalAlign: 'middle' }
 
@@ -126,13 +130,13 @@ export default function AdminBillingHealthPage() {
         </div>
       </div>
 
-      {err && <div style={{ background: 'rgba(220,38,38,0.08)', border: '1.5px solid rgba(220,38,38,0.3)', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontWeight: 600 }}>{err}</div>}
+      {err && <div style={{ background: 'var(--error-bg)', border: '1.5px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontWeight: 600 }}>{err}</div>}
 
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: data?.driftCount ? '#b91c1c' : '#059669' }}>{data?.driftCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Total drift</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: '#b91c1c' }}>{data?.counts.has_stripe_sub_not_flagged ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paying, locked out</div></div>
-        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: '#b45309' }}>{data?.counts.flagged_paid_no_stripe_sub ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Free paid features</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: data?.driftCount ? 'var(--error-text)' : 'var(--success)' }}>{data?.driftCount ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Total drift</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--error-text)' }}>{data?.counts.has_stripe_sub_not_flagged ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Paying, locked out</div></div>
+        <div style={card}><div style={{ fontSize: 26, fontWeight: 800, color: 'var(--warning-text)' }}>{data?.counts.flagged_paid_no_stripe_sub ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Free paid features</div></div>
         <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data?.counts.past_due ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Past due</div></div>
         <div style={card}><div style={{ fontSize: 26, fontWeight: 800 }}>{data?.checkedProfiles ?? '—'}</div><div style={{ fontSize: 12, color: 'var(--ink-light)', fontWeight: 600 }}>Profiles checked</div></div>
       </div>
@@ -148,12 +152,12 @@ export default function AdminBillingHealthPage() {
         const rows = (data?.drift ?? []).filter(r => showDismissed || !r.dismissed)
         if (loading) return <p style={{ color: 'var(--ink-light)' }}>Cross-referencing every profile against live Stripe…</p>
         if (!data || rows.length === 0) return (
-          <div style={{ background: 'white', border: '1px dashed var(--border)', borderRadius: 10, padding: 48, textAlign: 'center', color: 'var(--ink-soft)' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: 10, padding: 48, textAlign: 'center', color: 'var(--ink-soft)' }}>
             ✓ No active drift — every plan flag matches Stripe{data && data.dismissedCount > 0 ? ' (dismissed comps excluded)' : ''}.
           </div>
         )
         return (
-        <div style={{ background: 'white', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
             <thead style={{ background: 'var(--bg-soft)' }}>
               <tr>
@@ -205,6 +209,7 @@ export default function AdminBillingHealthPage() {
         </div>
         )
       })()}
+      {confirmDialog}
     </div>
   )
 }

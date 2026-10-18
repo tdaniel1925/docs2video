@@ -124,7 +124,7 @@ export async function POST(request: Request) {
   waitUntil((async () => {
     const setFail = async (message: string) => {
       await admin.from('videos').update({ status: 'failed', error_message: message.slice(0, 500), progress_pct: 0 }).eq('id', jobId).then(() => {}, () => {})
-      await refundApiCredits(caller.userId, DECK_COST)   // idempotent per-call key inside
+      await refundApiCredits(caller.userId, DECK_COST, jobId)   // once per job (keyed by the job)
       await logApiUsage({ apiKeyId: caller.keyId, userId: caller.userId, endpoint: 'POST /api/v1/decks', videoId: jobId, creditsCharged: 0, status: 'failed' }).catch(() => {})
       console.error(`[v1/decks ${reqId}] failed:`, message)
     }

@@ -7,10 +7,14 @@
 # image, unthrottled, and needs no credentials.
 FROM public.ecr.aws/docker/library/node:20-slim
 
-# Install FFmpeg, LibreOffice, poppler-utils (for PDF conversion)
+# Install FFmpeg, LibreOffice, poppler-utils (for PDF conversion).
+# Writer + Calc are required: without them every .docx/.doc/.xlsx upload
+# converted to nothing and failed (found 2026-10-15 — only PowerPoint read).
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libreoffice-impress \
+    libreoffice-writer \
+    libreoffice-calc \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -54,6 +58,14 @@ COPY server.js ./
 COPY slides.js ./
 COPY commercial.js ./
 COPY present-export.js ./
+COPY fal-image.js ./
+COPY fal-tts.js ./
+COPY slide-spellcheck.js ./
+COPY audio-mix.js ./
+COPY drawn-assembly.js ./
+COPY job-guards.js ./
+COPY kit.js ./
+COPY video-upload.js ./
 
 EXPOSE 4000
 

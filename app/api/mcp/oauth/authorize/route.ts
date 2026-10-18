@@ -13,9 +13,14 @@ export const runtime = 'nodejs'
 
 const BASE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/$/, '')
 
-function errRedirect(redirectUri: string | null, state: string | null, error: string, desc?: string) {
-  if (!redirectUri) return new NextResponse(`OAuth error: ${error}${desc ? ` — ${desc}` : ''}`, { status: 400 })
-  const u = new URL(redirectUri)
+function plainError(error: string, desc?: string) {
+  return new NextResponse(`OAuth error: ${error}${desc ? ` — ${desc}` : ''}`, { status: 400 })
+}
+
+// Only called AFTER the redirect_uri is known to be registered for the client
+// and parses as a URL — errors never bounce the browser to an unchecked address.
+function errRedirect(redirectUri: URL, state: string | null, error: string, desc?: string) {
+  const u = new URL(redirectUri.toString())
   u.searchParams.set('error', error)
   if (desc) u.searchParams.set('error_description', desc)
   if (state) u.searchParams.set('state', state)
@@ -34,17 +39,25 @@ export async function GET(request: Request) {
   const scope = p.get('scope') || 'mcp'
   const resource = p.get('resource') || `${BASE}/api/mcp`
 
-  if (responseType !== 'code') return errRedirect(redirectUri, state, 'unsupported_response_type')
-  if (!clientId || !redirectUri || !challenge) return errRedirect(redirectUri, state, 'invalid_request', 'Missing client_id, redirect_uri, or code_challenge.')
-  if (method && method !== 'S256') return errRedirect(redirectUri, state, 'invalid_request', 'Only S256 PKCE is supported.')
+  // 1. Client + redirect_uri first. Until both check out, every error is a
+  //    plain 400 page — redirecting to an unvalidated redirect_uri would make
+  //    this endpoint an open redirect.
+  if (!clientId || !redirectUri) return plainError('invalid_request', 'Missing client_id or redirect_uri.')
+  let redirectTarget: URL
+  try { redirectTarget = new URL(redirectUri) } catch { return plainError('invalid_request', 'Malformed redirect_uri.') }
 
   const admin = createAdminClient()
   const { data: client } = await admin.from('mcp_oauth_clients').select('client_id, client_name, redirect_uris').eq('client_id', clientId).maybeSingle()
-  if (!client) return errRedirect(redirectUri, state, 'unauthorized_client', 'Unknown client_id.')
+  if (!client) return plainError('unauthorized_client', 'Unknown client_id.')
   if (!Array.isArray(client.redirect_uris) || !client.redirect_uris.includes(redirectUri)) {
     // Never redirect to an unregistered URI — that's an open-redirect. Fail plainly.
-    return new NextResponse('OAuth error: redirect_uri not registered for this client.', { status: 400 })
+    return plainError('invalid_request', 'redirect_uri not registered for this client.')
   }
+
+  // 2. Now the rest of the request; these errors may go back to the client.
+  if (responseType !== 'code') return errRedirect(redirectTarget, state, 'unsupported_response_type')
+  if (!challenge) return errRedirect(redirectTarget, state, 'invalid_request', 'Missing code_challenge.')
+  if (method && method !== 'S256') return errRedirect(redirectTarget, state, 'invalid_request', 'Only S256 PKCE is supported.')
 
   // Require a signed-in docs2video/Text2Art user. If not, bounce through /login and
   // come straight back to this exact authorize URL.

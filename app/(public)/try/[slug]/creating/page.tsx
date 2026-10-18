@@ -117,7 +117,7 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
                 Creating your free video...
               </h1>
               <p style={{ fontSize: 15, color: 'var(--ink-soft, #666)' }}>
-                This usually takes 1-2 minutes.
+                This usually takes a few minutes.
               </p>
             </div>
             <div style={{
@@ -131,7 +131,7 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
                 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%',
-                    background: i < step ? 'var(--mint, #C7E8A8)' : i === step ? 'var(--primary, #1a1a1a)' : 'var(--border-light, #e5e2dc)',
+                    background: i < step ? 'var(--accent)' : i === step ? 'var(--primary, #1a1a1a)' : 'var(--border-light, #e5e2dc)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
                     {i < step ? (

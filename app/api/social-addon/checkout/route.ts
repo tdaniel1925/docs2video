@@ -1,50 +1,53 @@
 import { NextResponse } from 'next/server'
+import type Stripe from 'stripe'
 import { createClient } from '../../../_lib/supabase/server'
+import { createAdminClient } from '../../../_lib/supabase/admin'
 import { getStripe } from '../../../_lib/stripe'
+import { safeReturnOrigin } from '../../../_lib/billing'
+import { ensureStripeCustomer, inlineSessionBase } from '../../../_lib/stripe-customer'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 /**
  * POST /api/social-addon/checkout
- * Starts a Stripe Checkout for the $50/mo AI Social add-on (a separate
- * subscription from the user's main plan). The webhook flips
- * profiles.social_addon_active on completion / off on cancellation.
+ * Opens an IN-APP payment (2026-10-14) for the $50/mo AI Social add-on — a
+ * separate subscription from the user's main plan. Returns the client secret
+ * of a Checkout Session in ui_mode 'elements'; the pop-up pays with Stripe's
+ * Payment Element without leaving the app. The webhook still flips
+ * profiles.social_addon_active on payment / off on cancellation.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
-  const priceId = process.env.STRIPE_PRICE_ADDON_SOCIAL
+  const priceId = (process.env.STRIPE_PRICE_ADDON_SOCIAL || '').trim()
   if (!priceId) return NextResponse.json({ error: 'Social add-on price not configured' }, { status: 500 })
 
   const { data: profile } = await supabase
-    .from('profiles').select('stripe_customer_id, social_addon_active').eq('id', user.id).single()
+    .from('profiles').select('social_addon_active').eq('id', user.id).single()
   if (profile?.social_addon_active) {
     return NextResponse.json({ error: 'The Social add-on is already active.' }, { status: 400 })
   }
 
-  const origin = request.headers.get('origin') ?? 'https://docs2video.com'
+  const origin = safeReturnOrigin(request)
   try {
     const stripe = getStripe()
-    const params: Record<string, unknown> = {
+    const customerId = await ensureStripeCustomer(createAdminClient(), stripe, { id: user.id, email: user.email })
+    const session = await stripe.checkout.sessions.create({
+      ...inlineSessionBase(origin),
       mode: 'subscription',
-      payment_method_types: ['card'],
+      customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/settings?tab=social&addon=active`,
-      cancel_url: `${origin}/settings?tab=social`,
       metadata: { supabase_user_id: user.id, type: 'social_addon' },
       subscription_data: { metadata: { supabase_user_id: user.id, type: 'social_addon' } },
-    }
-    if (profile?.stripe_customer_id) params.customer = profile.stripe_customer_id
-    else params.customer_email = user.email
-
-    const session = await stripe.checkout.sessions.create(
-      params as Parameters<typeof stripe.checkout.sessions.create>[0]
-    )
-    return NextResponse.json({ url: session.url })
+    } as Stripe.Checkout.SessionCreateParams)
+    if (!session.client_secret) throw new Error('Stripe returned no client secret')
+    return NextResponse.json({ clientSecret: session.client_secret, sessionId: session.id })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Checkout failed' }, { status: 500 })
+    // Raw Stripe detail stays in the log; the user gets a plain sentence.
+    console.error('[social-addon/checkout] could not start checkout:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ error: 'We could not open the payment form just now. Please try again in a minute.' }, { status: 500 })
   }
 }

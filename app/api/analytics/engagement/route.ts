@@ -58,6 +58,19 @@ function breakdown(events: Ev[]) {
   return { device: top(device), referrer: top(referrer) }
 }
 
+/** Read every row in pages — one request stops at 1,000 rows, which capped
+ *  every funnel on a busy account. */
+async function readAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = []
+  for (let i = 0; i < 50; i++) {
+    const { data, error } = await page(i * 1000, i * 1000 + 999)
+    if (error || !data) break
+    out.push(...data)
+    if (data.length < 1000) break
+  }
+  return out
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -70,11 +83,12 @@ export async function GET(request: Request) {
   if (videoId) {
     const { data: v } = await admin.from('videos').select('id, title, thumbnail_url').eq('id', videoId).eq('user_id', user.id).maybeSingle()
     if (!v) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    const { data: events } = await admin
+    const evs = await readAll<Ev>((from, to) => admin
       .from('video_analytics')
       .select('event_type, metadata, user_agent, referrer')
       .eq('video_id', videoId)
-    const evs = (events ?? []) as Ev[]
+      .order('created_at', { ascending: true })
+      .range(from, to))
     return NextResponse.json({
       video: { id: v.id, title: v.title, thumbnail_url: v.thumbnail_url },
       ...funnels(evs),
@@ -93,10 +107,16 @@ export async function GET(request: Request) {
     })
   }
 
-  const { data: events } = await admin
-    .from('video_analytics')
-    .select('event_type, metadata')
-    .in('video_id', videoIds)
+  const events: Ev[] = []
+  for (let i = 0; i < videoIds.length; i += 200) {
+    const ids = videoIds.slice(i, i + 200)
+    events.push(...await readAll<Ev>((from, to) => admin
+      .from('video_analytics')
+      .select('event_type, metadata')
+      .in('video_id', ids)
+      .order('created_at', { ascending: true })
+      .range(from, to)))
+  }
 
   const { data: clients } = await admin
     .from('client_profiles')
@@ -106,7 +126,7 @@ export async function GET(request: Request) {
     .limit(25)
 
   return NextResponse.json({
-    ...funnels((events ?? []) as Ev[]),
+    ...funnels(events),
     clients: (clients ?? []).map(c => ({
       name: c.client_name ?? null,
       email: c.client_email,

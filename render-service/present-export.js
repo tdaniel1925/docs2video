@@ -63,6 +63,12 @@ async function runExport({ videoId, htmlUrl, supabase, log }) {
     const page = await ctx.newPage()
     const tPage = Date.now()
     await page.goto(`${htmlUrl}?record=1`, { waitUntil: 'networkidle', timeout: 60000 })
+    // The deck fits every slide to the window by MEASURING its text, and a
+    // webfont that lands late changes those measurements — the slide would
+    // visibly re-fit mid-recording. Start the show only once fonts are in.
+    // (Recorded at 1920x1080, a size the deck's fit is checked at:
+    // scripts/deck-overflow-check.mjs, "mp4-record".)
+    await page.evaluate(() => (document.fonts ? document.fonts.ready.then(() => true) : true)).catch(() => {})
     await page.waitForTimeout(900)
     const leadMs = Date.now() - tPage
     await page.evaluate((d) => window.startShow(d), durs)
@@ -101,8 +107,7 @@ async function runExport({ videoId, htmlUrl, supabase, log }) {
 
     const storagePath = `presentations/${videoId}.mp4`
     const buf = fs.readFileSync(mp4)
-    const up = await supabase.storage.from('videos').upload(storagePath, buf, { contentType: 'video/mp4', upsert: true })
-    if (up.error) throw new Error(up.error.message)
+    await require('./video-upload').uploadVideo(supabase, 'videos', storagePath, buf, 'present-export') // shrinks to fit; throws on failure
     const { data: pub } = supabase.storage.from('videos').getPublicUrl(storagePath)
     await supabase.from('videos').update({ export_video_url: pub.publicUrl }).eq('id', videoId)
     log(`export done · ${Math.round(buf.length / 1048576)}MB → ${pub.publicUrl}`)

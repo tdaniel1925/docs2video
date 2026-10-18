@@ -3,6 +3,26 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useBrand } from '../../_components/BrandProvider'
+import { PLANS, type PlanTier } from '../../_lib/pricing'
+import { CREDIT_COSTS, TIER_CREDITS } from '../../_lib/credits'
+import { CREDIT_PACKS, packPrice, SMALLEST_PACK } from '../../_lib/credit-packs'
+import { NAMES, KIND_NAMES } from '../../_lib/names'
+
+// Prices and names are READ from the tables, never typed: this page typed its
+// own plan prices and pack names, and called the $10 pack "Starter" after the
+// Starter plan was retired. tests/screen-prices.test.ts keeps it that way.
+const n = (x: number) => x.toLocaleString('en-US')
+const planPrice = (tier: PlanTier) => `$${Math.round((PLANS.find(p => p.tier === tier)?.monthlyPrice ?? 0) / 100)}`
+// The free plan's ONE name, from pricing.ts (audit 2026-10-09).
+const FREE_PLAN_NAME = PLANS.find(p => p.tier === 'free')?.label ?? ''
+const PACK_LIST = CREDIT_PACKS.map(p => `${p.name} ${n(p.credits)} (${packPrice(p)})`).join(', ')
+// Docs2Video makes videos and presentations (videos-only.ts). Slide decks and
+// graphics made before sit under "Older items", shown only when there are any.
+const LIBRARY_TABS = ['All', ...(['video', 'presentation'] as const).map(k => KIND_NAMES[k].many)]
+  .map(t => `**${t}**`).join(', ')
+// Guides for Text2Art's own makers — not shown on Docs2Video (the pages
+// redirect there; videos-only.ts).
+const TEXT2ART_ONLY_GUIDES = ['/help/flyers', '/help/restyle-deck']
 
 interface HelpArticle {
   id: string
@@ -19,29 +39,31 @@ interface HelpGuide {
   icon: string
 }
 
+// Audited against the live UI on 2026-09-26 (top bar + Home: 2026-10, overhaul step 4). When a screen changes, change the
+// matching entry here (and the guide page it links to) in the same commit.
 const GUIDES: HelpGuide[] = [
   {
     href: '/help/getting-started',
-    title: 'Getting Started',
-    description: 'Create your account, add a payment card, understand your credits, and navigate the dashboard.',
+    title: 'Getting started',
+    description: 'Sign up without a card, make your first video in three steps (your content, the story, the look) with a free preview, and add a card only when you make the real thing.',
     icon: '🚀',
   },
   {
     href: '/help/creating-videos',
-    title: 'Creating Explainer Videos',
-    description: 'Pick a format, add your content, choose who it\'s for, review the AI script and brief, pick a style and voice, then generate.',
+    title: 'Creating explainer videos',
+    description: 'Three steps: add your content (a document, website, text or idea), check the story and its numbers, pick a look — then Make it.',
     icon: '🎬',
   },
   {
     href: '/help/commercials',
-    title: 'Creating Commercials',
+    title: 'Creating commercials',
     description: 'Turn a website, PDF, your own text, or just an idea into a fully-directed, brand-matched commercial with voiceover, visuals, and music.',
     icon: '🎥',
   },
   {
     href: '/help/flyers',
     title: 'Custom Graphics',
-    description: 'Describe the job in plain English and get finished print-ready designs — artwork and words together — in every size you tick, including business cards.',
+    description: 'Flyers, posters, social posts, banners, business cards and slide decks in five steps: What, Content, Style, Sizes, Review.',
     icon: '📄',
   },
   {
@@ -52,102 +74,181 @@ const GUIDES: HelpGuide[] = [
   },
   {
     href: '/help/sharing-videos',
-    title: 'Sharing & the Client Page',
-    description: 'The branded share page: personalized welcome banner, a note to your client, download options, source-PDF download, booking and payment.',
+    title: 'Sharing & the client page',
+    description: 'The branded share page: personalized welcome banner, a note to your client, source-PDF download, booking and payment.',
     icon: '🔗',
   },
   {
+    href: '/help/making-changes',
+    title: 'Changing a finished project',
+    description: 'One "Ask for a change" bar for every project: this scene or the whole thing, the right editor for it, the price first, and Undo.',
+    icon: '🛠️',
+  },
+  {
+    href: '/help/social-sharing',
+    title: 'Social posts & AI Social',
+    description: 'Write ready-to-post captions for any finished video, or add AI Social to connect your accounts and post on a schedule.',
+    icon: '📣',
+  },
+  {
     href: '/help/insurance',
-    title: 'Insurance Illustrations',
+    title: 'Insurance illustrations',
     description: 'How compliance works: carrier/product names automatically removed, dollar figures kept, agent-attributed — with a generic-explainer safety net.',
     icon: '🛡️',
   },
   {
     href: '/help/pricing',
-    title: 'Pricing & Plans',
-    description: 'Credit-based plans: Free (2,000), Starter $29, Pro $79, Business $199, Enterprise $499. Buy top-up packs anytime.',
+    title: 'Pricing & plans',
+    description: `Credit-based plans: ${FREE_PLAN_NAME} (${n(TIER_CREDITS.free)} free credits to start), Pro ${planPrice('pro')}, Business ${planPrice('business')}, Enterprise ${planPrice('enterprise')}. Top-up packs from ${packPrice(SMALLEST_PACK)}, anytime.`,
     icon: '💰',
   },
   {
     href: '/help/faq',
-    title: 'FAQ & Troubleshooting',
+    title: 'FAQ & troubleshooting',
     description: 'Common questions, troubleshooting tips for stuck videos, missing audio, and more.',
     icon: '❓',
   },
   {
     href: '/help/brands',
-    title: 'Profiles & Personalization',
-    description: 'Person or Company profiles — your name, role, photo, and intro line, or your logo, colors, and contact info — used across every video.',
+    title: 'Brands & personalization',
+    description: 'Person or Company brands — your name, role, photo, and intro line, or your logo, colors, and contact info — used across every video.',
     icon: '🎨',
   },
   {
+    href: '/help/video-look',
+    title: 'Your video look',
+    description: 'Make videos look like your brand, a picture, a PDF or a website you like: colours, fonts, feel and logo on one screen, with a live preview of your own scenes.',
+    icon: '🖌️',
+  },
+  {
+    href: '/help/client-questions',
+    title: 'Client questions',
+    description: 'A client asks under your video, we draft an answer from their own document with where it came from — you Approve, Edit, Call instead or say Not now. Nothing is sent without you. Free.',
+    icon: '🙋',
+  },
+  {
+    href: '/help/annual-reviews',
+    title: 'Annual reviews',
+    description: 'Add a policy date, get "Review due in 30 days", prepare a "Your year in review" video (last year vs this year), pick the day it goes out, and track it in the Reviews box.',
+    icon: '📅',
+  },
+  {
+    href: '/help/library',
+    title: NAMES.library,
+    description: 'Picture cards for everything you’ve made: what “Ready to send”, “Making…” and “Didn’t finish” mean, the Send button, search, cards or list, and deleting safely.',
+    icon: '📁',
+  },
+  {
     href: '/help/downloads',
-    title: 'Downloads & Formats',
-    description: 'MP4 video, PDF slides, PPTX presentations, and the original source document explained.',
+    title: 'Downloads & formats',
+    description: 'The Download menu on a finished video: the MP4, its slides as PDF or PowerPoint, and the script — and why a video only lists the ones its look can make.',
     icon: '📥',
   },
   {
     href: '/help/account',
-    title: 'Account & Settings',
-    description: 'Manage your profile, notifications, billing, and subscription settings.',
+    title: 'Account & settings',
+    description: 'Your account area: profile, billing & credits, brand kit, email & sending (booking and payment links), analytics and affiliate — and resetting a forgotten password.',
     icon: '⚙️',
   },
 ]
 
 const CATEGORIES = [
-  { id: 'getting-started', label: 'Getting Started', icon: '🚀' },
+  { id: 'getting-started', label: 'Getting started', icon: '🚀' },
   { id: 'creators', label: 'Creators', icon: '🎨' },
   { id: 'management', label: 'Management', icon: '📁' },
-  { id: 'billing', label: 'Billing & Pricing', icon: '💳' },
-  { id: 'sharing', label: 'Sharing & Collaboration', icon: '🔗' },
+  { id: 'billing', label: 'Billing & pricing', icon: '💳' },
+  { id: 'sharing', label: 'Sharing & collaboration', icon: '🔗' },
 ]
 
 const ARTICLES: HelpArticle[] = [
-  // Getting Started
+  // Getting started
   {
     id: 'onboarding',
-    title: 'Setting Up Your Account',
+    title: 'Setting up your account',
     category: 'getting-started',
     icon: '👤',
     content: [
-      'When you first sign up, the Setup Wizard guides you through 5 quick steps:',
+      'Signing up asks for your name, email and a password — **no card**. You land on **Home** with a note: **Try it before you add a card.**',
+      'Make your first project straight away. On step 3 (**The look**) press **Free preview** to see the first scene and hear the voice (free, a few a day), and fill in **Add your brand** — your name, logo and colours, or **Fill in from it** to read them from your website.',
+      'You add a card only when you press **Make it** on a real video or presentation: **Add your payment method** opens, then brings you back. Saving the card starts your free credits; nothing is charged until they run out.',
+      'The optional Setup Wizard has 5 quick steps (you can press **Skip for now** on any of them):',
       '**1 — Profile:** Your name, company, phone, and role. This is your identity on the share page ("prepared by").',
-      '**2 — Photos:** Upload a headshot (used on the cover) and optional closing photo. Only the headshot is needed.',
+      '**2 — Photo:** Upload a headshot (used on the cover). Mid-level and standing photos are optional.',
       '**3 — Brand:** Your logo, brand colors, and contact info (phone/email/website) — used across every video and the share page.',
       '**4 — Voice:** Pick a default narration voice.',
-      '**5 — Style:** Choose a default look for your videos. You can always change it per project.',
-      'You can re-run the setup wizard anytime from **Settings**, and edit any of it later under **Settings** and **Brands**.',
+      '**5 — Style:** Pick a default image style for your slides. You choose the video look for each project on the Style step.',
+      `You can run the wizard again anytime with **Run the setup again** in **Settings → Profile**. To edit saved brands later, click **${NAMES.brands}** in the top bar.`,
     ],
   },
   {
     id: 'dashboard',
-    title: 'Understanding Your Dashboard',
+    title: 'Home and the top bar',
     category: 'getting-started',
     icon: '📊',
     content: [
-      'Your dashboard shows everything at a glance:',
-      '**Credits** — Your current balance is in the top bar. Every creation spends credits from your plan (see Pricing).',
-      '**Create** — Start any new project from the **+ Create** button — one place for videos, slides, and commercials.',
-      '**Recent Creations** — Your latest items with type badges. Click any item to open it, or "View all" for your full Library.',
+      `The top bar has four words: **${NAMES.newButton}**, **${NAMES.library}**, **${NAMES.clients}** and **${NAMES.brands}**. The logo takes you Home. On the right are **${NAMES.howToUse}**, your credits and your initial, which opens the account menu: your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center and Sign out.`,
+      `**While you make something** — the top bar steps aside for a quieter one: **Home** on the left (your draft is saved as you go and waits on Home), the three steps in the middle (a step you have done takes you back to it), and **${NAMES.howToUse}** and your credits on the right. On a phone, the **?** button holds ${NAMES.howToUse} and the help assistant.`,
+      `**Credits** — Your balance is the gold box in the top bar. It turns amber when fewer than ${n(CREDIT_COSTS.videoStandard)} are left (one standard video). Every creation spends credits (see Pricing). Click it (**+ Top Up**) to buy more.`,
+      '**Create** — Home opens with six small tiles: **From a document**, **From a website**, **From an idea**, **Paste your text**, **A commercial** and **Your brand**. Each one opens the first step with that choice already made.',
+      `**${NAMES.newButton}** — Starts any new project too: a narrated video or an interactive presentation. Commercials start from **A commercial** or the link under the first step.`,
+      '**Today’s clients** — Who clicked to book a call, who watched, and who hasn’t opened what you sent, each with the next thing to do.',
+      `**Recent** — Your latest work and where each one stands. Click **Continue** on a draft or **Open** on the rest, or go to **${NAMES.library}** for everything.`,
+    ],
+  },
+  {
+    id: 'how-to-use',
+    title: 'The "How to use" button',
+    category: 'getting-started',
+    icon: '🧭',
+    content: [
+      `Every screen has a **${NAMES.howToUse}** button in the top bar. On a phone, open the ☰ menu and choose **${NAMES.howToUse} this screen**.`,
+      'The round **help** button (bottom right) opens the **Help Assistant**. It knows which screen you are on: it says “On this screen: …” and starts with questions people ask there — tap one to ask it, or type your own. On a phone it is in the ☰ menu as **Ask the help assistant**.',
+      'It opens a short, numbered list of steps for the screen you are on: Home, each step of making a project, your Library, a finished project, Brands, Clients and Settings. Other screens show how to get around.',
+      'Press **Esc**, the **×**, or click outside it to close it. **More in the Help Center** at the bottom opens the full guide for that screen.',
+    ],
+  },
+
+  {
+    id: 'reset-password',
+    title: 'Forgot your password? Setting a new one',
+    category: 'getting-started',
+    icon: '🔑',
+    content: [
+      '**1.** On the sign-in page, click **Forgot password?**, type your email and click **Send Reset Link**. You will see "Check Your Email".',
+      '**2.** Open the email — on any device, your phone is fine — and click the link. It works once and expires after a while.',
+      '**3.** You land on **Set a new password**. Type a password of at least 8 characters, type it again, and click **Save new password**.',
+      '**4.** You will see "Password updated". Click **Continue** to go to your dashboard.',
+      'If the page says **This link has expired**, click **Send a new reset link** and use the newest email.',
+      '**Bought through Apex?** Your account is made for you — click **Set up my account** in the welcome email to choose your password on the same page.',
     ],
   },
 
   // Creators
   {
+    id: 'interactive-presentation',
+    title: 'Interactive presentations',
+    category: 'creators',
+    icon: '🖱️',
+    content: [
+      'An interactive presentation is a narrated, click-through presentation your client explores at their own pace, on its own share page.',
+      `**1.** Click **${NAMES.newButton}** and add your content — a document, a website, pasted text or an idea. Who it\'s for and the goal are optional.`,
+      '**2.** Check the story — the same as a video — then press **Pick a look →**.',
+      '**3.** Open **More options** and under **Make** choose **Presentation**, then pick one of six looks: Heritage, Warm Editorial, Corporate Bold, Midnight, Fresh Mint or Certificate.',
+      `**4.** Press **Make it**. When it\'s ready, open it from your ${NAMES.library} to send it, or change it with **Ask for a change**.`,
+      `It costs ${n(CREDIT_COSTS.interactive)} credits. Want a video file too? On the finished presentation\'s page, press **Download** and choose **Export video** (${n(CREDIT_COSTS.videoExport)} credits).`,
+    ],
+  },
+  {
     id: 'explainer-video',
-    title: 'Creating an Explainer Video',
+    title: 'Creating an explainer video',
     category: 'creators',
     icon: '🎬',
     content: [
-      'Start from **+ Create** (top nav) or the dashboard. Everything runs through one guided flow — you can leave at any point and your progress is saved.',
-      '**1 — Pick a format.** Choose **Video Explainer**, **Commercial**, or **Custom Graphics** (flyers, ads, banners and business cards).',
-      '**2 — Who\'s this for?** Pick an existing client, add a new one, or skip for a general video. When you name a client, their name appears on the video cover and share page ("Prepared for [Client]").',
-      '**3 — Add your content.** Upload a PDF/Word/PowerPoint, paste text, enter a website URL, or describe an idea. AI reads it and extracts the key points.',
-      '**4 — Review the brief.** AI shows what it understood — the angle, the key points it\'ll cover, and the figures it\'ll feature. Edit or tell it what to change. **This brief now steers the final video on every style**, so what you approve is what you get.',
-      '**5 — Brand & voice.** Choose the brand/presenter profile, then a narration voice (click any voice to preview). Default is **Sarah**, a warm female voice.',
-      '**6 — Style.** Pick the look (see "Video styles explained"). Optionally add a client note and let the client download your source PDF.',
-      '**7 — Generate.** Click generate and leave the page — it finishes in the background and lands in your Library.',
-      'When it\'s done you can rename it, download it (MP4 / PDF / PPTX), share it, or refine a scene with the AI editor.',
+      `Start from **${NAMES.newButton}** (top bar). There are three steps, shown at the top of the screen. Each step ends in one bar at the bottom: the price on the left, the button that moves you on at the right. Nothing is charged until you press **Make it** on step 3.`,
+      '**1 — Your content.** It opens on what you picked on Home: drop your document in the big box (up to 5: PDF, Word, PowerPoint, text, CSV or Excel), or press **Use a website**, **Paste text** or **Describe an idea**. Optional: **For** (a client — their name appears on the cover and share page, "Prepared for [Client]") and **Goal**. Press **Read it →**.',
+      '**2 — The story.** Check the one point and the numbers (fix or remove any), then the scenes — press **Edit** on one to change it. Choose the length (Short, Standard or Detailed), or type a change under **Ask for a change**. This step is free. Press **Pick a look →**.',
+      `**3 — The look.** Pick a look card (see "Video styles explained"). One line shows the voice (**Sarah** by default), music and length — press **Change** to open **More options** for the voice (press play to hear any), music, a note to your client and more. Check **${NAMES.brand}** on the brand line, press **Free preview** if you like, then **Make it**.`,
+      `**After Make it.** It finishes in the background and lands in your ${NAMES.library}. Its page opens with **Ready to send**: what\'s left, a picture of their page, and Send. Below that are **Ask for a change** and **Who watched**; at the top, **Download** and **More**.`,
     ],
   },
   {
@@ -156,43 +257,56 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎨',
     content: [
-      'On the Style step you choose how your explainer looks. All styles use the same narration and personalization — only the visuals differ:',
-      '• **Slide Deck** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Reads the whole document.',
-      '• **Aurora** — modern motion graphics: one flowing branded backdrop, kinetic type, no stock imagery. Clean and premium.',
+      'On step 3, **The look**, you choose how your explainer looks. Every look — Animated slides included — uses the voice and background music you picked and your story exactly as you edited it. Only the visuals differ:',
+      '• **Animated slides** (recommended) — an animated explainer deck: topic headings with bullets, data cards, charts, and icons that reveal in sync with the voice. Speaks your edited script. Takes about 10 minutes.',
+      '• **Aurora** — modern motion graphics: one flowing branded backdrop, kinetic type, no stock imagery.',
       '• **Cinematic** — film-style imagery with kinetic text and motion. Best for story-led, emotive videos.',
       '• **Editorial** — a clean, warm magazine layout with refined serif typography on your brand color.',
-      '• **Explainer** — a friendly modern deck with navy + color accents and big rounded cards. Great for how-it-works.',
+      '• **Explainer** — a friendly modern deck with big rounded cards and charts. Great for how-it-works.',
+      '• **Infographic** — big numbers, KPI cards, timelines and charts. Best for number-heavy reports.',
+      '• **Drawn slides** (NEW) — the AI draws every slide as one finished picture: the headline, a few short points and your numbers drawn right in. Pick a **Drawing style** under the cards: **3D infographic** (glossy 3D, picked for you), **Illustrated** (friendly flat drawings) or **Classic** (a clean business slide). Same price as the other looks, about 4–6 minutes. Words are kept short so they are spelled right, and every slide is read back after it is drawn — a slide with a missing or squeezed-together word is drawn again; no logos or company or product names are drawn.',
       'If your chosen style is temporarily unavailable at render time, we still produce your video in an alternate style and show a note on the video page so you can regenerate in your original style.',
-    ],
-  },
-  {
-    id: 'templates',
-    title: 'Custom Templates',
-    category: 'creators',
-    icon: '🎯',
-    content: [
-      'Most videos use the built-in styles (Slide Deck, Aurora, Cinematic, Editorial, Explainer) — see "Video styles explained." Custom templates let you define your own look.',
-      '**Creating a Template:**',
-      '1. Describe the style you want (e.g., "modern corporate with large data callouts").',
-      '2. Optionally upload a reference image for visual inspiration.',
-      '3. AI generates a preview slide in your style.',
-      '4. Refine if needed, then save.',
-      'Your saved templates appear in the style picker when you create a video. Generating a style preview uses a small number of credits.',
     ],
   },
 
   // Management
   {
+    id: 'drafts',
+    title: 'Unfinished drafts: how long they are kept',
+    category: 'management',
+    icon: '🗂️',
+    content: [
+      'Your project is saved as a draft while you go through the steps.',
+      '• A draft **without a script** is kept for **24 hours** after your last change.',
+      '• Once it **has a story** (you reached the story step), it is kept for **14 days** after your last change.',
+      'After that the draft, and any file you uploaded for it, is deleted. Finished videos are never removed this way.',
+    ],
+  },
+  {
+    id: 'videos-only',
+    title: 'Slide decks and custom graphics',
+    category: 'management',
+    icon: '🗂️',
+    content: [
+      'Docs2Video makes **narrated videos**, **interactive presentations** and **commercials**. It no longer makes new slide decks (the silent PDF / PowerPoint deck) or custom graphics (flyers, posters, social posts, banners, business cards).',
+      `Anything you made before is still yours: open the **${NAMES.library}** and press **Older items**. Older slide decks open their page as before — **Download**, share links and **Delete…** all still work. Older graphics open the picture in a new tab.`,
+      'Need slides for a meeting? Every presentation (and every video in a look that keeps slide pictures) has **PDF** and **PowerPoint** in its **Download** menu.',
+      'Old links to the deck and graphics makers now open Home.',
+    ],
+  },
+  {
     id: 'library',
-    title: 'Your Library',
+    title: NAMES.library,
     category: 'management',
     icon: '📁',
     content: [
-      'The Library shows all your creations (videos and slide decks).',
-      'Each item shows a thumbnail, title, type badge, and date created.',
-      '• **Videos** link to the video detail page with player, editor, and share options',
-      '• **Slide decks** open the downloadable PPTX directly',
-      'The library is paginated at 20 items per page. Use Previous/Next to navigate.',
+      `The **${NAMES.library}** (top bar) shows everything you\'ve made as picture cards: a picture, the name, a coloured status line (**Ready to send**, **Making…**, **Didn’t finish** or **Draft**), the date and who it’s for.`,
+      `Use the tabs to show ${LIBRARY_TABS}. The tab you pick stays chosen when you refresh. Slide decks and graphics you made before are under **Older items** — that tab only shows when you have some.`,
+      '• **Press a card** to open it. Videos and presentations open their page, with the player, sending and downloads. Older slide decks open their page too; older **Graphics** open the image in a new tab.',
+      '• A ready video has a **Send** button that goes straight to sending it.',
+      '• **Search by name or client**, change the order, or switch between **Cards** and **List** (the list is a table; your choice is remembered on this computer).',
+      '• To delete, press **…** on the card, then **Delete…** — it asks first.',
+      `It shows 24 items per page (you can switch to 48 or 96). Use **Previous** / **Next** to move between pages. The full guide is "${NAMES.library}" in the guides above.`,
     ],
   },
   // Billing & Credits
@@ -202,65 +316,38 @@ const ARTICLES: HelpArticle[] = [
     category: 'billing',
     icon: '🪙',
     content: [
-      'Videos and slide decks are paid for with credits from your plan:',
-      '• **Video Explainer** — Quick 500 · Standard 1,000 · Detailed 1,500 credits (podcast narration adds 400)',
-      '• **Slide Deck** — 600 credits · **PowerPoint (PPTX)** — 800 · **PDF** — 600',
-      '• **Infographic** — 300 credits',
-      'Subscription plans include a monthly credit allowance (see Plans). You can buy more credits anytime from Settings.',
+      'Everything is paid for with credits:',
+      `• **Narrated video** — Short ${n(CREDIT_COSTS.videoQuick)} · Standard ${n(CREDIT_COSTS.videoStandard)} · Detailed ${n(CREDIT_COSTS.videoDetailed)} credits`,
+      `• **Interactive presentation** — ${n(CREDIT_COSTS.interactive)} credits (MP4 export ${n(CREDIT_COSTS.videoExport)}) · **Commercial** — ${n(CREDIT_COSTS.commercial)}`,
+      'Plans include a monthly credit allowance (see Plans). You can buy more credits anytime with **+ Top Up** next to your balance.',
     ],
   },
   {
     id: 'plans',
-    title: 'Plans & Membership',
+    title: 'Plans & membership',
     category: 'billing',
     icon: '💰',
     content: [
-      'Plans give you a monthly credit allowance (credits are spent per creation — a standard video is 1,000 credits):',
-      '**Free** — 2,000 credits to try. Card required to start.',
-      '**Starter ($29/mo)** — 5,000 credits/mo.',
-      '**Pro ($79/mo)** — 25,000 credits/mo, priority generation, unlimited brands.',
-      '**Business ($199/mo)** — 75,000 credits/mo, white-label share pages.',
-      '**Enterprise ($499/mo)** — 200,000 credits/mo, API access, dedicated support.',
-      'Need more mid-cycle? Buy top-up packs (never expire): Starter 2,500 ($10), Power 7,500 ($25), Studio 18,000 ($50).',
-      'Manage your plan from **Settings > Subscription**.',
+      `Plans give you a monthly credit allowance (credits are spent per creation — a standard video is ${n(CREDIT_COSTS.videoStandard)} credits):`,
+      `**${FREE_PLAN_NAME}** — ${n(TIER_CREDITS.free)} credits to try (one time). Card required to start.`,
+      `**Pro (${planPrice('pro')}/mo)** — ${n(TIER_CREDITS.pro)} credits/mo, unlimited brands.`,
+      `**Business (${planPrice('business')}/mo)** — ${n(TIER_CREDITS.business)} credits/mo, white-label share pages.`,
+      `**Enterprise (${planPrice('enterprise')}/mo)** — ${n(TIER_CREDITS.enterprise)} credits/mo, white-label share pages, dedicated support.`,
+      `Need more mid-cycle? Buy top-up packs (never expire): ${PACK_LIST}. Anyone can buy them, including Pay As You Go accounts.`,
+      'Manage your plan from **Settings > Billing & credits**.',
     ],
   },
   {
     id: 'earn-credits',
-    title: 'Affiliate Program',
+    title: 'Affiliate program',
     category: 'billing',
     icon: '🎁',
     content: [
-      '**Affiliate Program** — Refer new users and earn **20% commission** on their payments. Go to **Settings > Subscription > Affiliate Program** to get your referral link.',
+      '**Affiliate** — Refer new users and earn **20% commission** on their payments. Open the account menu (top-right) and choose **Affiliate** to get your referral link.',
     ],
   },
 
   // Sharing
-  {
-    id: 'translate-video',
-    title: 'Translating a Presentation',
-    category: 'creators',
-    icon: '🌐',
-    content: [
-      'You can translate any completed video into another language with one click. The translated version is a new video with translated narration and slides.',
-      '**How to translate:**',
-      '1. Open a completed video from your Library',
-      '2. Click the **Translate** button in the action bar below the video',
-      '3. A modal appears with 10 supported languages: Spanish, French, Portuguese, German, Korean, Japanese, Chinese (Simplified), Arabic, Hindi, and Italian',
-      '4. Click a language to select it, then click **Translate to [Language]**',
-      '5. AI translates all narration and slide text naturally (not word-for-word)',
-      '6. A new video is created and you are redirected to its detail page, where generation begins automatically',
-      '**What gets translated:**',
-      '• All narration text (the voiceover)',
-      '• Slide text and descriptions',
-      '• Numbers, currency amounts, and proper names are kept as-is',
-      '**Good to know:**',
-      '• Each translation uses 1 additional credit',
-      '• The translated video appears in your Library with a language badge (e.g., "Spanish")',
-      '• The AI voice automatically speaks in the target language — no voice change needed',
-      '• You can translate a video into multiple languages to reach different audiences',
-    ],
-  },
   {
     id: 'share-video',
     title: 'The client share page',
@@ -271,13 +358,13 @@ const ARTICLES: HelpArticle[] = [
       '**What your client sees:**',
       '• A **personalized welcome banner** — "Hi [Client] — prepared for you by [You]" — when you named a client.',
       '• An optional **note from you**, shown above the video (you write it on the Style step or leave it blank).',
-      '• The video player with clickable slide thumbnails and chapter markers.',
-      '• **Download Video**, and — if you enabled it — **Download Original PDF** (the source document you used).',
-      '• Booking (your Calendly) and payment buttons, when configured.',
+      '• The video player, plus your contact details.',
+      '• **Download Original PDF** — only if you turned it on (the source document you used).',
+      '• **Book a Call** (your booking link) and **Make a Payment**, when set up in Settings > Email & sending. Links must start with https://. For Google Calendar, paste the link of a Google booking page (an "Appointment schedule") — there is no direct connection.',
       '**How to share:**',
       '1. Open a completed video from your Library.',
-      '2. Click **Share with Client** to send by email, or **Copy Link** to paste the URL anywhere.',
-      'The page is styled with your brand and contact details. Business/Enterprise plans remove all Docs2Video branding (white-label).',
+      '2. At the top, under **Ready to send**, fix anything **What\'s left** lists, write **A short note**, and press **Send to** your client — or **or copy the link** to paste the address anywhere.',
+      'The page shows your brand and contact details. Business and Enterprise plans remove the Docs2Video branding (white-label).',
     ],
   },
   {
@@ -289,6 +376,18 @@ const ARTICLES: HelpArticle[] = [
       'The video\'s title is what your client sees at the top of the share page and in link previews.',
       'Open the video from your Library, then **click the title** (it shows a small pencil). Type a new title and press Enter (or Save).',
       'The change is instant and updates the public share page too.',
+    ],
+  },
+  {
+    id: 'ask-for-a-change',
+    title: 'Changing a finished video or presentation',
+    category: 'management',
+    icon: '🛠️',
+    content: [
+      'Open it from your Library and use **Ask for a change** (under Ready to send). Pick **This scene** or the whole thing, type what you want or press a suggestion, then press the button.',
+      'It opens the editor that project uses: the slide editor for presentations (and older slide decks), **Fix a scene** for Animated slides look videos, the **Scene editor** for other looks with slide pictures. A few looks can\'t be changed in place — the bar offers **Make a changed copy**.',
+      `The first line of the bar says what a change costs. Changing spoken words costs ${n(CREDIT_COSTS['slide-scene-fix'])} credits per scene or slide on presentations and Animated slides videos; fixing a voice glitch or a mispronounced word is free.`,
+      'Your changes are listed under the bar with **Undo**. See **Changing a finished project** for more.',
     ],
   },
   {
@@ -310,10 +409,23 @@ const ARTICLES: HelpArticle[] = [
     category: 'sharing',
     icon: '💬',
     content: [
-      'You can add a short personal message that appears above the video on the share page — a warm touch that makes the video feel one-to-one.',
+      'You can add a short personal message (up to 400 characters) that appears above the video on the share page.',
       '1. On the **Style** step, under **Client options**, type your message in **"Note to your client."**',
       '2. Generate the video.',
       'The note shows as "A note from [You]" on the share page. Leave it blank to skip it.',
+    ],
+  },
+  {
+    id: 'auto-follow-ups',
+    title: 'Automatic follow-up emails (off until you turn them on)',
+    category: 'sharing',
+    icon: '📬',
+    content: [
+      'Nothing is emailed to your client automatically unless you ask for it, one quote at a time.',
+      '1. Open the video, scroll to **Quote / invoice**, and add a quote with your client\'s email.',
+      '2. Tick **Automatic follow-ups** under the quote. You\'ll see a message confirming reminders are on.',
+      '3. Up to two short reminders go out — about 3 and 7 days after the quote — from your connected email, each with an unsubscribe link.',
+      'They stop as soon as you mark the deal **paid**, **accepted** or **declined**, or the client unsubscribes. Untick the box to turn them off. You need a connected email account (Settings > Email & sending).',
     ],
   },
   {
@@ -322,7 +434,7 @@ const ARTICLES: HelpArticle[] = [
     category: 'management',
     icon: '📈',
     content: [
-      'Open **Analytics** from the nav to see how your videos are performing. Everything is tracked automatically when clients open your share pages.',
+      'Open **Analytics** from the account menu (top-right) to see how your videos are performing. Everything is tracked automatically when clients open your share pages.',
       '**Watch-through funnel** — how far viewers get: opened → 25% → 50% → 75% → finished. A big drop-off tells you where interest fades.',
       '**Engagement funnel** — the path to action: viewed → played → downloaded → booked → paid.',
       '**Client engagement** — named clients who opened a video you sent them, how many times, how far they watched, and whether they converted.',
@@ -332,13 +444,13 @@ const ARTICLES: HelpArticle[] = [
   },
   {
     id: 'affiliates',
-    title: 'Affiliate Program',
+    title: 'Affiliate program',
     category: 'sharing',
     icon: '🤝',
     content: [
       'Earn recurring commission by referring others to Docs2Video.',
       '**How to Join:**',
-      '1. Open the account menu (top-right) and click "Affiliate Program".',
+      '1. Open the account menu (top-right) and click "Affiliate".',
       '2. Click "Become an affiliate" — you instantly get a unique referral link and promo code.',
       '3. Share your link, your promo code, or one of the ready-made banners and email templates.',
       '**What You Earn:**',
@@ -358,9 +470,9 @@ const ARTICLES: HelpArticle[] = [
     category: 'getting-started',
     icon: '📄',
     content: [
-      'Click **Create Video** from the dashboard or navigation. On the content input screen, select **Upload PDF** and drag your file onto the upload zone, or click to browse.',
-      'You can also paste text directly using **Type or Paste**, enter a webpage with **From URL**, or let AI generate content with **AI Research** or **Start from Idea**.',
-      '**Supported file types:** PDF, DOCX, PPTX, TXT, and CSV.',
+      `Click **${NAMES.newButton}**. On the first step, under **Where should the content come from?**, choose **Upload file** and drag your files onto the upload area, or click to browse. You can add up to 5 files.`,
+      'You can also use **Website URL**, **Paste text**, or **AI writes it**.',
+      '**Supported file types:** PDF, DOCX, PPTX, TXT, CSV and XLSX.',
     ],
   },
   {
@@ -369,8 +481,8 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '⏱️',
     content: [
-      'Most videos are generated in **2-4 minutes**. The process includes generating slides, recording narration, and compositing everything into a final MP4.',
-      'You do not need to stay on the page. Video generation continues in the background. When it finishes, your video appears in your Library.',
+      'Most videos take **3–5 minutes**. The **Animated slides** style takes about **10 minutes**.',
+      `You do not need to stay on the page. Video generation continues in the background. When it finishes, your video appears in your ${NAMES.library}.`,
     ],
   },
   {
@@ -379,9 +491,10 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '✏️',
     content: [
-      'Yes. After the AI generates your script, you see each scene as an editable card. You can edit the narration text, scene titles, and slide notes for every scene.',
-      'You can also reorder scenes by dragging, delete scenes you do not want, or add new scenes with the "Add Scene" button.',
-      'Take your time — the more accurate the script, the better the final video.',
+      'Yes. On step 2, **The story**, every scene is editable: press **Edit** to change the words, or open **More — words on screen, ask AI, preview** for the slide headline, stats, an AI edit and **Preview slide**.',
+      'Drag scenes to reorder them (the opening and closing stay in place).',
+      'To make a big change — like "add a slide about pricing" — type it under **Ask for a change** below the scenes. You can **Undo that change**.',
+      'After it is made, use **Ask for a change** on its page — see **Changing a finished project**.',
     ],
   },
   {
@@ -390,9 +503,10 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🎙️',
     content: [
-      'During video creation, you will see a voice selection section. Browse the available voices and **click any voice to hear a preview**.',
-      'Voices range from professional and authoritative to warm and conversational. The default voice is **Sarah (nova)**, a natural-sounding female voice.',
-      'Select your preferred voice before clicking "Create my video." The voice cannot be changed after generation without recreating the video.',
+      'On step 3, **The look**, press **Change** (or open **More options**), then press play next to any voice to hear it and click the voice to choose it.',
+      'The default is **Sarah**, a warm female voice. Voices range from warm and conversational to professional and authoritative.',
+      'The sample you hear is the same voice your video will speak with.',
+      'Pick your voice before you generate. To change it afterwards, the video has to be made again.',
     ],
   },
   {
@@ -401,9 +515,9 @@ const ARTICLES: HelpArticle[] = [
     category: 'creators',
     icon: '🏷️',
     content: [
-      'Your logo is managed through **Brands**. Go to **Brands** in the navigation, then create or edit a brand.',
-      'Upload a PNG or SVG logo file. The logo appears on your video title slide, closing slide, and share page.',
-      'When creating a video, select the brand with your logo from the brand dropdown. See the **Brands & Customization** guide for full details.',
+      `Your logo lives in a **Company brand**. Click **${NAMES.brands}** in the top bar, then create or edit a brand and upload a PNG or SVG logo.`,
+      'You can also add your brand right on step 3, **The look**, while making a video: **Add your brand** opens on the page (on your first project it opens by itself). Upload your logo, or press **Fill in from it** to take the logo and colours from your website, then **Save my brand**. Only your real logo is ever used — we never draw one; with no logo your name shows as text.',
+      'When making a video, the brand shows on the brand line of step 3, **The look** — press **Change** to pick another. The logo appears on the cover, the closing slide and the share page. See the **Brands & personalization** guide for details.',
     ],
   },
   {
@@ -412,13 +526,13 @@ const ARTICLES: HelpArticle[] = [
     category: 'getting-started',
     icon: '📁',
     content: [
-      'Docs2Video supports the following file types for upload:',
+      'You can upload up to 5 files at once:',
       '• **PDF** — Reports, proposals, whitepapers, illustrations',
       '• **DOCX** — Word documents',
       '• **PPTX** — PowerPoint presentations',
       '• **TXT** — Plain text files',
-      '• **CSV** — Spreadsheet data',
-      'You can also paste text directly, enter a URL to scrape, or let AI research and generate content from scratch.',
+      '• **CSV** and **XLSX** — Spreadsheet data',
+      'You can also paste text, enter a website address, or let **AI write it** from a short description.',
     ],
   },
   {
@@ -427,10 +541,22 @@ const ARTICLES: HelpArticle[] = [
     category: 'sharing',
     icon: '📤',
     content: [
-      'Open a completed video from your Library. You have two options:',
-      '• **Share with Client** — Click this button to send the video by email. Enter the client\'s email and an optional message.',
-      '• **Copy Link** — Copies the share page URL to your clipboard. Paste it into any email, chat, or message.',
-      'The share page is fully branded with your logo, colors, and contact details. It includes a video player, AI chatbot, and optional calendar booking.',
+      'Open a completed video from your Library. The top of its page is **Ready to send** — one panel for everything:',
+      '• **What\'s left** — chips for anything missing from their page (their email, a note, your booking link, photo or name, a payment link). Press one to fix it.',
+      '• **Send to [client]** — emails it, from your own connected email if you have one. Type an email if the app doesn\'t have one yet, or press **Send to someone else**.',
+      '• **or copy the link** copies the share page address; **Copy the email** copies the whole email to paste into your own inbox. Copying sends nothing.',
+      'The share page shows your logo, colors, and contact details, plus your booking and payment buttons if you set them up.',
+    ],
+  },
+  {
+    id: 'social-posts',
+    title: 'Social posts and AI Social',
+    category: 'sharing',
+    icon: '📣',
+    content: [
+      '**Social Posts (free):** on any finished video, open **More** (top-right) and choose **Social posts**. It writes a LinkedIn, X/Twitter and Facebook post at once, each with a **Copy** button and your share link.',
+      '**AI Social ($50/month add-on):** connect your social accounts, let AI write captions and make branded images, and post on a schedule. Open it from the account menu (top-right) > **AI Social**.',
+      'AI Social uses your normal credits: 25 per caption set, and 25 per platform each time you post (posting to 3 platforms = 75). See the **Social posts & AI Social** guide.',
     ],
   },
   {
@@ -444,7 +570,8 @@ const ARTICLES: HelpArticle[] = [
       '• **Watch-through** — how far they got (25 / 50 / 75 / 100%).',
       '• **Actions** — downloads, booking clicks, and payment clicks.',
       '• **Context** — device, browser, and approximate location.',
-      'You\'re notified by email (and SMS, if you added a phone) on the first view. Full breakdowns live on the **Analytics** page — see "Analytics — who watched and how far."',
+      'On the video\'s own page, **Who watched** shows each person you emailed it to — whether they opened the email and how far into the video they got — plus anyone else who opened the link, by device.',
+      'You\'re notified by email (and SMS, if you added a phone). Full breakdowns live on the **Analytics** page — see "Analytics — who watched and how far."',
     ],
   },
   {
@@ -453,20 +580,20 @@ const ARTICLES: HelpArticle[] = [
     category: 'billing',
     icon: '🤝',
     content: [
-      'Go to **Settings > Subscription > Affiliate Program** to join and get your unique referral link.',
+      'Open the account menu (top-right) and choose **Affiliate** to join and get your unique referral link.',
       'Share your link with others. When someone signs up and makes a purchase, you earn **20% commission** on their payments.',
-      'Payouts are processed monthly for balances over $50. Track your clicks, signups, and earnings on the Affiliate Dashboard.',
+      'Commissions are approved after a 30-day refund hold and paid manually each cycle — there is no minimum. Track your clicks, signups, and earnings on the Affiliate Dashboard.',
     ],
   },
   {
     id: 'upgrade-plan',
-    title: 'How do I upgrade my plan?',
+    title: 'How do I change my plan?',
     category: 'billing',
     icon: '⬆️',
     content: [
-      'Go to **Settings > Subscription**. Your current plan is displayed along with upgrade options.',
-      'Click **Upgrade** next to the plan you want. Upgrades take effect immediately and you are prorated for the remaining billing period.',
-      'Available plans (credits/month): **Free** (2,000 to start), **Starter** ($29 — 5,000), **Pro** ($79 — 25,000), **Business** ($199 — 75,000), **Enterprise** ($499 — 200,000). Buy top-up packs anytime; they never expire.',
+      'Go to **Settings > Billing & credits**. Three boxes at the top show your plan, your credits and what you used this period, with the plans and credit packs below.',
+      'Click **Subscribe to [Plan]** and pay in the window that opens — you never leave Docs2Video. Already on a plan? **Switch to [Plan]** shows what you pay today before anything is charged. **Cancel plan**, **Payment methods** (add, default, remove a card), **Invoices and receipts** (with PDFs) and **Billing details** are all on the same page.',
+      `Available plans (credits/month): **${FREE_PLAN_NAME}** (${n(TIER_CREDITS.free)} to start), **Pro** (${planPrice('pro')} — ${n(TIER_CREDITS.pro)}), **Business** (${planPrice('business')} — ${n(TIER_CREDITS.business)}), **Enterprise** (${planPrice('enterprise')} — ${n(TIER_CREDITS.enterprise)}). Buy top-up packs anytime (from ${packPrice(SMALLEST_PACK)} for ${n(SMALLEST_PACK.credits)} credits); they never expire.`,
     ],
   },
   {
@@ -490,7 +617,7 @@ const ARTICLES: HelpArticle[] = [
       '**Removed automatically:** the carrier name and the branded product name (anywhere on screen or in the voiceover).',
       '**Kept:** the dollar figures, values, and percentages from the illustration — your client needs the real numbers to understand their coverage.',
       '**Framing:** the video points the client to the actual illustration for specifics and is attributed to you, the agent — not the carrier.',
-      'This runs across every style, so an insurance video is compliant no matter which look you pick. See the **Insurance Illustrations** guide for the full picture.',
+      'This runs across every style, so the same safeguards apply no matter which look you pick. Always review the video before you send it. See the **Insurance illustrations** guide for the full picture.',
     ],
   },
   {
@@ -500,11 +627,12 @@ const ARTICLES: HelpArticle[] = [
     icon: '📝',
     content: [
       'After you add your content, AI shows a **brief**: the angle it will take, the key points it plans to cover, and the figures it will feature.',
-      'Review it and edit anything — change the angle, add must-cover points, or tell it what to avoid. Whatever you approve here now steers the final video on **every** style, so the finished video matches what you signed off on.',
-      'If it misread your content, this is the place to correct course before generating.',
+      'To change it, tell it in the chat box — for example "focus on the death benefit, keep it reassuring". If it asks you a few questions, answer them and press **Update brief with my answers**.',
+      'When it looks right, press **Looks good — continue**. What you approve here steers the final video on **every** style.',
     ],
   },
 ]
+
 
 export default function HelpPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
@@ -516,8 +644,8 @@ export default function HelpPage() {
   // On a storefront that does not sell video, the help centre must not be a
   // list of video guides. Only what that customer can actually use.
   const guides = brand.showVideoFeatures
-    ? GUIDES
-    : GUIDES.filter((g) => ['/help/flyers', '/help/restyle-deck', '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
+    ? GUIDES.filter((g) => !TEXT2ART_ONLY_GUIDES.includes(g.href))
+    : GUIDES.filter((g) => [...TEXT2ART_ONLY_GUIDES, '/help/pricing', '/help/account', '/help/faq'].includes(g.href))
 
   const filteredArticles = ARTICLES.filter(a => {
     if (search.trim()) {
@@ -539,13 +667,13 @@ export default function HelpPage() {
 
       {/* User Guides — card grid */}
       <div style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+        <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
           User Guides
         </h2>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 14,
+          gap: 'var(--space-4)',
         }}>
           {guides.map(guide => (
             <Link
@@ -553,7 +681,7 @@ export default function HelpPage() {
               href={guide.href}
               style={{
                 display: 'block',
-                background: 'white',
+                background: 'var(--bg-card)',
                 border: '1px solid var(--border-light)',
                 borderRadius: 10,
                 padding: '20px 22px',
@@ -561,7 +689,7 @@ export default function HelpPage() {
                 transition: 'all 0.2s ease',
               }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint)'
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-ink)'
                 ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
                 ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'
               }}
@@ -571,11 +699,11 @@ export default function HelpPage() {
                 ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
               }}
             >
-              <div style={{ fontSize: 28, marginBottom: 10 }}>{guide.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
+              <div style={{ fontSize: 'var(--fs-h2)', marginBottom: 10 }}>{guide.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)', marginBottom: 6 }}>
                 {guide.title}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
                 {guide.description}
               </div>
             </Link>
@@ -587,7 +715,7 @@ export default function HelpPage() {
       <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '32px 0' }} />
 
       {/* Quick Reference — existing accordion */}
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
+      <h2 style={{ fontSize: 'var(--fs-h3)', fontWeight: 700, marginBottom: 16, color: 'var(--ink)' }}>
         Quick Reference
       </h2>
 
@@ -599,12 +727,12 @@ export default function HelpPage() {
           placeholder="Search help articles..."
           value={search}
           onChange={e => { setSearch(e.target.value); if (e.target.value) setActiveCategory(null) }}
-          style={{ fontSize: 15 }}
+          style={{ fontSize: 'var(--fs-body)' }}
         />
       </div>
 
       {/* Category pills */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 24, flexWrap: 'wrap' }}>
         <button
           onClick={() => { setActiveCategory(null); setSearch('') }}
           className={`btn btn-sm ${!activeCategory && !search ? 'btn-primary' : 'btn-soft'}`}
@@ -625,18 +753,18 @@ export default function HelpPage() {
       {/* Articles */}
       {filteredArticles.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--ink-soft)' }}>
-          <p style={{ fontSize: 16, fontWeight: 600 }}>No articles found</p>
-          <p style={{ fontSize: 14 }}>Try a different search term or category.</p>
+          <p style={{ fontSize: 'var(--fs-body)', fontWeight: 600 }}>No articles found</p>
+          <p style={{ fontSize: 'var(--fs-ui)' }}>Try a different search term or category.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {filteredArticles.map(article => {
             const isExpanded = expandedArticle === article.id
             return (
               <div
                 key={article.id}
                 style={{
-                  background: 'white',
+                  background: 'var(--bg-card)',
                   border: '1px solid var(--border-light)',
                   borderRadius: 10,
                   overflow: 'hidden',
@@ -653,14 +781,14 @@ export default function HelpPage() {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
+                    gap: 'var(--space-3)',
                     textAlign: 'left',
                   }}
                 >
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{article.icon}</span>
+                  <span style={{ fontSize: 'var(--fs-h3)', flexShrink: 0 }}>{article.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{article.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-light)', marginTop: 2 }}>
+                    <div style={{ fontWeight: 700, fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{article.title}</div>
+                    <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', marginTop: 2 }}>
                       {CATEGORIES.find(c => c.id === article.category)?.label}
                     </div>
                   </div>
@@ -673,12 +801,12 @@ export default function HelpPage() {
                 </button>
 
                 {isExpanded && (
-                  <div style={{ padding: '0 20px 20px 52px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
+                  <div style={{ padding: '0 20px 20px 52px', fontSize: 'var(--fs-ui)', lineHeight: 1.7, color: 'var(--ink-soft)' }}>
                     {article.content.map((paragraph, i) => (
                       <p key={i} style={{ margin: '8px 0' }} dangerouslySetInnerHTML={{
                         __html: paragraph
                           .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--ink)">$1</strong>')
-                          .replace(/^• /gm, '<span style="color:var(--mint-darker,#2d7a4f)">&#8226;</span> ')
+                          .replace(/^• /gm, '<span style="color:var(--mint-darker)">&#8226;</span> ')
                       }} />
                     ))}
                   </div>
@@ -692,15 +820,15 @@ export default function HelpPage() {
       {/* Still need help? */}
       <div style={{
         marginTop: 32, padding: '24px 28px', borderRadius: 10,
-        background: 'rgba(168,240,212,0.1)', border: '1px solid var(--mint)',
+        background: 'var(--accent-soft)', border: '1px solid var(--accent)',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
-        <p style={{ fontSize: 14, color: 'var(--ink-soft)', margin: '0 0 12px' }}>
+        <div style={{ fontSize: 'var(--fs-body)', fontWeight: 700, marginBottom: 6 }}>Still need help?</div>
+        <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', margin: '0 0 12px' }}>
           Click the help button in the bottom-right corner to chat with our AI assistant. It knows everything about the app.
         </p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <a href="mailto:support@docs2video.com" className="btn btn-soft">Email Support</a>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
+          <a href="mailto:support@docs2video.com" className="btn btn-soft">Email support</a>
           <Link href="/settings" className="btn btn-soft">Settings</Link>
         </div>
       </div>
