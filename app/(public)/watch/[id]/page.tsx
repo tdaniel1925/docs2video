@@ -6,6 +6,8 @@ import type { Video, Brand } from '../../../_lib/types'
 import type { ExtractedData } from '../../../_lib/extract-types'
 import { INDUSTRIES } from '../../../_lib/industries'
 import { salutationFor } from '../../../_lib/text-format'
+import { shareTheme, shareThemeVars, type BrandColours } from '../../../_lib/share-theme'
+import { WATCH_CSS, WatchHero, PresenterPanel, ChapterList, IconCheck, IconDownload, IconMail, IconPhone, IconCalendar, endStop, type WatchIdentity } from '../watch-view'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -13,6 +15,10 @@ import { salutationFor } from '../../../_lib/text-format'
 
 /** Who the video is from: the brand it was made with, else the account (app/_lib/video-sender.ts). */
 interface AgentProfile {
+  /** A person (photo first) or a company (logo first). */
+  kind?: 'person' | 'company' | null
+  /** The brand's colours; the page wears them (app/_lib/share-theme.ts). */
+  colours?: BrandColours | null
   full_name: string | null
   company_name: string | null
   role?: string | null
@@ -75,695 +81,12 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
+/** Before the video loads there is no brand to wear: the neutral theme. */
+const NEUTRAL_STYLE = shareThemeVars(shareTheme(null)) as React.CSSProperties
+
 const formatCents = (cents: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100)
 
-/* ------------------------------------------------------------------ */
-/*  SVG Icons (inline, no emoji)                                       */
-/* ------------------------------------------------------------------ */
-
-const IconDownload = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-)
-
-const IconShare = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="18" cy="5" r="3" />
-    <circle cx="6" cy="12" r="3" />
-    <circle cx="18" cy="19" r="3" />
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-  </svg>
-)
-
-
-const IconCheck = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-)
-
-const IconMail = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="2" />
-    <path d="M22 7l-10 6L2 7" />
-  </svg>
-)
-
-const IconPhone = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-  </svg>
-)
-
-const IconCalendar = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
-)
-
-/* ------------------------------------------------------------------ */
-/*  Styles (template literal)                                          */
-/* ------------------------------------------------------------------ */
-
-const pageStyles = `
-  /* Layout */
-  .wp-root {
-    min-height: 100vh;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: inherit;
-  }
-  .wp-center {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 32px;
-  }
-
-  /* Header */
-  .wp-header {
-    width: 100%;
-    height: 64px;
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-light);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    box-sizing: border-box;
-  }
-  .wp-header-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-  .wp-agent-photo {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-  }
-  .wp-agent-initials {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: var(--fs-ui);
-    color: var(--ink);
-    flex-shrink: 0;
-  }
-  .wp-agent-name {
-    font-weight: 700;
-    font-size: var(--fs-ui);
-    color: var(--ink);
-    line-height: 1.3;
-  }
-  .wp-agent-company {
-    font-size: var(--fs-caption);
-    color: var(--ink-light);
-    line-height: 1.3;
-  }
-  .wp-powered-header {
-    font-size: var(--fs-caption);
-    color: var(--ink-light);
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-  }
-
-  /* Title section */
-  .wp-title-section {
-    padding: 24px 0 0;
-  }
-  .wp-title {
-    font-size: var(--fs-h3);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 0 4px;
-    color: var(--ink);
-    line-height: 1.3;
-  }
-  .wp-date {
-    font-size: var(--fs-small);
-    color: var(--ink-light);
-    margin: 0;
-  }
-
-  /* Paid banner */
-  .wp-paid-banner {
-    background: var(--accent);
-    border-radius: 10px;
-    padding: 12px 20px;
-    margin-top: 16px;
-    font-weight: 700;
-    font-size: var(--fs-ui);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    color: var(--ink);
-  }
-
-  /* Main layout */
-  .wp-main {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-5);
-    padding: 24px 0 32px;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-  .wp-col-left {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    min-width: 0;
-  }
-
-  /* Video player */
-  .wp-video-wrap {
-    background: #000;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid var(--border-light);
-  }
-  .wp-video-wrap video {
-    width: 100%;
-    display: block;
-    max-height: 55vh;
-  }
-
-  /* Slide indicator */
-  .wp-slide-indicator {
-    font-size: var(--fs-small);
-    font-weight: 600;
-    color: var(--ink-soft);
-    padding: 0 4px;
-  }
-
-  /* Thumbnail strip */
-  .wp-thumbstrip {
-    display: flex;
-    gap: var(--space-2);
-    overflow-x: auto;
-    padding: 4px 0;
-    scrollbar-width: thin;
-  }
-  .wp-thumb {
-    border-radius: 8px;
-    overflow: hidden;
-    cursor: pointer;
-    border: 2px solid transparent;
-    flex-shrink: 0;
-    transition: border-color 0.15s;
-    position: relative;
-  }
-  .wp-thumb.active {
-    border-color: var(--accent-ink);
-  }
-  .wp-thumb:hover {
-    border-color: var(--ink-light);
-  }
-  .wp-thumb img {
-    width: 120px;
-    height: 68px;
-    object-fit: cover;
-    display: block;
-  }
-  .wp-thumb-num {
-    position: absolute;
-    bottom: 2px;
-    left: 2px;
-    background: rgba(0,0,0,0.65);
-    color: var(--on-ink);
-    font-size: var(--fs-caption);
-    font-weight: 700;
-    padding: 1px 5px;
-    border-radius: 4px;
-  }
-
-  /* Action buttons row */
-  .wp-actions {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-  .wp-action-btn {
-    flex: 1 1 0;
-    min-width: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    height: 42px;
-    padding: 0 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    font-size: var(--fs-small);
-    font-weight: 600;
-    color: var(--ink);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    font-family: inherit;
-  }
-  .wp-action-btn:hover {
-    border-color: var(--accent-ink);
-    background: var(--bg);
-  }
-  .wp-action-btn.copied {
-    border-color: var(--accent-ink);
-    color: var(--accent-ink);
-  }
-
-
-  /* Full-width sections below main */
-  .wp-section {
-    padding: 0 0 32px;
-  }
-  .wp-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    padding: 24px;
-  }
-  .wp-section-label {
-    font-size: var(--fs-caption);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-light);
-    margin-bottom: 16px;
-  }
-
-  /* Quote card */
-  .wp-quote-line {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border-light);
-    font-size: var(--fs-ui);
-  }
-  .wp-quote-line:last-of-type {
-    border-bottom: none;
-  }
-  .wp-quote-total {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 2px solid var(--border-light);
-  }
-  .wp-quote-total-label {
-    font-weight: 700;
-    font-size: var(--fs-body);
-  }
-  .wp-quote-total-value {
-    font-size: var(--fs-h3);
-    font-weight: 800;
-    color: var(--gold);
-  }
-  .wp-quote-actions {
-    display: flex;
-    gap: var(--space-2);
-    margin-top: 16px;
-  }
-  .wp-pay-btn {
-    flex: 1;
-    height: 44px;
-    border: none;
-    border-radius: 8px;
-    background: var(--ink);
-    color: var(--on-ink);
-    font-size: var(--fs-ui);
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 0.15s;
-    font-family: inherit;
-  }
-  .wp-pay-btn:disabled { opacity: 0.6; cursor: default; }
-  .wp-pay-btn:not(:disabled):hover { opacity: 0.9; }
-  .wp-pay-alt-btn {
-    height: 44px;
-    padding: 0 20px;
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    background: var(--bg-card);
-    font-size: var(--fs-small);
-    font-weight: 600;
-    color: var(--ink);
-    cursor: pointer;
-    transition: all 0.15s;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: inherit;
-  }
-  .wp-pay-alt-btn:hover { border-color: var(--accent-ink); }
-  .wp-pay-error {
-    margin-top: 8px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: var(--error-bg);
-    font-size: var(--fs-small);
-    color: var(--error);
-  }
-  .wp-paid-card {
-    background: var(--accent-soft);
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-  .wp-paid-card-title { font-weight: 700; font-size: var(--fs-ui); color: var(--ink); }
-  .wp-paid-card-sub { font-size: var(--fs-caption); color: var(--ink-soft); }
-
-  /* Calendly embed (legacy — now uses simple link) */
-  .wp-calendly {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .wp-calendly-header {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border-light);
-    font-weight: 700;
-    font-size: var(--fs-body);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  .wp-calendly iframe {
-    width: 100%;
-    height: 580px;
-    border: none;
-  }
-
-  /* Next step — one clear thing to do */
-  .wp-next {
-    display: flex;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-  }
-  .wp-next-btn {
-    flex: 1 1 220px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    min-height: 52px;
-    padding: 0 20px;
-    border-radius: 10px;
-    border: 1px solid var(--border-light);
-    background: var(--bg-card);
-    color: var(--ink);
-    font-family: inherit;
-    font-size: var(--fs-body);
-    font-weight: 700;
-    text-decoration: none;
-    cursor: pointer;
-    text-align: center;
-    transition: opacity 0.15s, border-color 0.15s;
-  }
-  .wp-next-btn:hover { border-color: var(--accent-ink); }
-  .wp-next-btn--main {
-    background: var(--accent);
-    border-color: var(--accent);
-  }
-  .wp-next-btn--main:hover { opacity: 0.9; }
-  .wp-next-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
-
-  /* Contact card */
-  .wp-contact-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-4);
-    text-align: center;
-  }
-  .wp-contact-photo {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-  .wp-contact-initials {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: var(--fs-lead);
-    color: var(--ink);
-  }
-  .wp-contact-name {
-    font-weight: 700;
-    font-size: var(--fs-body);
-    color: var(--ink);
-  }
-  .wp-contact-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    justify-content: center;
-  }
-  .wp-contact-link {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--fs-small);
-    color: var(--ink-soft);
-    text-decoration: none;
-    transition: color 0.15s;
-  }
-  .wp-contact-link:hover {
-    color: var(--link);
-  }
-
-  /* Footer */
-  .wp-footer {
-    text-align: center;
-    padding: 24px 0;
-    border-top: 1px solid var(--border-light);
-  }
-  .wp-footer a {
-    font-size: var(--fs-caption);
-    color: var(--ink-light);
-    text-decoration: none;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-  .wp-footer a:hover {
-    color: var(--ink-soft);
-  }
-
-  /* Loading / Not found */
-  .wp-center-screen {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .wp-not-found {
-    text-align: center;
-    padding: 40px 16px;
-    max-width: 480px;
-  }
-  .wp-not-found h1 {
-    font-size: var(--fs-h2);
-    font-weight: 800;
-    margin-bottom: 10px;
-  }
-  .wp-not-found p {
-    font-size: var(--fs-body);
-    color: var(--ink-soft);
-  }
-
-  /* Legal Disclosures */
-  .wp-disclosures-toggle {
-    display: inline-block;
-    font-size: var(--fs-small);
-    font-weight: 600;
-    color: var(--ink-soft);
-    cursor: pointer;
-    padding: 8px 0;
-    border: none;
-    background: none;
-    text-decoration: underline;
-    font-family: inherit;
-    transition: color 0.15s;
-  }
-  .wp-disclosures-toggle:hover {
-    color: var(--ink);
-  }
-  .wp-disclosures-panel {
-    background: var(--bg-soft);
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    padding: 24px 28px;
-    margin-top: 8px;
-    width: 100%;
-    max-height: 480px;
-    overflow-y: auto;
-  }
-  .wp-disclosures-heading {
-    font-size: var(--fs-small);
-    font-weight: 700;
-    color: var(--ink);
-    margin: 0 0 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .wp-disclosures-text {
-    font-size: var(--fs-caption);
-    line-height: 1.7;
-    color: var(--ink-soft);
-    margin: 0 0 6px;
-  }
-  .wp-disclosures-divider {
-    border: none;
-    border-top: 1px solid var(--border-light);
-    margin: 16px 0;
-  }
-
-  /* Lead capture card */
-  .wp-lead-card {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    background: var(--bg-card);
-    border-top: 1px solid var(--border-light);
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
-    padding: 20px 24px;
-    animation: slideUp 0.4s ease-out;
-  }
-  .wp-lead-inner {
-    max-width: 520px;
-    margin: 0 auto;
-  }
-  .wp-lead-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-  }
-  .wp-lead-title {
-    font-size: var(--fs-body);
-    font-weight: 700;
-    color: var(--ink);
-  }
-  .wp-lead-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    color: var(--ink-light);
-    transition: color 0.15s;
-  }
-  .wp-lead-close:hover {
-    color: var(--ink);
-  }
-  .wp-lead-form {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-  .wp-lead-input {
-    flex: 1;
-    min-width: 140px;
-    height: 40px;
-    padding: 0 12px;
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    font-size: var(--fs-ui);
-    font-family: inherit;
-    color: var(--ink);
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .wp-lead-input:focus {
-    border-color: var(--link);
-  }
-  .wp-lead-submit {
-    height: 40px;
-    padding: 0 20px;
-    background: var(--ink);
-    color: var(--on-ink);
-    border: none;
-    border-radius: 8px;
-    font-size: var(--fs-ui);
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: opacity 0.15s;
-    white-space: nowrap;
-  }
-  .wp-lead-submit:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-  .wp-lead-submit:not(:disabled):hover {
-    opacity: 0.9;
-  }
-  .wp-lead-success {
-    font-size: var(--fs-ui);
-    color: var(--success);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  .wp-lead-error {
-    font-size: var(--fs-caption);
-    color: var(--error);
-    margin-top: 6px;
-  }
-  @keyframes slideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
-  }
-
-  /* Mobile responsive */
-  @media (max-width: 768px) {
-    .wp-header { padding: 0 16px; }
-    .wp-center { padding: 0 16px; }
-    .wp-actions {
-      flex-direction: column;
-    }
-    .wp-action-btn {
-      min-width: unset;
-    }
-    .wp-title { font-size: var(--fs-h3); }
-    .wp-quote-actions { flex-direction: column; }
-  }
-`
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -856,7 +179,7 @@ export default function PublicWatchPage() {
       }
       if (d.kind === 'pdf') {
         // The source PDF has its own visible button; bring it into view.
-        document.querySelector('.wp-col-right')?.scrollIntoView({ behavior: 'smooth' })
+        document.querySelector('#wp-downloads')?.scrollIntoView({ behavior: 'smooth' })
       }
     }
     window.addEventListener('message', onMsg)
@@ -1051,8 +374,8 @@ export default function PublicWatchPage() {
   /* ================================================================ */
   if (notFound) {
     return (
-      <div className="wp-root">
-        <style>{pageStyles}</style>
+      <div className="wp-root" style={NEUTRAL_STYLE}>
+        <style>{WATCH_CSS}</style>
         <div className="wp-center-screen">
           <div className="wp-not-found">
             <h1>We can&apos;t find this video</h1>
@@ -1069,8 +392,8 @@ export default function PublicWatchPage() {
   /* ================================================================ */
   if (!video) {
     return (
-      <div className="wp-root">
-        <style>{pageStyles}</style>
+      <div className="wp-root" style={NEUTRAL_STYLE}>
+        <style>{WATCH_CSS}</style>
         <div className="wp-center-screen">
           <div className="spinner" />
         </div>
@@ -1148,75 +471,53 @@ export default function PublicWatchPage() {
     month: 'long',
     day: 'numeric',
   })
+  // The page wears the brand (app/_lib/share-theme.ts): its colours, corrected until they read.
+  const themeStyle = shareThemeVars(shareTheme(agent?.colours ?? null)) as React.CSSProperties
+  const who: WatchIdentity | null = hasAgentIdentity ? {
+    kind: agent?.kind ?? null,
+    name: agentName,
+    secondary: agentSecondary,
+    image: agent?.photo_url ?? null,
+    initials: agentInitials,
+  } : null
+  // "In this video": the scenes' titles with the time each starts, once the
+  // video knows its length (each scene is an equal part, as the slides are).
+  const chapterItems: { time: string; title: string }[] = (() => {
+    const scriptData = video.script as any
+    const chapters: any[] = scriptData?._pipeline_input?.scenes ?? (Array.isArray(scriptData) ? scriptData : [])
+    if (chapters.length === 0 || videoDuration === 0 || slideCount === 0) return []
+    const segDuration = videoDuration / slideCount
+    return chapters.map((ch: any, i: number) => {
+      const t = segDuration * i
+      return { time: `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, '0')}`, title: String(ch?.title || `Scene ${i + 1}`) }
+    })
+  })()
+  const kicker = [isHtmlDeck ? 'Presentation' : 'Video', createdDate].join(' · ')
 
   /* ================================================================ */
   /*  RENDER — Main page                                               */
   /* ================================================================ */
   return (
-    <div className="wp-root">
-      <style>{pageStyles}</style>
+    <div className="wp-root" style={themeStyle}>
+      <style>{WATCH_CSS}</style>
 
-      {/* ============================================================ */}
-      {/*  HEADER BAR                                                   */}
-      {/* ============================================================ */}
-      <header className="wp-header">
-        <div className="wp-header-left">
-          {agent?.photo_url ? (
-            <img src={agent.photo_url} alt={agentName} className="wp-agent-photo" />
-          ) : hasAgentIdentity ? (
-            <div className="wp-agent-initials">{agentInitials}</div>
-          ) : null}
-          <div>
-            <div className="wp-agent-name">{agentName}</div>
-            {agentSecondary && <div className="wp-agent-company">{agentSecondary}</div>}
-          </div>
-        </div>
-        {/* "Powered by Docs2Video" is said ONCE, in the footer (audit 2026-10-09). */}
-      </header>
+      {/* The hero: who it is from, who it is for, the title. "Powered by
+          Docs2Video" is said ONCE, in the footer (audit 2026-10-09). */}
+      <WatchHero
+        who={who}
+        forLine={clientName ? `Prepared for ${clientName}` : null}
+        kicker={kicker}
+        title={video.title}
+        hello={clientFirstName ? <>Hi {clientFirstName} — {hasAgentIdentity ? <>prepared for you by <strong>{agentName}</strong></> : 'prepared just for you'}{endStop(hasAgentIdentity ? agentName : '')}</> : null}
+      />
 
-      {/* ============================================================ */}
-      {/*  TITLE SECTION                                                */}
-      {/* ============================================================ */}
-      <div className="wp-center">
-        <div className="wp-title-section">
-          {video.title && <h1 className="wp-title">{video.title}</h1>}
-          <p className="wp-date">{createdDate}</p>
-
-          {paid && (
-            <div className="wp-paid-banner">
-              <IconCheck />
-              Payment received! Thank you.
-            </div>
-          )}
-        </div>
-
-        {/* ============================================================ */}
-        {/*  PERSONALIZED WELCOME BANNER + AGENT NOTE                     */}
-        {/* ============================================================ */}
-        {(clientFirstName || video.agent_note) && (
-          <div style={{ width: '100%', maxWidth: 760, margin: '0 auto 20px', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {clientFirstName && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--accent-soft)', border: '1px solid var(--accent)', fontSize: 'var(--fs-body)', color: 'var(--ink)', fontWeight: 600, textAlign: 'center' }}>
-                Hi {clientFirstName} — {hasAgentIdentity ? <>prepared for you by <strong>{agentName}</strong></> : 'prepared just for you'}.
-              </div>
+      <main className="wp-body">
+        <div className="wp-wrap wp-grid">
+          {/* ---- THE PLAYER ---- */}
+          <div className="wp-a-player">
+            {paid && (
+              <div className="wp-paid"><IconCheck /> Payment received! Thank you.</div>
             )}
-            {video.agent_note && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-light)', fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.5 }}>
-                {hasAgentIdentity && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>A note from {agentName}</div>}
-                {video.agent_note}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/*  MAIN 2-COLUMN LAYOUT                                        */}
-        {/* ============================================================ */}
-        <div className="wp-main">
-          {/* ---- LEFT COLUMN ---- */}
-          <div className="wp-col-left">
-            {/* Player: interactive presentations render the HTML deck in
-                share mode; everything else keeps the video element. */}
             {/* Slide decks ('deck') are HTML too — they used to fall through to
                 the <video> element and show a broken player. The ?v= makes an
                 edited deck show up right away instead of a cached old copy.
@@ -1233,67 +534,55 @@ export default function PublicWatchPage() {
                 />
               </div>
             ) : (
-            <div className="wp-video-wrap">
-              <video
-                ref={videoRef}
-                src={`${video.video_url!}${video.video_url!.includes('?') ? '&' : '?'}v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
-                poster={video.thumbnail_url ?? undefined}
-                controls
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={() => {
-                  if (videoRef.current) setVideoDuration(videoRef.current.duration)
-                }}
-                onPlay={() => {
-                  if (!playTracked.current && video) {
-                    playTracked.current = true
-                    trackEvent(video.id, 'play')
-                  }
-                  if (musicRef.current && video?.music_url) musicRef.current.play().catch(() => {})
-                }}
-                onPause={() => {
-                  if (musicRef.current) musicRef.current.pause()
-                }}
-                onEnded={() => {
-                  if (musicRef.current) musicRef.current.pause()
-                  setVideoEnded(true)
-                  if (video && !milestonesTracked.current.has(100)) {
-                    milestonesTracked.current.add(100)
-                    trackEvent(video.id, 'complete', { percent: 100 })
-                  }
-                }}
-                onSeeking={() => {
-                  if (musicRef.current && videoRef.current) {
-                    const musicDur = musicRef.current.duration
-                    if (musicDur && musicDur > 0) {
-                      musicRef.current.currentTime = videoRef.current.currentTime % musicDur
+              <div className="wp-video-wrap">
+                <video
+                  ref={videoRef}
+                  src={`${video.video_url!}${video.video_url!.includes('?') ? '&' : '?'}v=${new Date(video.updated_at ?? video.created_at).getTime()}`}
+                  poster={video.thumbnail_url ?? undefined}
+                  controls
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={() => {
+                    if (videoRef.current) setVideoDuration(videoRef.current.duration)
+                  }}
+                  onPlay={() => {
+                    if (!playTracked.current && video) {
+                      playTracked.current = true
+                      trackEvent(video.id, 'play')
                     }
-                  }
-                }}
-                playsInline
-              />
-              {video.music_url && (
-                <audio
-                  ref={musicRef}
-                  src={video.music_url}
-                  loop
-                  preload="auto"
-                  style={{ display: 'none' }}
+                    if (musicRef.current && video?.music_url) musicRef.current.play().catch(() => {})
+                  }}
+                  onPause={() => {
+                    if (musicRef.current) musicRef.current.pause()
+                  }}
+                  onEnded={() => {
+                    if (musicRef.current) musicRef.current.pause()
+                    setVideoEnded(true)
+                    if (video && !milestonesTracked.current.has(100)) {
+                      milestonesTracked.current.add(100)
+                      trackEvent(video.id, 'complete', { percent: 100 })
+                    }
+                  }}
+                  onSeeking={() => {
+                    if (musicRef.current && videoRef.current) {
+                      const musicDur = musicRef.current.duration
+                      if (musicDur && musicDur > 0) {
+                        musicRef.current.currentTime = videoRef.current.currentTime % musicDur
+                      }
+                    }
+                  }}
+                  playsInline
                 />
-              )}
-            </div>
+                {video.music_url && (
+                  <audio ref={musicRef} src={video.music_url} loop preload="auto" style={{ display: 'none' }} />
+                )}
+              </div>
             )}
 
             {/* Music volume control */}
             {video.music_url && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                padding: '8px 4px 0',
-                fontSize: 'var(--fs-caption)',
-                color: 'var(--ink-soft)',
-              }}>
+              <div className="wp-music">
                 <button
+                  type="button"
                   onClick={() => {
                     setMusicMuted(m => {
                       const next = !m
@@ -1301,30 +590,23 @@ export default function PublicWatchPage() {
                       return next
                     })
                   }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: musicMuted ? 'var(--ink-light)' : 'var(--ink-soft)',
-                  }}
                   title={musicMuted ? 'Unmute music' : 'Mute music'}
+                  aria-label={musicMuted ? 'Unmute music' : 'Mute music'}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M9 18V5l12-2v13" />
                     <circle cx="6" cy="18" r="3" />
                     <circle cx="18" cy="16" r="3" />
                     {musicMuted && <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" />}
                   </svg>
                 </button>
-                <span style={{ fontWeight: 600, minWidth: 40 }}>Music</span>
+                <span style={{ fontWeight: 600 }}>Music</span>
                 <input
                   type="range"
                   min={0}
                   max={1}
                   step={0.01}
+                  aria-label="Music volume"
                   value={musicMuted ? 0 : musicVolume}
                   onChange={e => {
                     const v = parseFloat(e.target.value)
@@ -1335,345 +617,256 @@ export default function PublicWatchPage() {
                       musicRef.current.muted = v === 0
                     }
                   }}
-                  style={{ flex: 1, maxWidth: 140, accentColor: 'var(--accent-ink)' }}
                 />
-                <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', minWidth: 30 }}>
-                  {musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}
-                </span>
+                <span>{musicMuted ? 'Off' : `${Math.round(musicVolume * 100)}%`}</span>
               </div>
             )}
+          </div>
 
-            {/* Slide indicator */}
-            {slideCount > 0 && (
-              <div className="wp-slide-indicator">
-                Slide {currentSlideIndex + 1} of {slideCount}
-              </div>
-            )}
-
-            {/* Thumbnail strip */}
-            {slideCount > 0 && (
-              <div className="wp-thumbstrip">
-                {slideUrls.map((url, i) => (
-                  <div
-                    key={i}
-                    className={`wp-thumb${i === currentSlideIndex ? ' active' : ''}`}
-                    onClick={() => jumpToSlide(i)}
-                  >
-                    <img src={url} alt={`Slide ${i + 1}`} />
-                    <div className="wp-thumb-num">{i + 1}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Chapter markers */}
-            {(() => {
-              const scriptData = video.script as any
-              const chapters: any[] = scriptData?._pipeline_input?.scenes ?? (Array.isArray(scriptData) ? scriptData : [])
-              if (chapters.length === 0 || videoDuration === 0 || slideCount === 0) return null
-              const segDuration = videoDuration / slideCount
-              return (
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', padding: '4px 0' }}>
-                  {chapters.map((ch: any, i: number) => {
-                    const timestamp = segDuration * i
-                    const mins = Math.floor(timestamp / 60)
-                    const secs = Math.floor(timestamp % 60)
-                    const isActive = i === currentSlideIndex
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => jumpToSlide(i)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-                          padding: '6px 12px', borderRadius: 10,
-                          border: isActive ? '1.5px solid var(--accent-ink)' : '1px solid var(--border-light)',
-                          background: isActive ? 'var(--accent-soft)' : 'var(--bg-card)',
-                          cursor: 'pointer', fontSize: 'var(--fs-caption)', fontWeight: isActive ? 700 : 500,
-                          color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
-                          transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
+          {/* ---- THE PRESENTER and the ONE next step (audit 2026-10-09):
+                book a call when a booking link is set; otherwise reply (the
+                real "ask a question" email form) and call when a phone is set. ---- */}
+          <aside className="wp-col-side">
+            {who ? (
+              <PresenterPanel
+                who={who}
+                contact={{ email: agentEmail, phone: agentPhone, website: agentWebsite, websiteLabel: agent?.website ?? '' }}
+                next={
+                  <div className="wp-next" id="next-step" data-testid="watch-next-step">
+                    {nextBooking ? (
+                      <a
+                        href={nextBooking}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => video && trackEvent(video.id, 'booking_click')}
+                        className="wp-btn wp-btn--main"
                       >
-                        <span style={{ fontFamily: 'monospace', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
-                          {mins}:{secs.toString().padStart(2, '0')}
-                        </span>
-                        <span>{ch.title || `Scene ${i + 1}`}</span>
+                        <IconCalendar /> Book a call with {agentShort}
+                      </a>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="wp-btn wp-btn--main"
+                          onClick={() => { setAskSent(false); setAskError(''); setAskOpen(true) }}
+                        >
+                          <IconMail /> Reply to {agentShort}
+                        </button>
+                        {agentPhone && (
+                          <a href={`tel:${agentPhone}`} className="wp-btn">
+                            <IconPhone /> Call {agentShort}
+                          </a>
+                        )}
+                      </>
+                    )}
+                    {nextBooking ? (
+                      <button type="button" className="wp-btn" onClick={() => { setAskSent(false); setAskError(''); setAskOpen(true) }}>
+                        <IconMail /> Ask a question
                       </button>
-                    )
-                  })}
-                </div>
-              )
-            })()}
+                    ) : null}
+                  </div>
+                }
+              />
+            ) : null}
+          </aside>
 
-            {/* Action buttons. Video download removed per product decision —
-                the share page is for watching, not downloading the video.
-                (Script/slides/PPTX/share/social were removed earlier.) */}
-            {/* Only the source-PDF download can live here now, and only when the
-                agent turned it on — so render the whole row only in that case. */}
-            {video.allow_source_download && (
-              <div className="wp-actions">
-                {/* Original source PDF. Streams via a server route that mints a
-                    short-lived signed URL (bucket stays private); we never expose
-                    the storage path here. */}
-                <button
-                  className="wp-action-btn"
-                  onClick={() => {
-                    trackEvent(video.id, 'download', { type: 'source_pdf' })
-                    window.open(`/api/watch/${video.id}/source-pdf`, '_blank')
-                  }}
-                >
-                  <IconDownload />
-                  Download Original {video.source_pdf_name ? 'PDF' : 'Document'}
-                </button>
-              </div>
+          {/* ---- EVERYTHING ELSE, under the player ---- */}
+          <div className="wp-col-main">
+            {video.agent_note && (
+              <section className="wp-note" aria-label={hasAgentIdentity ? `A note from ${agentName}` : 'A note'}>
+                <p>{video.agent_note}</p>
+                {hasAgentIdentity && <div className="wp-note-by">— {agentName}</div>}
+              </section>
             )}
 
-            {/* Booking & Payment buttons */}
-            {(() => {
-              const pi = (video.script as any)?._pipeline_input
-              // Prefer a quote/pipeline-specific link; fall back to the agent's
-              // saved Calendly + Stripe Payment Link from Settings → Integrations.
-              // Booking lives in ONE place — the "next step" block under the
-              // player — so it is never shown twice (audit 2026-10-09).
-              const paymentLnk = safeLink(pi?.paymentLink) || safeLink(agent?.payment_link_url)
-              if (!paymentLnk) return null
-              return (
-                <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 12 }}>
-                  {paymentLnk && (
+            {(chapterItems.length > 0 || slideCount > 0) && (
+              <section>
+                <span className="wp-label">In this {isHtmlDeck ? 'presentation' : 'video'}</span>
+                <h2 className="wp-h2">{slideCount > 0 ? `Slide ${currentSlideIndex + 1} of ${slideCount}` : 'Jump to a part'}</h2>
+                {chapterItems.length > 0 ? (
+                  <ChapterList items={chapterItems} active={currentSlideIndex} onPick={jumpToSlide} />
+                ) : (
+                  <div className="wp-pages">
+                    {slideUrls.map((url, i) => (
+                      <button
+                        type="button"
+                        key={i}
+                        className={`wp-page${i === currentSlideIndex ? ' is-on' : ''}`}
+                        onClick={() => jumpToSlide(i)}
+                        aria-label={`Go to slide ${i + 1}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- the video's own slide */}
+                        <img src={url} alt="" />
+                        <span className="wp-page-num">{i + 1}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Downloads and payment. Video download removed per product
+                decision — the share page is for watching, not downloading the
+                video. Only the source PDF, and only when the agent turned it on. */}
+            {(video.allow_source_download || safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) && !hasQuote ? (
+              <section className="wp-actions" id="wp-downloads">
+                {video.allow_source_download && (
+                  /* Original source PDF. Streams via a server route that mints a
+                     short-lived signed URL (bucket stays private); we never expose
+                     the storage path here. */
+                  <button
+                    type="button"
+                    className="wp-btn wp-btn--grow"
+                    onClick={() => {
+                      trackEvent(video.id, 'download', { type: 'source_pdf' })
+                      window.open(`/api/watch/${video.id}/source-pdf`, '_blank')
+                    }}
+                  >
+                    <IconDownload />
+                    Download Original {video.source_pdf_name ? 'PDF' : 'Document'}
+                  </button>
+                )}
+                {(safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) && (
+                  <a
+                    href={safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackEvent(video.id, 'payment_click')}
+                    className="wp-btn wp-btn--grow"
+                  >
+                    Make a Payment
+                  </a>
+                )}
+              </section>
+            ) : null}
+
+            {/* QUOTE */}
+            {hasQuote && quote && (
+              <section>
+                <span className="wp-label">Your quote</span>
+                <h2 className="wp-h2">{quote.client_name ? `Prepared for ${quote.client_name}` : 'What it costs'}</h2>
+                <div className="wp-card">
+                  {quote.line_items.map((item, i) => (
+                    <div key={i} className="wp-quote-line">
+                      <span>{item.description}</span>
+                      <span>{item.amount === 0 ? 'Included' : formatCents(item.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="wp-quote-total">
+                    <span className="wp-quote-total-label">Total</span>
+                    <span className="wp-quote-total-value">{formatCents(quote.total)}</span>
+                  </div>
+                  <div className="wp-quote-actions">
+                    {quote.total === 0 ? (
+                      <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--wt-ink-soft)' }}>
+                        This is a complimentary service
+                      </div>
+                    ) : (safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) ? (
+                      <a
+                        href={safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => video && trackEvent(video.id, 'payment_click')}
+                        className="wp-btn wp-btn--main wp-btn--grow"
+                      >
+                        Pay {formatCents(quote.total)}
+                      </a>
+                    ) : (
+                      <a href={`mailto:${agentEmail}`} className="wp-btn wp-btn--main wp-btn--grow">
+                        Contact {agentName} to pay
+                      </a>
+                    )}
                     <a
-                      href={paymentLnk}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => trackEvent(video.id, 'payment_click')}
-                      style={{
-                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
-                        height: 48, borderRadius: 10, background: 'var(--ink)', color: 'var(--on-ink)',
-                        fontSize: 'var(--fs-body)', fontWeight: 700, textDecoration: 'none', transition: 'opacity 0.15s',
+                      href={`mailto:${agentEmail}?subject=Quote Changes&body=Hi ${agentName},%0A%0AI'd like to request changes to the quote.`}
+                      className="wp-btn"
+                    >
+                      Request Changes
+                    </a>
+                  </div>
+                  {video.allow_source_download && (
+                    <button
+                      type="button"
+                      className="wp-textlink"
+                      onClick={() => {
+                        trackEvent(video.id, 'download', { type: 'source_pdf' })
+                        window.open(`/api/watch/${video.id}/source-pdf`, '_blank')
                       }}
                     >
-                      Make a Payment
-                    </a>
+                      Download Original {video.source_pdf_name ? 'PDF' : 'Document'}
+                    </button>
                   )}
                 </div>
-              )
-            })()}
-          </div>
+              </section>
+            )}
 
-        </div>
-      </div>
+            {hasPaidQuote && quote && (
+              <div className="wp-paid">
+                <IconCheck />
+                <div>
+                  <div>Payment Complete</div>
+                  <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 500, color: 'var(--wt-ink-soft)' }}>
+                    {formatCents(quote.total)} paid{' '}
+                    {new Date(quote.paid_at ?? quote.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </div>
+              </div>
+            )}
 
-      {/* ============================================================ */}
-      {/*  BELOW MAIN — Legal Disclosures (insurance only)              */}
-      {/* ============================================================ */}
-      {isInsurance && (
-        <div className="wp-center wp-section">
-          <button
-            className="wp-disclosures-toggle"
-            onClick={() => setDisclaimersOpen(!disclaimersOpen)}
-          >
-            {disclaimersOpen ? 'Hide Legal Disclosures' : 'View Legal Disclosures'}
-          </button>
-
-          {disclaimersOpen && (
-            <div className="wp-disclosures-panel">
-              {carrierDisclaimers.length > 0 && (
-                <>
-                  <h3 className="wp-disclosures-heading">Carrier Disclosures</h3>
-                  {carrierDisclaimers.map((d, i) => (
-                    <p key={i} className="wp-disclosures-text">{d}</p>
+            {/* QUESTIONS & ANSWERS — only answers the agent approved */}
+            {answers.length > 0 && (
+              <section data-testid="watch-answers">
+                <span className="wp-label">Questions</span>
+                <h2 className="wp-h2">Your questions, answered</h2>
+                <div className="wp-card">
+                  {answers.map((a) => (
+                    <div key={a.id} className="wp-answer">
+                      <p className="wp-answer-q">{a.question}</p>
+                      <p className="wp-answer-a">{a.answer}</p>
+                      <p className="wp-answer-by">
+                        Answered by {agentShort || 'your agent'}{a.from.length ? ` · from your document: ${a.from.map((f) => f.replace(/^Document section /, '')).join(', ')}` : ''}
+                      </p>
+                    </div>
                   ))}
-                  <hr className="wp-disclosures-divider" />
-                </>
-              )}
-
-              <h3 className="wp-disclosures-heading">Platform Disclosures</h3>
-              <p className="wp-disclosures-text">This video is for educational and informational purposes only. It is not intended as legal, tax, accounting, investment, or financial advice.</p>
-              <p className="wp-disclosures-text">Any values shown that are not guaranteed — including credited interest rates, dividends, index performance, policy charges, or loans — are subject to change and may vary over time. Actual policy performance may be more or less favorable than illustrated.</p>
-              <p className="wp-disclosures-text">Policy guarantees are based solely on the claims-paying ability of the issuing insurance company.</p>
-              <p className="wp-disclosures-text">This video was produced by a third party and is not endorsed by, affiliated with, or authorized by any insurance carrier.</p>
-              <p className="wp-disclosures-text">The policy contract and the official carrier-issued illustration govern all policy values, benefits, features, charges, and guarantees.</p>
-              <p className="wp-disclosures-text">This video is not a solicitation or offer to purchase insurance.</p>
-              <p className="wp-disclosures-text">This presentation assumes that currently illustrated non-guaranteed elements will continue unchanged for all years shown. This is not likely to occur, and actual results may be more or less favorable.</p>
-              <p className="wp-disclosures-text">Clients should review all policy materials and consult with their licensed insurance professional before making decisions.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ============================================================ */}
-      {/*  BELOW MAIN — Quote section                                   */}
-      {/* ============================================================ */}
-      {hasQuote && quote && (
-        <div className="wp-center wp-section">
-          <div className="wp-card">
-            <div className="wp-section-label">
-              Quote{quote.client_name ? ` for ${quote.client_name}` : ''}
-            </div>
-            {quote.line_items.map((item, i) => (
-              <div key={i} className="wp-quote-line">
-                <span>{item.description}</span>
-                <span style={{ fontWeight: 700 }}>
-                  {item.amount === 0 ? 'FREE' : formatCents(item.amount)}
-                </span>
-              </div>
-            ))}
-            <div className="wp-quote-total">
-              <span className="wp-quote-total-label">Total</span>
-              <span className="wp-quote-total-value">{formatCents(quote.total)}</span>
-            </div>
-            <div className="wp-quote-actions">
-              {quote.total === 0 ? (
-                <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 'var(--fs-ui)', fontWeight: 600, color: 'var(--ink-soft)' }}>
-                  This is a complimentary service
+                  <p className="wp-fine">
+                    Answers explain what your document says. They are not a promise of coverage or of any result, and not legal, tax or financial advice.
+                  </p>
                 </div>
-              ) : (safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)) ? (
-                <a
-                  href={safeLink(pipelineInput?.paymentLink) || safeLink(agent?.payment_link_url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => video && trackEvent(video.id, 'payment_click')}
-                  className="wp-pay-btn"
-                  style={{ flex: 1, textAlign: 'center', textDecoration: 'none', display: 'block' }}
-                >
-                  Pay {formatCents(quote.total)}
-                </a>
-              ) : (
-                <a href={`mailto:${agentEmail}`} className="wp-pay-alt-btn" style={{ flex: 1 }}>
-                  Contact {agentName} to pay
-                </a>
-              )}
-              <a
-                href={`mailto:${agentEmail}?subject=Quote Changes&body=Hi ${agentName},%0A%0AI'd like to request changes to the quote.`}
-                className="wp-pay-alt-btn"
-              >
-                Request Changes
-              </a>
-            </div>
+              </section>
+            )}
+
+            {/* Legal disclosures (insurance only) */}
+            {isInsurance && (
+              <section>
+                <button type="button" className="wp-textlink" onClick={() => setDisclaimersOpen(!disclaimersOpen)}>
+                  {disclaimersOpen ? 'Hide Legal Disclosures' : 'View Legal Disclosures'}
+                </button>
+                {disclaimersOpen && (
+                  <div className="wp-disclosures-panel">
+                    {carrierDisclaimers.length > 0 && (
+                      <>
+                        <h3 className="wp-disclosures-heading">Carrier Disclosures</h3>
+                        {carrierDisclaimers.map((d, i) => (
+                          <p key={i} className="wp-disclosures-text">{d}</p>
+                        ))}
+                        <hr className="wp-disclosures-divider" />
+                      </>
+                    )}
+                    <h3 className="wp-disclosures-heading">Platform Disclosures</h3>
+                    <p className="wp-disclosures-text">This video is for educational and informational purposes only. It is not intended as legal, tax, accounting, investment, or financial advice.</p>
+                    <p className="wp-disclosures-text">Any values shown that are not guaranteed — including credited interest rates, dividends, index performance, policy charges, or loans — are subject to change and may vary over time. Actual policy performance may be more or less favorable than illustrated.</p>
+                    <p className="wp-disclosures-text">Policy guarantees are based solely on the claims-paying ability of the issuing insurance company.</p>
+                    <p className="wp-disclosures-text">This video was produced by a third party and is not endorsed by, affiliated with, or authorized by any insurance carrier.</p>
+                    <p className="wp-disclosures-text">The policy contract and the official carrier-issued illustration govern all policy values, benefits, features, charges, and guarantees.</p>
+                    <p className="wp-disclosures-text">This video is not a solicitation or offer to purchase insurance.</p>
+                    <p className="wp-disclosures-text">This presentation assumes that currently illustrated non-guaranteed elements will continue unchanged for all years shown. This is not likely to occur, and actual results may be more or less favorable.</p>
+                    <p className="wp-disclosures-text">Clients should review all policy materials and consult with their licensed insurance professional before making decisions.</p>
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
-      )}
-
-      {hasPaidQuote && quote && (
-        <div className="wp-center wp-section">
-          <div className="wp-paid-card">
-            <IconCheck />
-            <div>
-              <div className="wp-paid-card-title">Payment Complete</div>
-              <div className="wp-paid-card-sub">
-                {formatCents(quote.total)} paid{' '}
-                {new Date(quote.paid_at ?? quote.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================ */}
-      {/*  NEXT STEP — always one clear thing to do (audit 2026-10-09):   */}
-      {/*  book a call when a booking link is set; otherwise reply (the   */}
-      {/*  real "ask a question" email form) and call when a phone is set. */}
-      {/* ============================================================ */}
-      <div className="wp-center wp-section" id="next-step" data-testid="watch-next-step">
-        <div className="wp-next">
-          {nextBooking ? (
-            <a
-              href={nextBooking}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => video && trackEvent(video.id, 'booking_click')}
-              className="wp-next-btn wp-next-btn--main"
-            >
-              <IconCalendar /> Book a call with {agentShort}
-            </a>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="wp-next-btn wp-next-btn--main"
-                onClick={() => { setAskSent(false); setAskError(''); setAskOpen(true) }}
-              >
-                <IconMail /> Reply to {agentShort}
-              </button>
-              {agentPhone && (
-                <a
-                  href={`tel:${agentPhone}`}
-                  className="wp-next-btn"
-                >
-                  <IconPhone /> Call {agentShort}
-                </a>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/*  QUESTIONS & ANSWERS — only answers the agent approved          */}
-      {/* ============================================================ */}
-      {answers.length > 0 && (
-        <div className="wp-center wp-section" data-testid="watch-answers">
-          <div className="wp-card">
-            <div className="wp-section-label">Your questions, answered</div>
-            {answers.map((a) => (
-              <div key={a.id} style={{ padding: '14px 0', borderTop: '1px solid var(--border-light)' }}>
-                <p style={{ margin: '0 0 6px', fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink)' }}>{a.question}</p>
-                <p style={{ margin: 0, fontSize: 'var(--fs-body)', lineHeight: 1.6, color: 'var(--ink-soft)', whiteSpace: 'pre-wrap' }}>{a.answer}</p>
-                <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
-                  Answered by {agentShort || 'your agent'}{a.from.length ? ` · from your document: ${a.from.map((f) => f.replace(/^Document section /, '')).join(', ')}` : ''}
-                </p>
-              </div>
-            ))}
-            <p style={{ margin: '10px 0 0', fontSize: 'var(--fs-caption)', lineHeight: 1.5, color: 'var(--ink-light)' }}>
-              Answers explain what your document says. They are not a promise of coverage or of any result, and not legal, tax or financial advice.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================ */}
-      {/*  BELOW MAIN — Contact card                                    */}
-      {/* ============================================================ */}
-      {agent && (
-        <div className="wp-center wp-section">
-          <div className="wp-contact-card">
-            {agent.photo_url ? (
-              <img src={agent.photo_url} alt={agentName} className="wp-contact-photo" />
-            ) : hasAgentIdentity ? (
-              <div className="wp-contact-initials">{agentInitials}</div>
-            ) : null}
-            <div>
-              <div className="wp-contact-name">{agentName}</div>
-              {agentSecondary && (
-                <div style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginTop: 2 }}>
-                  {agentSecondary}
-                </div>
-              )}
-            </div>
-            <div className="wp-contact-details">
-              {agentEmail && (
-                <a href={`mailto:${agentEmail}`} className="wp-contact-link">
-                  <IconMail />
-                  {agentEmail}
-                </a>
-              )}
-              {agentPhone && (
-                <a href={`tel:${agentPhone}`} className="wp-contact-link">
-                  <IconPhone />
-                  {agentPhone}
-                </a>
-              )}
-              {agentWebsite && (
-                <a href={agentWebsite} className="wp-contact-link" target="_blank" rel="noopener noreferrer">
-                  {agent.website}
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      </main>
 
       {/* ============================================================ */}
       {/*  DISCLOSURES DRAWER                                           */}
@@ -1682,71 +875,42 @@ export default function PublicWatchPage() {
         <>
           {/* Tab trigger — fixed to right edge */}
           <button
+            type="button"
             onClick={() => setShowDisclosures(true)}
             style={{
-              position: 'fixed',
-              right: 0,
-              top: '50%',
-              transform: 'translateY(-50%) rotate(-90deg)',
-              transformOrigin: 'bottom right',
-              background: 'var(--ink)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px 6px 0 0',
-              padding: '8px 16px',
-              fontSize: 'var(--fs-caption)',
-              fontWeight: 600,
-              letterSpacing: '0.03em',
-              cursor: 'pointer',
-              zIndex: 900,
-              opacity: 0.85,
-              transition: 'opacity 0.2s',
+              position: 'fixed', right: 0, top: '50%',
+              transform: 'translateY(-50%) rotate(-90deg)', transformOrigin: 'bottom right',
+              background: 'var(--wt-hero)', color: 'var(--wt-hero-ink)', border: 'none', borderRadius: '6px 6px 0 0',
+              padding: '8px 16px', fontSize: 'var(--fs-caption)', fontWeight: 600, letterSpacing: '0.03em',
+              cursor: 'pointer', zIndex: 900,
             }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '0.85')}
           >
             Disclosures
           </button>
 
-          {/* Drawer overlay + panel */}
           {showDisclosures && (
             <div
               style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', justifyContent: 'flex-end' }}
               onClick={() => setShowDisclosures(false)}
             >
-              {/* Backdrop */}
               <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)' }} />
-
-              {/* Panel */}
               <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  maxWidth: 420,
-                  background: 'white',
-                  boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-                  padding: '32px 24px',
-                  overflowY: 'auto',
-                  animation: 'slide-in-right 0.25s ease-out',
-                }}
+                style={{ position: 'relative', width: '100%', maxWidth: 420, background: 'var(--wt-card)', boxShadow: '-4px 0 20px rgba(0,0,0,0.1)', padding: '32px 24px', overflowY: 'auto', animation: 'wpSlideIn 0.25s ease-out' }}
                 onClick={e => e.stopPropagation()}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                   <h3 style={{ margin: 0, fontSize: 'var(--fs-lead)', fontWeight: 700 }}>Disclosures & Disclaimers</h3>
-                  <button
-                    onClick={() => setShowDisclosures(false)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <button type="button" onClick={() => setShowDisclosures(false)} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--wt-ink)' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
 
                 {industryConfig?.disclaimerText && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--wt-ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {industryConfig.label ?? 'Industry'} Disclosure
                     </div>
-                    <p style={{ fontSize: 'var(--fs-small)', lineHeight: 1.6, color: 'var(--ink)', margin: 0 }}>
+                    <p style={{ fontSize: 'var(--fs-small)', lineHeight: 1.6, color: 'var(--wt-ink)', margin: 0 }}>
                       {industryConfig.disclaimerText}
                     </p>
                   </div>
@@ -1754,61 +918,34 @@ export default function PublicWatchPage() {
 
                 {carrierDisclaimers.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, color: 'var(--wt-ink-soft)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Additional Disclosures
                     </div>
                     {carrierDisclaimers.map((d, i) => (
-                      <p key={i} style={{ fontSize: 'var(--fs-small)', lineHeight: 1.6, color: 'var(--ink)', margin: '0 0 8px' }}>
-                        {d}
-                      </p>
+                      <p key={i} style={{ fontSize: 'var(--fs-small)', lineHeight: 1.6, color: 'var(--wt-ink)', margin: '0 0 8px' }}>{d}</p>
                     ))}
                   </div>
                 )}
 
-                <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, marginTop: 16 }}>
-                  <p style={{ fontSize: 'var(--fs-caption)', lineHeight: 1.5, color: 'var(--ink-light)', margin: 0 }}>
+                <div style={{ borderTop: '1px solid var(--wt-line)', paddingTop: 16, marginTop: 16 }}>
+                  <p style={{ fontSize: 'var(--fs-caption)', lineHeight: 1.5, color: 'var(--wt-ink-faint)', margin: 0 }}>
                     This presentation was generated on {createdDate} and is intended for informational purposes only. Please consult with a qualified professional before making any decisions based on this content.
                   </p>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Drawer animation */}
-          <style>{`
-            @keyframes slide-in-right {
-              from { transform: translateX(100%); }
-              to { transform: translateX(0); }
-            }
-          `}</style>
         </>
       )}
 
       {/* ============================================================ */}
-      {/*  PROMO BANNER — free tier only                                */}
+      {/*  PROMO — free tier only, after the video ends                 */}
       {/* ============================================================ */}
       {isFreeTier && videoEnded && (
-        <div style={{
-          maxWidth: 600, margin: '0 auto 32px', padding: '28px 32px', borderRadius: 10,
-          background: 'linear-gradient(135deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 80%, var(--link)) 100%)',
-          textAlign: 'center', animation: 'fadeInUp 0.5s ease',
-        }}>
-          <div style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--on-ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
-            Make videos like this one
-          </div>
-          <div style={{ fontSize: 'var(--fs-body)', color: 'rgba(255,255,255,0.75)', marginBottom: 20, lineHeight: 1.5 }}>
-            Turn a document, website, or idea into a short narrated video. No editing skills needed.
-          </div>
-          <a
-            href="https://docs2video.com/signup"
-            style={{
-              display: 'inline-block', padding: '14px 36px', borderRadius: 8,
-              background: 'var(--accent)', color: 'var(--ink)', fontSize: 'var(--fs-body)', fontWeight: 700,
-              textDecoration: 'none', transition: 'opacity 0.15s',
-            }}
-          >
-            Try Free &rarr;
-          </a>
+        <div className="wp-promo">
+          <div className="wp-promo-title">Make videos like this one</div>
+          <p>Turn a document, website, or idea into a short narrated video. No editing skills needed.</p>
+          <a href="https://docs2video.com/signup" className="wp-btn">Try Free &rarr;</a>
         </div>
       )}
 
@@ -1824,12 +961,8 @@ export default function PublicWatchPage() {
           <div className="wp-lead-inner">
             <div className="wp-lead-header">
               <div className="wp-lead-title">Interested? Leave your email for more info</div>
-              <button
-                className="wp-lead-close"
-                onClick={() => setLeadDismissed(true)}
-                aria-label="Close"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <button type="button" className="wp-lead-close" onClick={() => setLeadDismissed(true)} aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -1864,22 +997,9 @@ export default function PublicWatchPage() {
                 }
               }}
             >
-              <input
-                type="email"
-                className="wp-lead-input"
-                placeholder="Your email"
-                value={leadEmail}
-                onChange={(e) => setLeadEmail(e.target.value)}
-                required
-              />
-              <input
-                type="text"
-                className="wp-lead-input"
-                placeholder="Name (optional)"
-                value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
-              />
-              <button type="submit" className="wp-lead-submit" disabled={leadSubmitting}>
+              <input type="email" className="wp-input" placeholder="Your email" aria-label="Your email" value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} required />
+              <input type="text" className="wp-input" placeholder="Name (optional)" aria-label="Your name" value={leadName} onChange={(e) => setLeadName(e.target.value)} />
+              <button type="submit" className="wp-btn wp-btn--main" disabled={leadSubmitting}>
                 {leadSubmitting ? 'Sending...' : 'Submit'}
               </button>
             </form>
@@ -1895,12 +1015,8 @@ export default function PublicWatchPage() {
               <div className="wp-lead-success">
                 <IconCheck /> Thanks! We'll be in touch.
               </div>
-              <button
-                className="wp-lead-close"
-                onClick={() => setLeadDismissed(true)}
-                aria-label="Close"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <button type="button" className="wp-lead-close" onClick={() => setLeadDismissed(true)} aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -1912,51 +1028,39 @@ export default function PublicWatchPage() {
 
       {/* ── ASK A QUESTION — a real message emailed to the presenter ── */}
       {askOpen && (
-        <div
-          onClick={(e) => { if (e.target === e.currentTarget) setAskOpen(false) }}
-          style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,26,18,0.5)', backdropFilter: 'blur(6px)', padding: '24px 16px', overflowY: 'auto' }}
-        >
-          <div style={{ width: '100%', maxWidth: 460, margin: 'auto', background: 'var(--bg-card)', borderRadius: 10, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <h2 style={{ fontSize: 'var(--fs-lead)', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Ask a question</h2>
-              <button onClick={() => setAskOpen(false)} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 'var(--fs-h3)', cursor: 'pointer', color: 'var(--ink-light)', lineHeight: 1 }}>&times;</button>
+        <div className="wp-modal-back" onClick={(e) => { if (e.target === e.currentTarget) setAskOpen(false) }}>
+          <div className="wp-modal" role="dialog" aria-modal="true" aria-label="Ask a question">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2>Ask a question</h2>
+              <button type="button" onClick={() => setAskOpen(false)} aria-label="Close" className="wp-lead-close">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
 
             {askSent ? (
-              <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 'var(--fs-h2)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>✓</div>
-                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 800, marginBottom: 4 }}>Your agent will reply shortly</div>
-                <p style={{ fontSize: 'var(--fs-ui)', color: 'var(--ink-soft)', lineHeight: 1.6, margin: '0 0 16px' }}>
+              <div style={{ textAlign: 'center', padding: '14px 0 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--wt-accent-tint)', color: 'var(--wt-accent-ink)', display: 'grid', placeItems: 'center' }}><IconCheck /></div>
+                <div style={{ fontSize: 'var(--fs-body)', fontWeight: 800 }}>Your agent will reply shortly</div>
+                <p>
                   Thanks for asking. {askEmail.trim() ? 'We’ll email you their answer, and it will show on this page too.' : 'Their answer will show on this page.'}
                 </p>
-                <button onClick={() => setAskOpen(false)} style={{ background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--fs-ui)' }}>Done</button>
+                <button type="button" onClick={() => setAskOpen(false)} className="wp-btn wp-btn--main">Done</button>
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-soft)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                <p>
                   Type your question and we&rsquo;ll pass it to {agentShort || 'the person who made this'}. Add your email if you&rsquo;d like the answer emailed to you.
                 </p>
                 <textarea
+                  className="wp-input"
                   value={askQuestion}
                   onChange={(e) => { setAskQuestion(e.target.value); setAskError('') }}
                   rows={4}
+                  aria-label="Your question"
                   placeholder="What would you like to know?"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', resize: 'vertical', marginBottom: 10 }}
                 />
-                <input
-                  type="email"
-                  value={askEmail}
-                  onChange={(e) => setAskEmail(e.target.value)}
-                  placeholder="Your email (optional, for a reply)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', marginBottom: 10 }}
-                />
-                <input
-                  type="text"
-                  value={askName}
-                  onChange={(e) => setAskName(e.target.value)}
-                  placeholder="Your name (optional)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', font: 'inherit', fontSize: 'var(--fs-ui)', marginBottom: 12 }}
-                />
+                <input type="email" className="wp-input" value={askEmail} onChange={(e) => setAskEmail(e.target.value)} aria-label="Your email" placeholder="Your email (optional, for a reply)" />
+                <input type="text" className="wp-input" value={askName} onChange={(e) => setAskName(e.target.value)} aria-label="Your name" placeholder="Your name (optional)" />
                 {/* Honeypot: hidden from people and screen readers; bots fill it. */}
                 <input
                   type="text"
@@ -1969,13 +1073,9 @@ export default function PublicWatchPage() {
                   style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
                 />
                 {askError && (
-                  <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 'var(--fs-small)', marginBottom: 12 }}>{askError}</div>
+                  <div role="alert" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 'var(--fs-small)' }}>{askError}</div>
                 )}
-                <button
-                  onClick={submitAsk}
-                  disabled={askSending}
-                  style={{ width: '100%', background: 'var(--ink)', color: 'var(--on-ink)', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: askSending ? 'default' : 'pointer', fontSize: 'var(--fs-body)', opacity: askSending ? 0.6 : 1 }}
-                >
+                <button type="button" onClick={submitAsk} disabled={askSending} className="wp-btn wp-btn--main">
                   {askSending ? 'Sending…' : 'Send question'}
                 </button>
               </>
@@ -1989,9 +1089,7 @@ export default function PublicWatchPage() {
       {/* ============================================================ */}
       <footer className="wp-footer">
         {isWhiteLabel ? (
-          <span style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600, letterSpacing: '0.04em' }}>
-            {agent?.company_name ?? agentName}
-          </span>
+          <span>{agent?.company_name ?? agentName}</span>
         ) : (
           <a href="/" data-testid="watch-powered-by">Powered by Docs2Video</a>
         )}

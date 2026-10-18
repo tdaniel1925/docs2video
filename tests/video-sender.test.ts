@@ -114,7 +114,8 @@ describe('the wiring', () => {
     expect(route).toMatch(/brandId === undefined && typeof draft\.brandId === 'string'/)
   })
   it('the share page, its title, the email and the presentation all ask video-sender', () => {
-    expect(watch).toContain('const { sender } = await loadSender(admin, { userId: ownerId, brandId, profile })')
+    // The brand comes back too, for its colours only (the page wears them).
+    expect(watch).toContain('const { sender, brand } = await loadSender(admin, { userId: ownerId, brandId, profile })')
     expect(watch).toContain('full_name: sender.person,')
     expect(read('app/(public)/watch/[id]/layout.tsx')).toContain('senderName(sender)')
     expect(read('app/_lib/share-send.ts')).toContain('const senderName = nameOf(sender)')
