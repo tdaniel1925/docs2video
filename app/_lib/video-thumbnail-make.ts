@@ -1,6 +1,5 @@
 import { execFile } from 'child_process'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getFfmpegPath } from './video'
 import {
   THUMB_H, THUMB_W, coverPlan, sceneChoices, thumbMeta, thumbPaths, withThumbMeta, isStill,
   type ThumbMeta,
@@ -52,10 +51,21 @@ export async function pictureSize(input: Buffer): Promise<{ width: number; heigh
   } catch { return null }
 }
 
+/** ffmpeg-static's binary. Not video.ts's getFfmpegPath: its process.cwd()
+ *  path search made Turbopack trace the whole project into the thumbnail
+ *  route, and the Vercel build then failed on Google fonts (2026-10-18).
+ *  ffmpeg-static is a server external traced into every route (next.config.ts). */
+function ffmpegBinary(): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- the package's export IS the path
+  const p = require('ffmpeg-static') as string | null
+  if (!p) throw new Error('ffmpeg is not available')
+  return p
+}
+
 /** One frame of a film (a URL) at `at` seconds, as PNG bytes. */
 export function grabFrame(url: string, at: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    execFile(getFfmpegPath(), ['-v', 'error', '-ss', String(at), '-i', url, '-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'],
+    execFile(ffmpegBinary(), ['-v', 'error', '-ss', String(at), '-i', url, '-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'],
       { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024, timeout: 40_000 },
       (err, stdout) => {
         if (err) return reject(err)
