@@ -3,365 +3,140 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { PageHead } from '../../_components/marketing/PageHead'
+import { shareTheme, shareThemeVars } from '../../_lib/share-theme'
+import { WATCH_CSS, WatchHero, PresenterPanel, ChapterList, IconCalendar, IconMail, IconPlay, endStop, type WatchIdentity } from '../watch/watch-view'
 
-const LAYOUTS = ['modern', 'minimal', 'corporate', 'two-column'] as const
-type Layout = typeof LAYOUTS[number]
+/*
+ * THE CLIENT PAGE, SHOWN (owner, 2026-10-18: the demo and the page still
+ * looked like the old cards). This draws the real share page's own parts
+ * (app/(public)/watch/watch-view.tsx) with made-up people, so what a visitor
+ * sees here is what their client will see. The two samples show the one
+ * layout in two brands: a person (photo first) and a company (logo first),
+ * each in its own colours.
+ */
 
-// Sample data
-const agent = { name: 'Sarah Anderson', company: 'Anderson Financial Group', photo: null }
-const quote = {
-  items: [
-    { description: 'Index Universal Life Policy Setup', amount: 2500 },
-    { description: 'Financial Planning Consultation', amount: 750 },
-    { description: 'Annual Review (first year)', amount: 0 },
-  ],
-  total: 3250,
+type Sample = {
+  who: WatchIdentity
+  colours: { primary: string; accent: string }
+  forLine: string
+  title: string
+  hello: string
+  poster: string
+  phone: string
+  email: string
+  website: string
+  note: string
 }
-const metrics = [
-  { label: 'Death Benefit', value: '$176,204' },
-  { label: 'Annual Premium', value: '$10,000' },
-  { label: 'Cash Value (Yr 10)', value: '$116,371' },
-  { label: 'Payment Mode', value: 'Annual' },
+
+const SAMPLES: Record<'person' | 'company', Sample> = {
+  person: {
+    who: { kind: 'person', name: 'Jordan Avery', secondary: 'Senior Advisor · Avery & Co.', image: '/share-demo/presenter.jpg', initials: 'JA' },
+    colours: { primary: '#14263F', accent: '#E0A83E' },
+    forLine: 'Prepared for the Morales family',
+    title: 'Your 2026 Coverage Review',
+    hello: 'Morales family',
+    poster: '/share-demo/poster-person.jpg',
+    phone: '(555) 014-2290',
+    email: 'jordan@averyco.example',
+    website: 'averyco.example',
+    note: 'Your premium went down this year, and nothing you rely on changed. Watch the three minutes, then let’s pick a time to go through the new rider together.',
+  },
+  company: {
+    who: { kind: 'company', name: 'Avery & Co.', secondary: 'Wealth advisors since 2009', image: '/share-demo/avery-logo.svg', initials: 'AC' },
+    colours: { primary: '#0F4C3A', accent: '#0F4C3A' },
+    forLine: 'Prepared for Harbor Street Bakery',
+    title: 'Your Retirement Plan, Explained',
+    hello: 'Harbor Street Bakery',
+    poster: '/share-demo/poster-company.jpg',
+    phone: '(555) 014-7781',
+    email: 'hello@averyco.example',
+    website: 'averyco.example',
+    note: 'Here is how the plan works for your team: what you put in, what the company matches, and what each person can expect. Questions are welcome at any time.',
+  },
+}
+
+const CHAPTERS = [
+  { time: '0:00', title: 'What this review covers' },
+  { time: '0:24', title: 'Your premium went down' },
+  { time: '0:51', title: 'What you are covered for' },
+  { time: '1:32', title: 'The new critical illness rider' },
+  { time: '2:10', title: 'Next steps' },
 ]
 
-function ModernLayout() {
+const QUOTE = [
+  { d: 'Annual coverage review', a: 'Included' },
+  { d: 'Critical illness rider, first year', a: '$240.00' },
+  { d: 'Policy paperwork and filing', a: 'Included' },
+]
+
+function SamplePage({ s }: { s: Sample }) {
+  const style = shareThemeVars(shareTheme(s.colours)) as React.CSSProperties
+  const first = s.who.kind === 'person' ? s.who.name.split(' ')[0] : s.who.name
   return (
-    <div style={{ background: '#0A1628', color: 'white', minHeight: '100%', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Hero header with gradient */}
-      <div style={{ background: 'linear-gradient(135deg, #0A1628, #1B365D)', padding: '40px 32px 32px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: '#C7E8A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0A1628', fontSize: 16 }}>SA</div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{agent.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.5 }}>{agent.company}</div>
-            </div>
-          </div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>Your Policy Explained</h1>
-          <p style={{ fontSize: 14, opacity: 0.5 }}>Sample Policy &middot; Indexed Universal Life</p>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px' }}>
-        {/* Video placeholder */}
-        <div style={{ aspectRatio: '16/9', background: '#1B365D', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="#C7E8A8"><polygon points="8 4 20 12 8 20" /></svg>
-          </div>
-        </div>
-
-        {/* Key metrics */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C7E8A8', marginBottom: 14 }}>Key Numbers</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            {metrics.map((m, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '16px 18px' }}>
-                <div style={{ fontSize: 11, opacity: 0.4, marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>{m.value}</div>
+    <div className="wp-root" style={style}>
+      <style>{WATCH_CSS}</style>
+      <WatchHero
+        who={s.who}
+        forLine={s.forLine}
+        kicker="Video · October 18, 2026"
+        title={s.title}
+        hello={<>Hi {s.hello} — prepared for you by <strong>{s.who.name}</strong>{endStop(s.who.name)}</>}
+      />
+      <main className="wp-body">
+        <div className="wp-wrap wp-grid">
+          <div className="wp-a-player">
+            <div className="wp-video-wrap">
+              <div className="wp-poster" style={{ backgroundImage: `url(${s.poster})` }} role="img" aria-label={`${s.title}, a sample video`}>
+                <span className="wp-poster-play"><IconPlay /></span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quote */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#C7E8A8', marginBottom: 14 }}>Quote</div>
-          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, overflow: 'hidden' }}>
-            {quote.items.map((item, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 18px', borderBottom: i < quote.items.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                <span style={{ fontSize: 14 }}>{item.description}</span>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>{item.amount === 0 ? 'FREE' : `$${item.amount.toLocaleString()}`}</span>
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 18px', background: 'rgba(199,232,168,0.08)', borderTop: '1px solid rgba(199,232,168,0.15)' }}>
-              <span style={{ fontWeight: 700 }}>Total</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color: '#C7E8A8' }}>${quote.total.toLocaleString()}</span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button style={{ flex: 1, padding: '14px', background: '#C7E8A8', color: '#0A1628', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Accept &amp; Pay ${quote.total.toLocaleString()} &rarr;</button>
-            <button style={{ padding: '14px 20px', background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Request Changes</button>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 32 }}>
-          <button style={{ padding: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, color: 'white', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: 20, marginBottom: 4 }}>&#128197;</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Book a Meeting</div>
-          </button>
-          <button style={{ padding: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, color: 'white', cursor: 'pointer', textAlign: 'center' }}>
-            <div style={{ fontSize: 20, marginBottom: 4 }}>&#128196;</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Download PDF</div>
-          </button>
-        </div>
-
-        <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.3, paddingBottom: 40 }}>Powered by Docs2Video</div>
-      </div>
-
-    </div>
-  )
-}
-
-function MinimalLayout() {
-  return (
-    <div style={{ background: '#FAFAF5', color: '#1a1a1a', minHeight: '100%', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '48px 24px' }}>
-        {/* Simple header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8E4DB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>SA</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{agent.name}</div>
-            <div style={{ fontSize: 12, color: '#999' }}>{agent.company}</div>
-          </div>
-        </div>
-
-        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 6 }}>Your Policy Overview</h1>
-        <p style={{ fontSize: 15, color: '#888', marginBottom: 32 }}>Watch the explainer video below, then review the details.</p>
-
-        {/* Video */}
-        <div style={{ aspectRatio: '16/9', background: '#E8E4DB', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 40 }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="8 4 20 12 8 20" /></svg>
-          </div>
-        </div>
-
-        {/* Metrics as simple list */}
-        <div style={{ marginBottom: 40 }}>
-          {metrics.map((m, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #E8E4DB' }}>
-              <span style={{ fontSize: 14, color: '#888' }}>{m.label}</span>
-              <span style={{ fontSize: 14, fontWeight: 700 }}>{m.value}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Quote */}
-        <div style={{ background: 'white', border: '1px solid #E8E4DB', borderRadius: 10, padding: 24, marginBottom: 32 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#999', marginBottom: 16 }}>Quote</div>
-          {quote.items.map((item, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < quote.items.length - 1 ? '1px solid #f0ede6' : 'none', fontSize: 14 }}>
-              <span>{item.description}</span>
-              <span style={{ fontWeight: 600 }}>{item.amount === 0 ? 'Free' : `$${item.amount.toLocaleString()}`}</span>
-            </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0 0', marginTop: 12, borderTop: '2px solid #1a1a1a' }}>
-            <span style={{ fontWeight: 700 }}>Total</span>
-            <span style={{ fontSize: 22, fontWeight: 800 }}>${quote.total.toLocaleString()}</span>
-          </div>
-        </div>
-
-        <button style={{ width: '100%', padding: '16px', background: '#1a1a1a', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 12 }}>Accept &amp; Pay ${quote.total.toLocaleString()}</button>
-        <button style={{ width: '100%', padding: '14px', background: 'transparent', color: '#888', border: '1px solid #E8E4DB', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', marginBottom: 40 }}>Request Changes</button>
-
-        <div style={{ display: 'flex', gap: 12, marginBottom: 40 }}>
-          <button style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #E8E4DB', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Book a Meeting</button>
-          <button style={{ flex: 1, padding: '14px', background: 'white', border: '1px solid #E8E4DB', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Download PDF</button>
-        </div>
-
-        <div style={{ textAlign: 'center', fontSize: 11, color: '#ccc', paddingBottom: 40 }}>Powered by Docs2Video</div>
-      </div>
-    </div>
-  )
-}
-
-function CorporateLayout() {
-  return (
-    <div style={{ background: '#F4F1EC', color: '#0F1A12', minHeight: '100%', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Brand bar */}
-      <div style={{ background: '#0F1A12', color: 'white', padding: '14px 32px' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#C7E8A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0F1A12', fontSize: 12 }}>SA</div>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{agent.company}</span>
-          </div>
-          <span style={{ fontSize: 12, opacity: 0.5 }}>Presentation for Mr. Client</span>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 32px' }}>
-        {/* Title card */}
-        <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 32, marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6FA13A', marginBottom: 8 }}>Presentation</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>Index Universal Life — Policy Overview</h1>
-          <p style={{ fontSize: 14, color: '#8A968D' }}>Prepared by {agent.name} &middot; {agent.company}</p>
-        </div>
-
-        {/* Video */}
-        <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 16, marginBottom: 24 }}>
-          <div style={{ aspectRatio: '16/9', background: '#0F1A12', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="#C7E8A8"><polygon points="8 4 20 12 8 20" /></svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-          {metrics.map((m, i) => (
-            <div key={i} style={{ background: i === 0 ? '#C7E8A8' : i === 3 ? '#FFD9B8' : 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: '18px 16px' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#4B574F', marginBottom: 6 }}>{m.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>{m.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Quote */}
-        <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5DFD3', background: '#FAF7F2' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A968D' }}>Quote Summary</span>
-          </div>
-          {quote.items.map((item, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #EFEAE0', fontSize: 14 }}>
-              <span>{item.description}</span>
-              <span style={{ fontWeight: 700 }}>{item.amount === 0 ? 'Included' : `$${item.amount.toLocaleString()}`}</span>
-            </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 20px', background: '#0F1A12', color: 'white' }}>
-            <span style={{ fontWeight: 700 }}>Total Due</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: '#C7E8A8' }}>${quote.total.toLocaleString()}</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-          <button style={{ flex: 2, padding: '16px', background: '#0F1A12', color: '#C7E8A8', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Accept &amp; Pay ${quote.total.toLocaleString()} &rarr;</button>
-          <button style={{ flex: 1, padding: '16px', background: 'white', color: '#0F1A12', border: '1px solid #E5DFD3', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Request Changes</button>
-        </div>
-
-        {/* Bottom actions */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 40 }}>
-          <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 20, textAlign: 'center', cursor: 'pointer' }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>&#128197;</div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>Book Meeting</div>
-            <div style={{ fontSize: 11, color: '#8A968D', marginTop: 2 }}>Schedule a call</div>
-          </div>
-          <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 20, textAlign: 'center', cursor: 'pointer' }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>&#128196;</div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>Download PDF</div>
-            <div style={{ fontSize: 11, color: '#8A968D', marginTop: 2 }}>High-res export</div>
-          </div>
-          <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 20, textAlign: 'center', cursor: 'pointer' }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>&#128172;</div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>Contact</div>
-            <div style={{ fontSize: 11, color: '#8A968D', marginTop: 2 }}>Email or call your agent</div>
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', fontSize: 11, color: '#ccc' }}>Powered by Docs2Video</div>
-      </div>
-    </div>
-  )
-}
-
-function TwoColumnLayout() {
-  return (
-    <div style={{ background: '#F4F1EC', color: '#0F1A12', minHeight: '100%', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Brand bar */}
-      <div style={{ background: '#0F1A12', color: 'white', padding: '14px 32px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#C7E8A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0F1A12', fontSize: 12 }}>SA</div>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{agent.company}</span>
-          </div>
-          <span style={{ fontSize: 12, opacity: 0.5 }}>Prepared for Mr. Client</span>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px' }}>
-        {/* Two columns — video left, everything else right */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 28, alignItems: 'start' }}>
-
-          {/* LEFT — Video + metrics */}
-          <div>
-            {/* Video player */}
-            <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 10, marginBottom: 20 }}>
-              <div style={{ aspectRatio: '16/9', background: '#0F1A12', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(199,232,168,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#C7E8A8"><polygon points="8 4 20 12 8 20" /></svg>
+          <aside className="wp-col-side">
+            <PresenterPanel
+              who={s.who}
+              contact={{ phone: s.phone, email: s.email, website: `https://${s.website}`, websiteLabel: s.website }}
+              next={
+                <div className="wp-next">
+                  <span className="wp-btn wp-btn--main"><IconCalendar /> Book a call with {first}</span>
+                  <span className="wp-btn"><IconMail /> Ask a question</span>
+                </div>
+              }
+            />
+          </aside>
+          <div className="wp-col-main">
+            <section className="wp-note" aria-label={`A note from ${s.who.name}`}>
+              <p>{s.note}</p>
+              <div className="wp-note-by">— {s.who.name}</div>
+            </section>
+            <section>
+              <span className="wp-label">In this video</span>
+              <h2 className="wp-h2">Jump to a part</h2>
+              <ChapterList items={CHAPTERS} active={1} />
+            </section>
+            <section>
+              <span className="wp-label">Your quote</span>
+              <h2 className="wp-h2">What it costs</h2>
+              <div className="wp-card">
+                {QUOTE.map((q) => (
+                  <div key={q.d} className="wp-quote-line"><span>{q.d}</span><span>{q.a}</span></div>
+                ))}
+                <div className="wp-quote-total"><span className="wp-quote-total-label">Total</span><span className="wp-quote-total-value">$240.00</span></div>
+                <div className="wp-quote-actions">
+                  <span className="wp-btn wp-btn--main wp-btn--grow">Pay $240.00</span>
+                  <span className="wp-btn">Request Changes</span>
                 </div>
               </div>
-              <div style={{ padding: '14px 8px 6px' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6FA13A', marginBottom: 4 }}>Presentation</div>
-                <h1 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 2 }}>Index Universal Life — Policy Overview</h1>
-                <p style={{ fontSize: 13, color: '#8A968D' }}>Prepared by {agent.name}</p>
-              </div>
-            </div>
-
-            {/* Key metrics below video */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-              {metrics.map((m, i) => (
-                <div key={i} style={{ background: i === 0 ? '#C7E8A8' : i === 1 ? '#FFD9B8' : 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#4B574F', marginBottom: 4 }}>{m.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>{m.value}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Downloads */}
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>&#128196; Download PDF</button>
-              <button style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>&#128249; Download Video</button>
-            </div>
-          </div>
-
-          {/* RIGHT — Quote, payment, calendar */}
-          <div>
-            {/* Quote */}
-            <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid #E5DFD3', background: '#FAF7F2' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A968D' }}>Quote</span>
-              </div>
-              {quote.items.map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid #EFEAE0', fontSize: 13 }}>
-                  <span>{item.description}</span>
-                  <span style={{ fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 12 }}>{item.amount === 0 ? 'Free' : `$${item.amount.toLocaleString()}`}</span>
-                </div>
-              ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 18px', background: '#0F1A12', color: 'white' }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>Total</span>
-                <span style={{ fontSize: 20, fontWeight: 800, color: '#C7E8A8' }}>${quote.total.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <button style={{ width: '100%', padding: '16px', background: '#0F1A12', color: '#C7E8A8', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 8 }}>Accept &amp; Pay ${quote.total.toLocaleString()} &rarr;</button>
-            <button style={{ width: '100%', padding: '11px', background: 'transparent', color: '#8A968D', border: '1px solid #E5DFD3', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', marginBottom: 20 }}>Request Changes</button>
-
-            {/* Calendar */}
-            <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 20, marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#C7E8A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>&#128197;</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>Book a Meeting</div>
-                  <div style={{ fontSize: 12, color: '#8A968D' }}>Schedule a call with {agent.name}</div>
-                </div>
-              </div>
-              <button style={{ width: '100%', padding: '12px', background: '#C7E8A8', color: '#0F1A12', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>View Available Times &rarr;</button>
-            </div>
-
-            {/* (An "Ask AI Assistant" box used to be here. The real share page
-                has no chatbot, so the demo no longer shows one.) */}
-
-            {/* Agent contact */}
-            <div style={{ background: 'white', border: '1px solid #E5DFD3', borderRadius: 10, padding: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 10, background: '#C7E8A8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0F1A12', fontSize: 16, flexShrink: 0 }}>SA</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{agent.name}</div>
-                  <div style={{ fontSize: 12, color: '#8A968D' }}>{agent.company}</div>
-                </div>
-              </div>
-            </div>
+            </section>
           </div>
         </div>
-
-        <div style={{ textAlign: 'center', fontSize: 11, color: '#ccc', padding: '40px 0 20px' }}>Powered by Docs2Video</div>
-      </div>
+      </main>
+      <footer className="wp-footer"><span>Powered by Docs2Video</span></footer>
     </div>
   )
 }
 
 export default function ShareDemoPage() {
-  const [layout, setLayout] = useState<Layout>('corporate')
+  const [kind, setKind] = useState<'person' | 'company'>('person')
 
   /* In the public site's shell: the sample client page shown in a browser frame, so it reads as
      what your client sees — the client page keeps its own look (it wears your brand, not ours). */
@@ -371,22 +146,16 @@ export default function ShareDemoPage() {
         kicker="The client page"
         title="What your client sees."
         blue="In your brand."
-        sub="Every video lives on its own page with your name on it, the video, and a way to book a call or review a quote. Pick a layout to see it — this is a sample with made-up names and numbers."
+        sub="Every video lives on its own page in your colours, with your photo or logo, the video, and one clear next step: book a call, ask a question or review a quote. This is a sample with made-up names and numbers."
       />
-      <div role="tablist" aria-label="Client page layouts" className="hp-tabs">
-        {LAYOUTS.map((l) => (
-          <button key={l} type="button" role="tab" aria-selected={layout === l} className={layout === l ? 'hp-tab hp-tab-on' : 'hp-tab'} onClick={() => setLayout(l)} style={{ textTransform: 'uppercase' }}>
-            {l.replace('-', ' ')}
-          </button>
-        ))}
+      <div role="tablist" aria-label="Sample brands" className="hp-tabs">
+        <button type="button" role="tab" aria-selected={kind === 'person'} className={kind === 'person' ? 'hp-tab hp-tab-on' : 'hp-tab'} onClick={() => setKind('person')}>A person&rsquo;s brand</button>
+        <button type="button" role="tab" aria-selected={kind === 'company'} className={kind === 'company' ? 'hp-tab hp-tab-on' : 'hp-tab'} onClick={() => setKind('company')}>A company&rsquo;s brand</button>
       </div>
       <div className="hp-browser" role="tabpanel">
-        <div className="hp-browser-bar" aria-hidden="true"><i /><i /><i /><span>docs2video.com/watch/anderson</span></div>
-        <div className="hp-island" style={{ height: 'min(78vh, 820px)', overflow: 'auto' }}>
-          {layout === 'modern' && <ModernLayout />}
-          {layout === 'minimal' && <MinimalLayout />}
-          {layout === 'corporate' && <CorporateLayout />}
-          {layout === 'two-column' && <TwoColumnLayout />}
+        <div className="hp-browser-bar" aria-hidden="true"><i /><i /><i /><span>docs2video.com/watch/your-video</span></div>
+        <div className="hp-island" style={{ height: 'min(78vh, 820px)', overflow: 'auto' }} data-testid="share-demo-page">
+          <SamplePage s={SAMPLES[kind]} />
         </div>
       </div>
       <div className="hp-row">

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../../_lib/supabase/admin'
 import { safeHttpsUrl } from '../../../../_lib/client-email'
 import { loadSender, videoBrandId, bookingFor } from '../../../../_lib/video-sender'
+import { brandColoursOf } from '../../../../_lib/share-theme'
 
 export const runtime = 'nodejs'
 
@@ -115,9 +116,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // company's name, logo and contact — and the account's own profile ONLY when
   // no brand was chosen. Never a mix: a Darrell Wolfe video showed the account
   // owner's name, photo, phone and email here.
-  const { sender } = await loadSender(admin, { userId: ownerId, brandId, profile })
+  const { sender, brand } = await loadSender(admin, { userId: ownerId, brandId, profile })
   const plan = String(profile?.subscription_status ?? '').toLowerCase()
   const agent = profile ? {
+    // A person (photo first) or a company (logo first) — the page lays out each its own way.
+    kind: sender.kind,
+    // The page is the client's, so it wears the brand's colours (app/_lib/share-theme.ts).
+    // Only the three colour columns leave the server, never the brand row.
+    colours: brandColoursOf(brand as Record<string, unknown> | null),
     full_name: sender.person,
     company_name: sender.company,
     role: sender.role,
