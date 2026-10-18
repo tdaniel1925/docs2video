@@ -1,0 +1,133 @@
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs'
+import { isAdminDB } from './admin'
+
+/**
+ * THE EXPLAINER ENGINE — the code-drawn explainer (built in One Dollar Decks'
+ * engine, rendered on its AWS render worker) making Docs2Video's videos.
+ * Founder, 2026-10-17: "deprecate the current engine … I like the explainer
+ * we have in this app better."
+ *
+ * Docs2Video keeps everything it has around a video — the story step, credits,
+ * refunds, the progress screen, sending, the watch page. Only the making moves:
+ * this sends the APPROVED scenes (the user's own narration, opener and closing)
+ * with the brand to the render worker, which designs every scene in the brand,
+ * films it with that narration, saves the MP4 to the `videos` bucket and marks
+ * the row completed — exactly as the old render service did, so nothing that
+ * reads the row changes.
+ *
+ * WHO GETS IT (EXPLAINER_ENGINE):
+ *   off (or unset)  nobody — the old engine makes every video
+ *   admins          admins only, while it is proved on real documents
+ *   on              everyone — the old engine makes no new videos
+ */
+export type ExplainerMode = 'off' | 'admins' | 'on'
+export const explainerMode = (): ExplainerMode => {
+  const v = String(process.env.EXPLAINER_ENGINE || '').toLowerCase()
+  return v === 'on' || v === 'admins' ? v : 'off'
+}
+export async function explainerEngineFor(userId: string): Promise<boolean> {
+  const mode = explainerMode()
+  if (mode === 'on') return explainerConfigured()
+  if (mode === 'admins') return explainerConfigured() && (await isAdminDB(userId).catch(() => false))
+  return false
+}
+
+const cfg = () => ({
+  region: process.env.RENDER_AWS_REGION || 'us-east-1',
+  bucket: process.env.RENDER_BUCKET || '',
+  subnets: (process.env.RENDER_SUBNETS || '').split(',').filter(Boolean),
+  securityGroup: process.env.RENDER_SECURITY_GROUP || '',
+  accessKeyId: process.env.RENDER_AWS_ACCESS_KEY_ID || '',
+  secretAccessKey: process.env.RENDER_AWS_SECRET_ACCESS_KEY || '',
+})
+export const explainerConfigured = () => { const c = cfg(); return Boolean(c.bucket && c.subnets.length && c.securityGroup && c.accessKeyId && c.secretAccessKey) }
+
+/*
+ * Docs2Video's six voices (their saved ids are the old OpenAI names) as the
+ * ElevenLabs voices fal already speaks them with (app/_lib/fal-tts.ts
+ * FAL_VOICE_MAP), by ElevenLabs' own ids — the render worker calls
+ * ElevenLabs directly, with word timings, so the motion lands on the words.
+ */
+export const ELEVENLABS_VOICE: Record<string, string> = {
+  nova: '21m00Tcm4TlvDq8ikWAM',    // Sarah → Rachel
+  shimmer: 'EXAVITQu4vr4xnSDxMaL', // Emily → Sarah
+  onyx: 'nPczCjzI2devNBz1zQrb',    // James → Brian
+  echo: 'iP95p4xoKVk53GoZ742B',    // Michael → Chris
+  alloy: 'SAz9YHcvj6GT2YYXdXww',   // Alex → River
+  fable: 'JBFqnCBsd6RMkjVDRZzb',   // Oliver → George
+}
+export const elevenVoiceFor = (voiceId: unknown) => (typeof voiceId === 'string' && ELEVENLABS_VOICE[voiceId]) || ELEVENLABS_VOICE.nova
+
+/** The starting look when the user gave no picture of their own (served from public/). */
+export const DEFAULT_LOOK = '/explainer-looks/soft-startup.jpg'
+
+export type ExplainerScene ={ role: 'cover' | 'content' | 'closing'; title: string; bullets: string[]; narration: string }
+
+type SceneIn = { title?: string; narration?: string; slideData?: { headline?: string; bullets?: string[]; stats?: { label: string; value: string }[] } }
+
+/** One approved scene as the engine draws it: its words on screen, and the voice-over as it will be said. */
+export function sceneFor(role: ExplainerScene['role'], s: SceneIn, extra: string[] = []): ExplainerScene {
+  const sd = s.slideData ?? {}
+  const stats = (sd.stats ?? []).filter((x) => x?.value).map((x) => `${x.value} ${x.label}`.trim())
+  const bullets = [...stats, ...(sd.bullets ?? []), ...extra].map((b) => String(b).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 6)
+  return { role, title: (sd.headline || s.title || '').trim() || (role === 'closing' ? 'Thank you' : 'Untitled'), bullets, narration: String(s.narration ?? '').replace(/\s+/g, ' ').trim() }
+}
+
+/**
+ * SEND THE VIDEO TO BE MADE. Throws when it cannot be started — the caller
+ * then makes it the old way, so no video is ever lost to this.
+ */
+export async function startExplainer(o: {
+  videoId: string; userId: string; title: string
+  scenes: ExplainerScene[]
+  palette: string[]
+  logoUrl?: string | null
+  referenceUrl?: string | null
+  voiceId?: string
+  music: boolean
+}): Promise<{ jobId: string }> {
+  if (!explainerConfigured()) throw new Error('the explainer engine is not configured (RENDER_*)')
+  const scenes = o.scenes.filter((s) => s.narration)
+  if (scenes.length < 2) throw new Error('too few scenes with narration')
+  const c = cfg()
+  const auth = { region: c.region, credentials: { accessKeyId: c.accessKeyId, secretAccessKey: c.secretAccessKey } }
+  const s3 = new S3Client(auth)
+  const jobId = `d2v-${o.videoId.slice(0, 8)}-${Date.now().toString(36)}`
+  const put = (k: string, body: Buffer | string, type: string) => s3.send(new PutObjectCommand({ Bucket: c.bucket, Key: `jobs/${jobId}/${k}`, Body: body, ContentType: type }))
+  const fetched = async (url?: string | null): Promise<Buffer | null> => {
+    if (!url) return null
+    try { const r = await fetch(url, { signal: AbortSignal.timeout(15000) }); return r.ok ? Buffer.from(await r.arrayBuffer()) : null } catch { return null }
+  }
+  /*
+   * THE LOOK. The user's own picture when they gave one, copied as it is.
+   * Otherwise a designed starting look (public/explainer-looks — calm, with a
+   * real picture) worn in their brand colors and logo. A board of their bare
+   * colors was tried first (2026-10-17): every scene copied the board's blocks.
+   */
+  const own = await fetched(o.referenceUrl)
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com').replace(/\/+$/, '')
+  const [logo, reference] = await Promise.all([fetched(o.logoUrl), own ? Promise.resolve(own) : fetched(`${site}${DEFAULT_LOOK}`)])
+  const job = {
+    kind: 'explainer', title: o.title, scenes,
+    palette: o.palette.filter((x) => /^#[0-9a-f]{6}$/i.test(x)).slice(0, 5),
+    logo: Boolean(logo), reference: Boolean(reference),
+    direction: own ? undefined : 'conservative',
+    voiceId: elevenVoiceFor(o.voiceId), music: o.music,
+    report: { kind: 'd2v', videoId: o.videoId, userId: o.userId },
+    /* The worker's own fields for a film job, filled when the scenes are drawn. */
+    ds: {}, pages: [],
+  }
+  await Promise.all([
+    ...(logo ? [put('assets/logo.png', logo, 'image/png')] : []),
+    ...(reference ? [put('assets/reference.png', reference, 'image/png')] : []),
+  ])
+  await put('job.json', JSON.stringify(job), 'application/json')
+  const r = await new ECSClient(auth).send(new RunTaskCommand({
+    cluster: 'decks-render', taskDefinition: 'decks-render', launchType: 'FARGATE', count: 1,
+    networkConfiguration: { awsvpcConfiguration: { subnets: c.subnets, securityGroups: [c.securityGroup], assignPublicIp: 'ENABLED' } },
+    overrides: { cpu: '8192', memory: '16384', containerOverrides: [{ name: 'render', environment: [{ name: 'JOB_ID', value: jobId }, { name: 'ROLE', value: 'job' }] }] },
+  }))
+  if (r.failures?.length || !r.tasks?.length) throw new Error(`the render worker did not start: ${r.failures?.map((f) => f.reason).join(', ') || 'no task'}`)
+  return { jobId }
+}

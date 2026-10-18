@@ -38,6 +38,7 @@ import { assembleKitPlan, kitEngineOn, kitLogoAssets, planKitVideoCached, planne
 import type { PlannerInput } from '../../_lib/kit-planner'
 import { storyTooBigMessage } from '../../_lib/length-limits'
 import { alertOps } from '../../_lib/ops-alert'
+import { explainerEngineFor, startExplainer, sceneFor } from '../../_lib/explainer-engine'
 
 export const runtime = 'nodejs'
 
@@ -1088,6 +1089,34 @@ export async function POST(request: Request) {
     // Apply formatForTTS only for render service scenes (narration stays original in slidePrompts for image context)
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
+
+    // THE EXPLAINER ENGINE (app/_lib/explainer-engine.ts, EXPLAINER_ENGINE).
+    // The approved scenes — the user's own narration, opener and closing — are
+    // designed in the brand and filmed on the render worker, which saves the MP4
+    // and marks this row completed itself. Every engine below still makes the
+    // videos it is not switched on for, and any it cannot start.
+    if (await explainerEngineFor(user.id)) {
+      try {
+        await admin.from('videos').update({ progress_detail: 'Designing your scenes...', progress_pct: 14, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+        const closingExtra = wantContactClosing ? [contactDisplayPhone, contactForClosing.email, contactForClosing.website].filter((x): x is string => typeof x === 'string' && !!x) : []
+        const coverExtra = [recipient ? `Prepared for ${recipient}` : '', effectiveBrandName || ''].filter(Boolean)
+        const logos = kitLogoAssets(brand)
+        const started = await startExplainer({
+          videoId, userId: user.id, title: videoTitle,
+          scenes: [sceneFor('cover', coverScene, coverExtra), ...ttsScenes.map((sc: any) => sceneFor('content', sc)), sceneFor('closing', closingScene, closingExtra)],
+          palette: [brandColors.primary, brandColors.secondary, brand?.accent_color, brand?.background_color].filter((x): x is string => typeof x === 'string' && !!x),
+          logoUrl: logos.logo_any || logos.logo_light || logos.logo_dark || null,
+          referenceUrl: styleReferenceUrl || null,
+          voiceId, music: !!(aiMusic || musicPrompt || musicUrl),
+        })
+        console.log(`[video ${videoId}] explainer engine — ${ttsScenes.length + 2} scenes, job ${started.jobId}`)
+        inFlightVideos.delete(videoId)
+        return NextResponse.json({ success: true, pipeline: 'explainer' })
+      } catch (exErr) {
+        console.error(`[video ${videoId}] explainer engine failed to start (${(exErr as Error).message}) — making it the previous way`)
+        await admin.from('videos').update({ render_note: 'Made with the previous engine — the new explainer engine could not start. Regenerate to try it again.' }).eq('id', videoId).then(() => {}, () => {})
+      }
+    }
 
     // Build cover slide prompt — same format as content slides so Gemini uses consistent style
     const contactLine = [contactDisplayPhone, contactForClosing.email, contactForClosing.website].filter(Boolean).join(' | ')

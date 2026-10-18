@@ -5,6 +5,18 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-10-17 — The explainer engine replaces the old engines (branch explainer-engine; NOT deployed)
+
+Founder: "deprecate the current engine … I like the explainer we have in [One Dollar Decks] better." Docs2Video keeps everything around a video (story step, credits, refunds, progress screen, sending, watch page); only the making moves.
+- app/_lib/explainer-engine.ts: the approved scenes (the user's own narration, opener, closing with the contact lines they chose) + brand colors + logo go to One Dollar Decks' AWS render worker (cluster decks-render, same AWS account) as an `explainer` job. It designs every scene in the brand, films it with that narration, saves the MP4 (shrunk under 50 MB) + poster + scene stills to the `videos` bucket and marks the row completed ONLY while it is still running (same rule as job-guards completeIfRunning); a failure sets status failed and the stuck/failed cron refunds as before.
+- No picture from the user → a designed starting look (public/explainer-looks/soft-startup.jpg) worn in their brand colors (a bare color board was tried first: every scene copied its blocks).
+- Voices: the six Docs2Video voices map to the ElevenLabs voices fal already used (ELEVENLABS_VOICE).
+- app/api/generate-video/route.ts: the explainer runs before every older engine for users it is switched on for; if it cannot start, the video is made the old way with a render_note (no video lost).
+- Switch: EXPLAINER_ENGINE = off (default) | admins | on. Needs RENDER_AWS_REGION, RENDER_BUCKET, RENDER_SUBNETS, RENDER_SECURITY_GROUP, RENDER_AWS_ACCESS_KEY_ID, RENDER_AWS_SECRET_ACCESS_KEY on Vercel (the decks-render app user).
+- Measured on AWS: 7 scenes, 73 s video, Claude $1.59, ~11 minutes. Price not set yet (owner: option b — cheaper engine, ~1,500–2,000 credits target).
+- Commercials and interactive presentations: not moved; owner wants explainer videos only going forward.
+- Guard: tests/explainer-engine.test.ts. Deps: @aws-sdk/client-s3, @aws-sdk/client-ecs.
+
 ## 2026-10-17 — Videos over 50 MB failed at the very end (code done; render deploy pending)
 
 - A 3.5-min Drawn-slides video (58.6 MB) failed: "Upload failed: The object exceeded the maximum allowed size" (Supabase 50 MB project cap). New render-service/video-upload.js uploadVideo(): re-encodes to fit (length-based bitrate) and THROWS on error; all 11 server.js mp4 uploads + present-export use it (several used to ignore upload errors).
