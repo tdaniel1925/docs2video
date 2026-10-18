@@ -32,14 +32,22 @@ describe('look samples', () => {
     }
   })
 
-  it('a video has ONE sample beside the Video choice (the ready video looks make the same kind of video today)', async () => {
-    const { VIDEO_SAMPLE } = await import('../app/(dashboard)/create/_components/make/looks')
-    for (const f of [VIDEO_SAMPLE.video, VIDEO_SAMPLE.poster]) expect(existsSync(join(ROOT, 'public', f)), f).toBe(true)
-    expect(lookCards('video', { kit: true }).some((c) => c.sample)).toBe(false)
+  it('each ready video look has its OWN sample on its card (the picked look now reaches the engine); Drawn slides fakes none', async () => {
+    const { VIDEO_LOOK_SAMPLES } = await import('../app/(dashboard)/create/_components/make/looks')
+    const cards = lookCards('video', { kit: true })
+    for (const id of ['slides', 'editorial', 'explainer']) {
+      const c = cards.find((x) => x.id === id)
+      expect(c?.sample, id).toEqual(VIDEO_LOOK_SAMPLES[id as 'slides'])
+      for (const f of [c!.sample!.video, c!.sample!.poster]) {
+        expect(existsSync(join(ROOT, 'public', f)), f).toBe(true)
+        expect(statSync(join(ROOT, 'public', f)).size, f).toBeLessThan(3 * 1024 * 1024)
+      }
+    }
+    /* each look's sample is its own film, not one file shown three times */
+    expect(new Set(['slides', 'editorial', 'explainer'].map((id) => cards.find((x) => x.id === id)!.sample!.video)).size).toBe(3)
+    expect(cards.find((x) => x.id === 'drawn')?.sample).toBeUndefined()
     const step = readFileSync(join(ROOT, 'app/(dashboard)/create/_components/steps/LookVoiceReview.tsx'), 'utf8')
-    expect(step).toMatch(/\{isVideo \? <button type="button" className="cf-look-watch"/)
-    expect(step).toMatch(/data-video-sample>▶ Watch a sample video<\/button> : null\}/)
-    expect(step).toMatch(/<SampleVideoDialog name="A sample video" sample=\{VIDEO_SAMPLE\}/)
+    expect(step).not.toMatch(/data-video-sample/)
   })
 
   it('opens in an accessible dialog: a separate button, focus to Close, Escape closes, focus goes back', () => {

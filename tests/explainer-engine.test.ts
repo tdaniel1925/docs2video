@@ -53,7 +53,8 @@ describe('the scenes it is sent', () => {
 describe('the route', () => {
   const route = read('app/api/generate-video/route.ts')
   it('sends a switched-on user’s video to the explainer before any older engine', () => {
-    const at = route.indexOf('if (await explainerEngineFor(user.id)) {')
+    /* Drawn slides keep their own pipeline (the engine cannot draw them) */
+    const at = route.indexOf('if (!isDrawn && await explainerEngineFor(user.id)) {')
     expect(at).toBeGreaterThan(0)
     expect(at).toBeLessThan(route.indexOf("if (videoStyle === 'kit' && kitEngineOn())"))
     expect(at).toBeGreaterThan(route.indexOf('const deducted = await deductCredits('))

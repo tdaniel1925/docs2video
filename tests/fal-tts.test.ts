@@ -222,7 +222,7 @@ describe('render-service fal-tts.js', () => {
   })
 
   it('server.js ttsToBuffer (Aurora / Cinematic / Infographic / Editorial / Drawn) tries fal first, then the old chain', async () => {
-    const src = readFileSync(path.join(ROOT, 'render-service/server.js'), 'utf8')
+    const src = readFileSync(path.join(ROOT, 'render-service/server.js'), 'utf8').replace(/\r\n/g, '\n')
     const fnSrc = (name: string) => { const i = src.indexOf(`async function ${name}(`); return src.slice(i, src.indexOf('\n}\n', i) + 2) }
     const voicesLine = (src.match(/const OPENAI_TTS_VOICES = \[[^\]]*\]/) || [''])[0]
     const slides = require_(path.join(ROOT, 'render-service/slides.js'))

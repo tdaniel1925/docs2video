@@ -84,13 +84,21 @@ export const LOOK_SAMPLES: Record<string, LookSample> = Object.fromEntries(
 )
 
 /*
- * THE VIDEO SAMPLE. A video is made by the explainer engine (app/_lib/explainer-engine.ts,
- * EXPLAINER_ENGINE=on): in the brand's colours over its starting look, or over the
- * customer's own picture. The ready video looks do not change what it makes today,
- * so there is ONE honest sample for a video, beside the Video choice, not one per
- * video look card. Made by start-explainer.mjs with the default look and no brand.
+ * A SAMPLE VIDEO FOR EACH READY VIDEO LOOK (fix, 2026-10-18). A video is made by
+ * the explainer engine designing from a picture of the picked look
+ * (app/_lib/explainer-look.ts) — for a new customer, the look's own sample
+ * page. Each sample here was made exactly that way
+ * (scripts/look-samples/run-explainer-samples.mjs): the look's page as the
+ * reference, the made-up Morales story, no brand — so a customer's video wears
+ * their brand colours as accents on top of what the sample shows.
+ * Drawn slides has no sample: its pipeline can only make a video into a real
+ * project row, and none is faked.
  */
-export const VIDEO_SAMPLE: LookSample = { video: '/look-samples/video.mp4', poster: '/look-samples/video.jpg', seconds: 35 }
+export const VIDEO_LOOK_SAMPLES: Partial<Record<VideoLookId, LookSample>> = {
+  slides: { video: '/look-samples/video-animated-slides.mp4', poster: '/look-samples/video-animated-slides.jpg', seconds: 35 },
+  editorial: { video: '/look-samples/video-editorial.mp4', poster: '/look-samples/video-editorial.jpg', seconds: 35 },
+  explainer: { video: '/look-samples/video-bright.mp4', poster: '/look-samples/video-bright.jpg', seconds: 35 },
+}
 
 /** Which video look carries the BEST tag (and is picked by default). */
 export const RECOMMENDED_VIDEO_LOOK: VideoLookId = 'slides'
@@ -138,6 +146,7 @@ export function lookCards(output: string, opts: { kit?: boolean; yourLook?: Your
         recommended: l.id === RECOMMENDED_VIDEO_LOOK,
         ...(l.tag ? { tag: l.tag } : {}),
         samples: VIDEO_SAMPLE_KINDS.map((s) => `/style-samples/${pic}-${s}.png`),
+        ...(VIDEO_LOOK_SAMPLES[l.id] ? { sample: VIDEO_LOOK_SAMPLES[l.id] } : {}),
       }
     })
     const drawnAt = ready.findIndex((c) => c.id === 'drawn')
