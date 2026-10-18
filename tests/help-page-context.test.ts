@@ -13,9 +13,11 @@ const ROOT = path.resolve(__dirname, '..')
 const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8')
 
 describe('help knows the page', () => {
-  it('step 3 and Home each give the assistant their own screen, in the screen’s words', () => {
+  it('the review step and Home each give the assistant their own screen, in the screen’s words', () => {
+    // (the old /create/theme address is the review step now)
     const step3 = helpContextFor('/create/theme')
-    expect(step3).toContain('Step 3 — The look')
+    expect(step3).toContain('Step 8 — Review')
+    expect(helpContextFor('/create/style')).toContain('Step 4 — The look')
     expect(step3).toContain('"Add your brand"')
     expect(step3).toContain('"Free preview"')
     expect(step3).not.toContain('**')

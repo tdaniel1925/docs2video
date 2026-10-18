@@ -98,7 +98,7 @@ export function useVideoRow(id: string) {
     // the price and starts it properly.
     const hasPipelineInput = !!(video.script as unknown as { _pipeline_input?: unknown } | null)?._pipeline_input
     if (!hasPipelineInput && video.draft_data) {
-      window.location.href = `/create/theme?id=${encodeURIComponent(video.id)}`
+      window.location.href = `/create/review?id=${encodeURIComponent(video.id)}`
       return
     }
     await createClient().from('videos').update({ status: 'pending', error_message: null }).eq('id', video.id)

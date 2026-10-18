@@ -137,7 +137,7 @@ export default function Step1Content() {
 
   // An old "Here's what we read" link: the check is on step 2 now.
   useEffect(() => {
-    if (reviewParam && existingDraftId) router.replace(`/create/script?id=${encodeURIComponent(existingDraftId)}${combineParam ? '&combine=failed' : ''}`)
+    if (reviewParam && existingDraftId) router.replace(`/create/story?id=${encodeURIComponent(existingDraftId)}${combineParam ? '&combine=failed' : ''}`)
   }, [reviewParam, existingDraftId, combineParam, router])
 
   // Restore-on-return runs FIRST and wins (it reflects the user's last edit).
@@ -326,7 +326,7 @@ export default function Step1Content() {
       await fetch('/api/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId }) })
     } catch { /* step 2 builds it if it isn't there */ }
 
-    router.push(`/create/script?id=${videoId}${failed ? '&combine=failed' : ''}`)
+    router.push(`/create/story?id=${videoId}${failed ? '&combine=failed' : ''}`)
   }
 
   async function handleNext() {
@@ -535,7 +535,7 @@ export default function Step1Content() {
       </div>
 
       {hadContent && existingDraftId && !reading ? (
-        <Note tone="info" action={<a className="cf-link" href={`/create/script?id=${encodeURIComponent(existingDraftId)}`}>Back to the story</a>}>
+        <Note tone="info" action={<a className="cf-link" href={`/create/story?id=${encodeURIComponent(existingDraftId)}`}>Back to the story</a>}>
           This project has been read already. Add new content only if you want to start its story again.
         </Note>
       ) : null}

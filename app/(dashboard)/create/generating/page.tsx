@@ -156,7 +156,7 @@ export default function GeneratingPage() {
           <Note tone="stop">{error}</Note>
           <div className="cf-buttons">
             {/* Back to step 3 with everything filled in — Make it there starts it again. */}
-            <Button href={`/create/theme?id=${videoId}`}>Try again</Button>
+            <Button href={`/create/review?id=${videoId}`}>Try again</Button>
             <Button href="/create" variant="secondary">Start over</Button>
             <Button href="/dashboard" variant="secondary">Home</Button>
           </div>

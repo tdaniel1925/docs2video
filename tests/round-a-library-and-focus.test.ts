@@ -61,7 +61,9 @@ describe('the status line says where it is, in plain words', () => {
   })
 
   it('a draft opens where it was left; search reads title and client', () => {
-    expect(openHref(item({ status: 'draft', draftStep: 3 }))).toBe('/create/script?id=v1')
+    // The saved step is the one to come back to: 3 = the brand step (steps.ts).
+    expect(openHref(item({ status: 'draft', draftStep: 3 }))).toBe('/create/brand?id=v1')
+    expect(openHref(item({ status: 'draft', draftStep: 2 }))).toBe('/create/story?id=v1')
     const list = [item({ id: 'a', title: 'Alpha' }), item({ id: 'b', title: 'Beta', recipient: 'Jordan Lee' })]
     expect(searchAndSort(list, 'jordan', 'newest').map((i) => i.id)).toEqual(['b'])
     expect(searchAndSort(list, '', 'name').map((i) => i.id)).toEqual(['a', 'b'])
@@ -130,18 +132,18 @@ describe('the focus header while making something', () => {
   const profile = { id: 'u', email: 'sam@example.com', full_name: 'Sam', subscription_status: 'pro', is_admin: false } as unknown as Profile
 
   it('is on every /create page, and nowhere else', () => {
-    for (const p of ['/create', '/create/script', '/create/theme', '/create/generating', '/create/commercial']) expect(isFocusPath(p), p).toBe(true)
+    for (const p of ['/create', '/create/story', '/create/brand', '/create/style', '/create/scenes', '/create/voice', '/create/opening', '/create/review', '/create/script', '/create/theme', '/create/generating', '/create/commercial']) expect(isFocusPath(p), p).toBe(true)
     for (const p of ['/dashboard', '/videos', '/creator', '/videos/abc']) expect(isFocusPath(p), p).toBe(false)
   })
 
-  it('step 3: Home, the three steps with step 3 current, How to use — no Library/Clients/Brands', () => {
-    pathname = '/create/theme'
+  it('the look step: Home, the eight steps with step 4 current, How to use — no Library/Clients/Brands', () => {
+    pathname = '/create/style'
     const html = renderToStaticMarkup(h(Header, { profile, brand: DOCS2VIDEO, lowCreditsAt: 1000 }))
     expect(html).toContain('data-testid="focus-header"')
     expect(html).toMatch(/href="\/dashboard"[^>]*>.*Home/)
-    for (const w of ['Your content', 'The story', 'The look']) expect(html).toContain(w)
+    for (const w of ['Content', 'Story', 'Brand', 'Look', 'Scenes', 'Voice', 'Review']) expect(html).toContain(w)
     for (const w of ['What it’s about', 'Make it yours', 'Send it']) expect(html).not.toContain(w)
-    expect(html).toMatch(/aria-current="step"[^>]*>.*?<span class="kit-focusbar-num"[^>]*>3</)
+    expect(html).toMatch(/aria-current="step"[^>]*>.*?<span class="kit-focusbar-num"[^>]*>4</)
     expect(html).toContain('How to use')
     expect(html).not.toContain('href="/videos"')
     expect(html).not.toContain('href="/clients"')

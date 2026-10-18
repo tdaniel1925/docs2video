@@ -17,10 +17,11 @@ function video(over: Partial<VideoRow> = {}): VideoRow {
 const noNames = { quotes: [], clients: new Map() }
 
 describe('project status', () => {
-  it('drafts say which of the 3 steps they are on', () => {
-    expect(projectStatus(video({ status: 'draft', draft_data: { step: 5 } }), [], [], NOW).label).toBe('Draft · step 2 of 3')
-    expect(projectStatus(video({ status: 'draft', draft_data: { step: 4 } }), [], [], NOW).label).toBe('Draft · step 2 of 3')
-    expect(projectStatus(video({ status: 'draft', draft_data: null }), [], [], NOW).label).toBe('Draft · step 1 of 3')
+  it('drafts say which of the 8 steps they are on', () => {
+    expect(projectStatus(video({ status: 'draft', draft_data: { step: 5 } }), [], [], NOW).label).toBe('Draft · step 5 of 8')
+    expect(projectStatus(video({ status: 'draft', draft_data: { step: 4 } }), [], [], NOW).label).toBe('Draft · step 4 of 8')
+    expect(projectStatus(video({ status: 'draft', draft_data: { step: 8 } }), [], [], NOW).label).toBe('Draft · step 8 of 8')
+    expect(projectStatus(video({ status: 'draft', draft_data: null }), [], [], NOW).label).toBe('Draft · step 1 of 8')
   })
 
   it('ready with no send and no views is just "Ready" — never a guessed status', () => {
@@ -53,8 +54,13 @@ describe('drafts resume where they were', () => {
   it('an early draft reopens itself, not a blank form', () => {
     expect(resumeUrl('x', 1)).toBe('/create?id=x')
     expect(resumeUrl('x', undefined)).toBe('/create?id=x')
-    expect(resumeUrl('x', 4)).toBe('/create/script?id=x')
-    expect(wizardStep('/create/voice?id=x')).toBe(3)
+    // The step to come back to: 2 = the story … 8 = the review (steps.ts).
+    expect(resumeUrl('x', 2)).toBe('/create/story?id=x')
+    expect(resumeUrl('x', 4)).toBe('/create/style?id=x')
+    expect(resumeUrl('x', 8)).toBe('/create/review?id=x')
+    expect(resumeUrl('x', 9)).toBe('/create?id=x')
+    expect(wizardStep('/create/voice?id=x')).toBe(6)
+    expect(wizardStep('/create/theme?id=x')).toBe(8)
   })
 })
 

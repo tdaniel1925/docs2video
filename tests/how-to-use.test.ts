@@ -52,7 +52,7 @@ describe('How to use — routes', () => {
 
   it('covers Home, the create steps, the send step, Library, a result page, Brands, Clients and Settings', () => {
     const routes = HOW_TO.flatMap((e) => e.routes)
-    for (const r of ['/dashboard', '/create', '/create/script', '/create/theme', '/create/generating', '/videos', '/videos/[id]', '/brands', '/clients', '/settings']) {
+    for (const r of ['/dashboard', '/create', '/create/story', '/create/brand', '/create/style', '/create/scenes', '/create/voice', '/create/opening', '/create/review', '/create/script', '/create/theme', '/create/generating', '/videos', '/videos/[id]', '/brands', '/clients', '/settings']) {
       expect(routes, r).toContain(r)
     }
   })
@@ -60,8 +60,15 @@ describe('How to use — routes', () => {
   it('finds the right guide for an address', () => {
     expect(howToFor('/dashboard').title).toBe('Home')
     expect(howToFor('/create').title).toMatch(/^Step 1/)
+    expect(howToFor('/create/story').title).toMatch(/^Step 2/)
     expect(howToFor('/create/script').title).toMatch(/^Step 2/)
-    expect(howToFor('/create/theme').title).toMatch(/^Step 3/)
+    expect(howToFor('/create/brand').title).toMatch(/^Step 3/)
+    expect(howToFor('/create/style').title).toMatch(/^Step 4/)
+    expect(howToFor('/create/scenes').title).toMatch(/^Step 5/)
+    expect(howToFor('/create/voice').title).toMatch(/^Step 6/)
+    expect(howToFor('/create/opening').title).toMatch(/^Step 7/)
+    expect(howToFor('/create/review').title).toMatch(/^Step 8/)
+    expect(howToFor('/create/theme').title).toMatch(/^Step 8/)
     expect(howToFor('/create/generating').title).toBe('Making it')
     expect(howToFor('/videos').title).toBe('Library')
     expect(howToFor('/videos/0b8d2c1e-1111-4a4a-9a9a-123456789abc').title).toBe('Your finished project')

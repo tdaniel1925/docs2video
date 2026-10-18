@@ -3886,6 +3886,63 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
 .cf-tip { animation: fadeInUp 0.4s ease; }
 .cf-buttons { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
+/* ── THE EIGHT STEPS (approved redesign, 2026-10-18) ─────────────────────
+   Each step: its heading and one line under it, then the work in a main
+   column with a side panel beside it (asking for a change, the price, the
+   brand peek). The side panel scrolls on its own on a wide screen, so the
+   middle never moves; on a phone it follows the work. Back sits in the
+   bottom bar beside Next. */
+.cf-page.cf-step { max-width: 1160px; }
+.cf-lede { margin: calc(var(--space-3) * -1) 0 0; max-width: 66ch; font-size: var(--fs-lead); line-height: 1.6; color: var(--ink-soft); }
+.cf-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: var(--space-5); align-items: start; }
+.cf-main-col { min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.cf-side { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+@media (min-width: 900px) {
+  .cf-side {
+    position: sticky;
+    top: calc(var(--d2v-bar-h, 72px) + 16px);
+    max-height: calc(100vh - var(--d2v-bar-h, 72px) - var(--cf-bar-h, 120px) - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+.cf-side-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.cf-side-card .cf-label, .cf-covers .cf-label, .cf-summary .cf-label { margin: 0; font-size: var(--fs-caption); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
+.cf-bar-back { font-size: var(--fs-caption); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--link); text-decoration: none; white-space: nowrap; }
+.cf-bar-back:hover { text-decoration: underline; }
+
+/* Step 8's summary: every step on one line, each with its Change. */
+.cf-summary { margin: 0; padding: var(--space-2) var(--space-4); display: flex; flex-direction: column; }
+.cf-summary-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: var(--space-3); align-items: baseline; padding: var(--space-3) 0; border-top: 1px solid var(--border-light); }
+.cf-summary-row:first-child { border-top: 0; }
+.cf-summary-row dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.cf-for-client { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+
+/* Steps 3 and 7: a card per group, fields stacked. */
+.cf-covers { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.cf-covers-who { display: flex; align-items: center; gap: var(--space-3); }
+.cf-covers-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--bg-soft); flex: 0 0 auto; }
+.cf-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.cf-field small, .cf-toggle small { font-weight: 500; color: var(--ink-light); }
+.cf-color { display: flex; align-items: center; gap: var(--space-2); }
+.cf-color input[type='color'] { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border); background: none; padding: 2px; cursor: pointer; }
+.cf-color code { font-size: var(--fs-small); color: var(--ink-soft); }
+.cf-drop.cf-drop--small { min-height: 0; padding: var(--space-4); font: inherit; color: var(--ink-soft); cursor: pointer; width: 100%; }
+.cf-brand-logo.cf-brand-logo--big { width: 64px; height: 64px; object-fit: contain; }
+/* In a side panel, asking for a change stacks: the box over its button. */
+.cf-side .cf-ask { flex-direction: column; }
+.cf-brand-peek { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-4); border-radius: 10px; background: var(--bg-soft); }
+
+@media (max-width: 900px) {
+  .cf-split { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .cf-summary-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .cf-summary-row dt { grid-column: 1 / -1; }
+  .cf-lede { font-size: var(--fs-body); }
+}
+
 @media (max-width: 760px) {
   .cf-h1 { font-size: var(--fs-h1); line-height: var(--lh-h1); }
   .cf-two, .cf-scenes, .cf-nums { grid-template-columns: minmax(0, 1fr); }

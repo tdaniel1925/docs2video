@@ -47,7 +47,7 @@ describe('Docs2Video offers no slide-deck or graphics maker', () => {
     expect([...D2V_OUTPUTS]).toEqual(['video', 'interactive'])
     expect(d2vOutputs(['video', 'interactive', 'deck', 'pptx', 'pdf'])).toEqual(['video', 'interactive'])
     for (const cur of ['video', 'interactive', 'deck', 'pptx', 'pdf']) expect(outputsOffered(cur)).toEqual(['video', 'interactive'])
-    const step3 = read('app/(dashboard)/create/theme/page.tsx')
+    const step3 = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
     expect(step3).toContain('offered={d2vOutputs(')
     expect(step3).not.toMatch(/Make the deck/)
     // An old draft saved as a deck / PowerPoint / PDF opens as a video.

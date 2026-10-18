@@ -9,7 +9,7 @@
  */
 import { displayProgress } from '../../../_lib/video-progress'
 import { KIND_NAMES, kindOfOutput } from '../../../_lib/names'
-import { STEPS } from '../../create/_components/workspace/steps'
+import { STEPS, stepIndexFor } from '../../create/_components/workspace/steps'
 
 export type VideoRow = {
   id: string
@@ -88,23 +88,19 @@ function whenCap(iso: string, now: number): string {
  * a blank /create.
  */
 export function resumeUrl(videoId: string, step: unknown): string {
-  switch (Number(step)) {
-    // 2 and 3 were saved by the old brand/voice pages, which came after the
-    // brief; in the 3-step flow the story is the next thing to do.
-    case 2:
-    case 3:
-    case 4:
-    case 5: return `/create/script?id=${videoId}`
-    default: return `/create?id=${videoId}`
-  }
+  // The eight-step flow saves the step to come back to (2 = story … 8 =
+  // review) as each step's Next is pressed. Drafts saved before it stored
+  // 2–5 too; those land on the story, brand, look or scenes step — each of
+  // which sends them on if there is nothing to do there yet.
+  const n = Number(step)
+  if (Number.isInteger(n) && n >= 2 && n <= STEPS.length) return `${STEPS[n - 1].paths[0]}?id=${videoId}`
+  return `/create?id=${videoId}`
 }
 
-/** Which of the three steps (focus header, steps.ts) that page belongs to. */
+/** Which of the eight steps (focus header, steps.ts) that page belongs to. */
 export function wizardStep(url: string): number {
-  const path = url.split('?')[0]
-  if (path === '/create/brief' || path === '/create/script') return 2
-  if (path === '/create/brand' || path === '/create/voice' || path === '/create/theme') return 3
-  return 1
+  const i = stepIndexFor(url.split('?')[0])
+  return i >= 0 && i < STEPS.length ? i + 1 : 1
 }
 
 // ── Project status ("Where it's at") ────────────────────────────────────────

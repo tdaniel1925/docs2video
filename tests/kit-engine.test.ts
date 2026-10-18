@@ -338,7 +338,7 @@ describe('wiring: step 3, preview, render service', () => {
   it('step 3 waits for the engine answer before showing cards or allowing Make', () => {
     // A slow /api/kit-engine answer must never let Make send the old engine's
     // style (or show Aurora for a moment) while the kit is on.
-    const src = fs.readFileSync(path.join(ROOT, 'app/(dashboard)/create/theme/page.tsx'), 'utf8')
+    const src = fs.readFileSync(path.join(ROOT, 'app/(dashboard)/create/_components/steps/LookVoiceReview.tsx'), 'utf8')
     expect(src).toMatch(/if \(loading \|\| !kitKnown\) \{/)
     // a failed answer still ends the wait (kit off), so the page never hangs
     expect(src).toMatch(/\.finally\(\(\) => \{ if \(alive\) setKitKnown\(true\) \}\)/)

@@ -37,10 +37,10 @@ const code = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
 
 const STEP1 = 'app/(dashboard)/create/_components/Step1Content.tsx'
-const STEP2 = 'app/(dashboard)/create/script/page.tsx'
-const STEP3 = 'app/(dashboard)/create/theme/page.tsx'
+const STEP2 = 'app/(dashboard)/create/_components/steps/StoryScenes.tsx'
+const STEP3 = 'app/(dashboard)/create/_components/steps/LookVoiceReview.tsx'
 const WAITING = 'app/(dashboard)/create/generating/page.tsx'
-const BRAND = 'app/(dashboard)/create/brand/page.tsx'
+const BRAND = 'app/(dashboard)/create/_components/steps/BrandCovers.tsx'
 const DUP_ROUTE = 'app/api/videos/draft/duplicate/route.ts'
 
 // ── 1. LENGTH ────────────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ describe('length: Short / Standard / Detailed, chosen on the story step', () => 
 
   it('step 2 will not go on to the price while a different length is picked but not written', () => {
     expect(step2).toMatch(/const lengthPending = scenes\.length > 0 && pickedLength !== detailLevel/)
-    expect(step2).toMatch(/if \(!videoId \|\| scenes\.length === 0 \|\| lengthPending\) return/)
+    expect(step2).toMatch(/if \(!videoId \|\| scenes\.length === 0 \|\| lengthPending \|\| !next\) return/)
     // held back — with the reason shown under the button — while the length is pending
     expect(step2).toMatch(/lengthPending \? \{ reason: /)
     expect(step2).toMatch(/missing=\{missing\}/)
@@ -116,8 +116,10 @@ describe('length: Short / Standard / Detailed, chosen on the story step', () => 
 
   it('step 3 links to the length choice itself and uses the same names', () => {
     const step3 = code(read(STEP3))
-    expect(step3).toContain('router.push(`/create/script?id=${videoId}#${LENGTH_ANCHOR}`)')
-    expect(step3).toMatch(/import \{ LENGTHS, LENGTH_ANCHOR \} from '..\/_components\/story\/lengths'/)
+    // The length lives on the Scenes step now (step 5); the voice step links to it.
+    expect(step3).toContain("const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`")
+    expect(step3).toContain('router.push(lengthHref)')
+    expect(step3).toMatch(/import \{ LENGTHS, LENGTH_ANCHOR \} from '..\/story\/lengths'/)
     expect(step3).not.toMatch(/Highlights/)
     expect(LENGTH_ANCHOR).toBe('length')
     const picker = read('app/(dashboard)/create/_components/story/LengthPicker.tsx')
@@ -241,7 +243,7 @@ describe('duplicate: a new draft from one of your projects', () => {
     expect(noStory).not.toHaveProperty('scenes')
     expect(noStory).not.toHaveProperty('scriptStatus')
     expect(noStory.step).toBe(2)
-    expect(copyLandingUrl('abc')).toBe('/create/script?id=abc&copied=1')
+    expect(copyLandingUrl('abc')).toBe('/create/story?id=abc&copied=1')
   })
 
   it('the row’s output type wins; length falls back to the row', () => {
@@ -353,7 +355,7 @@ describe('the create flow says Brand, Library and New', () => {
 
   it('the brand step is headed "Your brand" and says it can be a person or a company', () => {
     const brand = read(BRAND)
-    expect(brand).toMatch(/>\s*Your brand\s*</)
+    expect(brand).toMatch(/>Your <em>brand\.<\/em></)
     expect(brand).toMatch(/A brand can be you/)
     expect(brand).toMatch(/or a company/)
   })

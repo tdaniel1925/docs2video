@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, type ReactNode } from 'react'
 import MainAction, { type Missing } from './MainAction'
 
@@ -18,6 +19,9 @@ import MainAction, { type Missing } from './MainAction'
  * - `notice` is a message that belongs next to the button: an error from the
  *   server, "you need more credits", "add a card first".
  *
+ * - `back` is the step before ("← Back: Story"), as on the approved
+ *   mockups: every step has its way back beside its way on.
+ *
  * The bar measures itself into --cf-bar-h so the page can leave that much
  * room at the bottom: nothing is ever hidden behind it.
  */
@@ -32,6 +36,7 @@ export default function BottomBar({
   disabled,
   busy,
   missing,
+  back,
 }: {
   /** The big words on the left ("Free", "1,000 credits"). */
   info: ReactNode
@@ -47,6 +52,8 @@ export default function BottomBar({
   disabled?: boolean
   busy?: boolean
   missing?: Missing | null
+  /** The step before, as a link ("← Back: Story"). */
+  back?: { href: string; label: string } | null
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -64,6 +71,7 @@ export default function BottomBar({
     <div ref={ref} className="cf-bar" role="region" aria-label={label}>
       <div className="cf-bar-in">
         {notice ? <div className="cf-bar-notice">{notice}</div> : null}
+        {back ? <Link className="cf-bar-back" href={back.href}>← Back: {back.label}</Link> : null}
         <div className="cf-bar-info" data-testid="bar-info">
           <span className="cf-bar-big">{info}</span>
           {sub ? <span className="cf-bar-sub">{sub}</span> : null}

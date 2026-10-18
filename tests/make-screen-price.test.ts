@@ -72,7 +72,7 @@ describe('price-quote helper = the charge', () => {
 // ── Source-level: the screen gets its price from the server helper ──────────
 
 const SCREEN_FILES = [
-  'app/(dashboard)/create/theme/page.tsx',
+  'app/(dashboard)/create/_components/steps/LookVoiceReview.tsx',
   'app/(dashboard)/create/_components/workspace/BottomBar.tsx',
   'app/(dashboard)/create/_components/make/Pickers.tsx',
   'app/(dashboard)/create/_components/make/usePriceQuote.ts',
@@ -105,7 +105,7 @@ describe('the Make screen never prices in the browser', () => {
 
   it('the screen reads the price from /api/price-quote', () => {
     expect(read('app/(dashboard)/create/_components/make/usePriceQuote.ts')).toContain('/api/price-quote')
-    const page = read('app/(dashboard)/create/theme/page.tsx')
+    const page = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
     expect(page).toMatch(/usePriceQuote\(videoId\)/)
     // The shown total comes from the quote; before starting, the price is re-read.
     expect(page).toMatch(/quote\?\.options\?\.\[output\]/)
@@ -128,7 +128,7 @@ describe('the Make screen never prices in the browser', () => {
 // ── Every choice reaches the API that makes it ─────────────────────────────
 
 describe('choices made on step 3 are sent and read', () => {
-  const page = read('app/(dashboard)/create/theme/page.tsx')
+  const page = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
   const gv = read('app/api/generate-video/route.ts')
   const gp = read('app/api/generate-presentation/route.ts')
 
@@ -165,10 +165,12 @@ describe('choices made on step 3 are sent and read', () => {
 // ── The protections on the Make button stay ────────────────────────────────
 
 describe('Make button protections', () => {
-  const page = read('app/(dashboard)/create/theme/page.tsx')
+  const page = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
 
   it('card_required goes to /setup-payment and back; not-enough-credits never does (the old loop)', () => {
-    expect(page).toMatch(/g\.code === 'card_required'\) \{\s*router\.push\(`\/setup-payment\?next=\$\{encodeURIComponent\(`\/create\/theme\?id=\$\{videoId\}`\)\}`\)/)
+    // …and back to the review step (backHere), where Make it is.
+    expect(page).toMatch(/g\.code === 'card_required'\) \{\s*router\.push\(`\/setup-payment\?next=\$\{encodeURIComponent\(backHere\)\}`\)/)
+    expect(page).toContain("const backHere = videoId ? stepPath('review', videoId) : '/create'")
     const insufficient = page.slice(page.indexOf("g.code === 'insufficient_credits'"))
     const block = insufficient.slice(0, insufficient.indexOf('}'))
     expect(block).not.toContain('setup-payment')
