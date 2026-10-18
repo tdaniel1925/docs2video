@@ -65,7 +65,32 @@ export type LookCard = {
   tag?: string
   /** Sample pictures shown under the cards when this look is picked. */
   samples?: string[]
+  /** A short sample VIDEO of this look (LOOK_SAMPLES), opened from the card. */
+  sample?: LookSample
 }
+
+export type LookSample = { video: string; poster: string; seconds: number }
+
+/*
+ * A SAMPLE VIDEO FOR A LOOK (owner, 2026-10-18: "user can click to see what it
+ * will be like"). Each one was made by the SAME pipeline a customer's video in
+ * that look goes through (scripts/look-samples): the presentation looks by
+ * buildPresentationHtml + the production MP4 export's capture. Made-up story
+ * and agent (the Morales family, Jordan Avery); nothing real. A look with no
+ * entry here shows no sample button: none is faked.
+ */
+export const LOOK_SAMPLES: Record<string, LookSample> = Object.fromEntries(
+  ['heritage', 'warm', 'bold', 'midnight', 'mint', 'certificate'].map((id) => [id, { video: `/look-samples/${id}.mp4`, poster: `/look-samples/${id}.jpg`, seconds: 30 }]),
+)
+
+/*
+ * THE VIDEO SAMPLE. A video is made by the explainer engine (app/_lib/explainer-engine.ts,
+ * EXPLAINER_ENGINE=on): in the brand's colours over its starting look, or over the
+ * customer's own picture. The ready video looks do not change what it makes today,
+ * so there is ONE honest sample for a video, beside the Video choice, not one per
+ * video look card. Made by start-explainer.mjs with the default look and no brand.
+ */
+export const VIDEO_SAMPLE: LookSample = { video: '/look-samples/video.mp4', poster: '/look-samples/video.jpg', seconds: 35 }
 
 /** Which video look carries the BEST tag (and is picked by default). */
 export const RECOMMENDED_VIDEO_LOOK: VideoLookId = 'slides'
@@ -87,7 +112,7 @@ export type YourLook = { name?: string; colors: { bg: string; glow: string; acce
 
 export function lookCards(output: string, opts: { kit?: boolean; yourLook?: YourLook | null } = {}): LookCard[] {
   if (output === 'interactive' || output === 'deck') {
-    return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0 }))
+    return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0, ...(LOOK_SAMPLES[l.id] ? { sample: LOOK_SAMPLES[l.id] } : {}) }))
   }
   if (opts.kit) {
     // THE LOOK SCREEN (look wizard): "Your look" comes FIRST when the brand or

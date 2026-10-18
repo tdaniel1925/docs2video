@@ -1,0 +1,14 @@
+{
+  "title": "Your 2026 Coverage Review",
+  "palette": [],
+  "direction": "conservative",
+  "voiceId": "21m00Tcm4TlvDq8ikWAM",
+  "music": true,
+  "scenes": [
+    { "role": "cover", "title": "Your 2026 Coverage Review", "bullets": ["Prepared for the Morales family", "Jordan Avery"], "narration": "Hi Morales family. Here is your 2026 coverage review, in under a minute." },
+    { "role": "content", "title": "Your premium went down", "bullets": ["$84.50 a month", "Down from $91.30 last year"], "narration": "Good news first. Your monthly premium went down, to eighty-four fifty a month." },
+    { "role": "content", "title": "What you are covered for", "bullets": ["$500,000 death benefit", "20-year term", "Critical illness rider added"], "narration": "You keep five hundred thousand dollars of cover for twenty years, and a critical illness rider is now included." },
+    { "role": "content", "title": "Why it matters", "bullets": ["The mortgage is paid off", "The children's education is funded"], "narration": "If the worst happens, the mortgage is paid off and the children's education is funded." },
+    { "role": "closing", "title": "What happens next", "bullets": ["A 20-minute review call", "Jordan Avery", "jordan@example.com"], "narration": "Book a twenty-minute call with me and we will go through it together. Talk soon." }
+  ]
+}
