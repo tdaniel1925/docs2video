@@ -48,7 +48,7 @@ describe('which picture a video shows', () => {
   it('the cover is the engine’s drawn page, else a frame from the middle of the cover scene — never frame 0', () => {
     expect(isEngineStill(`${S}_slide_01.png`)).toBe(true)
     expect(coverPlan({ status: 'completed', slide_urls: [`${S}_slide_01.png`], video_url: `${S}.mp4` })).toEqual({ kind: 'still', url: `${S}_slide_01.png` })
-    expect(coverPlan({ status: 'completed', video_url: `${S}.mp4`, slide_durations: [7] })).toEqual({ kind: 'frame', url: `${S}.mp4`, at: 3.5 })
+    expect(coverPlan({ status: 'completed', video_url: `${S}.mp4`, slide_durations: [7] })).toEqual({ kind: 'frame', url: `${S}.mp4`, at: 5.6 })
     expect(coverPlan({ status: 'failed', video_url: `${S}.mp4` }).kind).toBe('none')
     expect(coverPlan({ status: 'completed' }).kind).toBe('none')
     for (const d of [undefined, [], [0], [0.4], [1.2], [30]]) {

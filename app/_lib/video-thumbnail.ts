@@ -93,12 +93,14 @@ export function videoThumbnail(v: ThumbSource): string | null {
   return isStill(first) ? first : null
 }
 
-/** Seconds into the film for an older engine's cover frame: the middle of
- *  the first scene, kept clear of the fade in and the cut out. Never 0. */
+/** Seconds into the film for an older engine's cover frame: late in the
+ *  first scene, once its title has finished animating in (the middle caught
+ *  titles half-typed, owner backfill check 2026-10-18), kept clear of the
+ *  cut out. Never 0. */
 export function coverFrameAt(durations: number[] | null | undefined): number {
   const d = durations?.[0]
-  if (typeof d !== 'number' || !Number.isFinite(d) || d <= 0) return 3.2
-  return Math.round(Math.min(Math.max(d / 2, 0.8), Math.max(0.8, d - 0.3)) * 100) / 100
+  if (typeof d !== 'number' || !Number.isFinite(d) || d <= 0) return 4.5
+  return Math.round(Math.min(Math.max(d * 0.8, 0.8), Math.max(0.8, d - 0.6)) * 100) / 100
 }
 
 export type CoverPlan =
