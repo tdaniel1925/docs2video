@@ -13,7 +13,8 @@ Founder: "deprecate the current engine … I like the explainer we have in [One 
 - Voices: the six Docs2Video voices map to the ElevenLabs voices fal already used (ELEVENLABS_VOICE).
 - app/api/generate-video/route.ts: the explainer runs before every older engine for users it is switched on for; if it cannot start, the video is made the old way with a render_note (no video lost).
 - Switch: EXPLAINER_ENGINE = off (default) | admins | on. Needs RENDER_AWS_REGION, RENDER_BUCKET, RENDER_SUBNETS, RENDER_SECURITY_GROUP, RENDER_AWS_ACCESS_KEY_ID, RENDER_AWS_SECRET_ACCESS_KEY on Vercel (the decks-render app user).
-- Measured on AWS: 7 scenes, 73 s video, Claude $1.59, ~11 minutes. Price not set yet (owner: option b — cheaper engine, ~1,500–2,000 credits target).
+- Measured on AWS: 7 scenes, 73 s video, Claude $1.59, ~11 minutes.
+- PRICE (owner: "make sure we make money and don't lose"): app/_lib/explainer-price.ts — 1,400 + 320 a scene + 3 a narration word (+150 per extra file), from the SAVED story; an API call with no saved story is priced at the most its length allows. ≥55% margin even at the cheapest credit ($0.0025, Enterprise); grandfathered customers pay half. A typical standard video ≈ 4,700 credits. Applies only when EXPLAINER_ENGINE=on (admins are free anyway). A story sent bigger than the one priced is refused (story_changed). If the explainer cannot start, the old engine makes it and the difference is refunded at once (deducted_cost lowered, so a later failure refund is right).
 - Commercials and interactive presentations: not moved; owner wants explainer videos only going forward.
 - Guard: tests/explainer-engine.test.ts. Deps: @aws-sdk/client-s3, @aws-sdk/client-ecs.
 

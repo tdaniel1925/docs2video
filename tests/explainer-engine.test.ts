@@ -62,3 +62,36 @@ describe('the route', () => {
     expect(route).toContain("render_note: 'Made with the previous engine — the new explainer engine could not start. Regenerate to try it again.'")
   })
 })
+
+describe('what an explainer costs', () => {
+  it('is priced by its size, and the cheapest credit still makes money', async () => {
+    const { explainerCredits, EXPLAINER_BASE_CREDITS } = await import('../app/_lib/explainer-price')
+    expect(explainerCredits(7, 350)).toBe(1400 + 7 * 320 + 350 * 3)
+    /* Cost model: $1.40 once + $0.32 a scene + $0.40 a minute (150 words). At the cheapest credit ($0.0025) at least 55% stays. */
+    for (const [scenes, words] of [[5, 150], [7, 350], [14, 1000], [30, 3500]]) {
+      const cost = 1.4 + 0.32 * scenes + 0.4 * (words / 150)
+      const revenue = explainerCredits(scenes, words) * 0.0025
+      expect((revenue - cost) / revenue, `${scenes} scenes`).toBeGreaterThan(0.55)
+    }
+    expect(EXPLAINER_BASE_CREDITS).toBeGreaterThan(0)
+  })
+  it('the quote and the charge use it once every video is an explainer, from the saved story', async () => {
+    for (const [k, v] of Object.entries(RENDER)) vi.stubEnv(k, v)
+    vi.stubEnv('EXPLAINER_ENGINE', 'on')
+    const { videoPriceInputs, videoCreditCost } = await import('../app/_lib/price-quote')
+    const scenes = [{ narration: 'one two three' }, { narration: 'four five' }]
+    const inputs = videoPriceInputs({ output_type: 'video', draft_data: { scenes, detailLevel: 'standard' } })
+    expect(inputs).toMatchObject({ scenes: 2, words: 5 })
+    expect(videoCreditCost(inputs, 'someone')).toBe(1400 + 2 * 320 + 5 * 3)
+    /* No saved story (an API call): the most the length allows. */
+    expect(videoPriceInputs({ output_type: 'video', draft_data: { detailLevel: 'quick' } })).toMatchObject({ scenes: 8, words: 400 })
+    vi.stubEnv('EXPLAINER_ENGINE', 'admins')
+    expect(videoCreditCost(inputs, 'someone')).toBe(1000)
+  })
+  it('a story bigger than the one priced is refused, and a fallback gives back the difference', () => {
+    const route = read('app/api/generate-video/route.ts')
+    expect(route).toContain("if (sent.scenes > priceInputs.scenes || sent.words > priceInputs.words) {")
+    expect(route).toContain("await refundCredits(user.id, deductedCost - oldPrice, 'explainer-start', videoId)")
+    expect(route).toContain("await admin.from('videos').update({ deducted_cost: oldPrice })")
+  })
+})

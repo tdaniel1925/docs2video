@@ -24,9 +24,9 @@ import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
 import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
-import { deductCredits, checkCredits, refundVideoCredits, spendBlockMessage } from '../../_lib/credits'
+import { deductCredits, checkCredits, refundVideoCredits, spendBlockMessage, refundCredits } from '../../_lib/credits'
 import { IN_PROGRESS_STATUSES } from '../../_lib/video-billing'
-import { videoPriceInputs, videoCreditCost, videoIsFree } from '../../_lib/price-quote'
+import { videoPriceInputs, videoCreditCost, videoIsFree, previousEngineVideoCost } from '../../_lib/price-quote'
 import { usableBrief, isEditedBookend, buildShareColumns, type DetailLevel } from '../../_lib/wizard-draft'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
 import { safeEqual } from '../../_lib/api-auth'
@@ -36,7 +36,8 @@ import { isRetiredOutput, RETIRED_MESSAGE } from '../../_lib/videos-only'
 import { buildDrawnSlides, drawStyleOf, DRAWN_LOOK_ID, drawnLookFrom } from '../../_lib/drawn-slides'
 import { assembleKitPlan, kitEngineOn, kitLogoAssets, planKitVideoCached, plannerBeats, resolveKitLook } from '../../_lib/kit-engine'
 import type { PlannerInput } from '../../_lib/kit-planner'
-import { storyTooBigMessage } from '../../_lib/length-limits'
+import { storyTooBigMessage, storySize } from '../../_lib/length-limits'
+import { explainerPricingOn } from '../../_lib/explainer-price'
 import { alertOps } from '../../_lib/ops-alert'
 import { explainerEngineFor, startExplainer, sceneFor } from '../../_lib/explainer-engine'
 
@@ -361,6 +362,14 @@ export async function POST(request: Request) {
   if (Array.isArray(preGeneratedScenes) && preGeneratedScenes.length) {
     const tooBig = storyTooBigMessage(preGeneratedScenes, detailLevel)
     if (tooBig) return refuse(400, { error: tooBig, code: 'story_too_long' })
+    // An explainer is priced by the SAVED story's size (explainer-price.ts):
+    // scenes sent bigger than the story that was priced are refused here too.
+    if (explainerPricingOn()) {
+      const sent = storySize(preGeneratedScenes)
+      if (sent.scenes > priceInputs.scenes || sent.words > priceInputs.words) {
+        return refuse(400, { error: 'Your story changed since the price was worked out. Go back to the Story step and press Next again, then make it.', code: 'story_changed' })
+      }
+    }
   }
 
   // Docs2Video no longer makes PowerPoint / PDF projects (videos-only.ts): an
@@ -1115,6 +1124,16 @@ export async function POST(request: Request) {
       } catch (exErr) {
         console.error(`[video ${videoId}] explainer engine failed to start (${(exErr as Error).message}) — making it the previous way`)
         await admin.from('videos').update({ render_note: 'Made with the previous engine — the new explainer engine could not start. Regenerate to try it again.' }).eq('id', videoId).then(() => {}, () => {})
+        // Charged the explainer's price, made the old way: the difference goes
+        // back now, and the row's charge drops to the old price so a later
+        // failure refund gives back only what is still held.
+        if (explainerPricingOn() && deductedCost > 0) {
+          const oldPrice = previousEngineVideoCost(priceInputs, user.id)
+          if (deductedCost > oldPrice && (await refundCredits(user.id, deductedCost - oldPrice, 'explainer-start', videoId))) {
+            deductedCost = oldPrice
+            await admin.from('videos').update({ deducted_cost: oldPrice }).eq('id', videoId).then(() => {}, () => {})
+          }
+        }
       }
     }
 

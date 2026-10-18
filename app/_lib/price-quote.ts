@@ -1,4 +1,6 @@
-import { calculateVideoCost, CREDIT_COSTS, MULTI_FILE_SURCHARGE } from './credits'
+import { calculateVideoCost, CREDIT_COSTS, MULTI_FILE_SURCHARGE, GRANDFATHERED_USER_IDS } from './credits'
+import { explainerPricingOn, explainerCredits } from './explainer-price'
+import { storySize, LENGTH_LIMITS } from './length-limits'
 import { normalizeDetailLevel, type DetailLevel } from './wizard-draft'
 import { D2V_OUTPUTS } from './videos-only'
 
@@ -34,6 +36,13 @@ export interface VideoPriceInputs {
   /** How generate-video prices it: pptx and pdf have their own price, everything else is a video. */
   priceOutputType: 'video' | 'pptx' | 'pdf'
   fileCount: number
+  /**
+   * The story's size — what an explainer video is priced by (explainer-price.ts).
+   * From the saved story; with none saved (an API call writes its own), the
+   * most the length allows, so a story is never bigger than what was paid for.
+   */
+  scenes: number
+  words: number
 }
 
 /**
@@ -57,11 +66,21 @@ export function videoPriceInputs(
   // Multi-upload surcharge: +150 per extra uploaded file.
   const docs = draft.extractedDocs
   const fileCount = Array.isArray(docs) && docs.length > 1 ? docs.length : 1
-  return { detailLevel, draftOutputType, priceOutputType, fileCount }
+  const told = storySize(draft.scenes)
+  const cap = LENGTH_LIMITS[detailLevel] ?? LENGTH_LIMITS.standard
+  const scenes = told.scenes > 0 ? told.scenes : cap.maxScenes
+  const words = told.scenes > 0 ? told.words : cap.maxWords
+  return { detailLevel, draftOutputType, priceOutputType, fileCount, scenes, words }
 }
 
 /** Credits generate-video charges for these inputs (grandfathered users pay old rates). */
 export function videoCreditCost(inputs: VideoPriceInputs, userId: string | null | undefined): number {
+  /* Once every video is an explainer (EXPLAINER_ENGINE=on), it is priced by its size; a grandfathered customer pays half, as for every video. */
+  if (explainerPricingOn() && inputs.priceOutputType === 'video') {
+    const full = explainerCredits(inputs.scenes, inputs.words)
+    const own = userId && GRANDFATHERED_USER_IDS.has(userId) ? Math.round(full / 2) : full
+    return own + Math.max(0, inputs.fileCount - 1) * MULTI_FILE_SURCHARGE
+  }
   return calculateVideoCost({
     outputType: inputs.priceOutputType,
     detailLevel: inputs.detailLevel,
@@ -69,6 +88,11 @@ export function videoCreditCost(inputs: VideoPriceInputs, userId: string | null 
     userId: userId || undefined,
     fileCount: inputs.fileCount,
   })
+}
+
+/** What the same video costs made the previous way — what a video the explainer could not start is charged after all. */
+export function previousEngineVideoCost(inputs: VideoPriceInputs, userId: string | null | undefined): number {
+  return calculateVideoCost({ outputType: inputs.priceOutputType, detailLevel: inputs.detailLevel, narrationStyle: 'solo', userId: userId || undefined, fileCount: inputs.fileCount })
 }
 
 /** Credits generate-presentation charges. */
@@ -134,7 +158,9 @@ export function quoteOutput(
   const total = videoCreditCost(inputs, userId)
   // Split the same total into lines. Only a video carries the extra-file charge.
   const surcharge = output === 'video' ? Math.max(0, inputs.fileCount - 1) * MULTI_FILE_SURCHARGE : 0
-  const main = output === 'video' ? `${OUTPUT_NAMES.video} · ${LENGTH_NAMES[inputs.detailLevel]}` : OUTPUT_NAMES[output]
+  const main = output === 'video'
+    ? (explainerPricingOn() ? `${OUTPUT_NAMES.video} · ${inputs.scenes} scenes` : `${OUTPUT_NAMES.video} · ${LENGTH_NAMES[inputs.detailLevel]}`)
+    : OUTPUT_NAMES[output]
   const lines: QuoteLine[] = [{ label: main, credits: total - surcharge }]
   if (surcharge > 0) {
     const extra = inputs.fileCount - 1
