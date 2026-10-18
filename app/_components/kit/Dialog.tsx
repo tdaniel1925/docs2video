@@ -100,7 +100,7 @@ function FreeDialog({ onClose, title, sub, children, footer, closeLabel = 'Close
   )
 }
 
-function OpenDialog({ onClose, title, sub, children, footer, closeLabel = 'Close' }: DialogProps) {
+function OpenDialog({ onClose, title, sub, children, footer, closeLabel = 'Close', wide }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   const subId = useId()
@@ -132,7 +132,7 @@ function OpenDialog({ onClose, title, sub, children, footer, closeLabel = 'Close
   return (
     <dialog
       ref={ref}
-      className="kit-dialog"
+      className={`kit-dialog${wide ? ' kit-dialog--wide' : ''}`}
       aria-labelledby={titleId}
       aria-describedby={sub ? subId : undefined}
       // The dialog box itself has no padding, so a click whose target is the

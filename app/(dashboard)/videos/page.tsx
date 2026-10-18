@@ -6,6 +6,7 @@ import { madeLabel } from '../dashboard/_home/derive'
 import Library from './Library'
 import { isPicture, PAGE_SIZES, SORTS, type LibraryItem, type SortId } from './library-items'
 import { flyerFileId, signFlyerPictures } from './library-pictures'
+import { videoThumbnail } from '../../_lib/video-thumbnail'
 
 type Creation = {
   id: string
@@ -117,7 +118,9 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
         _videoId: v.id,
         _status: v.status,
         _progressPct: v.progress_pct,
-        _picture: v.thumbnail_url || (isPicture(extra.first_slide) ? extra.first_slide! : null),
+        // The video's thumbnail (video-thumbnail.ts): its chosen picture, its
+        // made cover, its poster, its first scene, or none.
+        _picture: videoThumbnail({ thumbnail_url: v.thumbnail_url, slide_urls: isPicture(extra.first_slide) ? [extra.first_slide!] : null, draft_data: (v as { draft_data?: unknown }).draft_data }),
         _duration: typeof extra.duration === 'number' ? extra.duration : null,
         _kind: kindOfOutput(outputType),
         _label: madeLabel(outputType),
@@ -167,6 +170,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       status: item._status ?? null,
       progressPct: item._progressPct ?? null,
       draftStep: draft?.step,
+      draftTemplate: typeof draft?.templateId === 'string' ? draft.templateId : null,
       creditsUsed: item.credits_used ?? null,
       createdAt: item.created_at,
     }
@@ -227,7 +231,7 @@ async function PagedLibrary({ sp, pagedKey, userId, supabase }: {
 
   // Only what a card needs: the who-it's-for name and the draft step come out
   // of draft_data as two short values, never the whole draft.
-  const BASE = 'id, user_id, title, thumbnail_url, video_url, status, progress_pct, created_at, deducted_cost, output_type, recipient:draft_data->>recipientName, draft_step:draft_data->step'
+  const BASE = 'id, user_id, title, thumbnail_url, video_url, status, progress_pct, created_at, deducted_cost, output_type, recipient:draft_data->>recipientName, draft_step:draft_data->step, thumb:draft_data->thumbnail, draft_template:draft_data->>templateId'
   const read = (cols: string, page: number) => {
     let query = supabase.from('videos').select(cols, { count: 'exact' }).eq('user_id', userId)
     const f = videosFilterFor(pagedKey)
@@ -263,6 +267,7 @@ async function PagedLibrary({ sp, pagedKey, userId, supabase }: {
     id: string; user_id: string; title: string | null; thumbnail_url: string | null; video_url: string | null
     status: string | null; progress_pct: number | null; created_at: string; deducted_cost: number | null
     output_type: string | null; recipient: string | null; draft_step: unknown; duration?: number | null; first_slide?: string | null
+    thumb?: unknown; draft_template?: string | null
   }
   const rows = ((res.data ?? []) as unknown as Row[])
   const items: LibraryItem[] = rows.map((v) => ({
@@ -274,11 +279,12 @@ async function PagedLibrary({ sp, pagedKey, userId, supabase }: {
     title: v.title ?? null,
     recipient: typeof v.recipient === 'string' && v.recipient.trim() ? v.recipient : null,
     fileUrl: v.video_url ?? null,
-    picture: v.thumbnail_url || (isPicture(v.first_slide) ? v.first_slide! : null),
+    picture: videoThumbnail({ thumbnail_url: v.thumbnail_url, slide_urls: isPicture(v.first_slide) ? [v.first_slide!] : null, draft_data: { thumbnail: v.thumb } }),
     duration: typeof v.duration === 'number' ? v.duration : null,
     status: v.status ?? null,
     progressPct: v.progress_pct ?? null,
     draftStep: v.draft_step,
+    draftTemplate: typeof v.draft_template === 'string' ? v.draft_template : null,
     creditsUsed: v.deducted_cost ?? null,
     createdAt: v.created_at,
   }))

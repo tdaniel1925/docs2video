@@ -34,6 +34,9 @@ const ALL: LibraryTab = { key: '', label: 'All', shows: (k) => !isOlderKind(k) }
 const VIDEOS: LibraryTab = { key: 'video', label: KIND_NAMES.video.many, shows: (k) => k === 'video' }
 const PRESENTATIONS: LibraryTab = { key: 'presentation', label: KIND_NAMES.presentation.many, shows: (k) => k === 'presentation' }
 const OLDER: LibraryTab = { key: 'older', label: OLDER_LABEL, shows: isOlderKind }
+// Drafts (option A, 2026-10-18): videos and presentations not made yet. Paged
+// in the database (status 'draft'), so `shows` only matters for the kind.
+const DRAFTS: LibraryTab = { key: 'drafts', label: 'Drafts', shows: (k) => !isOlderKind(k) }
 // Not in the row of tabs — only reached by an old address.
 const HIDDEN: LibraryTab[] = [
   { key: 'deck', label: KIND_NAMES.deck.many, shows: (k) => k === 'deck' },
@@ -42,13 +45,13 @@ const HIDDEN: LibraryTab[] = [
 
 /** The row of tabs. "Older items" only when there is something in it. */
 export function libraryTabs(hasOlder: boolean): LibraryTab[] {
-  return hasOlder ? [ALL, VIDEOS, PRESENTATIONS, OLDER] : [ALL, VIDEOS, PRESENTATIONS]
+  return hasOlder ? [ALL, VIDEOS, PRESENTATIONS, DRAFTS, OLDER] : [ALL, VIDEOS, PRESENTATIONS, DRAFTS]
 }
 
 /** The tab an address asks for (shown or hidden), or null for All / unknown. */
 export function tabFor(type: string | null | undefined): LibraryTab | null {
   if (!type) return null
-  return [VIDEOS, PRESENTATIONS, OLDER, ...HIDDEN].find((t) => t.key === type) ?? null
+  return [VIDEOS, PRESENTATIONS, DRAFTS, OLDER, ...HIDDEN].find((t) => t.key === type) ?? null
 }
 
 // ── ONE definition of "your work", shared by the Library and Home ──────────
@@ -58,7 +61,7 @@ export function tabFor(type: string | null | undefined): LibraryTab | null {
 /** videos.output_type values that are old slide exports (Older items). */
 export const OLDER_OUTPUT_TYPES = ['deck', 'pptx', 'pdf'] as const
 
-export type PagedTabKey = '' | 'video' | 'presentation'
+export type PagedTabKey = '' | 'video' | 'presentation' | 'drafts'
 
 /**
  * PostgREST filter for a videos query, per tab ('' = All). Rows with no
@@ -69,12 +72,13 @@ export function videosFilterFor(tabKey: PagedTabKey): { or?: string; eq?: [strin
   const older = OLDER_OUTPUT_TYPES.join(',')
   if (tabKey === 'presentation') return { eq: ['output_type', 'interactive'] }
   if (tabKey === 'video') return { or: `output_type.is.null,output_type.not.in.(${older},interactive)` }
+  if (tabKey === 'drafts') return { or: `output_type.is.null,output_type.not.in.(${older})`, eq: ['status', 'draft'] }
   return { or: `output_type.is.null,output_type.not.in.(${older})` }
 }
 
 /** Tabs whose rows all come from the videos table, so they page on the server. */
 export function isServerPagedTab(key: string | null | undefined): key is PagedTabKey {
-  return key === '' || key === 'video' || key === 'presentation'
+  return key === '' || key === 'video' || key === 'presentation' || key === 'drafts'
 }
 
 /** Words typed into the search box, made safe for a PostgREST ilike filter. */

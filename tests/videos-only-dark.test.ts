@@ -130,8 +130,8 @@ describe('Docs2Video offers no slide-deck or graphics maker', () => {
 
 describe('old decks and graphics still open, download and delete', () => {
   it('the Library files them under Older items, shown only when there are some', () => {
-    expect(libraryTabs(false).map((t) => t.label)).toEqual(['All', 'Videos', 'Presentations'])
-    expect(libraryTabs(true).map((t) => t.label)).toEqual(['All', 'Videos', 'Presentations', OLDER_LABEL])
+    expect(libraryTabs(false).map((t) => t.label)).toEqual(['All', 'Videos', 'Presentations', 'Drafts'])
+    expect(libraryTabs(true).map((t) => t.label)).toEqual(['All', 'Videos', 'Presentations', 'Drafts', OLDER_LABEL])
     expect(isOlderKind('deck') && isOlderKind('graphic') && isOlderKind(null)).toBe(true)
     expect(isOlderKind('video') || isOlderKind('presentation')).toBe(false)
     // Old bookmarks still land on just those.

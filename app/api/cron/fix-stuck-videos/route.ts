@@ -8,6 +8,7 @@ import { getRender } from '../../../_lib/creatomate'
 import { deductCredits } from '../../../_lib/credits'
 import { sendNotification } from '../../../_lib/notify'
 import { announceVideoReady, sweepReadyVideos } from '../../../_lib/video-ready'
+import { sweepThumbnails } from '../../../_lib/video-thumbnail-make'
 import {
   IN_PROGRESS_STATUSES, VIDEO_CHARGE_ACTIONS, VIDEO_REFUND_ACTIONS,
   chargeCount, ledgerOutstanding, readVideoLedger, refundVerifiedCharge,
@@ -159,6 +160,10 @@ export async function GET(request: Request) {
   // project (app/_lib/video-ready.ts keeps it to once).
   let readyEmails = 0
   try { readyEmails = await sweepReadyVideos(admin) } catch { /* non-fatal — next run retries */ }
+
+  // Each finished video's thumbnail: its cover as a 1280×720 picture
+  // (app/_lib/video-thumbnail.ts). A few per run; never blocks the rest.
+  try { await sweepThumbnails(admin) } catch { /* non-fatal — next run retries */ }
 
   // Public-API jobs that finished or failed on the render service (audit
   // 2026-10-09): give a failed job its API credits back and fire the caller's

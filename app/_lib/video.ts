@@ -6,7 +6,7 @@ import { execFile } from 'child_process'
 
 let _ffmpegPath: string | null = null
 
-function getFfmpegPath(): string {
+export function getFfmpegPath(): string {
   if (_ffmpegPath) return _ffmpegPath
 
   const fs = require('fs')
