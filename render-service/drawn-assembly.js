@@ -101,7 +101,7 @@ function joinFilter({ durations, audio, xfade = XFADE, sampleRate = 48000 }) {
  * slides) audio_<i>.mp3 in `workDir`, like the classic path.
  * @returns {Promise<{ durations: number[], voice: [number, number][], total: number }>}
  */
-async function assembleDrawnSlides({ workDir, slideCount, audioBuffers, outputPath, runFfmpeg, probeAudioDuration, onClip }) {
+async function assembleDrawnSlides({ workDir, slideCount, audioBuffers, outputPath, runFfmpeg, probeAudioDuration, onClip, onJoin }) {
   const narr = []
   for (let i = 0; i < slideCount; i++) {
     const has = audioBuffers[i] && audioBuffers[i].length > 100
@@ -126,6 +126,7 @@ async function assembleDrawnSlides({ workDir, slideCount, audioBuffers, outputPa
   }
 
   // 2) cross-fade the clips + the voice track, one pass
+  if (onJoin) await onJoin()
   const args = []
   for (const c of clips) args.push('-i', c)
   const audio = []
@@ -136,7 +137,9 @@ async function assembleDrawnSlides({ workDir, slideCount, audioBuffers, outputPa
   args.push(
     '-filter_complex', joinFilter({ durations: tl.durations, audio }),
     '-map', '[vout]', '-map', '[aout]',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+    // veryfast + crf 22: the medium pass took 8.5 min for 11 slides (runFfmpeg's
+    // cap is 10) and made a 58 MB file that storage refused (2026-10-17).
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-maxrate', '4M', '-bufsize', '8M', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '192k',
     '-t', n3(tl.total),
     '-movflags', '+faststart', '-y', outputPath,

@@ -231,7 +231,9 @@ export default function GeneratingPage() {
         {/* Scene filmstrip — fills in as scenes are really built */}
         {slotCount > 0 && (
           <div className="cf-film">
-            <p className="cf-hint">{previews.length} of {slotCount} scenes ready</p>
+            {/* Count each scene once: a redrawn scene adds a second picture for
+                the same idx, which read as "12 of 11 scenes ready". */}
+            <p className="cf-hint">{Math.min(slotCount, [...previewByIdx.keys()].filter(i => i >= 0 && i < slotCount).length)} of {slotCount} scenes ready</p>
             <div className="cf-film-row">
               {Array.from({ length: slotCount }).map((_, i) => {
                 const url = previewByIdx.get(i)

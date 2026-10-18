@@ -5,6 +5,13 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-10-17 — Videos over 50 MB failed at the very end (code done; render deploy pending)
+
+- A 3.5-min Drawn-slides video (58.6 MB) failed: "Upload failed: The object exceeded the maximum allowed size" (Supabase 50 MB project cap). New render-service/video-upload.js uploadVideo(): re-encodes to fit (length-based bitrate) and THROWS on error; all 11 server.js mp4 uploads + present-export use it (several used to ignore upload errors).
+- Drawn-slides join: preset medium→veryfast, crf 22, maxrate 4M (was 8.5 min of a 10-min ffmpeg cap); new "Joining the slides together..." status; ffmpeg cap 10→20 min.
+- Generating page: "12 of 11 scenes ready" (redrawn scene counted twice) fixed.
+- Guard: tests/video-upload.test.ts.
+
 ## 2026-10-15 — Document upload/reading audit (DEPLOYED: ECS image sha256:7e162f0f…, site 4895e8c; live-tested 13 file kinds)
 
 Found by sending real files to the live service:

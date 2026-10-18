@@ -107,8 +107,7 @@ async function runExport({ videoId, htmlUrl, supabase, log }) {
 
     const storagePath = `presentations/${videoId}.mp4`
     const buf = fs.readFileSync(mp4)
-    const up = await supabase.storage.from('videos').upload(storagePath, buf, { contentType: 'video/mp4', upsert: true })
-    if (up.error) throw new Error(up.error.message)
+    await require('./video-upload').uploadVideo(supabase, 'videos', storagePath, buf, 'present-export') // shrinks to fit; throws on failure
     const { data: pub } = supabase.storage.from('videos').getPublicUrl(storagePath)
     await supabase.from('videos').update({ export_video_url: pub.publicUrl }).eq('id', videoId)
     log(`export done · ${Math.round(buf.length / 1048576)}MB → ${pub.publicUrl}`)

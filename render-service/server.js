@@ -11,6 +11,7 @@ const { createClient } = require('@supabase/supabase-js')
 const WebSocket = require('ws')
 // Audit 2026-10-09: finish only still-running rows; fetch outside URLs only to public addresses.
 const { completeIfRunning, guardedFetch } = require('./job-guards')
+const { uploadVideo } = require('./video-upload')
 
 const app = express()
 app.use(express.json({ limit: '200mb' }))
@@ -286,7 +287,7 @@ async function generateFallbackSlide(title, slideNum, totalSlides) {
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
     console.log(`[ffmpeg] Running: ${args.join(' ').slice(0, 200)}...`)
-    execFile('ffmpeg', args, { maxBuffer: 100 * 1024 * 1024, timeout: 600000 }, (err, stdout, stderr) => {
+    execFile('ffmpeg', args, { maxBuffer: 100 * 1024 * 1024, timeout: 1200000 }, (err, stdout, stderr) => {
       if (err) {
         console.error(`[ffmpeg] Error:`, err.message)
         console.error(`[ffmpeg] Stderr:`, stderr?.slice(0, 500))
@@ -564,11 +565,7 @@ app.post('/assemble', authCheck, async (req, res) => {
       })
 
       const videoStoragePath = `${userId}/${videoId}.mp4`
-      const { error: uploadError } = await supabase.storage
-        .from('videos')
-        .upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-
-      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+      await uploadVideo(supabase, 'videos', videoStoragePath, videoBuffer, 'save-video')
 
       const { data: urlData } = supabase.storage.from('videos').getPublicUrl(videoStoragePath)
 
@@ -1663,7 +1660,7 @@ app.post('/render-v3', authCheck, async (req, res) => {
     await setProgress(90, 'Saving your video')
     const videoBuffer = await readFile(outFile)
     const videoStoragePath = `${userId}/${videoId}.mp4`
-    await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    await uploadVideo(sb, 'videos', videoStoragePath, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
     const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
     // Poster/thumbnail: grab a frame ~2.5s IN, past the cold-open fade-from-black,
@@ -1776,7 +1773,7 @@ app.post('/render-commercial', authCheck, async (req, res) => {
     await setProgress(92, 'Saving your video')
     const videoBuffer = await readFile(outFile)
     const videoStoragePath = `${userId}/${videoId}.mp4`
-    await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+    await uploadVideo(sb, 'videos', videoStoragePath, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
     const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
     const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
@@ -1926,7 +1923,7 @@ app.post('/generate-commercial', authCheck, async (req, res) => {
 
       await setProgress(92, 'Saving your video')
       const videoBuffer = await readFile(outFile)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
 
       const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
@@ -2108,7 +2105,7 @@ app.post('/generate-slides', authCheck, async (req, res) => {
 
       await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
 
       // POSTER — a frame past the cover fade-in.
@@ -2240,7 +2237,7 @@ app.post('/generate-kit', authCheck, async (req, res) => {
 
       await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
 
       // POSTER — the cover once its words have landed.
@@ -2471,7 +2468,7 @@ RULES:
       // update the persisted plan + the edited scene's stored VO clip.
       await setProgress(92, 'Publishing...')
       const vbuf = await readFile(reOut)
-      await sb.storage.from('videos').upload(`${userId}/${videoId}.mp4`, vbuf, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, vbuf, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
       // persist the edited scene's new VO + the updated plan
       try { const vb = await readFile(join(pub, voName)); await sb.storage.from('videos').upload(`${userId}/${videoId}_${voName}`, vb, { contentType: 'audio/mpeg', upsert: true }) } catch {}
@@ -2619,8 +2616,7 @@ app.post('/render-visual-director', authCheck, async (req, res) => {
       exportBucket = String(exportUpload.bucket)
       storagePath = String(exportUpload.key)
     } else {
-      const { error: uploadError } = await sb.storage.from('visual-director-exports').upload(storagePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-      if (uploadError) throw uploadError
+      await uploadVideo(sb, 'visual-director-exports', storagePath, videoBuffer, 'save-video')
     }
     const dimensions = aspect === '9:16' ? [1080, 1920] : aspect === '1:1' ? [1080, 1080] : [1920, 1080]
     const { error: renderError } = await sb.from('vd_renders').upsert({
@@ -2737,7 +2733,7 @@ app.post('/render-directed', authCheck, async (req, res) => {
       await setProgress(90, 'Saving your video')
       const videoBuffer = await readFile(outFile)
       const videoStoragePath = `${userId}/${videoId}.mp4`
-      await sb.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
+      await uploadVideo(sb, 'videos', videoStoragePath, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
       const { data: urlData } = sb.storage.from('videos').getPublicUrl(videoStoragePath)
 
       // Poster (past the cover fade-in).
@@ -2994,7 +2990,7 @@ app.post('/render-editorial', authCheck, async (req, res) => {
     await setProgress(92, 'Saving your video')
     const buf = await readFile(outFile)
     const path = `${userId}/${videoId}.mp4`
-    await sb.storage.from('videos').upload(path, buf, { contentType: 'video/mp4', upsert: true })
+    await uploadVideo(sb, 'videos', path, buf, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
     const url = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
     const thumb = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
     await grabPoster(outFile, thumb)
@@ -3414,6 +3410,7 @@ app.post('/generate', authCheck, async (req, res) => {
       const drawn = await assembleDrawnSlides({
         workDir, slideCount: slideBuffers.length, audioBuffers, outputPath, runFfmpeg, probeAudioDuration,
         onClip: (i) => updateStatus('assembling', `Animating slide ${i + 1} of ${slideBuffers.length}...`, 72 + Math.round(((i + 1) / slideBuffers.length) * 13)),
+        onJoin: () => updateStatus('assembling', 'Joining the slides together...', 86),
       })
       durations = drawn.durations
       voiceSegments = drawn.voice
@@ -3550,13 +3547,12 @@ app.post('/generate', authCheck, async (req, res) => {
     }
 
     // Read and upload
-    await updateStatus('assembling', 'Uploading video...', 94)
+    await updateStatus('assembling', 'Saving your video...', 94)
     const videoBuffer = await readFile(finalPath)
     console.log(`[${videoId}] Video: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`)
 
     const videoStoragePath = `${userId}/${videoId}.mp4`
-    const { error: uploadError } = await supabase.storage.from('videos').upload(videoStoragePath, videoBuffer, { contentType: 'video/mp4', upsert: true })
-    if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+    await uploadVideo(supabase, 'videos', videoStoragePath, videoBuffer, 'save-video')
     const { data: urlData } = supabase.storage.from('videos').getPublicUrl(videoStoragePath)
 
     // Upload thumbnail
