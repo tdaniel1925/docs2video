@@ -1,5 +1,6 @@
 'use client'
 
+import { minutesPricingOn, formatMinutes, creditsToMinutes } from '../../../../_lib/plan-pricing'
 import { useCallback, useEffect, useState } from 'react'
 import type { PriceQuoteResponse } from '../../../../_lib/price-quote'
 
@@ -37,6 +38,8 @@ export function usePriceQuote(videoId: string | null) {
   return { quote, error, loading, refresh }
 }
 
+/** A price or balance as the customer reads it: video minutes once the minutes pricing is on (plan-pricing.ts), credits before. */
 export function formatCredits(n: number): string {
+  if (minutesPricingOn()) return formatMinutes(creditsToMinutes(n))
   return `${n.toLocaleString('en-US')} credit${n === 1 ? '' : 's'}`
 }

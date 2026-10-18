@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CREDIT_PACKS, packPrice, type CreditPackKey } from '../_lib/credit-packs'
 import InlineCheckout from './billing/InlineCheckout'
+import { amountLabel, amountNoun } from '../_lib/plan-pricing'
 
 interface BuyCreditsModalProps {
   open: boolean
@@ -62,11 +63,11 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
         }}
       >
         <h2 id="buy-credits-title" style={{ fontSize: 'var(--fs-h3)', fontWeight: 800, color: 'var(--ink)', marginBottom: 8, letterSpacing: '-0.02em' }}>
-          {blocked ? 'You need more credits' : 'Buy credits'}
+          {blocked ? `You need more ${amountNoun()}` : `Buy ${amountNoun()}`}
         </h2>
         <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 24 }}>
           {blocked
-            ? `This needs ${needed?.toLocaleString()} credits${typeof balance === 'number' ? `, and you have ${balance.toLocaleString()}` : ''}. Top up below — credits never expire and are used after your monthly allotment.`
+            ? `This needs ${amountLabel(needed ?? 0)}${typeof balance === 'number' ? `, and you have ${amountLabel(balance)}` : ''}. Top up below — they never expire and are used after your monthly allotment.`
             : 'Top up your balance. Credits never expire and are used after your monthly allotment runs out.'}
         </p>
 
@@ -83,7 +84,7 @@ export default function BuyCreditsModal({ open, onClose, needed, balance }: BuyC
               <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)' }}>{p.price}</span>
             </div>
             <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
-              {p.credits.toLocaleString()} credits
+              {amountLabel(p.credits)}
             </p>
             <button
               onClick={() => setChosen(p.key)}

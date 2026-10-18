@@ -16,6 +16,7 @@ import { peopleCount, type ActionCard, type Tone } from './_home/derive'
 import { DiscardButton } from './_home/DiscardButton'
 import { START_CARDS, type StartCard } from './_home/start-cards'
 import s from './_home/home.module.css'
+import { amountLabel, amountNoun, creditsToMinutes } from '../../_lib/plan-pricing'
 
 // Loom walkthrough — set NEXT_PUBLIC_GETTING_STARTED_VIDEO to a real Loom embed
 // URL to show the link in the welcome line. Unset → no link (avoids a dead
@@ -135,7 +136,7 @@ export default async function HomePage() {
             <p className={credits <= 0 ? `${s.slim} ${s.slimWarn}` : s.slim}>
               {credits <= 0
                 ? <><strong>Out of credits.</strong> Top up or pick a plan to keep making.{' '}<Link href="/pricing">Choose a plan</Link></>
-                : <>{credits.toLocaleString()} free credits left ·{' '}<Link href="/pricing">Upgrade</Link></>}
+                : <>{amountLabel(credits)} free left ·{' '}<Link href="/pricing">Upgrade</Link></>}
             </p>
           ) : null}
         </div>
@@ -192,7 +193,7 @@ export default async function HomePage() {
               <Stat label="Emails sent" value={home.month.sent} />
               <Stat label="Projects watched" value={home.month.watched} />
               <Stat label="Clicked to book a call" value={home.month.bookingClicks} />
-              <Stat label="Credits left" value={credits} />
+              <Stat label={`${amountNoun() === 'minutes' ? 'Minutes' : 'Credits'} left`} value={amountNoun() === 'minutes' ? creditsToMinutes(credits) : credits} />
               <p className={s.boxNote}>
                 {plan} · <Link href="/settings?tab=billing">Billing &amp; credits</Link>
               </p>

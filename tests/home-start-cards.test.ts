@@ -78,7 +78,9 @@ describe('Home', () => {
     expect(home).toMatch(/const cards = \[\.\.\.extras, \.\.\.home\.cards\]/)
     expect(home).toMatch(/cards\.map\(c => <ActionCardView/)
     expect(home).toMatch(/This month/)
-    for (const label of ['Emails sent', 'Projects watched', 'Clicked to book a call', 'Credits left']) expect(home).toContain(label)
+    for (const label of ['Emails sent', 'Projects watched', 'Clicked to book a call']) expect(home).toContain(label)
+    // 'Credits left', or 'Minutes left' once the minutes pricing is on (plan-pricing.ts)
+    expect(home).toContain("amountNoun() === 'minutes' ? 'Minutes' : 'Credits'} left")
   })
 
   it('dropped the "Start from a document" box and the separate 4-step explainer', () => {

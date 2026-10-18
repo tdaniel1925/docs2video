@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { getPlan } from '../_lib/pricing'
 import InlineCheckout from './billing/InlineCheckout'
+import { amountLabel } from '../_lib/plan-pricing'
 
 const PRO = getPlan('pro')
 
@@ -63,7 +64,7 @@ export default function UpgradeModal({ open, onClose }: UpgradeModalProps) {
             <span style={{ fontSize: 'var(--fs-ui)', fontWeight: 700, color: 'var(--ink-soft)' }}>${PRO.monthlyPrice / 100}/mo</span>
           </div>
           <p style={{ fontSize: 'var(--fs-small)', color: 'var(--ink-light)', marginBottom: 12, lineHeight: 1.4 }}>
-            {PRO.monthlyCredits.toLocaleString('en-US')} credits/mo (~{PRO.approxStandardVideos} standard videos)
+            {amountLabel(PRO.monthlyCredits)}/mo (~{PRO.approxStandardVideos} standard videos)
           </p>
           <button
             onClick={() => setPaying(true)}

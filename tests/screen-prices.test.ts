@@ -174,10 +174,12 @@ describe('no typed prices on dashboard screens', () => {
 describe('credit packs match what the buy route sells', () => {
   it('same keys and same credits as app/api/credits/buy CREDIT_PACKS', () => {
     const route = readFileSync(join(ROOT, 'app/api/credits/buy/route.ts'), 'utf8')
-    const block = route.match(/CREDIT_PACKS[^=]*=\s*\{([\s\S]*?)\n\}/)
+    const block = route.match(/CREDIT_PACKS[^=]*=\s*\{([\s\S]*?)\r?\n\}/)
     expect(block, 'CREDIT_PACKS block in the buy route').not.toBeNull()
-    const sold = [...block![1].matchAll(/(\w+):\s*\{\s*credits:\s*(\d+)/g)].map(m => `${m[1]}=${m[2]}`)
-    expect(sold.sort()).toEqual(CREDIT_PACKS.map(p => `${p.key}=${p.credits}`).sort())
+    /* The route grants PACK_CREDITS[key] — the same numbers the packs show, whichever way the minutes switch is set. */
+    const sold = [...block![1].matchAll(/(\w+):\s*\{\s*credits:\s*PACK_CREDITS\.(\w+)/g)].map(m => `${m[1]}=${m[2]}`)
+    expect(sold.sort()).toEqual(CREDIT_PACKS.map(p => `${p.key}=${p.key}`).sort())
+    expect(route).toMatch(/import \{ PACK_CREDITS \} from '\.\.\/\.\.\/\.\.\/_lib\/credit-packs'/)
   })
 
   it('no pack is called "Starter" (that is the retired $29 plan)', () => {

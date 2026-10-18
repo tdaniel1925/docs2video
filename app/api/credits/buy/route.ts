@@ -7,13 +7,15 @@ import { getStripe } from '../../../_lib/stripe'
 import { getAffiliateByCode } from '../../../_lib/affiliate'
 import { isCardless } from '../../../_lib/cardless-prep'
 import { safeReturnOrigin } from '../../../_lib/billing'
+import { PACK_CREDITS } from '../../../_lib/credit-packs'
 import { ensureStripeCustomer, inlineSessionBase } from '../../../_lib/stripe-customer'
 export const maxDuration = 30
 
+/* Credits come from credit-packs.ts (they follow the minutes switch); the env names keep the old counts — the $10 / $25 / $50 Stripe prices never change. */
 const CREDIT_PACKS: Record<string, { credits: number; priceEnv: string }> = {
-  starter: { credits: 2500, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_2500' },
-  power: { credits: 7500, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_7500' },
-  studio: { credits: 18000, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_18000' },
+  starter: { credits: PACK_CREDITS.starter, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_2500' },
+  power: { credits: PACK_CREDITS.power, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_7500' },
+  studio: { credits: PACK_CREDITS.studio, priceEnv: 'STRIPE_PRICE_CREDIT_PACK_18000' },
 }
 
 /**

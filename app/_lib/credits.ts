@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from './supabase/admin'
 import { getUserTier, type PlanTier } from './pricing'
+import { PLAN_FREE, PLAN_PRO, PLAN_BUSINESS, minutesPricingOn } from './plan-pricing'
 
 // ============================================================
 // Credit costs per action (inflated numbers — big feels generous)
@@ -170,10 +171,13 @@ export const TIER_CREDITS: Record<PlanTier, number> = {
   // Free trial = 2000 so a new user can actually make videos: a standard video
   // costs 1000 (post-2x), so 1000 only allowed ONE and any add-on/detailed put
   // it over budget → "not enough credits" on signup. 2000 = ~2 standard videos.
-  free: 2000,
+  // With the minutes pricing on (plan-pricing.ts) the free start is the first
+  // video up to 2 minutes (2,500), Pro 20 minutes (25,000), Business 60 minutes
+  // (75,000) — Pro and Business are the same credits as before.
+  free: minutesPricingOn() ? PLAN_FREE.credits : 2000,
   starter: 5000,
-  pro: 25000,
-  business: 75000,
+  pro: PLAN_PRO.credits,
+  business: PLAN_BUSINESS.credits,
   enterprise: 200000,
 }
 

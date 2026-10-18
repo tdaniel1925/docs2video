@@ -261,7 +261,7 @@ export async function POST(request: Request) {
           // Checkout sets `pack`; older code read `pack_name` (audit L6). Accept
           // either so the ledger description names the actual pack.
           const packName = session.metadata.pack_name || session.metadata.pack || 'credit_pack'
-          // Sanity ceiling must sit ABOVE the largest real pack (Studio = 18,000).
+          // Sanity ceiling must sit ABOVE the largest real pack (Studio = 12,500; it was 18,000).
           // The old 10,000 cap silently rejected Studio purchases — customer
           // paid and received zero credits.
           if (!Number.isFinite(credits) || credits > 100000) {

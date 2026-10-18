@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import type { PlanTier } from './pricing'
+import { minutesPricingOn } from './plan-pricing'
 
 let _stripe: Stripe | null = null
 
@@ -16,11 +17,19 @@ export const stripe = new Proxy({} as Stripe, {
   },
 })
 
-/* ── Subscription price IDs from env ── */
+/*
+ * ── Subscription price IDs from env ──
+ * What a NEW subscriber is charged. With the minutes pricing on
+ * (plan-pricing.ts) Pro is the $129 price (STRIPE_PRICE_PRO_129) and Business
+ * the $299 one (STRIPE_PRICE_BUSINESS_299); with either missing, that plan
+ * can't be bought (billing-manage: not_configured) rather than sold at the old
+ * price under the new name. Off, it is exactly as before.
+ */
+const MINUTES = minutesPricingOn()
 export const SUBSCRIPTION_PRICES: Record<Exclude<PlanTier, 'free'>, string> = {
   starter: process.env.STRIPE_PRICE_STARTER!,
-  pro: process.env.STRIPE_PRICE_PRO!,
-  business: process.env.STRIPE_PRICE_BUSINESS!,
+  pro: (MINUTES ? process.env.STRIPE_PRICE_PRO_129 : process.env.STRIPE_PRICE_PRO)!,
+  business: (MINUTES ? process.env.STRIPE_PRICE_BUSINESS_299 : process.env.STRIPE_PRICE_BUSINESS)!,
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE!,
 }
 
@@ -54,6 +63,17 @@ export async function listAllStripe<T extends { id: string }>(
 }
 
 /**
+ * Prices that are no longer sold but still belong to a tier. With the minutes
+ * pricing on, the $79 Pro (STRIPE_PRICE_PRO) and $199 Business
+ * (STRIPE_PRICE_BUSINESS) stop being sold but keep their subscribers: their
+ * renewals still resolve to Pro / Business, with Pro's and Business's monthly
+ * credits, at the price they signed up for. Off, nothing is legacy.
+ */
+export const LEGACY_SUBSCRIPTION_PRICES: Partial<Record<Exclude<PlanTier, 'free'>, string | undefined>> = MINUTES
+  ? { pro: process.env.STRIPE_PRICE_PRO, business: process.env.STRIPE_PRICE_BUSINESS }
+  : {}
+
+/**
  * Given a Stripe price ID, return the matching subscription tier.
  * Returns null for an UNKNOWN price id (audit M1) rather than silently
  * downgrading a paying customer to 'free' — callers must handle null (log +
@@ -62,6 +82,9 @@ export async function listAllStripe<T extends { id: string }>(
  */
 export function tierFromPriceId(priceId: string): PlanTier | null {
   for (const [tier, id] of Object.entries(SUBSCRIPTION_PRICES)) {
+    if (id && id === priceId) return tier as PlanTier
+  }
+  for (const [tier, id] of Object.entries(LEGACY_SUBSCRIPTION_PRICES)) {
     if (id && id === priceId) return tier as PlanTier
   }
   console.error(`[stripe] tierFromPriceId: unknown price id ${priceId} — STRIPE_PRICE_* env may be misconfigured`)

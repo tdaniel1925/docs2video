@@ -58,7 +58,7 @@ describe('decidePlanChange — never a second subscription (C3)', () => {
       expect(billing.decidePlanChange([sub('a', s, 'price_pro')], 'business', 'price_business'))
         .toEqual({ kind: 'fix_first', reason: 'payment_issue' })
     }
-    expect(billing.decidePlanChange([sub('a', 'active', 'price_pro'), sub('b', 'active', 'price_business')], 'enterprise', 'price_enterprise'))
+    expect(billing.decidePlanChange([sub('a', 'active', 'price_pro'), sub('b', 'active', 'price_business')], 'business', 'price_business'))
       .toEqual({ kind: 'fix_first', reason: 'multiple' })
   })
 

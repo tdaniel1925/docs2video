@@ -1,5 +1,5 @@
 import type Stripe from 'stripe'
-import { getStripe, listAllStripe, SUBSCRIPTION_PRICES } from '../stripe'
+import { getStripe, listAllStripe, SUBSCRIPTION_PRICES, LEGACY_SUBSCRIPTION_PRICES } from '../stripe'
 import { createAdminClient } from '../supabase/admin'
 import { describePrice, monthlyCents, summarizeMoney, conversion, type MoneySub, type MoneySummary } from './money'
 
@@ -62,7 +62,7 @@ export async function loadMoneySnapshot(opts: { fresh?: boolean } = {}): Promise
     .limit(10000)
   const byCustomer = new Map((profiles ?? []).filter((p) => p.stripe_customer_id).map((p) => [p.stripe_customer_id as string, p]))
 
-  const ctx = { tierPrices: SUBSCRIPTION_PRICES as Record<string, string | undefined>, addonPriceId: process.env.STRIPE_PRICE_ADDON_SOCIAL || null, productNames: names }
+  const ctx = { tierPrices: SUBSCRIPTION_PRICES as Record<string, string | undefined>, legacyTierPrices: LEGACY_SUBSCRIPTION_PRICES as Record<string, string | undefined>, addonPriceId: process.env.STRIPE_PRICE_ADDON_SOCIAL || null, productNames: names }
   const rows: MoneyRow[] = []
   for (const s of subs) {
     if (s.status === 'canceled' || s.status === 'incomplete_expired') continue
