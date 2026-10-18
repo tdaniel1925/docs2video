@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { PageHead } from '../../_components/marketing/SiteChrome'
-import { PLANS } from '../../_lib/pricing'
+import { PLANS, isSellablePlan, planCardLines, pricingIntro, pricingFootnote } from '../../_lib/pricing'
 
 // Public pricing. proxy.ts shows this page to LOGGED-OUT visitors of /pricing
 // (the sitemap, the homepage and promo emails all link there). Signed-in users
@@ -10,7 +10,7 @@ import { PLANS } from '../../_lib/pricing'
 
 export const metadata: Metadata = {
   title: 'Pricing | Docs2Video',
-  description: 'Simple, credit-based pricing for turning documents into narrated client videos, interactive presentations and commercials.',
+  description: 'Simple pricing for turning documents into narrated client videos and interactive presentations.',
 }
 
 export default async function PublicPricingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -19,22 +19,22 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
   // Only a plain code is echoed back onto the page.
   const promo = /^[A-Za-z0-9_-]{2,40}$/.test(rawPromo) ? rawPromo.toUpperCase() : null
 
-  // Starter ($29) is retired — hidden here exactly as on the in-app page.
-  const paidPlans = PLANS.filter(p => p.tier !== 'free' && p.tier !== 'starter')
+  // Only plans sold today (plan-pricing.ts) — exactly as on the in-app page.
+  const paidPlans = PLANS.filter(p => isSellablePlan(p.tier))
   const free = PLANS.find(p => p.tier === 'free')
 
   const cards = [
     ...(free ? [{
       key: 'free', name: free.label, price: '$0', perMonth: false, popular: false,
-      creditLine: `${free.monthlyCredits.toLocaleString()} free credits`,
-      subLine: `~${free.approxStandardVideos} videos to try · then top up`,
-      features: ['Full quality, no watermark', 'Branded client share pages', 'Download MP4, PDF, PPTX', 'No subscription required'],
+      creditLine: planCardLines(free).headline,
+      subLine: planCardLines(free).sub,
+      features: free.features.slice(2),
       cta: 'Start free',
     }] : []),
     ...paidPlans.map(plan => ({
       key: plan.tier, name: plan.label, price: `$${plan.monthlyPrice / 100}`, perMonth: true, popular: plan.tier === 'pro',
-      creditLine: `${plan.monthlyCredits.toLocaleString()} credits / mo`,
-      subLine: `~${plan.approxStandardVideos} standard videos`,
+      creditLine: planCardLines(plan).headline,
+      subLine: planCardLines(plan).sub,
       features: plan.features,
       cta: 'Get started',
     })),
@@ -46,7 +46,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
         kicker="Pricing"
         title="Start free."
         blue="Grow when it works."
-        sub="One pool of credits for videos, presentations and commercials. A standard video is 1,000 credits. Cancel anytime; credits reset each cycle. Top up whenever you need more."
+        sub={pricingIntro()}
       />
 
       {promo && (
@@ -69,7 +69,7 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
       </div>
 
       <p className="hp-small">
-        All plans cancel anytime · billed monthly · credits reset each cycle · extra credits available on paid plans.
+        {pricingFootnote()}
         <br />
         Already have an account? <Link href="/login">Sign in</Link> to change your plan.
       </p>

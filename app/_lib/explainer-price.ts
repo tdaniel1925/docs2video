@@ -14,18 +14,17 @@
 // + $0.32 a scene (designing and drawing it, directing its motion, its picture)
 // + $0.40 a minute of narration (the voice, rendering the frames)
 //
-// THE PRICE IS SET SO THE CHEAPEST CREDIT STILL MAKES MONEY. A credit sells
-// for as little as $0.0025 (the Enterprise plan: $499 for 200,000); at that
-// rate these numbers keep about 60% of the price, ~68% on Pro, 75%+ on packs
-// and Starter. A grandfathered customer pays half (credits.ts) and still
-// leaves a margin. 150 words of narration is about a minute.
-//
-//   price = 1,400 + 320 × scenes + 3 × narration words (+150 per extra file)
-//
-// A typical standard video (7 scenes, ~350 words) is about 4,700 credits.
+// TODAY: 1,400 + 320 a scene + 3 a narration word (the cheapest credit still
+// keeps ~60%). WITH THE MINUTES PRICING ON (owner decision 2026-10-18, plan-pricing.ts):
+// a video counts the larger of its narration minutes (150 words a minute,
+// rounded up), its scenes at 4 a minute, and 2 minutes; each minute is
+// CREDITS_PER_MINUTE credits. plan-pricing.ts shows why no story size loses
+// money. A grandfathered customer pays half (price-quote.ts).
 //
 // Browser-safe on purpose (pricing screens import the quote): no server imports.
 // =============================================================================
+
+import { billedMinutes, minutesToCredits, minutesPricingOn } from './plan-pricing'
 
 export const EXPLAINER_BASE_CREDITS = 1400
 export const EXPLAINER_SCENE_CREDITS = 320
@@ -39,6 +38,7 @@ export function explainerPricingOn(): boolean {
 
 /** Credits for an explainer of this size, before any extra-file charge. */
 export function explainerCredits(scenes: number, words: number): number {
+  if (minutesPricingOn()) return minutesToCredits(billedMinutes(scenes, words))
   const s = Math.max(1, Math.round(scenes || 0))
   const w = Math.max(0, Math.round(words || 0))
   return EXPLAINER_BASE_CREDITS + EXPLAINER_SCENE_CREDITS * s + EXPLAINER_WORD_CREDITS * w

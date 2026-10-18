@@ -1,5 +1,6 @@
 import { calculateVideoCost, CREDIT_COSTS, MULTI_FILE_SURCHARGE, GRANDFATHERED_USER_IDS } from './credits'
 import { explainerPricingOn, explainerCredits } from './explainer-price'
+import { billedMinutes, formatMinutes, minutesPricingOn } from './plan-pricing'
 import { storySize, LENGTH_LIMITS } from './length-limits'
 import { normalizeDetailLevel, type DetailLevel } from './wizard-draft'
 import { D2V_OUTPUTS } from './videos-only'
@@ -75,7 +76,7 @@ export function videoPriceInputs(
 
 /** Credits generate-video charges for these inputs (grandfathered users pay old rates). */
 export function videoCreditCost(inputs: VideoPriceInputs, userId: string | null | undefined): number {
-  /* Once every video is an explainer (EXPLAINER_ENGINE=on), it is priced by its size; a grandfathered customer pays half, as for every video. */
+  /* Once every video is an explainer (EXPLAINER_ENGINE=on), it is priced in video minutes (plan-pricing.ts); a grandfathered customer pays half, as for every video. */
   if (explainerPricingOn() && inputs.priceOutputType === 'video') {
     const full = explainerCredits(inputs.scenes, inputs.words)
     const own = userId && GRANDFATHERED_USER_IDS.has(userId) ? Math.round(full / 2) : full
@@ -159,7 +160,7 @@ export function quoteOutput(
   // Split the same total into lines. Only a video carries the extra-file charge.
   const surcharge = output === 'video' ? Math.max(0, inputs.fileCount - 1) * MULTI_FILE_SURCHARGE : 0
   const main = output === 'video'
-    ? (explainerPricingOn() ? `${OUTPUT_NAMES.video} · ${inputs.scenes} scenes` : `${OUTPUT_NAMES.video} · ${LENGTH_NAMES[inputs.detailLevel]}`)
+    ? (explainerPricingOn() ? `${OUTPUT_NAMES.video} · ${minutesPricingOn() ? formatMinutes(billedMinutes(inputs.scenes, inputs.words)) : `${inputs.scenes} scenes`}` : `${OUTPUT_NAMES.video} · ${LENGTH_NAMES[inputs.detailLevel]}`)
     : OUTPUT_NAMES[output]
   const lines: QuoteLine[] = [{ label: main, credits: total - surcharge }]
   if (surcharge > 0) {

@@ -56,6 +56,8 @@ export function describePrice(
   ctx: {
     /** Docs2Video plan price ids from env: { starter: 'price_…', … } */
     tierPrices: Record<string, string | undefined>
+    /** Plan prices no longer sold that still have subscribers (stripe.ts LEGACY_SUBSCRIPTION_PRICES). */
+    legacyTierPrices?: Record<string, string | undefined>
     addonPriceId?: string | null
     /** Stripe product name per price id, when the server could read it. */
     productNames?: Map<string, string> | Record<string, string>
@@ -64,6 +66,9 @@ export function describePrice(
   const id = priceId || ''
   for (const [tier, pid] of Object.entries(ctx.tierPrices)) {
     if (pid && pid === id) return { name: TIER_NAMES[tier] ?? tier, kind: 'docs2video' }
+  }
+  for (const [tier, pid] of Object.entries(ctx.legacyTierPrices ?? {})) {
+    if (pid && pid === id) return { name: `${TIER_NAMES[tier] ?? tier} (older price)`, kind: 'docs2video' }
   }
   if (id && ctx.addonPriceId && id === ctx.addonPriceId) return { name: 'AI Social add-on', kind: 'addon' }
   if (KNOWN_OTHER_PRICES[id]) return { name: KNOWN_OTHER_PRICES[id], kind: 'other' }

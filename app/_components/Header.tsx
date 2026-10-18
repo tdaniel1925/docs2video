@@ -16,6 +16,7 @@ import { DOCS2VIDEO, type Brand } from '../_lib/brand'
 import { NAMES, planLabel } from '../_lib/names'
 import { ACCOUNT_MENU, OPEN_HELP_EVENT, SIGN_OUT, creditLevel, focusTitle, isCurrent, isFocusPath } from '../_lib/top-bar'
 import { STEPS, stepHref, stepIndexFor } from '../(dashboard)/create/_components/workspace/steps'
+import { amountParts } from '../_lib/plan-pricing'
 
 /* ONE ICON SET (round A): lucide, the set VidWiz uses. Two sizes only — 16 in
    buttons and menus, 20 for the bell and the phone menu button. Icons sit
@@ -67,18 +68,18 @@ function useCredits(): number | null {
 /** The gold credit chip — the same one in both headers. Press it to top up. */
 function CreditChip({ credits, lowCreditsAt, onTopUp }: { credits: number; lowCreditsAt: number; onTopUp: () => void }) {
   const level = creditLevel(credits, lowCreditsAt)
-  const balance = credits.toLocaleString('en-US')
+  const { value: balance, unit } = amountParts(credits)
   return (
     <button
       type="button"
       className="kit-credit"
       data-level={level}
       onClick={onTopUp}
-      aria-label={`${balance} credits${level === 'low' ? ', running low' : ''}. Top up`}
-      title={level === 'low' ? 'Not enough left for a standard video — top up' : 'Your credits — press to top up'}
+      aria-label={`${balance} ${unit}${level === 'low' ? ', running low' : ''}. Top up`}
+      title={level === 'low' ? 'Not enough left for a standard video — top up' : `Your ${unit} — press to top up`}
     >
       <Coins size={16} />
-      <span>{balance}<span className="kit-credit-long"> credits</span></span>
+      <span>{balance}<span className="kit-credit-long"> {unit}</span></span>
       <span className="kit-credit-top">
         <span className="kit-credit-long">+ Top up</span>
         <span className="kit-credit-short">+</span>

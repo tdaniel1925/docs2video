@@ -2,7 +2,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { SiteFrame, SITE_NAV } from './SiteChrome'
 import FieldTabs, { type Field } from './FieldTabs'
-import { PLANS, SELLABLE_PLAN_TIERS } from '../../_lib/pricing'
+import { PLANS, SELLABLE_PLAN_TIERS, planCardLines } from '../../_lib/pricing'
+import { minutesPricingOn } from '../../_lib/plan-pricing'
 
 /*
  * The Docs2Video public front page (redesign approved 2026-10-18, in the
@@ -110,10 +111,10 @@ function pricingCards() {
   const paid = PLANS.filter((p) => (SELLABLE_PLAN_TIERS as readonly string[]).includes(p.tier))
   return [
     // One name for the free plan everywhere: pricing.ts's label (audit 2026-10-09).
-    { key: 'free', name: free.label, price: '$0', per: '', pop: false, line: `About ${free.approxStandardVideos} videos to try` },
+    { key: 'free', name: free.label, price: '$0', per: '', pop: false, line: minutesPricingOn() ? planCardLines(free).sub : `About ${free.approxStandardVideos} videos to try` },
     ...paid.map((p) => ({
       key: p.tier, name: p.label, price: `$${p.monthlyPrice / 100}`, per: '/mo', pop: p.tier === 'pro',
-      line: `About ${p.approxStandardVideos} videos a month`,
+      line: minutesPricingOn() ? `${planCardLines(p).headline} · ${planCardLines(p).sub}` : `About ${p.approxStandardVideos} videos a month`,
     })),
   ]
 }

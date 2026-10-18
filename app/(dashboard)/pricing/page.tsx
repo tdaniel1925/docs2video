@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '../../_lib/supabase/client'
-import { PLANS, getUserTier, isSellablePlan, SOCIAL_ADDON_MONTHLY_CENTS, type PlanTier } from '../../_lib/pricing'
+import { PLANS, getUserTier, isSellablePlan, SOCIAL_ADDON_MONTHLY_CENTS, planCardLines, type PlanTier } from '../../_lib/pricing'
 import InlineCheckout, { type Purchase } from '../../_components/billing/InlineCheckout'
-// Every price and credit amount on this page comes from these three files.
+// Every price and minute on this page comes from these three files.
 import { CREDIT_COSTS } from '../../_lib/credits'
 import { CREDIT_PACKS, SMALLEST_PACK, packPrice } from '../../_lib/credit-packs'
+import { CREDITS_PER_MINUTE, EXTRA_MINUTE_CENTS, MIN_BILLED_MINUTES, dollars, formatMinutes, minutesPricingOn } from '../../_lib/plan-pricing'
+
+/* In minutes once the minutes pricing is on (plan-pricing.ts); in credits, exactly as before, until then. */
+const MINUTES = minutesPricingOn()
 
 export default function PricingPage() {
   const [currentTier, setCurrentTier] = useState<PlanTier>('free')
@@ -67,18 +71,23 @@ export default function PricingPage() {
     })
   }
 
-  // Starter ($29) is retired — keep its definition for back-compat but hide it.
-  const paidPlans = PLANS.filter(p => p.tier !== 'free' && p.tier !== 'starter')
+  // Only plans sold today (plan-pricing.ts); retired ones stay defined for their subscribers.
+  const paidPlans = PLANS.filter(p => isSellablePlan(p.tier))
   const freePlan = PLANS.find(p => p.tier === 'free')!
 
   return (
     <div style={{ flex: 1, padding: '48px 24px', width: '100%', maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 10, color: 'var(--ink)' }}>
-        Simple, credit-based pricing
+        {MINUTES ? 'Simple pricing, in video minutes' : 'Simple, credit-based pricing'}
       </h1>
       <p style={{ fontSize: 17, color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 36, lineHeight: 1.6, maxWidth: 620, marginInline: 'auto' }}>
-        One pool of credits for videos, presentations and commercials. A standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits.
-        Cancel anytime; plan credits reset each month. Need more? Top-up packs start at {packPrice(SMALLEST_PACK)}.
+        {MINUTES ? <>
+          Your plan is video minutes. A video uses the minutes it runs, rounded up, and every video counts at least {MIN_BILLED_MINUTES}.
+          Cancel anytime; plan minutes reset each month. Need more? Extra minutes are {dollars(EXTRA_MINUTE_CENTS)} each.
+        </> : <>
+          One pool of credits for videos, presentations and commercials. A standard video is {CREDIT_COSTS.videoStandard.toLocaleString('en-US')} credits.
+          Cancel anytime; plan credits reset each month. Need more? Top-up packs start at {packPrice(SMALLEST_PACK)}.
+        </>}
       </p>
 
       {promo && (
@@ -100,9 +109,9 @@ export default function PricingPage() {
           name={freePlan.label}
           price={`$${freePlan.monthlyPrice / 100}`}
           highlight={currentTier === 'free' ? 'current' : 'none'}
-          creditLine={`${freePlan.monthlyCredits.toLocaleString('en-US')} free credits`}
-          subLine={`~${freePlan.approxStandardVideos} standard videos to try · one time, not monthly`}
-          features={freePlan.features.filter(f => !f.includes('free credits'))}
+          creditLine={planCardLines(freePlan).headline}
+          subLine={MINUTES ? `Up to ${formatMinutes(freePlan.monthlyCredits / CREDITS_PER_MINUTE)} · one time, not monthly` : `~${freePlan.approxStandardVideos} standard videos to try · one time, not monthly`}
+          features={MINUTES ? freePlan.features.slice(1) : freePlan.features.filter(f => !f.includes('free credits'))}
           cta={currentTier === 'free' ? { label: 'Current plan', disabled: true } : null}
         />
 
@@ -116,8 +125,8 @@ export default function PricingPage() {
               price={`$${plan.monthlyPrice / 100}`}
               perMonth
               highlight={isCurrent ? 'current' : isPopular ? 'popular' : 'none'}
-              creditLine={`${plan.monthlyCredits.toLocaleString()} credits / mo`}
-              subLine={`~${plan.approxStandardVideos} standard videos`}
+              creditLine={planCardLines(plan).headline}
+              subLine={planCardLines(plan).sub}
               features={plan.features}
               cta={isCurrent
                 ? { label: loading === 'manage' ? 'Loading…' : 'Manage plan', onClick: handleManage, disabled: loading === 'manage', variant: 'soft' }
@@ -152,8 +161,9 @@ export default function PricingPage() {
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 28, lineHeight: 1.6 }}>
-        All plans cancel anytime · billed monthly · plan credits reset each cycle ·
-        top-up packs for everyone: {CREDIT_PACKS.map(p => `${p.credits.toLocaleString('en-US')} credits ${packPrice(p)}`).join(' · ')} (never expire).
+        {MINUTES
+          ? <>All plans cancel anytime · billed monthly · plan minutes reset each cycle · extra minutes for everyone: {CREDIT_PACKS.map(p => `${formatMinutes(p.credits / CREDITS_PER_MINUTE)} ${packPrice(p)}`).join(' · ')} (never expire).</>
+          : <>All plans cancel anytime · billed monthly · plan credits reset each cycle · top-up packs for everyone: {CREDIT_PACKS.map(p => `${p.credits.toLocaleString('en-US')} credits ${packPrice(p)}`).join(' · ')} (never expire).</>}
       </p>
 
       <InlineCheckout purchase={purchase} onClose={() => { setPurchase(null); refreshPlan() }} onPaid={refreshPlan} />

@@ -9,6 +9,7 @@ import { CREDIT_PACKS, type CreditPackKey } from '../../_lib/credit-packs'
 import { getStripePromise, stripeAppearance, STRIPE_FONTS, plainPaymentError, money } from './stripe-client'
 import PlanChangePanel from './PlanChangePanel'
 import s from './billing.module.css'
+import { amountLabel } from '../../_lib/plan-pricing'
 
 /*
  * IN-APP CHECKOUT (2026-10-14). Every purchase — a plan, a credit pack, the AI
@@ -42,7 +43,7 @@ function describe(p: Purchase) {
     const plan = getPlan(p.plan)
     return {
       title: `${plan.label} plan`,
-      line: `${plan.monthlyCredits.toLocaleString('en-US')} credits every month`,
+      line: `${amountLabel(plan.monthlyCredits)} every month`,
       price: `${money(plan.monthlyPrice)} a month`,
       after: `Renews every month at ${money(plan.monthlyPrice)} until you cancel. Change or cancel any time in Settings → Billing.`,
       done: `You’re on ${plan.label}. Your monthly credits are in your account.`,
@@ -53,10 +54,10 @@ function describe(p: Purchase) {
     const pack = CREDIT_PACKS.find((x) => x.key === p.pack) ?? CREDIT_PACKS[0]
     return {
       title: `${pack.name} credit pack`,
-      line: `${pack.credits.toLocaleString('en-US')} credits · never expire`,
+      line: `${amountLabel(pack.credits)} · never expire`,
       price: `${money(pack.priceCents)} once`,
       after: 'One payment. Pack credits are used after your monthly credits.',
-      done: `${pack.credits.toLocaleString('en-US')} credits were added to your account.`,
+      done: `${amountLabel(pack.credits)} were added to your account.`,
       pay: 'Pay',
     }
   }

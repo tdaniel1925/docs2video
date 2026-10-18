@@ -3,7 +3,7 @@
  * (TIER_CREDITS in credits.ts). A standard video costs 1,000 credits.
  *
  * Extra usage is NOT billed per video. Anyone (free or paid) tops up with
- * one-time credit packs — $10 / 2,500, $25 / 7,500, $50 / 18,000 (see
+ * one-time credit packs (credit-packs.ts; see
  * app/api/credits/buy/route.ts + BuyCreditsModal). The `extraVideoPrice`,
  * `overageRatePer1000` and `regenCreditsPerVideo` fields below are legacy
  * numbers (only the unused pay-per-project route reads extraVideoPrice);
@@ -13,8 +13,17 @@
  * Keep them to things the code actually does — no per-tier promises that
  * aren't enforced (e.g. "priority generation", "free slide edits").
  *
- * Starter ($29) is retired: checkout only sells pro/business/enterprise.
+ * Starter ($29) is retired. From when NEXT_PUBLIC_D2V_MINUTES_PRICING=on (owner,
+ * once the new Stripe prices exist), the plans are sold in VIDEO
+ * MINUTES (plan-pricing.ts — the one place their prices, minutes and features
+ * live): Free (first video, up to 2 minutes), Pro $129 for 20 minutes, and
+ * Business $299 for 60 minutes once NEXT_PUBLIC_D2V_BUSINESS_PLAN=on.
+ * Enterprise ($499 / 200,000 credits) is no longer sold: at a minute-heavy
+ * worst case its credits would keep too little. Existing subscribers of a
+ * plan that is no longer sold keep it (getUserTier still resolves them).
  */
+
+import { PLAN_FREE, PLAN_PRO, PLAN_BUSINESS, planFeatures, businessPlanOn, minutesPricingOn, CREDITS_PER_MINUTE, MIN_BILLED_MINUTES, EXTRA_MINUTE_CENTS, dollars, formatMinutes } from './plan-pricing'
 
 export type PlanTier = 'free' | 'starter' | 'pro' | 'business' | 'enterprise'
 
@@ -33,7 +42,8 @@ export interface PlanInfo {
   overageRatePer1000: number // cents per 1,000 overage credits
 }
 
-export const PLANS: PlanInfo[] = [
+/** The plans as sold until the minutes pricing is switched on — exactly as before 2026-10-18. */
+const CREDIT_PLANS: PlanInfo[] = [
   {
     tier: 'free',
     label: 'Pay As You Go',
@@ -136,6 +146,108 @@ export const PLANS: PlanInfo[] = [
   },
 ]
 
+/** The plans in video minutes (plan-pricing.ts), live once NEXT_PUBLIC_D2V_MINUTES_PRICING=on. */
+const MINUTES_PLANS: PlanInfo[] = [
+  {
+    tier: 'free',
+    label: PLAN_FREE.label,
+    monthlyPrice: PLAN_FREE.priceCents,
+    description: `Your first video free, up to ${PLAN_FREE.minutes} minutes`,
+    features: [
+      ...planFeatures(PLAN_FREE),
+      'Full quality, no watermark',
+      'Branded client share pages',
+    ],
+    videosPerMonth: 1,
+    extraVideoPrice: 1000, // $10
+    regenCreditsPerVideo: 2,
+    monthlyCredits: PLAN_FREE.credits, // matches TIER_CREDITS.free
+    approxStandardVideos: 1,
+    approxQuickVideos: 1,
+    overageRatePer1000: 0, // legacy/unused — free users top up with the same credit packs
+  },
+  {
+    tier: 'starter',
+    label: 'Starter',
+    monthlyPrice: 2900, // $29
+    // Retired — no longer sold; kept so existing Starter subscribers resolve.
+    description: '5,000 credits per month',
+    features: [
+      '5,000 credits every month (about 5 standard videos)',
+      'Top up anytime with credit packs from $10',
+      'Branded client share pages',
+      'Download MP4, PDF, PPTX',
+    ],
+    videosPerMonth: 5,
+    extraVideoPrice: 500, // $5
+    regenCreditsPerVideo: 3,
+    monthlyCredits: 5000,
+    approxStandardVideos: 5,  // 5000 / 1000 per standard video
+    approxQuickVideos: 10,    // 5000 / 500 per quick video
+    overageRatePer1000: 500,
+  },
+  {
+    tier: 'pro',
+    label: PLAN_PRO.label,
+    monthlyPrice: PLAN_PRO.priceCents, // $129
+    description: `${PLAN_PRO.minutes} video minutes per month`,
+    features: [
+      ...planFeatures(PLAN_PRO),
+      'Unlimited brands',
+      'Branded client share pages',
+      'API and AI-assistant access',
+    ],
+    videosPerMonth: PLAN_PRO.minutes / 2, // every video counts at least 2 minutes
+    extraVideoPrice: 500, // $5
+    regenCreditsPerVideo: 5,
+    monthlyCredits: PLAN_PRO.credits,
+    approxStandardVideos: PLAN_PRO.minutes / 2,
+    approxQuickVideos: PLAN_PRO.minutes / 2,
+    overageRatePer1000: 500,
+  },
+  {
+    tier: 'business',
+    label: PLAN_BUSINESS.label,
+    monthlyPrice: PLAN_BUSINESS.priceCents, // $299
+    description: `${PLAN_BUSINESS.minutes} video minutes per month`,
+    features: [
+      ...planFeatures(PLAN_BUSINESS),
+      'White-label share pages (no Docs2Video branding)',
+      'Unlimited brands',
+    ],
+    videosPerMonth: PLAN_BUSINESS.minutes / 2,
+    extraVideoPrice: 500, // $5
+    regenCreditsPerVideo: 10,
+    monthlyCredits: PLAN_BUSINESS.credits,
+    approxStandardVideos: PLAN_BUSINESS.minutes / 2,
+    approxQuickVideos: PLAN_BUSINESS.minutes / 2,
+    overageRatePer1000: 400,
+  },
+  {
+    tier: 'enterprise',
+    label: 'Enterprise',
+    monthlyPrice: 49900, // $499
+    description: '200,000 credits per month',
+    features: [
+      '200,000 credits every month (about 200 standard videos)',
+      'Top up anytime with credit packs from $10',
+      'White-label share pages (no Docs2Video branding)',
+      'API and AI-assistant access',
+      'Dedicated support',
+    ],
+    videosPerMonth: 200,
+    extraVideoPrice: 500, // $5
+    regenCreditsPerVideo: -1, // unlimited
+    monthlyCredits: 200000,
+    approxStandardVideos: 200,  // 200000 / 1000
+    approxQuickVideos: 400,     // 200000 / 500
+    overageRatePer1000: 300,
+  },
+]
+
+/** The plans every page and route reads: today's, until the switch is on. */
+export const PLANS: PlanInfo[] = minutesPricingOn() ? MINUTES_PLANS : CREDIT_PLANS
+
 /**
  * The plans a NEW subscriber can buy today. Starter ($29) is retired: existing
  * Starter subscribers are grandfathered, but no page may offer it and no
@@ -144,11 +256,19 @@ export const PLANS: PlanInfo[] = [
  * onboarding page offered Starter/"Agency", which checkout rejected with
  * "Invalid plan.", and /setup-payment still sold Starter).
  */
-export const SELLABLE_PLAN_TIERS = ['pro', 'business', 'enterprise'] as const
-export type SellablePlanTier = typeof SELLABLE_PLAN_TIERS[number]
+export type SellablePlanTier = 'pro' | 'business' | 'enterprise'
+/* Minutes pricing: Pro, and Business once it is on. Until then: what was sold before. */
+export const SELLABLE_PLAN_TIERS: readonly SellablePlanTier[] = minutesPricingOn()
+  ? (businessPlanOn() ? ['pro', 'business'] : ['pro'])
+  : ['pro', 'business', 'enterprise']
 
 export function isSellablePlan(tier: string | null | undefined): tier is SellablePlanTier {
   return !!tier && (SELLABLE_PLAN_TIERS as readonly string[]).includes(tier)
+}
+
+/** A plan's monthly credits as video minutes (plan-pricing.ts). */
+export function planMinutes(plan: PlanInfo): number {
+  return Math.floor(plan.monthlyCredits / CREDITS_PER_MINUTE)
 }
 
 /** The AI Social add-on — a separate monthly subscription (STRIPE_PRICE_ADDON_SOCIAL). */
@@ -211,4 +331,33 @@ export function isUnlimited(subscriptionStatus: string | null): boolean {
 export function isEnterprise(subscriptionStatus: string | null): boolean {
   const tier = getUserTier(subscriptionStatus)
   return tier === 'enterprise'
+}
+
+/*
+ * WHAT A PLAN CARD SAYS UNDER ITS PRICE, and the lines above and below the
+ * cards — in minutes with the minutes pricing on, in credits before. Every
+ * pricing surface (public /pricing, in-app /pricing, the homepage) reads these,
+ * so they can't say different things.
+ */
+export function planCardLines(plan: PlanInfo): { headline: string; sub: string } {
+  if (minutesPricingOn()) {
+    return plan.tier === 'free'
+      ? { headline: 'First video free', sub: `Up to ${formatMinutes(planMinutes(plan))} · card needed, no charge` }
+      : { headline: `${formatMinutes(planMinutes(plan))} / mo`, sub: `Extra minutes ${dollars(EXTRA_MINUTE_CENTS)} each` }
+  }
+  return plan.tier === 'free'
+    ? { headline: `${plan.monthlyCredits.toLocaleString('en-US')} free credits`, sub: `~${plan.approxStandardVideos} videos to try · then top up` }
+    : { headline: `${plan.monthlyCredits.toLocaleString('en-US')} credits / mo`, sub: `~${plan.approxStandardVideos} standard videos` }
+}
+
+export function pricingIntro(): string {
+  return minutesPricingOn()
+    ? `Your plan is video minutes. A video uses the minutes it runs, rounded up, and every video counts at least ${MIN_BILLED_MINUTES}. Cancel anytime; minutes reset each month. Extra minutes are ${dollars(EXTRA_MINUTE_CENTS)} each.`
+    : 'One pool of credits for videos, presentations and commercials. A standard video is 1,000 credits. Cancel anytime; credits reset each cycle. Top up whenever you need more.'
+}
+
+export function pricingFootnote(): string {
+  return minutesPricingOn()
+    ? `All plans cancel anytime · billed monthly · minutes reset each month · extra minutes ${dollars(EXTRA_MINUTE_CENTS)} each.`
+    : 'All plans cancel anytime · billed monthly · credits reset each cycle · extra credits available on paid plans.'
 }

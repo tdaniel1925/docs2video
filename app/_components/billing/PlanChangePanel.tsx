@@ -6,6 +6,7 @@ import { Button, Note } from '../kit'
 import type { SellablePlanTier } from '../../_lib/pricing'
 import { getStripePromise, plainPaymentError, money, day } from './stripe-client'
 import s from './billing.module.css'
+import { amountLabel } from '../../_lib/plan-pricing'
 
 /*
  * CHANGE PLAN, IN THE APP (replaces the Stripe portal's plan switch).
@@ -131,7 +132,7 @@ export default function PlanChangePanel({ plan, onCancel, onDone }: { plan: Sell
       <div className={s.compare}>
         <div className={s.compareBox}><span>Now</span><b>{preview.from.label}</b><span>{money(preview.from.priceCents)} a month</span></div>
         <ArrowRight className={s.arrow} size={20} aria-hidden="true" />
-        <div className={s.compareBox} data-new=""><span>New</span><b>{preview.to.label}</b><span>{money(preview.to.priceCents)} a month · {preview.to.monthlyCredits.toLocaleString('en-US')} credits</span></div>
+        <div className={s.compareBox} data-new=""><span>New</span><b>{preview.to.label}</b><span>{money(preview.to.priceCents)} a month · {amountLabel(preview.to.monthlyCredits)}</span></div>
       </div>
       <div className={s.order}>
         <div className={`${s.row} ${s.rowTotal}`} style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
