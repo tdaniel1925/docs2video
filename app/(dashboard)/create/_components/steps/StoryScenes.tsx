@@ -25,6 +25,7 @@
  * Step 6's "Change the length" lands on the length choice (#length).
  */
 
+import { StepExplain } from './StepExplain'
 import { Fragment, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { VideoBrief } from '../../../../_lib/types'
@@ -725,11 +726,13 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
         <>
           <h1 className="cf-h1">Here&rsquo;s the <em>story.</em></h1>
           <p className="cf-lede">What we took from your content. Fix anything that is wrong and leave out what should not be said — the video says exactly this.</p>
+          <StepExplain step="story" />
         </>
       ) : (
         <>
           <h1 className="cf-h1">Every <em>scene.</em></h1>
           <p className="cf-lede">Every scene, in order. Change any word, see what is on screen, drag one to move it, and pick how long it runs.</p>
+          <StepExplain step="scenes" />
         </>
       )}
 

@@ -70,6 +70,7 @@
 .chip:hover { border-color: var(--ink-light); }
 .chip[aria-checked='true'] { border-color: var(--accent-ink); background: var(--accent-soft); color: var(--accent-ink); }
 .small { font-size: var(--fs-small); color: var(--ink-light); margin: 0; }
+.kbd { font: inherit; font-weight: 700; color: var(--ink); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; padding: 0 6px; background: var(--bg-card); }
 .savedRow { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 
 /* ── nudges + undo ── */

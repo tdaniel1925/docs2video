@@ -1,5 +1,6 @@
 'use client'
 
+import { StepExplain } from './steps/StepExplain'
 import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -442,6 +443,7 @@ export default function Step1Content() {
   return (
     <div className="cf-page">
       <h1 className="cf-h1">{head.lead} <em>{head.word}</em></h1>
+      <StepExplain step="content" />
 
       <div id="s1-source" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {src === 'upload' && (

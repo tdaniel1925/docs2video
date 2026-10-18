@@ -15,6 +15,7 @@
  * The brand step saves the brand (a new one is created here) and the
  * per-video presenter choices; the opener step saves only those choices.
  */
+import { StepExplain, LookVsBrand } from './StepExplain'
 import Link from 'next/link'
 import { tidyUrlInput } from '../../../../_lib/normalize-url'
 
@@ -460,6 +461,7 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
       <div className="cf-page cf-step" data-step="covers">
         <h1 className="cf-h1">Opener <em>&amp; close.</em></h1>
         <p className="cf-lede">The first and last thing your client sees: how you’re introduced and your photo up front, how to reach you at the end.</p>
+        <StepExplain step="opening" />
 
         <div className="cf-split">
           <div className="cf-main-col">
@@ -564,6 +566,8 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
     <div className="cf-page cf-step" data-step="brand">
       <h1 className="cf-h1">Your <em>brand.</em></h1>
       <p className="cf-lede">Who this comes from. A brand can be you — your name, photo and a friendly intro — or a company, with its logo and colors. Pick a saved one or set one up here; none of it needs a website.</p>
+      <StepExplain step="brand" />
+      <LookVsBrand />
 
       <div className="cf-split">
         <div className="cf-main-col">

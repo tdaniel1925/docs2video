@@ -20,7 +20,10 @@
 // with, reading the same saved draft. Before starting the job this page saves
 // every choice to the draft, re-reads the price, and stops if it changed.
 
+import { StepExplain, LookVsBrand } from './StepExplain'
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { usePasteImage, pasteKeyLabel } from '../../../../_components/usePasteImage'
+import { holdPastedReference } from '../../../../_components/look/pasted-reference'
 import { Button, Note } from '../../../../_components/kit'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BuyCreditsModal from '../../../../_components/BuyCreditsModal'
@@ -381,6 +384,13 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   // Wait for the engine answer too: until it comes, the cards (and what Make
   // would send) could be the old engine's — a slow answer must never start a
   // video on the wrong engine. A failed answer counts as known (kit off).
+  /* Hooks before the early returns below (rules of hooks). */
+  const openLookScreen = () => router.push(`/create/look?id=${encodeURIComponent(videoId ?? "")}`)
+  /* A picture pasted on the Look step becomes the reference on the look screen (pasted-reference). */
+  const [pasteKey, setPasteKey] = useState('Ctrl+V')
+  useEffect(() => { void Promise.resolve().then(() => setPasteKey(pasteKeyLabel())) }, [])
+  usePasteImage((f) => { void holdPastedReference(f).then(openLookScreen) }, part === 'look' && kitOn && isVideo)
+
   if (loading || !kitKnown) {
     return (
       <div className="cf-page">
@@ -443,7 +453,6 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   ) : null
 
   const cards = lookCards(output, { kit: kitOn, yourLook: kitOn ? yourLook : null })
-  const openLookScreen = () => router.push(`/create/look?id=${encodeURIComponent(videoId)}`)
   const back = prev ? { href: stepPath(prev.key, videoId), label: prev.label } : null
   const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`
 
@@ -533,7 +542,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   ]
 
   const heads = {
-    look: { h: <>The <em>look.</em></>, lede: 'Video or presentation, then the look every scene wears. Show us a picture you like with Create your own look, and see your first scene for free before you pay anything.' },
+    look: { h: <>The <em>look.</em></>, lede: 'Video or presentation, then the look every scene wears. Paste a picture you like anywhere on this page (or use Create your own look), and see your first scene for free before you pay anything.' },
     voice: { h: <>Voice <em>&amp; music.</em></>, lede: 'Who tells it, and whether music plays under it. Press ▶ to hear a voice.' },
     review: { h: <>Check it, <em>then make it.</em></>, lede: 'Everything at a glance. Change any step, see the first scene for free, then press Make it — the only button that spends.' },
   }[part]
@@ -542,6 +551,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
     <div className="cf-page cf-step" data-step={part}>
       <h1 className="cf-h1">{heads.h}</h1>
       <p className="cf-lede">{heads.lede}</p>
+      <StepExplain step={part} />
+      {part === 'look' ? <LookVsBrand /> : null}
 
       {part === 'look' ? (
         <div className="cf-split">
@@ -586,6 +597,30 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
               ) : null}
             </LookPicker>
 
+            {/* THE PICKED LOOK ON A COVER AND AN INSIDE PAGE (owner, 2026-10-18): every scene wears it, not just the first. */}
+            {(() => {
+              const picked = cards.find((c) => c.id === (isPres ? presLook : videoLook))
+              const pages = picked?.samples ?? []
+              return pages.length >= 2 ? (
+                <div className="cf-look-pages" data-look-pages>
+                  <figure>
+                    <span className="cf-label">Cover</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a sample of this look */}
+                    <img src={pages[0]} alt={`${picked?.name ?? 'This look'}: a cover`} loading="lazy" />
+                    <figcaption>The first screen: title, who it is for, your photo or logo.</figcaption>
+                  </figure>
+                  <figure>
+                    <span className="cf-label">Inside page</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a sample of this look */}
+                    <img src={pages[1]} alt={`${picked?.name ?? 'This look'}: an inside page`} loading="lazy" />
+                    <figcaption>Every scene after it, in the same look. Samples use made-up names; press Free preview to see your own.</figcaption>
+                  </figure>
+                </div>
+              ) : (
+                <p className="cf-hint" data-look-pages-none>{isPres ? 'Every slide of your presentation wears this look.' : 'Every scene of your video wears this look.'} Press <b>Free preview</b> to see your own cover and first scene in it.</p>
+              )
+            })()}
+
             <FirstScenePreview ref={previewRef} preview={preview} />
           </div>
           <aside className="cf-side" aria-label="Your own look">
@@ -593,7 +628,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
               <div className="cf-card cf-side-card">
                 <span className="cf-label">A picture you like</span>
                 <p className="cf-hint">An ad, a slide, a poster or a website you like: every scene copies its colours, fonts and feel — never its words, logos or photos.</p>
-                <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={openLookScreen}>Create your own look</button>
+                <p className="cf-hint"><b>Paste a screenshot:</b> copy a picture, then press <kbd>{pasteKey}</kbd> anywhere on this page.</p>
+                <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={openLookScreen}>Paste, drop or upload a picture</button>
               </div>
             ) : null}
             {kitOn && isVideo && preview.result && !preview.busy && videoLook !== 'custom' ? (

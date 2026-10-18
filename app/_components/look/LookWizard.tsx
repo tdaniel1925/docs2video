@@ -15,6 +15,8 @@
 // =============================================================================
 
 import { shrinkImageForUpload } from '../../_lib/shrink-image'
+import { usePasteImage, pasteKeyLabel } from '../usePasteImage'
+import { takePastedReference } from './pasted-reference'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -184,6 +186,39 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
     void readReference(fd, f.name, thumb)
   }
 
+  /*
+   * PASTE A PICTURE, ANYWHERE ON THIS PAGE (owner, 2026-10-18: "user needs to
+   * be able to paste a reference image and it needs to be clearly shown").
+   * A screenshot on the clipboard goes straight in as the reference, whatever
+   * start was picked; typing in a box is never taken over (usePasteImage).
+   */
+  const [pasteKey, setPasteKey] = useState('Ctrl+V')
+  useEffect(() => { void Promise.resolve().then(() => setPasteKey(pasteKeyLabel())) }, [])
+  const [pasteNote, setPasteNote] = useState<string | null>(null)
+  /* Pasted on the Look step and carried here: read it as soon as the page has its data. */
+  const tookPasted = useRef(false)
+  useEffect(() => {
+    if (!data || tookPasted.current) return
+    tookPasted.current = true
+    void takePastedReference().then((f) => { if (f) { setStart('reference'); void onFile(f) } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+  usePasteImage((f) => { setStart('reference'); setPasteNote(null); void onFile(new File([f], f.name && f.name !== 'image.png' ? f.name : 'Pasted picture', { type: f.type })) }, Boolean(data))
+  /** The button: read the clipboard when the browser lets us; else say the shortcut. */
+  async function pasteFromClipboard() {
+    setPasteNote(null)
+    try {
+      const items = await navigator.clipboard.read()
+      for (const it of items) {
+        const type = it.types.find((t) => t.startsWith('image/'))
+        if (type) { const blob = await it.getType(type); void onFile(new File([blob], 'Pasted picture', { type })); return }
+      }
+      setPasteNote(`There’s no picture on your clipboard. Copy one (or take a screenshot) first, then press ${pasteKey} anywhere on this page.`)
+    } catch {
+      setPasteNote(`Your browser didn’t let us read the clipboard — press ${pasteKey} anywhere on this page instead.`)
+    }
+  }
+
   function tryOtherColours() {
     if (!look) return
     if (start === 'reference' && refState.status === 'done' && refState.base) {
@@ -325,6 +360,7 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
           {mode === 'draft' ? <button type="button" className={`cf-link ${s.back}`} onClick={() => router.push(`/create/style?id=${encodeURIComponent(videoId || '')}`)}>← Back to looks</button> : null}
           <h1 className={`cf-h1 ${s.h1}`}>Make it look <em>like…</em></h1>
           <p className={s.sub}>Pick one. We set everything else.</p>
+          <p className={s.small} data-look-explain>This is the <b>look</b>: the design that the cover and <b>every scene inside</b> your video wear (layout, type, motion and color mood). Your <b>brand</b> (logo or photo, name, contact) sits inside it. Paste a screenshot you like ({pasteKey}) and every scene copies its feel. Use the Cover and inside tabs on the right to see both.</p>
 
           <div className={s.starts} role="radiogroup" aria-label="Start from">
             <button type="button" role="radio" aria-checked={start === 'brand'} className={s.start} onClick={() => pickStart('brand')} disabled={!data.brand} data-testid="start-brand">
@@ -335,7 +371,7 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
             <button type="button" role="radio" aria-checked={start === 'reference'} className={s.start} onClick={() => pickStart('reference')} data-testid="start-reference">
               <span className={s.ic} aria-hidden="true">↑</span>
               <b>Something I like</b>
-              <span>Picture, PDF or website</span>
+              <span>Paste or drop a picture, a PDF or a website</span>
             </button>
             <button type="button" role="radio" aria-checked={start === 'style'} className={s.start} onClick={() => pickStart('style')} data-testid="start-style">
               <span className={s.ic} aria-hidden="true">★</span>
@@ -357,11 +393,12 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
                   ? <img className={s.thumb} src={refState.thumb} alt="" />
                   : <span className={s.thumbEmpty} aria-hidden="true">↑</span>}
                 <div className={s.dropText}>
-                  <b>{refState.name ?? 'Drop a picture or PDF here'}</b>
-                  <span>We borrow colours, fonts and feel. Never logos, words or photos.</span>
+                  <b>{refState.name ?? `Paste a picture (${pasteKey}), drop one here, or choose a file`}</b>
+                  <span>A screenshot, a photo or a PDF you like. We borrow colours, fonts and feel. Never logos, words or photos.</span>
                   {refState.status === 'reading' ? <span className={s.reading} role="status">Reading…</span> : null}
                   {refState.status === 'done' ? <span className={s.reading}>Read in {refState.seconds} second{refState.seconds === 1 ? '' : 's'} ✓</span> : null}
                 </div>
+                <button type="button" className="cf-chip" onClick={() => void pasteFromClipboard()} data-testid="reference-paste">Paste picture</button>
                 <button type="button" className="cf-chip" onClick={() => fileInput.current?.click()}>Choose a file</button>
                 <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = '' }} data-testid="reference-file" />
               </div>
@@ -369,7 +406,8 @@ export default function LookWizard({ mode, videoId, brandId }: { mode: 'draft' |
                 <input className="cf-input" type="text" inputMode="url" placeholder="…or paste a website address" value={urlText} onChange={(e) => setUrlText(e.target.value)} aria-label="A website you like" />
                 <button type="submit" className="cf-chip" disabled={!urlText.trim() || refState.status === 'reading'}>Read it</button>
               </form>
-              <span className={s.small}>A video you like? Pause it, take a screenshot, and drop the picture here.</span>
+              {pasteNote ? <span className={s.small} role="status">{pasteNote}</span> : null}
+              <span className={s.small}>A video you like? Pause it, take a screenshot, and press <kbd className={s.kbd}>{pasteKey}</kbd> — it goes straight in.</span>
             </div>
           ) : null}
 

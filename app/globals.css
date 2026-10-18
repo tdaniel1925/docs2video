@@ -3895,6 +3895,20 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
 .cf-page.cf-step { max-width: 1160px; }
 .cf-lede { margin: calc(var(--space-3) * -1) 0 0; max-width: 66ch; font-size: var(--fs-lead); line-height: 1.6; color: var(--ink-soft); }
 .cf-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: var(--space-5); align-items: start; }
+/* What this step is for, and what comes next (steps/StepExplain). */
+.cf-explain { max-width: 80ch; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left: 3px solid var(--accent-ink); border-radius: 10px; background: var(--bg-card); font-size: var(--fs-body); line-height: 1.55; color: var(--ink); }
+.cf-explain p { margin: 0; }
+.cf-explain b { font-size: var(--fs-caption); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin-right: var(--space-2); }
+.cf-explain-next { color: var(--ink-soft); }
+/* Brand vs look, side by side; and the picked look's cover + inside page. */
+.cf-vs, .cf-look-pages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.cf-vs > div { padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); }
+.cf-vs .cf-label, .cf-look-pages .cf-label { margin: 0 0 var(--space-2); font-size: var(--fs-caption); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
+.cf-vs p { margin: 0; font-size: var(--fs-small); line-height: 1.55; color: var(--ink); }
+.cf-look-pages figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.cf-look-pages img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: block; }
+.cf-look-pages figcaption { font-size: var(--fs-small); color: var(--ink-soft); }
+@media (max-width: 640px) { .cf-vs, .cf-look-pages { grid-template-columns: minmax(0, 1fr); } }
 .cf-main-col { min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 .cf-side { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 @media (min-width: 900px) {
