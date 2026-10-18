@@ -186,7 +186,9 @@ describe('the look, voice and review steps: looks from one list, one settings li
     const page = code(read(STEP_FILES.look))
     // Each choice has a step of its own now (no "More options" fold).
     expect(page).not.toMatch(/<summary>More options<\/summary>/)
-    for (const row of ['Make', 'Voice', 'Music', 'Length', 'Photos']) expect(page).toContain(`<span className="cf-row-name">${row}</span>`)
+    for (const row of ['Voice', 'Music', 'Length', 'Photos']) expect(page).toContain(`<span className="cf-row-name">${row}</span>`)
+    // What to make is the small Video / Presentation switch in the Look step's bar (layout B, 2026-10-18).
+    expect(page).toMatch(/<OutputPicker\s+compact/)
     for (const label of ['On their watch page', 'The price']) expect(page).toContain(`<span className="cf-label">${label}</span>`)
   })
 })

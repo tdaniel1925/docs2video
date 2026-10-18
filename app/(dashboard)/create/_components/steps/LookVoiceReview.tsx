@@ -21,6 +21,8 @@
 // every choice to the draft, re-reads the price, and stops if it changed.
 
 import { StepExplain } from './StepExplain'
+import { TemplatePicker } from '../make/TemplatePicker'
+import { DEFAULT_VIDEO_TEMPLATE, VIDEO_TEMPLATES, isVideoTemplate, videoTemplate, type VideoTemplateId } from '../../../../_lib/video-templates'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { usePasteImage, pasteKeyLabel } from '../../../../_components/usePasteImage'
 import { holdPastedReference } from '../../../../_components/look/pasted-reference'
@@ -110,6 +112,10 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
     if (kitKnown && !kitOn && videoLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
   }, [kitOn, kitKnown, videoLook])
   const chosenStyle = styleForCard(videoLook, kitOn)
+  // ONE OF THE EIGHT TEMPLATES (video-templates.ts), or none — a look below.
+  const [templateId, setTemplateId] = useState<VideoTemplateId | null>(null)
+  // The Look step's tabs (layout B): Templates · Match a picture · My looks.
+  const [lookTab, setLookTab] = useState<'templates' | 'picture' | 'mine'>('templates')
   const [presLook, setPresLook] = useState<string>(PRES_LOOKS[0].id)
   const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE)
   const [aiMusic, setAiMusic] = useState(false)
@@ -185,6 +191,11 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           // "Your look" is picked by default when the brand has one and nothing else was chosen yet.
           if (mine && (d.kitLook === 'custom' || !d.videoStyle)) setVideoLook('custom')
           else if (!mine && d.kitLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
+          // A template chosen before; else a look chosen before (or the brand's
+          // own look) opens My looks; else a new video starts on a template.
+          if (isVideoTemplate(d.templateId)) { setTemplateId(d.templateId); setLookTab('templates') }
+          else if (d.videoStyle || d.kitLook === 'custom' || mine) setLookTab('mine')
+          else { setTemplateId(DEFAULT_VIDEO_TEMPLATE); setLookTab('templates') }
           setBrand(found)
           setAddingBrand(!found && d.brandId === undefined)
           setLoading(false)
@@ -236,6 +247,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
             ...(chosenStyle.kitLook === 'custom' && yourLook ? { kitLookCustom: yourLook } : {}),
             // Drawn slides only: its drawing style (3D infographic / Illustrated / Classic).
             ...(videoLook === 'drawn' ? { drawStyle } : {}),
+            // The template, or none (a look) — videos only.
+            templateId: isVideo ? templateId : null,
             presentationTemplate: presLook,
             slidePhotos,
             // Make the brand shown on this screen the draft's explicit choice.
@@ -332,6 +345,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           videoStyle: chosenStyle.videoStyle,
           ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
           ...(videoLook === 'drawn' ? { drawStyle } : {}),
+          templateId: isVideo ? templateId : null,
           policyData: draft.extractedData || {},
           purpose: draft.purpose || 'Create a professional video',
           recipientName: draft.recipientName || undefined,
@@ -397,7 +411,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   /* A picture pasted on the Look step becomes the reference on the look screen (pasted-reference). */
   const [pasteKey, setPasteKey] = useState('Ctrl+V')
   useEffect(() => { void Promise.resolve().then(() => setPasteKey(pasteKeyLabel())) }, [])
-  usePasteImage((f) => { void holdPastedReference(f).then(openLookScreen) }, part === 'look' && kitOn && isVideo)
+  usePasteImage((f) => { setLookTab('picture'); void holdPastedReference(f).then(openLookScreen) }, part === 'look' && kitOn && isVideo)
 
   if (loading || !kitKnown) {
     return (
@@ -464,6 +478,9 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   const back = prev ? { href: stepPath(prev.key, videoId), label: prev.label } : null
   const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`
 
+  /* A template is chosen for this video (the free preview draws looks, not templates). */
+  const templateOn = isVideo && !!templateId
+  const chosenTemplate = templateOn ? videoTemplate(templateId) : null
   /* The free preview, beside Next (look) or Make it (review). */
   const previewButton = (
     <span className="cf-main">
@@ -471,9 +488,9 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
         variant="secondary"
         className="cf-helper-btn"
         onClick={() => void preview.make()}
-        disabled={preview.busy || preview.noneLeft}
+        disabled={preview.busy || preview.noneLeft || templateOn}
         aria-busy={preview.busy || undefined}
-        disabledReason={preview.disabledReason}
+        disabledReason={templateOn ? 'Templates show their scenes on the card: press ▶ on it.' : preview.disabledReason}
         title={preview.leftLabel ?? undefined}
       >
         {preview.label}
@@ -543,14 +560,14 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
     { key: 'content', label: 'Made from', value: draft?.sourcePdfName || draft?.title || 'Your content' },
     { key: 'story', label: 'Story', value: draft?.brief?.angle ? `“${draft.brief.angle}”` : 'Written from your content' },
     { key: 'brand', label: 'Brand', value: brand?.name ?? 'No brand — plain colors' },
-    { key: 'look', label: 'Look', value: (isPres ? lookName('interactive', presLook) : videoLook === 'custom' ? 'Your look' : lookName('video', videoLook)) ?? 'Picked for you' },
+    { key: 'look', label: 'Look', value: (isPres ? lookName('interactive', presLook) : chosenTemplate ? `${chosenTemplate.name} template` : videoLook === 'custom' ? 'Your look' : lookName('video', videoLook)) ?? 'Picked for you' },
     { key: 'scenes', label: 'Scenes', value: scenesSaved.length ? `${scenesSaved.length} scenes${isVideo && sceneSecs > 0 ? ` · about ${sceneMins} minute${sceneMins === 1 ? '' : 's'}` : ''}` : 'Not written yet' },
     { key: 'voice', label: 'Voice', value: settingsLine({ output, voiceId, aiMusic, length: isVideo ? (length?.name ?? null) : null }) },
     { key: 'opening', label: 'Opener & close', value: openerWords || 'As your brand sets it' },
   ]
 
   const heads = {
-    look: { h: <>The <em>look.</em></>, lede: 'Video or presentation, then the look every scene wears. Paste a picture you like anywhere on this page (or use Create your own look), and see your first scene for free before you pay anything.' },
+    look: { h: <>Choose a <em>look</em></>, lede: '' },
     voice: { h: <>Voice <em>&amp; music.</em></>, lede: 'Who tells it, and whether music plays under it. Press ▶ to hear a voice.' },
     review: { h: <>Check it, <em>then make it.</em></>, lede: 'Everything at a glance. Change any step, see the first scene for free, then press Make it — the only button that spends.' },
   }[part]
@@ -561,25 +578,89 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
       <h1 className="cf-h1">{heads.h}</h1>
 
       {part === 'look' ? (
-        <div className="cf-split">
-          <div className="cf-main-col">
-            <div className="cf-row">
-              <span className="cf-row-name">Make</span>
+        <div className="cf-lookstep">
+          {/* LAYOUT B (2026-10-18): the kinds of look as tabs; the brand and video/presentation on the right. */}
+          <div className="cf-lookbar">
+            {isVideo ? (
+              <div className="cf-tabs" role="tablist" aria-label="Kinds of look">
+                <button type="button" role="tab" id="look-tab-templates" aria-controls="look-panel" aria-selected={lookTab === 'templates'} className="cf-tab" onClick={() => setLookTab('templates')}>
+                  Templates <span className="cf-tab-count">{VIDEO_TEMPLATES.length}</span>
+                </button>
+                {kitOn ? (
+                  <button type="button" role="tab" id="look-tab-picture" aria-controls="look-panel" aria-selected={lookTab === 'picture'} className="cf-tab" onClick={() => setLookTab('picture')}>Match a picture</button>
+                ) : null}
+                <button type="button" role="tab" id="look-tab-mine" aria-controls="look-panel" aria-selected={lookTab === 'mine'} className="cf-tab" onClick={() => setLookTab('mine')}>My looks</button>
+              </div>
+            ) : <span />}
+            <div className="cf-lookbar-right">
+              <span className="cf-brandchip" data-brand-chip>
+                {brand?.logo_url
+                  // eslint-disable-next-line @next/next/no-img-element -- the brand's own logo
+                  ? <img className="cf-brandchip-mark" src={brand.logo_url} alt="" />
+                  : <span className="cf-brandchip-mark" aria-hidden="true" />}
+                Brand: <b>{brand?.name ?? 'None'}</b>
+                {brand
+                  ? <button type="button" className="cf-link" onClick={() => router.push(stepPath('brand', videoId))}>Change</button>
+                  : <button type="button" className="cf-link" aria-expanded={addingBrand} onClick={() => setAddingBrand((o) => !o)}>Add</button>}
+              </span>
               <OutputPicker
+                compact
                 offered={d2vOutputs(quote?.offered ?? D2V_OUTPUTS)}
                 value={output}
                 onChange={(o) => { setOutput(o); setError(null) }}
                 options={quote?.options ?? null}
               />
             </div>
+          </div>
+          {!brand && addingBrand && videoId ? (
+            <AddBrandPiece
+              videoId={videoId}
+              draft={draft}
+              onClose={() => setAddingBrand(false)}
+              onSaved={(b) => {
+                setBrand(b)
+                setDraft((d) => ({ ...(d ?? {}), brandId: b.id }))
+                setAddingBrand(false)
+              }}
+            />
+          ) : null}
 
+          <div id="look-panel" role={isVideo ? 'tabpanel' : undefined} aria-labelledby={isVideo ? `look-tab-${lookTab}` : undefined}>
+          {isVideo && lookTab === 'templates' ? (
+            <TemplatePicker
+              templates={VIDEO_TEMPLATES}
+              value={templateId}
+              onChange={(id) => {
+                setTemplateId(id)
+                // A template is made by the explainer engine; Drawn slides is not.
+                if (videoLook === 'drawn') setVideoLook(RECOMMENDED_VIDEO_LOOK)
+              }}
+            />
+          ) : null}
+
+          {isVideo && lookTab === 'picture' && kitOn ? (
+            <div className="cf-card cf-picture" data-match-picture>
+              <span className="cf-label">A picture you like</span>
+              <p className="cf-hint">An ad, a slide, a poster or a website you like: every scene copies its colours, fonts and feel — never its words, logos or photos.</p>
+              <p className="cf-hint"><b>Paste a screenshot:</b> copy a picture, then press <kbd>{pasteKey}</kbd> anywhere on this page.</p>
+              <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={openLookScreen}>Paste, drop or upload a picture</button>
+              {preview.result && !preview.busy && videoLook !== 'custom' ? (
+                <Note tone="info" action={<button type="button" className="cf-link" onClick={openLookScreen}>Make it match</button>}>
+                  Make it match your brand? Pick your colours, fonts and feel — the preview plays your own scenes.
+                </Note>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!isVideo || lookTab === 'mine' ? (
+          <div className="cf-main-col">
             <LookPicker
               cards={cards}
-              value={isPres ? presLook : videoLook}
+              value={isPres ? presLook : templateOn ? '' : videoLook}
               onChange={(id) => {
                 if (isPres) { if (isPresLook(id)) setPresLook(id) }
                 else if (id === CREATE_LOOK_CARD) openLookScreen()
-                else if (isVideoLook(id)) setVideoLook(id)
+                else if (isVideoLook(id)) { setVideoLook(id); setTemplateId(null) }
               }}
               onZoom={setLightbox}
               note={timeNote}
@@ -626,25 +707,11 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
                 <p className="cf-hint" data-look-pages-none>{isPres ? 'Every slide of your presentation wears this look.' : 'Every scene of your video wears this look.'} Press <b>Free preview</b> to see your own cover and first scene in it.</p>
               )
             })()}
-
-            <FirstScenePreview ref={previewRef} preview={preview} />
           </div>
-          <aside className="cf-side" aria-label="Your own look">
-            {kitOn && isVideo ? (
-              <div className="cf-card cf-side-card">
-                <span className="cf-label">A picture you like</span>
-                <p className="cf-hint">An ad, a slide, a poster or a website you like: every scene copies its colours, fonts and feel — never its words, logos or photos.</p>
-                <p className="cf-hint"><b>Paste a screenshot:</b> copy a picture, then press <kbd>{pasteKey}</kbd> anywhere on this page.</p>
-                <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={openLookScreen}>Paste, drop or upload a picture</button>
-              </div>
-            ) : null}
-            {kitOn && isVideo && preview.result && !preview.busy && videoLook !== 'custom' ? (
-              <Note tone="info" action={<button type="button" className="cf-link" onClick={openLookScreen}>Make it match</button>}>
-                Make it match your brand? Pick your colours, fonts and feel — the preview plays your own scenes.
-              </Note>
-            ) : null}
-            {brandLine}
-          </aside>
+          ) : null}
+          </div>
+
+          <FirstScenePreview ref={previewRef} preview={preview} />
         </div>
       ) : null}
 

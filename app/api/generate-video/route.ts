@@ -12,6 +12,8 @@ import { buildV3Payload } from '../../_lib/v3-render'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { videoSender, foreignIdentity, foreignIn, preflightIdentity, SENDER_PROFILE_COLS, type SenderProfile } from '../../_lib/video-sender'
+import { isVideoTemplate, type VideoTemplateId } from '../../_lib/video-templates'
+import { templateIdentity } from '../../_lib/template-identity'
 import { narratorMode, repairNarration, checkNarration, thirdPersonIntro, type PovContext, type PresenterVoice, type SpeakAs } from '../../_lib/narration-pov'
 import { cleanRecipientName } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration, resolvePreparerName } from '../../_lib/personalize'
@@ -305,6 +307,12 @@ export async function POST(request: Request) {
   // with every slide drawn whole by gpt-image on fal, in the chosen style.
   const isDrawn = videoStyle === DRAWN_LOOK_ID
   const drawStyle = drawStyleOf((body as any).drawStyle ?? draft.drawStyle)
+  // ONE OF THE FIXED TEMPLATES (app/_lib/video-templates.ts), when chosen on
+  // the Look step: made by the explainer engine in that template. `null` in
+  // the body is an explicit "no template" and wins over the draft.
+  const videoTemplateId: VideoTemplateId | null = isVideoTemplate((body as any).templateId) ? (body as any).templateId
+    : (body as any).templateId === null ? null
+    : isVideoTemplate(draft.templateId) ? draft.templateId : null
   const CLAIMABLE_STATUSES = ['draft', 'failed', 'pending']
   const priorStatus = String(videoRow.status || '')
   if (!CLAIMABLE_STATUSES.includes(priorStatus)) {
@@ -1187,11 +1195,14 @@ export async function POST(request: Request) {
         const logos = kitLogoAssets(brand)
         // THE LOOK THEY PICKED (explainer-look.ts): their own picture, else the
         // free preview they saw of this look, else the look's own sample page.
-        const picked = await explainerLookFor({
-          admin, userId: user.id, videoId, draft,
-          ownReferenceUrl: styleReferenceUrl || null,
-          siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com',
-        })
+        // A template has its own fixed design: no look is read for it.
+        const picked = videoTemplateId
+          ? { referenceUrl: null, source: 'template', look: videoTemplateId }
+          : await explainerLookFor({
+              admin, userId: user.id, videoId, draft,
+              ownReferenceUrl: styleReferenceUrl || null,
+              siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://docs2video.com',
+            })
         console.log(`[video ${videoId}] explainer look: ${picked.look ?? 'default'} from ${picked.source}`)
         const exScenes = [sceneFor('cover', coverScene, coverExtra), ...ttsScenes.map((sc: any) => sceneFor('content', sc)), sceneFor('closing', closingScene, closingExtra)]
         // A person's brand: their name, and their photo where they chose it.
@@ -1224,6 +1235,21 @@ export async function POST(request: Request) {
           referenceUrl: picked.referenceUrl,
           presenter: exPresenter, photoUrl: exPhoto,
           voiceId, music: !!(aiMusic || musicPrompt || musicUrl),
+          // A template's cover and closing come from WHO THE VIDEO IS FROM alone
+          // (template-identity.ts, the sender rule), and the worker refuses any
+          // page showing the account's own details on someone else's video.
+          ...(videoTemplateId ? {
+            template: videoTemplateId,
+            identity: templateIdentity(sender, {
+              profile: senderProfile as SenderProfile | null,
+              client: recipient || null,
+              showContact: wantContactClosing,
+              photoOn: exPhoto && exPresenter ? { cover: exPresenter.cover, closing: exPresenter.closing } : null,
+              hideName: personHidesName,
+              phoneShown: sender.source === 'brand' ? contactDisplayPhone ?? null : null,
+            }),
+            forbidden: foreignNames,
+          } : {}),
         })
         console.log(`[video ${videoId}] explainer engine — ${ttsScenes.length + 2} scenes, job ${started.jobId}`)
         inFlightVideos.delete(videoId)
