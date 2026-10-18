@@ -11,6 +11,9 @@ import { NAMES } from '../../../_lib/names'
 import { Button, Note } from '../../../_components/kit'
 import Stages from '../_components/workspace/Stages'
 import { waitingStages } from './stages'
+import { crewFor, crewHeadline } from './crew-steps'
+import { Crew } from './Crew'
+import { SisterApps } from './SisterApps'
 
 /*
  * THE MAKING SCREEN — after the three steps (the header shows all three
@@ -213,17 +216,23 @@ export default function GeneratingPage() {
   const slotCount = row?.total_scenes ?? previews.length
   const previewByIdx = new Map(previews.map(p => [p.idx, p.url]))
   const usual = isSlides ? 'about 10 minutes' : 'about 3–5 minutes'
+  /* A video gets the film crew (./crew): each card is a real step, lit by what the render writes. */
+  const isVideoOut = outputType === 'video' || !outputType
+  const crew = isVideoOut ? crewFor(status, row?.progress_detail ?? '') : null
 
   return (
     <>
-      <div className="cf-page">
+      <div className="cf-page cf-step">
+        <div className="cf-making-split">
+        <div className="cf-making-main">
         <h1 className="cf-h1">Making your <em>{noun}.</em></h1>
         <p className="cf-hint">
           This usually takes {usual}. {minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`} so far.
         </p>
 
         <div className="cf-card cf-making" role="status" aria-live="polite">
-          <Stages stages={stages} current={current} detail={row?.progress_detail || null} label={`Making your ${noun}`} />
+          {crew ? <Crew cards={crew} headline={crewHeadline(status, row?.progress_detail ?? '')} /> : <Stages stages={stages} current={current} detail={row?.progress_detail || null} label={`Making your ${noun}`} />}
+          {crew && row?.progress_detail ? <p className="cf-hint">{row.progress_detail}</p> : null}
           <div className="cf-making-bar" aria-hidden="true"><div className="cf-making-fill" style={{ width: `${pct}%` }} /></div>
           <p className="cf-hint">About {pct}% done — the same number Home shows for this project.</p>
         </div>
@@ -252,6 +261,9 @@ export default function GeneratingPage() {
         </Note>
 
         {row ? <p className="cf-hint cf-tip" key={`${outputType}-${tipIdx}`}>{tips[tipIdx % tips.length]}</p> : null}
+        </div>
+        <SisterApps />
+        </div>
       </div>
     </>
   )
