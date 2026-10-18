@@ -43,7 +43,8 @@ function item(over: Partial<LibraryItem> = {}): LibraryItem {
 
 describe('the status line says where it is, in plain words', () => {
   it('ready, making, failed, draft', () => {
-    expect(statusLine(item())).toEqual({ words: 'Ready to send · 1:30', tone: 'ready' })
+    // Option A (2026-10-18): the length moved onto the picture (lengthChip).
+    expect(statusLine(item())).toEqual({ words: 'Ready to send', tone: 'ready' })
     expect(statusLine(item({ duration: null })).words).toBe('Ready to send')
     expect(statusLine(item({ status: 'processing', progressPct: 40 }))).toEqual({ words: 'Making… 65%', tone: 'making' })
     expect(statusLine(item({ status: 'failed' }))).toEqual({ words: 'Didn’t finish', tone: 'failed' })
@@ -81,7 +82,9 @@ describe('the Library renders picture cards', () => {
 
   it('one card per item, each with its status words and a picture or a placeholder', () => {
     expect((html.match(/<li /g) ?? []).length).toBe(4)
-    for (const words of ['Ready to send · 1:30', 'Making… 80%', 'Didn’t finish', 'Ready']) expect(html).toContain(words)
+    for (const words of ['Ready to send', 'Making… 80%', 'Didn’t finish', 'Ready']) expect(html).toContain(words)
+    // Option A (2026-10-18): the length is on the picture.
+    expect(html).toContain('>1:30<')
     expect(html).toContain('src="https://example.com/cover.png"')
     // The custom graphic shows its own image.
     expect(html).toContain('src="https://example.com/poster.png"')

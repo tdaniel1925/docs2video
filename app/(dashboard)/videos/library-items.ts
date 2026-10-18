@@ -32,6 +32,8 @@ export type LibraryItem = {
   progressPct: number | null
   /** draft_data.step for an unfinished draft — where Open picks it up (same as Home). */
   draftStep?: unknown
+  /** The template a draft has chosen (its cover shows, faded, until it is made). */
+  draftTemplate?: string | null
   creditsUsed: number | null
   createdAt: string
 }
@@ -46,27 +48,53 @@ export function clock(seconds: number): string {
 
 /**
  * The coloured line under a card's title, in plain words:
- *   "Ready to send · 1:30"  "Making… 65%"  "Didn't finish"  "Draft"
- * Things made outside the video maker (graphics, built decks) have no status
- * in the database — if they're in the Library, they're done.
+ *   "Ready to send"  "Making… 65%"  "Didn't finish"  "Draft"
+ * (A finished video's length is on its picture, bottom right — option A,
+ * 2026-10-18.) Things made outside the video maker (graphics, built decks)
+ * have no status in the database — if they're in the Library, they're done.
  */
 export function statusLine(item: Pick<LibraryItem, 'type' | 'status' | 'progressPct' | 'duration'>): { words: string; tone: StatusTone } {
   if (item.type !== 'video') return { words: 'Ready', tone: 'ready' }
   switch (item.status) {
     case 'completed':
-      return { words: item.duration && item.duration > 0 ? `Ready to send · ${clock(item.duration)}` : 'Ready to send', tone: 'ready' }
+      return { words: 'Ready to send', tone: 'ready' }
     case 'failed':
       return { words: 'Didn’t finish', tone: 'failed' }
     case 'draft':
-      return { words: 'Draft — not made yet', tone: 'draft' }
+      return { words: 'Draft', tone: 'draft' }
     default:
       return { words: item.progressPct != null ? `Making… ${displayProgress(item.progressPct)}%` : 'Making…', tone: 'making' }
   }
 }
 
+/** The length chip on a finished video's picture ("1:30"), or null. */
+export function lengthChip(item: Pick<LibraryItem, 'type' | 'status' | 'duration'>): string | null {
+  return item.type === 'video' && item.status === 'completed' && item.duration && item.duration > 0 ? clock(item.duration) : null
+}
+
 /** Ready videos get a Send button; it lands on the result page's send panel. */
 export function sendHref(item: Pick<LibraryItem, 'type' | 'status' | 'videoId' | 'id'>): string | null {
   return item.type === 'video' && item.status === 'completed' ? `/videos/${item.videoId ?? item.id}#send` : null
+}
+
+/**
+ * The one button under a card's picture, beside its status:
+ *   Send (ready) · Try again (didn't finish: the video's page, where Restart
+ *   lives) · Finish it (a draft: back where it was left). None otherwise.
+ */
+export type CardAction = { kind: 'send' | 'retry' | 'finish'; href: string; words: string }
+export function cardAction(item: Pick<LibraryItem, 'type' | 'status' | 'videoId' | 'id' | 'draftStep' | 'fileUrl'>): CardAction | null {
+  if (item.type !== 'video') return null
+  const send = sendHref(item)
+  if (send) return { kind: 'send', href: send, words: 'Send' }
+  if (item.status === 'failed') return { kind: 'retry', href: `/videos/${item.videoId ?? item.id}`, words: 'Try again' }
+  if (item.status === 'draft') return { kind: 'finish', href: openHref(item), words: 'Finish it' }
+  return null
+}
+
+/** Only finished videos get "Change thumbnail" in the ⋯ menu. */
+export function canChangeThumbnail(item: Pick<LibraryItem, 'type' | 'status' | 'videoId'>): boolean {
+  return item.type === 'video' && item.status === 'completed' && !!item.videoId
 }
 
 /** Where pressing the card goes. A draft picks up where it was left, like Home. */

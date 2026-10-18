@@ -1,16 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { Ellipsis, FolderOpen, Send, Trash2 } from 'lucide-react'
-import { canDelete, openHref, sendHref, type LibraryItem } from './library-items'
+import { Ellipsis, FolderOpen, ImageIcon, Send, Trash2 } from 'lucide-react'
+import { canChangeThumbnail, canDelete, openHref, sendHref, type LibraryItem } from './library-items'
 import s from './library.module.css'
 
 /** The "…" menu, shared by the cards and the list. */
-export default function CardMenu({ item, open, onMenu, onDelete, flat = false }: {
+export default function CardMenu({ item, open, onMenu, onDelete, onThumb, flat = false }: {
   item: LibraryItem
   open: boolean
   onMenu: () => void
   onDelete: () => void
+  /** Opens "Change thumbnail" (finished videos only). */
+  onThumb?: () => void
   flat?: boolean
 }) {
   const external = item.type !== 'video'
@@ -30,6 +32,11 @@ export default function CardMenu({ item, open, onMenu, onDelete, flat = false }:
               <span className={s.menuWord}><Send size={16} />Send</span>
             </Link>
           )}
+          {onThumb && canChangeThumbnail(item) && (
+            <button type="button" role="menuitem" className="kit-menu-item" onClick={onThumb} aria-haspopup="dialog">
+              <span className={s.menuWord}><ImageIcon size={16} />Change thumbnail</span>
+            </button>
+          )}
           {canDelete(item) && (
             <>
               <hr className="kit-menu-sep" />
@@ -43,4 +50,3 @@ export default function CardMenu({ item, open, onMenu, onDelete, flat = false }:
     </div>
   )
 }
-

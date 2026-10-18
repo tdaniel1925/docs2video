@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, FileText, Film, GalleryVerticalEnd, Image as ImageIcon, LayoutGrid, List, Presentation, Search, Send, Trash2, X, type LucideIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, Film, GalleryVerticalEnd, Image as ImageIcon, LayoutGrid, List, Presentation, RotateCcw, Search, Send, Trash2, X, type LucideIcon } from 'lucide-react'
 import { Button, Dialog, EmptyState } from '../../_components/kit'
 import { useToast } from '../../_components/Toast'
 import { NAMES, type LibraryKind } from '../../_lib/names'
+import { videoTemplate } from '../../_lib/video-templates'
 import LibraryTable from './LibraryTable'
 import CardMenu from './CardMenu'
+import ThumbnailDialog from './ThumbnailDialog'
 import {
-  PAGE_SIZES, SORTS, VIEW_KEY, openHref, searchAndSort, sendHref, statusLine,
+  PAGE_SIZES, SORTS, VIEW_KEY, cardAction, lengthChip, openHref, searchAndSort, statusLine,
   type LibraryItem, type SortId,
 } from './library-items'
 import LocalDate from './LocalDate'
@@ -76,6 +78,7 @@ export default function Library({ items, emptyLabel = null, paging = null }: { i
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<LibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [thumbFor, setThumbFor] = useState<LibraryItem | null>(null)
 
   // The grid/list choice is a per-browser convenience. Storage can be missing
   // or blocked (private windows) — then it's just the grid.
@@ -131,6 +134,7 @@ export default function Library({ items, emptyLabel = null, paging = null }: { i
   }
 
   const askDelete = (item: LibraryItem) => { setMenuFor(null); setConfirming(item) }
+  const askThumb = (item: LibraryItem) => { setMenuFor(null); setThumbFor(item) }
 
   if (live.length === 0 && !(paging && (paging.q || paging.page > 1))) {
     return (
@@ -182,6 +186,7 @@ export default function Library({ items, emptyLabel = null, paging = null }: { i
               menuOpen={menuFor === item.id}
               onMenu={() => setMenuFor(menuFor === item.id ? null : item.id)}
               onDelete={() => askDelete(item)}
+              onThumb={() => askThumb(item)}
             />
           ))}
         </ul>
@@ -191,6 +196,16 @@ export default function Library({ items, emptyLabel = null, paging = null }: { i
           menuFor={menuFor}
           onMenu={(id) => setMenuFor(menuFor === id ? null : id)}
           onDelete={askDelete}
+          onThumb={askThumb}
+        />
+      )}
+
+      {thumbFor?.videoId && (
+        <ThumbnailDialog
+          videoId={thumbFor.videoId}
+          title={thumbFor.title ?? 'Untitled'}
+          onClose={() => setThumbFor(null)}
+          onSaved={() => { setThumbFor(null); router.refresh() }}
         />
       )}
 
@@ -243,12 +258,22 @@ const KIND_ICON: Record<LibraryKind, LucideIcon> = {
 
 export function Placeholder({ item }: { item: LibraryItem }) {
   const Icon = item.kind ? KIND_ICON[item.kind] : FileText
+  const draft = item.type === 'video' && item.status === 'draft'
   return (
-    <span className={s.placeholder} data-kind={item.kind ?? 'other'}>
+    <span className={s.placeholder} data-kind={item.kind ?? 'other'} data-draft={draft || undefined}>
       <Icon size={20} />
-      <span>{item.status === 'draft' ? 'Not made yet' : item.label}</span>
+      <span>{draft ? 'Pick a look to see it here' : item.label}</span>
     </span>
   )
+}
+
+/** A draft with a template chosen: that template's cover, faded, until it is made. */
+function DraftThumb({ item }: { item: LibraryItem }) {
+  const t = videoTemplate(item.draftTemplate)
+  if (!t) return <Placeholder item={item} />
+  // No words under it: the faded cover alone says "this look, not made yet".
+  // eslint-disable-next-line @next/next/no-img-element -- a small static sample cover
+  return <img className={`${s.thumb} ${s.thumbDraft}`} src={t.scenes[0].src} alt={`${t.name}, not made yet`} width={384} height={216} loading="lazy" decoding="async" />
 }
 
 /** A picture that falls back to the placeholder if it fails to load. */
@@ -289,20 +314,28 @@ function Thumb({ item }: { item: LibraryItem }) {
 }
 
 /*
- * One card. The whole card is one link (an invisible layer over it, VidWiz's
- * "library-hit"); Send and the "…" menu sit above that layer so they can be
- * pressed on their own.
+ * One card (option A, 2026-10-18): the video's own cover, sharp and whole,
+ * with only its length on it; under it the title and ⋯, then the status and
+ * date beside the one button (Send · Try again · Finish it). The whole card is
+ * one link (an invisible layer over it); the button and the "…" menu sit
+ * above that layer so they can be pressed on their own.
  */
-function LibraryCard({ item, menuOpen, onMenu, onDelete }: {
+const ACTION_ICON = { send: Send, retry: RotateCcw, finish: null } as const
+
+function LibraryCard({ item, menuOpen, onMenu, onDelete, onThumb }: {
   item: LibraryItem
   menuOpen: boolean
   onMenu: () => void
   onDelete: () => void
+  onThumb: () => void
 }) {
   const status = statusLine(item)
-  const send = sendHref(item)
+  const action = cardAction(item)
+  const length = lengthChip(item)
   const external = item.type !== 'video'
   const title = item.title ?? 'Untitled'
+  const draft = item.type === 'video' && item.status === 'draft'
+  const Icon = action ? ACTION_ICON[action.kind] : null
   return (
     <li className={`${s.card} ${menuOpen ? s.cardRaised : ''}`} data-status={status.tone}>
       <Link
@@ -315,21 +348,26 @@ function LibraryCard({ item, menuOpen, onMenu, onDelete }: {
         {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       />
       <div className={s.media}>
-        <Thumb item={item} />
-        <span className={s.kind}>{item.label}</span>
-        {send && (
-          <Link className={s.send} href={send} prefetch={false} aria-label={`Send ${title}`}>
-            <Send size={16} /><span>Send</span>
-          </Link>
-        )}
+        {draft ? <DraftThumb item={item} /> : <Thumb item={item} />}
+        {length && <span className={s.length}>{length}</span>}
       </div>
       <div className={s.body}>
         <strong className={s.title} title={title}>{title}</strong>
-        <span className={s.status} data-tone={status.tone}>{status.words}</span>
-        <span className={s.meta}>
-          <LocalDate iso={item.createdAt} />{item.recipient ? ` · for ${item.recipient}` : ''}
-        </span>
-        <CardMenu item={item} open={menuOpen} onMenu={onMenu} onDelete={onDelete} />
+        <CardMenu item={item} open={menuOpen} onMenu={onMenu} onDelete={onDelete} onThumb={onThumb} />
+        <div className={s.foot}>
+          <span className={s.footWords}>
+            <span className={s.status} data-tone={status.tone}>{status.words}</span>
+            <span className={s.meta}>
+              {item.kind !== 'video' ? `${item.label} · ` : ''}
+              <LocalDate iso={item.createdAt} />{item.recipient ? ` · for ${item.recipient}` : ''}
+            </span>
+          </span>
+          {action && (
+            <Link className={s.action} data-kind={action.kind} href={action.href} prefetch={false} aria-label={`${action.words}: ${title}`}>
+              {Icon && <Icon size={15} />}<span>{action.words}</span>
+            </Link>
+          )}
+        </div>
       </div>
     </li>
   )

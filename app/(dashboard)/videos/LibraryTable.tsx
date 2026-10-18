@@ -4,6 +4,7 @@ import Link from 'next/link'
 import CardMenu from './CardMenu'
 import { openHref, sendHref, statusLine, type LibraryItem } from './library-items'
 import LocalDate from './LocalDate'
+import { sizedPicture } from '../../_lib/picture-size'
 import s from './library.module.css'
 
 /*
@@ -16,11 +17,12 @@ import s from './library.module.css'
  * the status and the actions (the other columns fold away) so it never
  * scrolls sideways.
  */
-export default function LibraryTable({ rows, menuFor, onMenu, onDelete }: {
+export default function LibraryTable({ rows, menuFor, onMenu, onDelete, onThumb }: {
   rows: LibraryItem[]
   menuFor: string | null
   onMenu: (id: string) => void
   onDelete: (item: LibraryItem) => void
+  onThumb?: (item: LibraryItem) => void
 }) {
   return (
     <div className={s.tableWrap}>
@@ -44,9 +46,16 @@ export default function LibraryTable({ rows, menuFor, onMenu, onDelete }: {
             return (
               <tr key={item.id}>
                 <td className={s.titleCell}>
-                  <Link href={openHref(item)} prefetch={false} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-                    {item.title ?? 'Untitled'}
-                  </Link>
+                  <span className={s.rowTitle}>
+                    {/* The same picture as the card, small (option A). */}
+                    {item.picture
+                      // eslint-disable-next-line @next/next/no-img-element -- a small stored still
+                      ? <img className={s.rowThumb} data-tone={status.tone} src={sizedPicture(item.picture, 160) ?? item.picture} alt="" width={64} height={36} loading="lazy" decoding="async" />
+                      : <span className={`${s.rowThumb} ${s.rowThumbEmpty}`} aria-hidden="true" />}
+                    <Link href={openHref(item)} prefetch={false} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+                      {item.title ?? 'Untitled'}
+                    </Link>
+                  </span>
                   {/* Phones: the status sits under the title (its column folds away). */}
                   <span className={`${s.status} ${s.phoneStatus}`} data-tone={status.tone}>{status.words}</span>
                 </td>
@@ -60,7 +69,7 @@ export default function LibraryTable({ rows, menuFor, onMenu, onDelete }: {
                     {send
                       ? <Link href={send} prefetch={false} className="kit-btn kit-btn--secondary kit-btn--sm">Send</Link>
                       : <Link href={openHref(item)} className="kit-btn kit-btn--secondary kit-btn--sm" prefetch={false} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>Open</Link>}
-                    <CardMenu item={item} open={menuFor === item.id} onMenu={() => onMenu(item.id)} onDelete={() => onDelete(item)} flat />
+                    <CardMenu item={item} open={menuFor === item.id} onMenu={() => onMenu(item.id)} onDelete={() => onDelete(item)} onThumb={onThumb ? () => onThumb(item) : undefined} flat />
                   </span>
                 </td>
               </tr>
