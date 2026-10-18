@@ -793,6 +793,8 @@ async function generateSlidePlan({ pub, source, preparer, recipient, music, glas
       const fam = n.match(/^(?:the\s+)?([A-Za-z][\w'’-]*)\s+family$/i)
       if (fam) return `${fam[1]} family`
       if (/\b(inc|llc|l\.l\.c|corp|corporation|co|company|group|partners|ltd|llp|agency|associates|foundation|trust|holdings|enterprises|church|school|district|clinic|hospital)\.?$/i.test(n)) return n
+      // A business named for its trade ("Harbor Street Bakery"), never greeted "Harbor".
+      if (n.includes(' ') && /\b(bakery|cafe|café|coffee|restaurant|grill|kitchen|bistro|pizza|pizzeria|deli|bar|pub|brewery|winery|salon|spa|barbershop|studio|studios|gallery|shop|store|boutique|market|mart|outlet|realty|properties|homes|builders|construction|contractors|roofing|plumbing|electric|hvac|landscaping|motors|auto|garage|dental|dentistry|orthodontics|pharmacy|vet|veterinary|fitness|gym|yoga|academy|institute|university|college|insurance|financial|wealth|capital|advisors|advisers|bank|lending|mortgage|consulting|solutions|services|systems|labs|media|marketing|design|logistics|transport|farms|farm|ranch|hotel|inn|resort|law|legal|firm|ministries|center|centre)$/i.test(n)) return n
       const lf = n.match(/^([^,]+),\s*([^,]+)$/)
       if (lf) n = `${lf[2]} ${lf[1]}`.trim()
       const t = n.match(/^(mr|mrs|ms|miss|mx|dr|prof|rev|hon)\.?\s+/i)

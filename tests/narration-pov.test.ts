@@ -103,6 +103,12 @@ describe('the client is greeted as a person would greet them', () => {
     expect(salutationFor('John and Mary Smith')).toBe('John and Mary')
     expect(salutationFor('Mr. John Smith')).toBe('Mr. Smith')
     expect(salutationFor('Acme Corp')).toBe('Acme Corp')
+    // A business named for its trade is greeted by its whole name, not its first word.
+    expect(salutationFor('Harbor Street Bakery')).toBe('Harbor Street Bakery')
+    expect(salutationFor('Bluewater Dental')).toBe('Bluewater Dental')
+    expect(salutationFor('Grace Bell')).toBe('Grace')
+    const svc = (await import('fs')).readFileSync(require('path').join(__dirname, '../render-service/slides.js'), 'utf8')
+    expect(svc).toMatch(/A business named for its trade/)
     expect(salutationFor('SMITH, JOHN')).toBe('John')
     expect(salutationFor('jane smith')).toBe('Jane')
     expect(salutationFor('Valued Client')).toBe('')

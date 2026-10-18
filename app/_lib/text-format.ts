@@ -58,6 +58,8 @@ export function scrubPlaceholderNamesInText(text: string): string {
 }
 
 const COMPANY_RE = /\b(inc|llc|l\.l\.c|corp|corporation|co|company|group|partners|ltd|llp|agency|associates|foundation|trust|holdings|enterprises|church|school|district|clinic|hospital)\.?$/i
+/** A business named for what it does ("Harbor Street Bakery" was greeted "Harbor"): its last word is a trade. */
+const TRADE_RE = /\b(bakery|cafe|café|coffee|restaurant|grill|kitchen|bistro|pizza|pizzeria|deli|bar|pub|brewery|winery|salon|spa|barbershop|studio|studios|gallery|shop|store|boutique|market|mart|outlet|realty|properties|homes|builders|construction|contractors|roofing|plumbing|electric|hvac|landscaping|motors|auto|garage|dental|dentistry|orthodontics|pharmacy|vet|veterinary|fitness|gym|yoga|academy|institute|university|college|insurance|financial|wealth|capital|advisors|advisers|bank|lending|mortgage|consulting|solutions|services|systems|labs|media|marketing|design|logistics|transport|farms|farm|ranch|hotel|inn|resort|law|legal|firm|ministries|center|centre)$/i
 const TITLE_RE = /^(mr|mrs|ms|miss|mx|dr|prof|rev|hon)\.?\s+/i
 
 /**
@@ -81,6 +83,7 @@ export function salutationFor(name: string | null | undefined): string {
   const fam = n.match(/^(?:the\s+)?([A-Za-z][\w'’-]*)\s+family$/i)
   if (fam) return `${fam[1]} family`
   if (COMPANY_RE.test(n)) return n
+  if (n.includes(' ') && TRADE_RE.test(n)) return n
   const lastFirst = n.match(/^([^,]+),\s*([^,]+)$/)
   if (lastFirst) n = `${lastFirst[2]} ${lastFirst[1]}`.trim()
   const title = n.match(TITLE_RE)
