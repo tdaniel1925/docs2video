@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import SitePage from '../../../_components/marketing/SiteChrome'
 
 export const metadata: Metadata = {
   title: 'Email preferences | Docs2Video',
@@ -6,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function UnsubscribeLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <SitePage>{children}</SitePage>
 }

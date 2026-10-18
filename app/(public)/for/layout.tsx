@@ -1,15 +1,7 @@
-import SiteHeader from '../../_components/marketing/SiteHeader'
-import SiteFooter from '../../_components/marketing/SiteFooter'
+import SitePage from '../../_components/marketing/SiteChrome'
 
-// Industry landing pages share the home page's header and footer, so the
-// marketing site has one nav. The .mk wrapper scopes the marketing palette to
-// the header/footer; the page bodies keep their own styles.
+// Industry landing pages sit in the public site's one shell (header, footer,
+// dark frame) — the same as the front page.
 export default function IndustryLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <div className="mk mk-chrome"><SiteHeader /></div>
-      {children}
-      <div className="mk mk-chrome"><SiteFooter /></div>
-    </>
-  )
+  return <SitePage>{children}</SitePage>
 }

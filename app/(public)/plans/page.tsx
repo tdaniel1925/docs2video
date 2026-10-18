@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { PageHead } from '../../_components/marketing/SiteChrome'
 import { PLANS } from '../../_lib/pricing'
 
 // Public pricing. proxy.ts shows this page to LOGGED-OUT visitors of /pricing
@@ -40,62 +41,38 @@ export default async function PublicPricingPage({ searchParams }: { searchParams
   ]
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '3rem 1.5rem' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-big.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
-          </Link>
-          <h1 style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 10, color: 'var(--ink)' }}>
-            Simple, credit-based pricing
-          </h1>
-          <p style={{ fontSize: 17, color: 'var(--ink-soft)', lineHeight: 1.6, maxWidth: 620, margin: '0 auto' }}>
-            One pool of credits for videos, presentations and commercials. A standard video is 1,000 credits.
-            Cancel anytime; credits reset each cycle. Top up whenever you need more.
-          </p>
-        </div>
+    <>
+      <PageHead
+        kicker="Pricing"
+        title="Start free."
+        blue="Grow when it works."
+        sub="One pool of credits for videos, presentations and commercials. A standard video is 1,000 credits. Cancel anytime; credits reset each cycle. Top up whenever you need more."
+      />
 
-        {promo && (
-          <div style={{ maxWidth: 520, margin: '0 auto 28px', padding: '12px 16px', borderRadius: 10, background: 'var(--accent)', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>
-            Create your account, then choose a plan — use code <strong>{promo}</strong> at checkout.
+      {promo && (
+        <p className="hp-note-band" role="status">Create your account, then choose a plan — use code <strong>{promo}</strong> at checkout.</p>
+      )}
+
+      <div className="hp-plans">
+        {cards.map(c => (
+          <div key={c.key} className={c.popular ? 'hp-plan hp-plan-pop' : 'hp-plan'}>
+            <span className="hp-kicker">{c.name}{c.popular ? ' · Recommended' : ''}</span>
+            <b className="hp-price">{c.price}{c.perMonth && <small>/mo</small>}</b>
+            <span className="hp-caps hp-blue">{c.creditLine}</span>
+            <span className="hp-small">{c.subLine}</span>
+            <ul>
+              {c.features.map((f, i) => <li key={i}>{f}</li>)}
+            </ul>
+            <Link href="/signup" className={c.popular ? 'hp-btn hp-btn-blue' : 'hp-btn hp-btn-line'}>{c.cta}</Link>
           </div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 16, alignItems: 'stretch' }}>
-          {cards.map(c => (
-            <div key={c.key} style={{ position: 'relative', padding: '26px 22px', borderRadius: 10, background: 'white', border: c.popular ? '2px solid var(--ink)' : '1px solid var(--border-light)', display: 'flex', flexDirection: 'column' }}>
-              {c.popular && (
-                <div style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', padding: '3px 14px', borderRadius: 6, background: 'var(--ink)', color: 'white', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                  Recommended
-                </div>
-              )}
-              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--ink)' }}>{c.name}</div>
-              <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--ink)', marginBottom: 2 }}>
-                {c.price}{c.perMonth && <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink-light)' }}>/mo</span>}
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint-darker)', marginBottom: 2 }}>{c.creditLine}</div>
-              <div style={{ fontSize: 12, color: 'var(--ink-light)', marginBottom: 16 }}>{c.subLine}</div>
-              <div style={{ flex: 1, marginBottom: 16 }}>
-                {c.features.map((f, i) => (
-                  <div key={i} style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 7, lineHeight: 1.4, display: 'flex', gap: 8 }}>
-                    <span style={{ color: 'var(--mint-darker)', fontWeight: 800 }}>✓</span><span>{f}</span>
-                  </div>
-                ))}
-              </div>
-              <Link href="/signup" className={c.popular ? 'btn btn-primary btn-full' : 'btn btn-outlined btn-full'} style={{ textAlign: 'center' }}>
-                {c.cta}
-              </Link>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ fontSize: 13, color: 'var(--ink-light)', textAlign: 'center', marginTop: 28, lineHeight: 1.6 }}>
-          All plans cancel anytime · billed monthly · credits reset each cycle · extra credits available on paid plans.
-          <br />
-          Already have an account? <Link href="/login" style={{ color: 'var(--ink)', fontWeight: 600 }}>Sign in</Link> to change your plan.
-        </p>
+        ))}
       </div>
-    </div>
+
+      <p className="hp-small">
+        All plans cancel anytime · billed monthly · credits reset each cycle · extra credits available on paid plans.
+        <br />
+        Already have an account? <Link href="/login">Sign in</Link> to change your plan.
+      </p>
+    </>
   )
 }

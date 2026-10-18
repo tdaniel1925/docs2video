@@ -69,9 +69,12 @@ describe('front page', () => {
     expect(TABS).toMatch(/role="tabpanel"/)
   })
 
-  it('fonts and colours are scoped to the page, not the app', () => {
-    expect(HOME).toMatch(/Archivo/)
-    expect(HOME).toMatch(/DM_Sans/)
+  it('fonts and colours are scoped to the public site, not the app', () => {
+    // The fonts are the public site's (one shell for the front page and every page it links to).
+    const FONTS = read('app/_components/marketing/site-fonts.ts')
+    expect(FONTS).toMatch(/Archivo/)
+    expect(FONTS).toMatch(/DM_Sans/)
+    expect(HOME).toMatch(/<SiteFrame>/)
     expect(read('app/layout.tsx')).not.toMatch(/Archivo|DM_Sans/)
     // fixed colours, never the app's theme tokens
     expect(CSS).not.toMatch(/var\(--(bg|ink|accent|link)\b/)
@@ -82,10 +85,12 @@ describe('front page', () => {
     expect(CSS.match(/#[0-9A-Fa-f]{3,8}\b/g) ?? []).toEqual([])
   })
 
-  it('the cookie notice is the small front-page version only on the Docs2Video home', () => {
+  it('the cookie notice is the small dark card on the Docs2Video public site only', () => {
     expect(isFrontPage('/', 'docs2video')).toBe(true)
     expect(isFrontPage('/', 'text2art')).toBe(false)
-    expect(isFrontPage('/pricing', 'docs2video')).toBe(false)
+    for (const p of ['/pricing', '/for/insurance', '/blog', '/blog/why-video-beats-pdf', '/login', '/signup', '/contact', '/terms', '/share-demo', '/try/demo']) expect(isFrontPage(p, 'docs2video'), p).toBe(true)
+    // the app keeps its own bar
+    for (const p of ['/dashboard', '/create', '/library', '/forum']) expect(isFrontPage(p, 'docs2video'), p).toBe(false)
     expect(isClientSharePage('/watch/abc')).toBe(true)
   })
 })

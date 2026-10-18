@@ -12,19 +12,19 @@ const pStyle = { marginBottom: 16 } as const
 
 export default function TurnProposalIntoVideoPage() {
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '3rem 1.5rem' }}>
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <Link href="/blog" style={{ fontSize: 14, color: 'var(--ink-light)', textDecoration: 'none', display: 'inline-block', marginBottom: 32 }}>
+    <article className="hp-section">
+      <div className="hp-prose hp-post-body">
+        <Link href="/blog" className="hp-back">
           &larr; Back to Blog
         </Link>
 
-        <div style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center', fontSize: 13 }}>
-          <span style={{ padding: '2px 10px', borderRadius: 6, background: 'var(--accent-soft)', color: 'var(--accent-ink)', fontWeight: 600 }}>Guides</span>
-          <span style={{ color: 'var(--ink-light)' }}>May 16, 2026</span>
-          <span style={{ color: 'var(--ink-light)' }}>5 min read</span>
+        <div className="hp-meta" style={{ marginBottom: 14 }}>
+          <span className="hp-tag">Guides</span>
+          <span>May 16, 2026</span>
+          <span>5 min read</span>
         </div>
 
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.3, marginBottom: 24 }}>
+        <h1 className="hp-h2 hp-post-title">
           5 Steps to Turn Any Business Proposal Into a Video That Wins
         </h1>
 
@@ -124,14 +124,16 @@ export default function TurnProposalIntoVideoPage() {
           </p>
         </div>
 
-        <div style={{ marginTop: 48, padding: '28px 32px', borderRadius: 10, background: 'var(--surface)', border: '2px solid var(--accent-ink)', textAlign: 'center' }}>
-          <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Ready to try it?</h3>
-          <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 16 }}>Turn your next document into a narrated video your client will actually watch.</p>
-          <Link href="/signup" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 8, background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
-            Start free &rarr;
+        <div className="hp-cta-band" style={{ marginTop: 40 }}>
+          <div>
+          <h3 className="hp-h3">Ready to <span className="hp-blue">try it?</span></h3>
+          <p className="hp-soft">Turn your next document into a narrated video your client will actually watch.</p>
+          </div>
+          <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">
+            Make your first video
           </Link>
         </div>
       </div>
-    </div>
+    </article>
   )
 }

@@ -1,12 +1,15 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import ClickToPlayVideo from './ClickToPlayVideo'
+import { PageHead } from './marketing/SiteChrome'
 import { INDUSTRIES } from '../_lib/industries'
 import { INDUSTRY_PAGES, type IndustryPageCopy } from '../_lib/industry-pages'
 import { PLANS } from '../_lib/pricing'
 
 /*
- * One template for every /for/<industry> page. The copy lives in
+ * One template for every /for/<industry> page, in the public site's dark
+ * style (marketing/SiteChrome, redesign 2026-10-18). The copy lives in
  * _lib/industry-pages.ts; wording, disclaimers and prices come from the
  * product's own config (industries.ts, pricing.ts) so the page can only
  * say what the product actually does. No stats, testimonials or counts.
@@ -15,6 +18,27 @@ import { PLANS } from '../_lib/pricing'
 const FREE = PLANS.find((p) => p.tier === 'free')!
 const FREE_LINE = `${FREE.monthlyCredits.toLocaleString('en-US')} free credits to start — about ${FREE.approxStandardVideos} videos`
 const DEMO_BASE = 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/industry-demos'
+
+/*
+ * The hero picture for each field: made-up people, no real firm. Eight fields
+ * have their own (public/home); the rest use the nearest one.
+ */
+const PHOTO: Record<string, { src: string; alt: string }> = {
+  insurance: { src: '/home/table.jpg', alt: 'An older couple watching their coverage video at the kitchen table' },
+  'financial-services': { src: '/home/finance.jpg', alt: 'An advisor and a couple watching a short video with growth charts' },
+  consulting: { src: '/home/finance.jpg', alt: 'An advisor and clients watching a short video with charts' },
+  'real-estate': { src: '/home/realestate.jpg', alt: 'A couple in an empty sunlit house watching a short video on a phone' },
+  'property-management': { src: '/home/realestate.jpg', alt: 'A couple in a sunlit home watching a short video on a phone' },
+  mortgage: { src: '/home/mortgage.jpg', alt: 'A buyer at a cafe watching a short video beside a loan estimate' },
+  healthcare: { src: '/home/healthcare.jpg', alt: 'A nurse showing a patient a short video on a tablet' },
+  medical: { src: '/home/healthcare.jpg', alt: 'A nurse showing a patient a short video on a tablet' },
+  'human-resources': { src: '/home/hr.jpg', alt: 'A new employee watching a benefits welcome video at her desk' },
+  legal: { src: '/home/legal.jpg', alt: 'A lawyer handing a client a tablet playing a short video' },
+  education: { src: '/home/education.jpg', alt: 'A learner taking notes while watching a short course video' },
+  coaching: { src: '/home/education.jpg', alt: 'Someone taking notes while watching a short video' },
+}
+const HERO = { src: '/home/hero.jpg', alt: 'A couple on their sofa at dusk, watching a short video together on a tablet' }
+export const photoFor = (slug: string) => PHOTO[slug] ?? HERO
 
 export function industryMetadata(slug: string): Metadata {
   const p = INDUSTRY_PAGES[slug]
@@ -49,135 +73,103 @@ export default function IndustryPage({ slug }: { slug: string }) {
   const p = INDUSTRY_PAGES[slug]
   const [titleA, titleB] = p.heroTitle
   const reader = p.reader
+  const photo = photoFor(slug)
+
+  const steps = [
+    { t: `Upload your ${p.doc}`, d: 'A PDF, Word file or PowerPoint. It reads the whole document and finds the points that matter.' },
+    { t: 'Check the script, pick a style', d: `Read the narration and change anything before the video is made. Add your logo and your ${reader}’s name.` },
+    { t: 'Send one link', d: `Your ${reader} watches on any phone or laptop — no app, no login. You get an alert when they open it.` },
+  ]
+  const rows = [
+    { label: 'What you send', old: `A long ${p.doc} as an attachment`, now: 'A short narrated video on one link' },
+    { label: `What your ${reader} does`, old: 'Reads it all, or puts it off', now: 'Presses play' },
+    { label: 'Making it', old: 'Building your own summary or slides', now: 'Upload, check the script, pick a style' },
+    { label: 'After you send it', old: 'No way to know if they looked', now: 'An alert when they open it' },
+  ]
 
   return (
     <>
-      {/* Hero */}
-      <div className="container">
-        <section className="hero hero-split" style={{ marginTop: 20 }}>
-          <div className="hero-left">
-            <div className="hero-eyebrow"><span className="star">&#10022;</span> Built for {p.audience}</div>
-            <h1 className="hero-title">{titleA}<em>{titleB}</em></h1>
-            <p className="hero-sub">{p.heroSub}</p>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 28, flexWrap: 'wrap' }}>
-              <Link href="/signup" className="btn btn-primary btn-lg">Start free &rarr;</Link>
-              <a href="#how-it-works" className="btn btn-outlined btn-lg">See how it works</a>
-            </div>
-            <div className="hero-trust" style={{ marginTop: 20 }}>{FREE_LINE}</div>
+      {/* Hero: the field's own picture */}
+      <section className="hp-fhero" aria-labelledby="hp-field-title">
+        <Image src={photo.src} alt={photo.alt} fill priority sizes="(max-width: 1312px) 100vw, 1216px" />
+        <div className="hp-fhero-shade" aria-hidden="true" />
+        <div className="hp-fhero-copy">
+          <span className="hp-kicker">✦ Built for {p.audience}</span>
+          <h1 id="hp-field-title" className="hp-h2">{titleA}<span className="hp-blue">{titleB}</span></h1>
+          <p>{p.heroSub}</p>
+          <div className="hp-row">
+            <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Make your first video</Link>
+            <a href="#how-it-works" className="hp-btn hp-btn-line">See how it works</a>
           </div>
-          <div className="hero-right">
-            <ClickToPlayVideo src={`${DEMO_BASE}/${p.slug}.mp4`} style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.15)' }} />
-          </div>
-        </section>
-      </div>
+          <span className="hp-small">{FREE_LINE}</span>
+        </div>
+      </section>
+
+      {/* A sample video for this field */}
+      <section className="hp-section" aria-labelledby="hp-sample-title">
+        <PageHead kicker="A sample for your field" title="See one" blue="play" />
+        <div className="hp-sample">
+          <div className="hp-sample-bar"><span className="hp-caps" id="hp-sample-title">{p.name}</span><span className="hp-small">Press to play, with sound</span></div>
+          <ClickToPlayVideo src={`${DEMO_BASE}/${p.slug}.mp4`} />
+        </div>
+      </section>
 
       {/* The problem */}
-      <div className="container">
-        <section className="section">
-          <div style={{ textAlign: 'center', marginBottom: 50 }}>
-            <div className="section-eyebrow">The problem</div>
-            <h2 className="section-title">Sound <em>familiar</em>?</h2>
-          </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
-            {p.problems.map((x, i) => (
-              <div key={x.title} className="feature-card">
-                <div className="feature-icon" style={{ background: ['var(--rose)', 'var(--peach)', 'var(--sun)'][i % 3] }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                </div>
-                <h3>{x.title}</h3>
-                <p>{x.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      <section className="hp-section" aria-labelledby="hp-problem-title">
+        <span className="hp-kicker">✦ The problem</span>
+        <h2 id="hp-problem-title" className="hp-h3">Sound <span className="hp-blue">familiar?</span></h2>
+        <div className="hp-grid">
+          {p.problems.map((x) => (
+            <div key={x.title} className="hp-card"><h3>{x.title}</h3><p>{x.description}</p></div>
+          ))}
+        </div>
+      </section>
 
       {/* How it works */}
-      <div className="container" id="how-it-works">
-        <section className="section">
-          <div style={{ textAlign: 'center', marginBottom: 50 }}>
-            <div className="section-eyebrow">How it works</div>
-            <h2 className="section-title">Three steps to <em>clarity</em></h2>
-          </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
-            {[
-              { t: `Upload your ${p.doc}`, d: 'A PDF, Word file or PowerPoint. It reads the whole document and finds the points that matter.', c: 'var(--accent)' },
-              { t: 'Check the script, pick a style', d: `Read the narration and change anything before the video is made. Add your logo and your ${reader}’s name.`, c: 'var(--sky)' },
-              { t: 'Send one link', d: `Your ${reader} watches on any phone or laptop — no app, no login. You get an alert when they open it.`, c: 'var(--lilac)' },
-            ].map((s, i) => (
-              <div key={s.t} className="feature-card">
-                <div className="feature-icon" style={{ background: s.c }}>
-                  <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--ink)' }}>{i + 1}</span>
-                </div>
-                <h3>{s.t}</h3>
-                <p>{s.d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      <section className="hp-section" id="how-it-works" aria-labelledby="hp-how-title">
+        <span className="hp-kicker">✦ How it works</span>
+        <h2 id="hp-how-title" className="hp-h3">Three steps to <span className="hp-blue">clarity</span></h2>
+        <ol className="hp-grid">
+          {steps.map((s, i) => (
+            <li key={s.t} className="hp-card"><span className="hp-num-big">{String(i + 1).padStart(2, '0')}</span><h3>{s.t}</h3><p>{s.d}</p></li>
+          ))}
+        </ol>
+      </section>
 
       {/* Before vs after */}
-      <div className="container">
-        <section className="section">
-          <div style={{ textAlign: 'center', marginBottom: 50 }}>
-            <div className="section-eyebrow">The difference</div>
-            <h2 className="section-title">Before &amp; after <em>Docs2Video</em></h2>
-          </div>
-          <div className="comparison-table" style={{ maxWidth: 700, margin: '0 auto' }}>
-            <div className="comp-header">
-              <div className="comp-label"></div>
-              <div className="comp-old">Before</div>
-              <div className="comp-new">With Docs2Video</div>
-            </div>
-            {[
-              { label: 'What you send', old: `A long ${p.doc} as an attachment`, now: 'A short narrated video on one link' },
-              { label: `What your ${reader} does`, old: 'Reads it all, or puts it off', now: 'Presses play' },
-              { label: 'Making it', old: 'Building your own summary or slides', now: 'Upload, check the script, pick a style' },
-              { label: 'After you send it', old: 'No way to know if they looked', now: 'An alert when they open it' },
-            ].map((r) => (
-              <div key={r.label} className="comp-row">
-                <div className="comp-label">{r.label}</div>
-                <div className="comp-old">{r.old}</div>
-                <div className="comp-new highlight">{r.now}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      <section className="hp-section" aria-labelledby="hp-diff-title">
+        <span className="hp-kicker">✦ The difference</span>
+        <h2 id="hp-diff-title" className="hp-h3">Before &amp; after <span className="hp-blue">Docs2Video</span></h2>
+        <div className="hp-compare" role="table" aria-label="Before and after Docs2Video">
+          <div className="hp-compare-head" role="row"><span role="columnheader" /><span role="columnheader">Before</span><span role="columnheader">With Docs2Video</span></div>
+          {rows.map((r) => (
+            <div key={r.label} role="row"><span role="rowheader">{r.label}</span><span role="cell">{r.old}</span><span role="cell">{r.now}</span></div>
+          ))}
+        </div>
+      </section>
 
       {/* Features */}
-      <div className="container">
-        <section className="section">
-          <div style={{ textAlign: 'center', marginBottom: 50 }}>
-            <div className="section-eyebrow">Features</div>
-            <h2 className="section-title">Built for {p.name.toLowerCase()} <em>work</em></h2>
-          </div>
-          <div className="features-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
-            {features(p).map((f, i) => (
-              <div key={f.title} className="feature-card">
-                <div className="feature-icon" style={{ background: ['var(--accent)', 'var(--sky)', 'var(--lilac)', 'var(--peach)'][i % 4] }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                </div>
-                <h3>{f.title}</h3>
-                <p>{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      <section className="hp-section" aria-labelledby="hp-feat-title">
+        <span className="hp-kicker">✦ Features</span>
+        <h2 id="hp-feat-title" className="hp-h3">Built for {p.name.toLowerCase()} <span className="hp-blue">work</span></h2>
+        <div className="hp-grid">
+          {features(p).map((f) => (
+            <div key={f.title} className="hp-card"><span className="hp-check" aria-hidden="true">✓ </span><h3>{f.title}</h3><p>{f.description}</p></div>
+          ))}
+        </div>
+      </section>
 
       {/* Final CTA */}
-      <div className="container">
-        <section className="final-cta">
-          <h2>Send your next {p.doc} as a <em>video</em></h2>
-          <p className="final-cta-sub">{FREE_LINE}.</p>
-          <div className="final-cta-buttons">
-            <Link href="/signup" className="btn btn-primary btn-lg">Start free &rarr;</Link>
-            <Link href="/" className="btn btn-outlined btn-lg">Learn more</Link>
-          </div>
-        </section>
-      </div>
+      <section className="hp-cta-band" aria-labelledby="hp-fcta-title">
+        <div>
+          <h2 id="hp-fcta-title" className="hp-h3">Send your next {p.doc} as a <span className="hp-blue">video</span></h2>
+          <span className="hp-soft">{FREE_LINE}.</span>
+        </div>
+        <div className="hp-row">
+          <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Make your first video</Link>
+          <Link href="/" className="hp-btn hp-btn-line">See everything it does</Link>
+        </div>
+      </section>
     </>
   )
 }

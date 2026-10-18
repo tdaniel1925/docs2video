@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import SitePage from '../../_components/marketing/SiteChrome'
 
 // Sample of what a client sees on a share page. It is a demo, not content,
 // so search engines are asked not to index it.
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 }
 
 export default function ShareDemoLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <SitePage>{children}</SitePage>
 }

@@ -108,21 +108,21 @@ function CardForm({ clientSecret }: { clientSecret: string }) {
       </p>
 
       <div style={{
-        background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
-        border: '1px solid #bbf7d0',
+        background: 'var(--success-bg)',
+        border: '1px solid var(--success)',
         borderRadius: 10,
         padding: '14px 18px',
         marginBottom: 24,
         fontSize: 13,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--success)' }}>
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
-          <strong style={{ color: '#166534' }}>2,000 free credits included</strong>
+          <strong style={{ color: 'var(--success)' }}>2,000 free credits included</strong>
         </div>
-        <p style={{ color: '#15803d', marginTop: 6, marginBottom: 0 }}>
+        <p style={{ color: 'var(--ink-soft)', marginTop: 6, marginBottom: 0 }}>
           {brand.showVideoFeatures
             ? 'Enough for your first videos — a standard video is 1,000 credits. Top up or upgrade anytime. Cancel anytime.'
             : `Enough for your first ${Math.floor(FREE_CREDITS / FLYER_COST)} designs — each design is ${FLYER_COST} credits. Top up or upgrade anytime. Cancel anytime.`}
@@ -133,7 +133,7 @@ function CardForm({ clientSecret }: { clientSecret: string }) {
         {/* Plan picker — what the trial converts to once the free credits run out. */}
         <div className="form-group">
           <label className="input-label">Choose your plan (billed only after your free credits run out)</label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {SELLABLE_PLAN_TIERS.map((tier) => {
               const info = getPlan(tier)
               return {
@@ -149,13 +149,13 @@ function CardForm({ clientSecret }: { clientSecret: string }) {
                 onClick={() => setPlan(p.id)}
                 style={{
                   flex: 1, textAlign: 'left', padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
-                  border: plan === p.id ? '2px solid #16a34a' : '1px solid var(--border)',
-                  background: plan === p.id ? '#f0fdf4' : 'white',
+                  border: plan === p.id ? '2px solid var(--accent)' : '1px solid var(--border)',
+                  background: plan === p.id ? 'var(--accent-soft)' : 'var(--bg-card)',
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e' }}>{p.name}</div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#16a34a' }}>{p.price}</div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>{p.sub}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{p.name}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-ink)' }}>{p.price}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-light)' }}>{p.sub}</div>
               </button>
             ))}
           </div>
@@ -174,7 +174,7 @@ function CardForm({ clientSecret }: { clientSecret: string }) {
         </div>
 
         {error && (
-          <div className="form-group" style={{ color: '#c0392b', fontSize: 14 }}>{error}</div>
+          <div className="form-group form-error" role="alert">{error}</div>
         )}
 
         <button

@@ -28,12 +28,7 @@ export default function TermsOfService() {
           }}>&larr; Back to Home</Link>
         </div>
 
-        <h1 style={{
-          fontSize: 36,
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
-          marginBottom: 8,
-        }}>Terms of Service</h1>
+        <h1 className="hp-h2 hp-post-title">Terms of Service</h1>
         <p style={{
           color: 'var(--ink-soft, rgba(255,255,255,0.5))',
           fontSize: 14,

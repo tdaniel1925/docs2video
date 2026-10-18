@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { PageHead } from '../../_components/marketing/PageHead'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
@@ -32,77 +33,35 @@ export default function ContactPage() {
   }
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '3rem 1.5rem' }}>
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+    <>
+      <PageHead
+        kicker="Contact"
+        title="Get in"
+        blue="touch"
+        sub="Have a question, need a demo, or want to talk about plans for a whole office? Send us a message."
+      />
 
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <img src="/logo-big.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
-          </Link>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Get in touch</h1>
-          <p style={{ fontSize: 16, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
-            Have a question, need a demo, or want to discuss enterprise pricing? We&apos;d love to hear from you.
-          </p>
-        </div>
-
+      <div className="hp-grid-2" style={{ alignItems: 'start' }}>
         {sent ? (
-          <div style={{
-            padding: '40px 32px', borderRadius: 10, background: 'var(--surface)',
-            border: '1px solid var(--border)', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>&#10003;</div>
-            <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Message sent</h2>
-            <p style={{ fontSize: 15, color: 'var(--ink-soft)', marginBottom: 24 }}>
-              We&apos;ll get back to you as soon as we can.
-            </p>
-            <Link href="/" style={{
-              display: 'inline-block', padding: '12px 28px', borderRadius: 8,
-              background: 'var(--ink)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-            }}>
-              Back to home
-            </Link>
+          <div className="hp-card" role="status" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 28 }}>
+            <span className="hp-num-big" aria-hidden="true">✓</span>
+            <h2 className="hp-h3">Message <span className="hp-blue">sent</span></h2>
+            <p className="hp-soft">We&apos;ll get back to you as soon as we can.</p>
+            <Link href="/" className="hp-btn hp-btn-line" style={{ alignSelf: 'flex-start' }}>Back to home</Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{
-            padding: '32px', borderRadius: 10, background: 'var(--surface)',
-            border: '1px solid var(--border)',
-          }}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Name *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                placeholder="Your name"
-                style={{
-                  width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)',
-                  fontSize: 15, fontFamily: 'inherit', outline: 'none',
-                }}
-              />
+          <form onSubmit={handleSubmit} className="hp-card" style={{ padding: 28 }}>
+            <div className="form-group">
+              <label className="input-label" htmlFor="c-name">Name *</label>
+              <input id="c-name" type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your name" />
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Email *</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="you@company.com"
-                style={{
-                  width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)',
-                  fontSize: 15, fontFamily: 'inherit', outline: 'none',
-                }}
-              />
+            <div className="form-group">
+              <label className="input-label" htmlFor="c-email">Email *</label>
+              <input id="c-email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@company.com" />
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Subject</label>
-              <select
-                value={form.subject}
-                onChange={e => setForm({ ...form, subject: e.target.value })}
-                style={{
-                  width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)',
-                  fontSize: 15, fontFamily: 'inherit', outline: 'none', background: 'white',
-                }}
-              >
+            <div className="form-group">
+              <label className="input-label" htmlFor="c-subject">Subject</label>
+              <select id="c-subject" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}>
                 <option value="">Select a topic</option>
                 <option value="demo">Request a demo</option>
                 <option value="pricing">Pricing question</option>
@@ -112,45 +71,26 @@ export default function ContactPage() {
                 <option value="other">Other</option>
               </select>
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>Message *</label>
-              <textarea
-                value={form.message}
-                onChange={e => setForm({ ...form, message: e.target.value })}
-                placeholder="Tell us how we can help..."
-                rows={5}
-                style={{
-                  width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--border)',
-                  fontSize: 15, fontFamily: 'inherit', outline: 'none', resize: 'vertical',
-                }}
-              />
+            <div className="form-group">
+              <label className="input-label" htmlFor="c-message">Message *</label>
+              <textarea id="c-message" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} placeholder="Tell us how we can help..." rows={5} style={{ resize: 'vertical' }} />
             </div>
 
-            {error && (
-              <div style={{ padding: '10px 14px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 13, marginBottom: 16 }}>
-                {error}
-              </div>
-            )}
+            {error && <div className="form-error form-group" role="alert">{error}</div>}
 
-            <button
-              type="submit"
-              disabled={sending}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 8, border: 'none',
-                background: 'var(--ink)', color: 'white', fontSize: 16, fontWeight: 700,
-                cursor: sending ? 'wait' : 'pointer', fontFamily: 'inherit',
-                opacity: sending ? 0.7 : 1,
-              }}
-            >
+            <button type="submit" disabled={sending} className="btn btn-primary btn-lg btn-full">
               {sending ? 'Sending...' : 'Send message'}
             </button>
           </form>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: 'var(--ink-light)' }}>
-          Or email us directly at <a href="mailto:support@docs2video.com" style={{ color: 'var(--link)' }}>support@docs2video.com</a>
+        <div className="hp-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 28 }}>
+          <span className="hp-kicker">Or write to us</span>
+          <a href="mailto:support@docs2video.com" style={{ fontSize: 18, fontWeight: 700 }}>support@docs2video.com</a>
+          <p className="hp-soft">Questions about your account, billing or a video — or plans for a whole office.</p>
+          <Link href="/pricing" className="hp-btn hp-btn-line" style={{ alignSelf: 'flex-start' }}>See pricing</Link>
         </div>
       </div>
-    </div>
+    </>
   )
 }

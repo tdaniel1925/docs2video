@@ -3901,7 +3901,28 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
   --d2v-on-blue: #04122B;
   --d2v-amber: #FF9F1C;
   --d2v-live: #5FE3F0;
+  --d2v-blue-tint: rgba(34, 181, 255, .14);
+  --d2v-error: #FF9C8C;
+  --d2v-error-bg: rgba(255, 120, 100, .12);
+  --d2v-ok: #7CE0A8;
+  --d2v-ok-bg: rgba(124, 224, 168, .12);
 }
+/* A light island inside the dark public site (the sample client page on
+   /share-demo): the app's light theme names, back to their light values, so a
+   sample of a customer-branded page shows as it really looks. */
+.hp .hp-island {
+  --bg: #F4F1EC; --bg-soft: #FBF9F5; --bg-card: #FFFFFF;
+  --surface: #F1EDE6; --surface-raised: #E9E3D8;
+  --ink: #0B2545; --ink-body: #1F2A37; --ink-soft: #4B5563; --ink-light: #5B6270; --on-ink: #FFFFFF;
+  --border: #D6CFC2; --border-light: #E6E0D5;
+  --accent: #C7E8A8; --accent-ink: #2F6B3A; --accent-soft: #EEF7E4; --link: #1F5FA8;
+  --mint: #C7E8A8; --mint-soft: #EEF7E4; --mint-light: #EEF7E4; --mint-deep: #2F6B3A; --mint-darker: #2F6B3A;
+  --success: #2F6B3A; --success-bg: #EEF7E4;
+  --error: #C03A1F; --error-bg: #FCEAE6; --error-text: #B91C1C; --error-border: #FFC7C2;
+  color: #0B2545;
+}
+.hp .hp-island h1, .hp .hp-island h2, .hp .hp-island h3, .hp .hp-island strong { color: inherit; }
+.hp .hp-island ul, .hp .hp-island ol { list-style: none; padding: 0; }
 
 /* ===========================================================================
    FRONT PAGE PALETTE (app/_components/marketing/home.css)

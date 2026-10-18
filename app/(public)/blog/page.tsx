@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { PageHead } from '../../_components/marketing/SiteChrome'
 
 export const metadata: Metadata = {
   title: 'Blog | Docs2Video',
@@ -43,54 +44,18 @@ const POSTS = [
 
 export default function BlogPage() {
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '3rem 1.5rem' }}>
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
-
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <img src="/logo-big.png" alt="Docs2Video" style={{ height: 56, marginBottom: 24 }} />
+    <>
+      <PageHead kicker="Blog" title="Notes on getting" blue="documents understood" sub="Tips, guides, and insights on turning documents into video content that gets watched." />
+      <div className="hp-posts">
+        {POSTS.map(post => (
+          <Link key={post.slug} href={`/blog/${post.slug}`} className="hp-card hp-card-link hp-post">
+            <span className="hp-meta"><span className="hp-tag">{post.category}</span><span>{post.date}</span><span>{post.readTime} read</span></span>
+            <h2>{post.title}</h2>
+            <p>{post.excerpt}</p>
+            <span className="hp-caps hp-blue">Read it →</span>
           </Link>
-          <h1 style={{ fontSize: 36, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Blog</h1>
-          <p style={{ fontSize: 16, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
-            Tips, guides, and insights on turning documents into video content that gets watched.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {POSTS.map(post => (
-            <Link
-              key={post.slug}
-              href={`/blog/${post.slug}`}
-              style={{
-                display: 'block', padding: '28px 32px', borderRadius: 10,
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                textDecoration: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
-              }}
-            >
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, fontSize: 13 }}>
-                <span style={{
-                  padding: '2px 10px', borderRadius: 6, background: 'var(--accent-soft)',
-                  color: 'var(--accent-ink)', fontWeight: 600,
-                }}>{post.category}</span>
-                <span style={{ color: 'var(--ink-light)' }}>{post.date}</span>
-                <span style={{ color: 'var(--ink-light)' }}>{post.readTime} read</span>
-              </div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8, lineHeight: 1.3 }}>
-                {post.title}
-              </h2>
-              <p style={{ fontSize: 15, color: 'var(--ink-soft)', lineHeight: 1.6, margin: 0 }}>
-                {post.excerpt}
-              </p>
-            </Link>
-          ))}
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: 40 }}>
-          <Link href="/" style={{ fontSize: 14, color: 'var(--ink-light)', textDecoration: 'none' }}>
-            &larr; Back to home
-          </Link>
-        </div>
+        ))}
       </div>
-    </div>
+    </>
   )
 }

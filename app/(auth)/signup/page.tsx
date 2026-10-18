@@ -113,7 +113,7 @@ function SignupForm() {
         </div>
 
         {error && (
-          <div className="form-group" style={{ color: '#c0392b', fontSize: 14 }}>{error}</div>
+          <div className="form-group form-error" role="alert">{error}</div>
         )}
 
         <button type="submit" disabled={loading} className="btn btn-primary btn-lg btn-full">

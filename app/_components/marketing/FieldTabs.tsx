@@ -24,6 +24,16 @@ export type Field = {
   href: string
 }
 
+/* The fields with their own page but no tab here. */
+const MORE_FIELDS = [
+  { href: '/for/consulting', label: 'consulting' },
+  { href: '/for/coaching', label: 'coaching' },
+  { href: '/for/fitness', label: 'fitness' },
+  { href: '/for/medical', label: 'medical practices' },
+  { href: '/for/non-profit', label: 'non-profits' },
+  { href: '/for/property-management', label: 'property management' },
+]
+
 export default function FieldTabs({ fields }: { fields: Field[] }) {
   const [picked, setPicked] = useState(0)
   const f = fields[picked]
@@ -63,7 +73,10 @@ export default function FieldTabs({ fields }: { fields: Field[] }) {
             {f.does.map((d) => <span key={d}><span className="hp-check" aria-hidden="true">✓ </span>{d}</span>)}
           </div>
           <p className="hp-field-more">
-            Also for consulting, coaching, fitness, non-profits and property management.<br />
+            Also for{' '}
+            {MORE_FIELDS.map((m, i) => (
+              <span key={m.href}>{i ? (i === MORE_FIELDS.length - 1 ? ' and ' : ', ') : ''}<Link href={m.href}>{m.label}</Link></span>
+            ))}.<br />
             <Link href={f.href}>More for {f.name.toLowerCase()} →</Link>
           </p>
         </div>

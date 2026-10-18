@@ -1,11 +1,13 @@
+import Image from 'next/image'
 import Link from 'next/link'
+import { SiteFrame } from '../_components/marketing/SiteChrome'
 import { getBrand } from '../_lib/brand-server'
 import { CREDIT_COSTS, TIER_CREDITS } from '../_lib/credits'
 import { thumbUrl } from '../_lib/flyer-engine'
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  // Same login form, different sign over the door. Docs2Video's panel is
-  // untouched; Text2Art gets its own words and a real sample design.
+  // Same login form, different sign over the door. Docs2Video's is the
+  // public site's shell (below); Text2Art gets its own words and a real sample design.
   const brand = await getBrand()
 
   if (brand.id === 'text2art') {
@@ -32,34 +34,25 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     )
   }
 
+  // Docs2Video: the public site's shell (marketing/SiteChrome) — the same
+  // header, footer and dark frame as the front page, the form on a card and
+  // the front page's picture beside it. The forms themselves are unchanged.
   return (
-    <div className="auth-split">
-      <div className="auth-side">
-        <Link href="/" className="logo"><img src="/logo-big.png" alt="Docs2Video" style={{height:72}} /></Link>
-        <div className="auth-side-content">
-          <h2>Turn documents into <em>short</em> narrated videos.</h2>
-          <p>The thing your client should read, turned into something they will actually watch.</p>
-        </div>
-        <div className="auth-side-mock">
-          <div style={{ background: 'var(--accent)', borderRadius: 10, padding: 18, color: 'var(--ink)' }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, opacity: 0.7, marginBottom: 6 }}>Henderson Financial</div>
-            <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 14 }}>Q4 Report Summary</div>
-            <div style={{ background: 'white', borderRadius: 10, padding: 12, marginBottom: 6 }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ink-light)', fontWeight: 700 }}>Total Revenue</div>
-              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>$1,500,000</div>
-            </div>
-            <div style={{ background: 'white', borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ink-light)', fontWeight: 700 }}>Year-over-Year Growth</div>
-              <div style={{ fontSize: 16, fontWeight: 800 }}>+18.4%</div>
+    <SiteFrame>
+      <main id="main" className="hp-sub">
+        <div className="hp-auth">
+          <div className="hp-auth-card"><div className="auth-form">{children}</div></div>
+          <div className="hp-auth-art">
+            <Image src="/home/hero.jpg" alt="A couple on their sofa at dusk, watching their coverage video together on a tablet" fill sizes="(max-width: 900px) 0px, 600px" />
+            <div className="hp-auth-art-shade" aria-hidden="true" />
+            <div className="hp-auth-art-copy">
+              <span className="hp-kicker">✦ For anyone who explains documents</span>
+              <h2 className="hp-h2">Documents in. <span className="hp-blue">Videos out.</span></h2>
+              <p className="hp-soft">The thing your client should read, turned into a short narrated video they will actually watch.</p>
             </div>
           </div>
         </div>
-      </div>
-      <div className="auth-form-wrap">
-        <div className="auth-form">
-          {children}
-        </div>
-      </div>
-    </div>
+      </main>
+    </SiteFrame>
   )
 }
