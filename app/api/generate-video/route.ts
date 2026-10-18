@@ -12,7 +12,7 @@ import { buildV3Payload } from '../../_lib/v3-render'
 import { buildEditorialPayload } from '../../_lib/editorial-render'
 import { buildPresenter, resolvePhotoPlacement, isPersonProfile } from '../../_lib/presenter'
 import { videoSender, foreignIdentity, foreignIn, preflightIdentity, SENDER_PROFILE_COLS, type SenderProfile } from '../../_lib/video-sender'
-import { isVideoTemplate, type VideoTemplateId } from '../../_lib/video-templates'
+import { brandTemplatePalette, isTemplateColors, isVideoTemplate, type TemplateColors, type VideoTemplateId } from '../../_lib/video-templates'
 import { templateIdentity } from '../../_lib/template-identity'
 import { narratorMode, repairNarration, checkNarration, thirdPersonIntro, type PovContext, type PresenterVoice, type SpeakAs } from '../../_lib/narration-pov'
 import { cleanRecipientName } from '../../_lib/text-format'
@@ -313,6 +313,9 @@ export async function POST(request: Request) {
   const videoTemplateId: VideoTemplateId | null = isVideoTemplate((body as any).templateId) ? (body as any).templateId
     : (body as any).templateId === null ? null
     : isVideoTemplate(draft.templateId) ? draft.templateId : null
+  // Its colors: the template's own, or the chosen brand's (the body wins over the draft).
+  const templateColors: TemplateColors = isTemplateColors((body as any).templateColors) ? (body as any).templateColors
+    : isTemplateColors(draft.templateColors) ? draft.templateColors : 'template'
   const CLAIMABLE_STATUSES = ['draft', 'failed', 'pending']
   const priorStatus = String(videoRow.status || '')
   if (!CLAIMABLE_STATUSES.includes(priorStatus)) {
@@ -1249,6 +1252,8 @@ export async function POST(request: Request) {
               phoneShown: sender.source === 'brand' ? contactDisplayPhone ?? null : null,
             }),
             forbidden: foreignNames,
+            // The CHOSEN brand's own colors only (never the account's, never the defaults above).
+            ...(templateColors === 'brand' ? { templateColors, templatePalette: brandTemplatePalette(brand) } : {}),
           } : {}),
         })
         console.log(`[video ${videoId}] explainer engine — ${ttsScenes.length + 2} scenes, job ${started.jobId}`)
