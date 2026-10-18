@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, use } from 'react'
-import Image from 'next/image'
 import { useToast } from '../../../../_components/Toast'
 
 const STEPS = [
@@ -102,27 +101,21 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-warm, #F4F1EC)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <header style={{ padding: '24px 24px 0', maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Image src="/logo-big.png" alt="Docs2Video" width={40} height={40} style={{ borderRadius: 8 }} />
-        <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--ink, #1a1a1a)' }}>Docs2Video</span>
-      </header>
-
-      <main style={{ maxWidth: 700, margin: '0 auto', padding: '60px 24px 64px', textAlign: 'center' }}>
+    <div className="hp-section" style={{ maxWidth: 700, margin: '0 auto', width: '100%', textAlign: 'center' }} aria-live="polite">
         {status === 'creating' && (
           <div>
             <div style={{ marginBottom: 32 }}>
               <div className="spinner" style={{ width: 48, height: 48, margin: '0 auto 20px' }} />
-              <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink, #1a1a1a)', marginBottom: 8 }}>
+              <h1 className="hp-h3" style={{ marginBottom: 8 }}>
                 Creating your free video...
               </h1>
-              <p style={{ fontSize: 15, color: 'var(--ink-soft, #666)' }}>
+              <p style={{ fontSize: 15, color: 'var(--d2v-soft)' }}>
                 This usually takes a few minutes.
               </p>
             </div>
             <div style={{
-              background: 'white', borderRadius: 10, padding: '24px 28px',
-              border: '1px solid var(--border-light, #e5e2dc)', textAlign: 'left',
+              background: 'var(--d2v-card)', borderRadius: 14, padding: '24px 28px',
+              border: '1px solid var(--d2v-line)', textAlign: 'left',
             }}>
               {STEPS.map((s, i) => (
                 <div key={i} style={{
@@ -131,16 +124,16 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
                 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%',
-                    background: i < step ? 'var(--accent)' : i === step ? 'var(--primary, #1a1a1a)' : 'var(--border-light, #e5e2dc)',
+                    background: i < step ? 'var(--d2v-blue)' : i === step ? 'var(--d2v-card-on)' : 'var(--d2v-line)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
                     {i < step ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#1a1a1a"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--d2v-on-blue)' }}><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                     ) : i === step ? (
                       <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
                     ) : null}
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: i === step ? 600 : 400, color: 'var(--ink, #1a1a1a)' }}>{s}</span>
+                  <span style={{ fontSize: 14, fontWeight: i === step ? 600 : 400, color: 'var(--d2v-text)' }}>{s}</span>
                 </div>
               ))}
             </div>
@@ -149,10 +142,10 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
 
         {status === 'done' && (
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink, #1a1a1a)', marginBottom: 24 }}>
+            <h1 className="hp-h3" style={{ marginBottom: 24 }}>
               Your video is ready!
             </h1>
-            <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: '#1a1a1a', aspectRatio: '16/9', marginBottom: 32 }}>
+            <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: 'var(--d2v-page)', aspectRatio: '16/9', marginBottom: 32 }}>
               <video
                 ref={videoRef}
                 src={videoUrl}
@@ -162,38 +155,27 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
                 onEnded={() => setPlaying(false)}
               />
               {!playing && (
-                <button
-                  onClick={handlePlay}
-                  style={{
-                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(0,0,0,0.35)', border: 'none', cursor: 'pointer',
-                  }}
-                >
-                  <div style={{
-                    width: 72, height: 72, borderRadius: '50%', background: 'rgba(199,232,168,0.9)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="#1a1a1a"><polygon points="8 4 20 12 8 20" /></svg>
-                  </div>
+                <button onClick={handlePlay} aria-label="Play your video" className="hp-play-cover">
+                  <span className="hp-play" aria-hidden="true">▶</span>
                 </button>
               )}
             </div>
 
             <div style={{
-              background: 'white', borderRadius: 10, padding: '28px',
-              border: '1px solid var(--border-light, #e5e2dc)',
+              background: 'var(--d2v-card)', borderRadius: 14, padding: '28px',
+              border: '1px solid var(--d2v-line)',
             }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: 'var(--ink, #1a1a1a)' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: 'var(--d2v-text)' }}>
                 Enter your email to download and share this video
               </h2>
-              <div style={{ display: 'flex', gap: 8, maxWidth: 400, margin: '0 auto' }}>
+              <div style={{ display: 'flex', gap: 8, maxWidth: 440, margin: '0 auto', flexWrap: 'wrap' }}>
                 <input
                   type="email"
                   className="input"
                   placeholder="your@email.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  style={{ flex: 1, fontSize: 15, padding: '12px 16px' }}
+                  aria-label="Your email" style={{ flex: '1 1 200px' }}
                 />
                 <button
                   className="btn btn-primary"
@@ -210,16 +192,15 @@ export default function CreatingPage({ params, searchParams }: { params: Promise
 
         {status === 'error' && (
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink, #1a1a1a)', marginBottom: 12 }}>
+            <h1 className="hp-h3" style={{ marginBottom: 12 }}>
               Something went wrong
             </h1>
-            <p style={{ fontSize: 15, color: 'var(--ink-soft, #666)', marginBottom: 24 }}>{errorMsg}</p>
+            <p style={{ fontSize: 15, color: 'var(--d2v-soft)', marginBottom: 24 }}>{errorMsg}</p>
             <a href={`/try/${slug}`} className="btn btn-primary" style={{ textDecoration: 'none' }}>
               Try Again
             </a>
           </div>
         )}
-      </main>
     </div>
   )
 }

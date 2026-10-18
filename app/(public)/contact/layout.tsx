@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import SitePage from '../../_components/marketing/SiteChrome'
 
 // The contact page is a client component, which cannot export metadata, so
 // its title/description live here.
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 }
 
 export default function ContactLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <SitePage>{children}</SitePage>
 }

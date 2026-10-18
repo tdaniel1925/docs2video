@@ -27,50 +27,26 @@ export default function UnsubscribePage() {
   }, [params.id])
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      background: '#f8fafb',
-    }}>
-      <div style={{
-        maxWidth: 480,
-        textAlign: 'center',
-        padding: 40,
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #e2e2e2',
-      }}>
-        {status === 'loading' && (
-          <>
-            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>Processing...</h1>
-            <p style={{ fontSize: 15, color: '#666' }}>Please wait while we update your preferences.</p>
-          </>
-        )}
-        {status === 'done' && (
-          <>
-            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12, color: '#1a1a1a' }}>Unsubscribed</h1>
-            <p style={{ fontSize: 15, color: '#666', lineHeight: 1.6 }}>
-              You have been unsubscribed. You will not receive any more emails from this campaign.
-            </p>
-          </>
-        )}
-        {status === 'error' && (
-          <>
-            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12, color: '#c0392b' }}>Something went wrong</h1>
-            <p style={{ fontSize: 15, color: '#666', lineHeight: 1.6 }}>
-              We could not process your request. Please try again or contact support.
-            </p>
-          </>
-        )}
-        {brandName && (
-          <div style={{ marginTop: 24 }}>
-            <span style={{ fontSize: 13, color: '#888' }}>{brandName}</span>
-          </div>
-        )}
-      </div>
-    </div>
+    <section className="hp-lone" aria-live="polite">
+      {status === 'loading' && (
+        <>
+          <h1 className="hp-h3">Processing…</h1>
+          <p className="hp-soft">Please wait while we update your preferences.</p>
+        </>
+      )}
+      {status === 'done' && (
+        <>
+          <h1 className="hp-h2">Unsub<span className="hp-blue">scribed</span></h1>
+          <p className="hp-soft hp-measure">You have been unsubscribed. You will not receive any more emails from this campaign.</p>
+        </>
+      )}
+      {status === 'error' && (
+        <>
+          <h1 className="hp-h3">Something went <span className="hp-blue">wrong</span></h1>
+          <p className="hp-soft hp-measure">We could not process your request. Please try again or <a href="/contact">contact support</a>.</p>
+        </>
+      )}
+      {brandName && <span className="hp-small">{brandName}</span>}
+    </section>
   )
 }

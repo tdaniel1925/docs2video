@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import SitePage from '../../../_components/marketing/SiteChrome'
 
 // /try/[slug] pages are personalized demo invitations (one per prospect
 // company), so they get a real title and link preview but stay out of search.
@@ -20,5 +21,5 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default function TryLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <SitePage>{children}</SitePage>
 }

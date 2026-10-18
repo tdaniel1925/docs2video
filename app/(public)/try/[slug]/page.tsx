@@ -2,7 +2,7 @@
 import { tidyUrlInput } from '../../../_lib/normalize-url'
 
 import { useState, useRef, use } from 'react'
-import Image from 'next/image'
+import { PageHead } from '../../../_components/marketing/PageHead'
 import { useToast } from '../../../_components/Toast'
 
 const DEMO_VIDEO_URL = 'https://izccljcgxsbumgsznndd.supabase.co/storage/v1/object/public/videos/site-assets/hero-video.mp4'
@@ -58,136 +58,80 @@ export default function TryPage({ params, searchParams }: { params: Promise<{ sl
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-warm, #F4F1EC)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Header */}
-      <header style={{ padding: '24px 24px 0', maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Image src="/logo-big.png" alt="Docs2Video" width={40} height={40} style={{ borderRadius: 8 }} />
-        <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--ink, #1a1a1a)' }}>Docs2Video</span>
-      </header>
+    <>
+      <PageHead kicker={companyName ? `A free demo for ${companyName}` : 'Try it free'} title={headline} sub="Turn a document or website into a short, branded, narrated video." />
 
-      <main style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px 64px' }}>
-        {/* Headline */}
-        <section style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink, #1a1a1a)', marginBottom: 8, lineHeight: 1.2 }}>
-            {headline}
-          </h1>
-          <p style={{ fontSize: 16, color: 'var(--ink-soft, #666)', maxWidth: 500, margin: '0 auto' }}>
-            Turn a document or website into a short, branded, narrated video.
-          </p>
-        </section>
-
-        {/* Demo Video */}
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: '#1a1a1a', aspectRatio: '16/9' }}>
-            <video
-              ref={videoRef}
-              src={DEMO_VIDEO_URL}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              playsInline
-              onEnded={() => setPlaying(false)}
-            />
-            {!playing && (
-              <button
-                onClick={handlePlay}
-                style={{
-                  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,0.35)', border: 'none', cursor: 'pointer',
-                }}
-              >
-                <div style={{
-                  width: 72, height: 72, borderRadius: '50%', background: 'rgba(199,232,168,0.9)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#1a1a1a"><polygon points="8 4 20 12 8 20" /></svg>
-                </div>
-              </button>
-            )}
-          </div>
-        </section>
-
-        {/* Try It Yourself */}
-        <section style={{
-          background: 'white', borderRadius: 10, padding: '32px 28px',
-          border: '1px solid var(--border-light, #e5e2dc)', marginBottom: 48,
-        }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, textAlign: 'center', color: 'var(--ink, #1a1a1a)' }}>
-            Try it free with your own content
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 500, margin: '0 auto' }}>
-            <input
-              type="text"
-              inputMode="url"
-              autoComplete="url"
-              onBlur={() => setUrl((v) => tidyUrlInput(v))}
-              className="input"
-              placeholder="Paste your website or document URL"
-              value={url}
-              onChange={e => { setUrl(e.target.value); setFile(null) }}
-              style={{ width: '100%', fontSize: 15, padding: '12px 16px' }}
-            />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--border-light, #e5e2dc)' }} />
-              <span style={{ fontSize: 13, color: 'var(--ink-soft, #666)', fontWeight: 600 }}>OR</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--border-light, #e5e2dc)' }} />
-            </div>
-            <button
-              type="button"
-              className="btn btn-soft"
-              onClick={() => fileRef.current?.click()}
-              style={{ width: '100%', fontSize: 14, padding: '12px 16px' }}
-            >
-              {file ? file.name : 'Upload a PDF'}
+      {/* Demo video */}
+      <section className="hp-sample" aria-label="A sample video">
+        <div style={{ position: 'relative', aspectRatio: '16/9', background: 'var(--d2v-page)' }}>
+          <video
+            ref={videoRef}
+            src={DEMO_VIDEO_URL}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            playsInline
+            onEnded={() => setPlaying(false)}
+          />
+          {!playing && (
+            <button onClick={handlePlay} aria-label="Play the sample video" className="hp-play-cover">
+              <span className="hp-play" aria-hidden="true">▶</span>
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf"
-              style={{ display: 'none' }}
-              onChange={e => {
-                const f = e.target.files?.[0]
-                if (f) { setFile(f); setUrl('') }
-              }}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={handleCreate}
-              disabled={!url && !file}
-              style={{ width: '100%', fontSize: 16, padding: '14px 24px', fontWeight: 700, marginTop: 4 }}
-            >
-              Create My Free Video &rarr;
-            </button>
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--ink-soft, #666)', textAlign: 'center', marginTop: 12 }}>
-            No signup required. Your first video is free.
-          </p>
-        </section>
+          )}
+        </div>
+      </section>
 
-        {/* Benefits */}
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 48 }}>
-          {[
-            { icon: '📄', title: 'Start from a document', desc: 'A PDF or your website' },
-            { icon: '🎨', title: 'Branded with YOUR colors', desc: 'Your logo and colors' },
-            { icon: '🔗', title: 'Share one link', desc: 'Plays on any phone or laptop' },
-          ].map(b => (
-            <div key={b.title} style={{
-              background: 'white', borderRadius: 10, padding: '24px 20px',
-              border: '1px solid var(--border-light, #e5e2dc)', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>{b.icon}</div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: 'var(--ink, #1a1a1a)' }}>{b.title}</h3>
-              <p style={{ fontSize: 13, color: 'var(--ink-soft, #666)', margin: 0 }}>{b.desc}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* Footer */}
-        <footer style={{ textAlign: 'center', padding: '24px 0', borderTop: '1px solid var(--border-light, #e5e2dc)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Image src="/logo-big.png" alt="Docs2Video" width={24} height={24} style={{ borderRadius: 4 }} />
-            <span style={{ fontSize: 13, color: 'var(--ink-soft, #666)' }}>Powered by Docs2Video</span>
+      {/* Try it yourself */}
+      <section className="hp-card" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }} aria-labelledby="try-title">
+        <h2 id="try-title" className="hp-h3">Try it free with <span className="hp-blue">your own content</span></h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
+          <input
+            type="text"
+            inputMode="url"
+            autoComplete="url"
+            onBlur={() => setUrl((v) => tidyUrlInput(v))}
+            className="input"
+            aria-label="Your website or document link"
+            placeholder="Paste your website or document URL"
+            value={url}
+            onChange={e => { setUrl(e.target.value); setFile(null) }}
+          />
+          <div className="hp-row" style={{ gap: 12 }}>
+            <span style={{ flex: 1, height: 1, background: 'var(--d2v-line)' }} />
+            <span className="hp-caps hp-dim">or</span>
+            <span style={{ flex: 1, height: 1, background: 'var(--d2v-line)' }} />
           </div>
-        </footer>
-      </main>
-    </div>
+          <button type="button" className="btn btn-soft btn-full" onClick={() => fileRef.current?.click()}>
+            {file ? file.name : 'Upload a PDF'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) { setFile(f); setUrl('') }
+            }}
+          />
+          <button className="btn btn-primary btn-lg btn-full" onClick={handleCreate} disabled={!url && !file}>
+            Create my free video &rarr;
+          </button>
+          <p className="hp-small">No signup required. Your first video is free.</p>
+        </div>
+      </section>
+
+      {/* Benefits */}
+      <section className="hp-grid" aria-label="What you get">
+        {[
+          { title: 'Start from a document', desc: 'A PDF or your website' },
+          { title: 'Branded with your colors', desc: 'Your logo and colors' },
+          { title: 'Share one link', desc: 'Plays on any phone or laptop' },
+        ].map(b => (
+          <div key={b.title} className="hp-card">
+            <span className="hp-check" aria-hidden="true">✓ </span><h3>{b.title}</h3>
+            <p className="hp-small">{b.desc}</p>
+          </div>
+        ))}
+      </section>
+    </>
   )
 }

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { PageHead } from '../../_components/marketing/PageHead'
 
 const LAYOUTS = ['modern', 'minimal', 'corporate', 'two-column'] as const
 type Layout = typeof LAYOUTS[number]
@@ -361,35 +363,36 @@ function TwoColumnLayout() {
 export default function ShareDemoPage() {
   const [layout, setLayout] = useState<Layout>('corporate')
 
+  /* In the public site's shell: the sample client page shown in a browser frame, so it reads as
+     what your client sees — the client page keeps its own look (it wears your brand, not ours). */
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Layout picker */}
-      <div style={{ background: '#0F1A12', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexShrink: 0 }}>
-        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, marginRight: 8 }}>SHARE PAGE LAYOUTS:</span>
+    <>
+      <PageHead
+        kicker="The client page"
+        title="What your client sees."
+        blue="In your brand."
+        sub="Every video lives on its own page with your name on it, the video, and a way to book a call or review a quote. Pick a layout to see it — this is a sample with made-up names and numbers."
+      />
+      <div role="tablist" aria-label="Client page layouts" className="hp-tabs">
         {LAYOUTS.map((l) => (
-          <button
-            key={l}
-            onClick={() => setLayout(l)}
-            style={{
-              padding: '6px 16px', borderRadius: 8, border: 'none',
-              background: layout === l ? '#C7E8A8' : 'rgba(255,255,255,0.08)',
-              color: layout === l ? '#0F1A12' : 'rgba(255,255,255,0.6)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              textTransform: 'capitalize',
-            }}
-          >
-            {l}
+          <button key={l} type="button" role="tab" aria-selected={layout === l} className={layout === l ? 'hp-tab hp-tab-on' : 'hp-tab'} onClick={() => setLayout(l)} style={{ textTransform: 'uppercase' }}>
+            {l.replace('-', ' ')}
           </button>
         ))}
       </div>
-
-      {/* Preview */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {layout === 'modern' && <ModernLayout />}
-        {layout === 'minimal' && <MinimalLayout />}
-        {layout === 'corporate' && <CorporateLayout />}
-        {layout === 'two-column' && <TwoColumnLayout />}
+      <div className="hp-browser" role="tabpanel">
+        <div className="hp-browser-bar" aria-hidden="true"><i /><i /><i /><span>docs2video.com/watch/anderson</span></div>
+        <div className="hp-island" style={{ height: 'min(78vh, 820px)', overflow: 'auto' }}>
+          {layout === 'modern' && <ModernLayout />}
+          {layout === 'minimal' && <MinimalLayout />}
+          {layout === 'corporate' && <CorporateLayout />}
+          {layout === 'two-column' && <TwoColumnLayout />}
+        </div>
       </div>
-    </div>
+      <div className="hp-row">
+        <Link href="/signup" className="hp-btn hp-btn-blue hp-btn-lg">Make your first video</Link>
+        <Link href="/#share" className="hp-btn hp-btn-line">Back to the client page</Link>
+      </div>
+    </>
   )
 }

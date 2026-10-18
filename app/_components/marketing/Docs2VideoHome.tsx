@@ -1,16 +1,15 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Archivo, DM_Sans } from 'next/font/google'
-import HomeMenu from './HomeMenu'
+import { SiteFrame, SITE_NAV } from './SiteChrome'
 import FieldTabs, { type Field } from './FieldTabs'
 import { PLANS, SELLABLE_PLAN_TIERS } from '../../_lib/pricing'
-import './home.css'
 
 /*
  * The Docs2Video public front page (redesign approved 2026-10-18, in the
  * One Dollar Decks house style: dark navy, the logo's blue, big condensed
- * capitals). Everything is scoped under .hp (styles in ./home.css) and the
- * two fonts are loaded here, so the app's own fonts and colours are untouched.
+ * capitals). Its header, footer and frame are the public site's one shell
+ * (./SiteChrome, fonts in ./site-fonts); everything is scoped under .hp
+ * (./home.css, ./site.css), so the app's own fonts and colours are untouched.
  *
  * TRUTH RULES for this page — every line must be true of the product today:
  *   - Prices come from PLANS (pricing.ts); nothing typed in.
@@ -21,18 +20,9 @@ import './home.css'
  *   - No popularity claims: the Pro card says "Recommended".
  */
 
-const display = Archivo({ subsets: ['latin'], weight: ['800', '900'], variable: '--hp-display', display: 'swap' })
-const sans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--hp-sans', display: 'swap' })
 
-// Section links: #how, #share, #industries and #pricing are kept from the old
-// page so links already shared or bookmarked still land.
-export const HOME_NAV = [
-  { href: '#how', label: 'How it works' },
-  { href: '#videos', label: 'Real videos' },
-  { href: '#share', label: 'The client page' },
-  { href: '#pricing', label: 'Price' },
-  { href: '#industries', label: 'Who it’s for' },
-] as const
+// The front page's section links are the shell's (SiteChrome): one nav for the whole public site.
+export const HOME_NAV = SITE_NAV
 
 const HERO_FIELDS = [
   { label: 'Insurance', href: '/for/insurance' },
@@ -112,17 +102,6 @@ const FAQ = [
   { q: 'What does my client need?', a: 'Just the link. It plays in any browser, on any phone.' },
 ]
 
-const FOOTER_FIELDS = [
-  { href: '/for/insurance', label: 'Insurance' },
-  { href: '/for/financial-services', label: 'Financial advice' },
-  { href: '/for/real-estate', label: 'Real estate' },
-  { href: '/for/mortgage', label: 'Mortgage' },
-  { href: '/for/healthcare', label: 'Healthcare' },
-  { href: '/for/human-resources', label: 'HR & benefits' },
-  { href: '/for/legal', label: 'Legal' },
-  { href: '/for/education', label: 'Education' },
-]
-
 // ── Pricing (from pricing.ts) ───────────────────────────────────────────────
 const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
 
@@ -159,32 +138,12 @@ function jsonLd() {
   ]
 }
 
-function Logo({ className }: { className: string }) {
-  return <img src="/logo-nav.png" alt="Docs2Video" className={className} />
-}
-
 export default function Docs2VideoHome() {
   const tiers = pricingCards()
 
   return (
-    <div className={`hp ${display.variable} ${sans.variable}`}>
+    <SiteFrame>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd()) }} />
-      <a href="#main" className="hp-skip">Skip to content</a>
-
-      <div className="hp-frame">
-        {/* ───── Header ───── */}
-        <header className="hp-header">
-          <Link href="/" className="hp-brand" aria-label="Docs2Video home"><Logo className="hp-logo" /></Link>
-          <nav className="hp-nav" aria-label="Main">
-            {HOME_NAV.map((l) => <a key={l.href} href={l.href}>{l.label}</a>)}
-          </nav>
-          <span className="hp-header-btns">
-            <Link href="/login" className="hp-btn hp-btn-line hp-login">Sign in</Link>
-            <Link href="/signup" className="hp-btn hp-btn-blue">Make a video</Link>
-            <HomeMenu links={HOME_NAV.map((l) => ({ href: l.href, label: l.label }))} />
-          </span>
-        </header>
-
         <main id="main">
           {/* ───── Hero ───── */}
           <section className="hp-hero" aria-labelledby="hp-hero-title">
@@ -372,44 +331,6 @@ export default function Docs2VideoHome() {
             </section>
           </div>
         </main>
-
-        {/* ───── Plays on ───── */}
-        <div className="hp-plays">
-          <span>Plays on</span>
-          <span className="hp-plays-list"><span>Phones</span><span>Tablets</span><span>Laptops</span><span>Smart TVs</span></span>
-        </div>
-
-        {/* ───── Footer ───── */}
-        <footer className="hp-footer">
-          <div className="hp-footer-brand">
-            <Logo className="hp-logo hp-logo-foot" />
-            <p className="hp-soft">Your documents, explained in a video your clients actually watch.</p>
-            <a href="mailto:support@docs2video.com">support@docs2video.com</a>
-            <span className="hp-dim">© {new Date().getFullYear()} Docs2Video. All rights reserved.</span>
-          </div>
-          <div className="hp-footer-cols">
-            <div>
-              <h2 className="hp-kicker">Docs2Video</h2>
-              <Link href="/signup">Make a video</Link>
-              <a href="#how">How it works</a>
-              <Link href="/pricing">Pricing</Link>
-              <Link href="/login">Sign in</Link>
-              <Link href="/blog">Blog</Link>
-            </div>
-            <div>
-              <h2 className="hp-kicker">Who it’s for</h2>
-              {FOOTER_FIELDS.map((l) => <Link key={l.href} href={l.href}>{l.label}</Link>)}
-            </div>
-            <div>
-              <h2 className="hp-kicker">Company</h2>
-              <Link href="/contact">Contact</Link>
-              <Link href="/terms">Terms</Link>
-              <Link href="/privacy">Privacy</Link>
-              <Link href="/cookies">Cookies</Link>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </div>
+    </SiteFrame>
   )
 }
