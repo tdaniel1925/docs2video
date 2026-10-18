@@ -65,6 +65,7 @@ COPY audio-mix.js ./
 COPY drawn-assembly.js ./
 COPY job-guards.js ./
 COPY kit.js ./
+COPY video-upload.js ./
 
 EXPOSE 4000
 

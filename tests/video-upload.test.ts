@@ -36,3 +36,20 @@ describe('saving finished videos', () => {
     expect(read('render-service/server.js')).toContain('Joining the slides together...')
   })
 })
+
+describe('render service image', () => {
+  // 2026-10-17: video-upload.js was bundled but not COPYed by the Dockerfile, so
+  // the new container crashed on start ("Cannot find module './video-upload'").
+  it('every local module a server file requires is copied into the image and the bundle', () => {
+    const fs = require('fs') as typeof import('fs')
+    const dir = join(root, 'render-service')
+    const dockerfile = read('render-service/Dockerfile')
+    const bundle = read('render-service/build-context.sh')
+    for (const f of fs.readdirSync(dir).filter((x: string) => x.endsWith('.js'))) {
+      for (const m of fs.readFileSync(join(dir, f), 'utf8').matchAll(/require\('\.\/([a-z0-9-]+)'\)/g)) {
+        expect(dockerfile, `${m[1]}.js missing from Dockerfile COPY`).toContain(`COPY ${m[1]}.js`)
+        expect(bundle, `${m[1]}.js missing from build-context.sh`).toContain(`${m[1]}.js`)
+      }
+    }
+  })
+})
