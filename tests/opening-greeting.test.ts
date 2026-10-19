@@ -18,6 +18,14 @@ describe('the spoken opening', () => {
     expect(said).toBe('David, thank you for letting Darrell Wolfe share this summary with you.')
   })
 
+  it('drops the writer’s beat label from scene titles', async () => {
+    const { cleanSceneTitle } = await import('../app/_lib/text-format')
+    expect(cleanSceneTitle('Opening: Coverage Still Working')).toBe('Coverage Still Working')
+    expect(cleanSceneTitle('Opening — Your Story Is a Good One')).toBe('Your Story Is a Good One')
+    expect(cleanSceneTitle('Opening')).toBe('Opening')
+    expect(cleanSceneTitle('Opening Doors for Your Family')).toBe('Opening Doors for Your Family')
+  })
+
   it('names the video for its cover, never a scene labelled "Opening:"', () => {
     expect(route).toMatch(/const videoTitle = coverName \|\| \(policyData as any\)\?\.title \|\| firstSceneName/)
     expect(route).toMatch(/replace\(\/\^\(opening\|intro\(duction\)\?\|closing\)/)

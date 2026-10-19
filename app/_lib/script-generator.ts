@@ -6,6 +6,7 @@ import { getPrompt } from './prompts'
 import { fitSourceData } from './source-data-fitter'
 import { withRetry } from './with-retry'
 import { CARRIER_BLOCKLIST, smoothScrubbed } from './compliance'
+import { cleanSceneTitle } from './text-format'
 
 let _claude: Anthropic | null = null
 function getClaude() {
@@ -915,6 +916,9 @@ NARRATION ↔ SLIDE CORRESPONDENCE (every scene):
     if (!Array.isArray(scenes) || scenes.length === 0) {
       throw new Error('Invalid script format')
     }
+    // A scene's title is its own headline, never the writer's beat label
+    // ("Opening: Coverage Still Working" — owner live test, 2026-10-19).
+    scenes = scenes.map((s) => ({ ...s, title: cleanSceneTitle(s.title) }))
 
     // Post-parse: strip forward-looking phrases that break slide-audio sync
     const forwardPhrases = /\b(next,?\s+we('ll|\s+will)\s+(look|see|explore|cover|discuss|examine)|coming up|let's\s+(move|turn|shift)\s+(on\s+)?to|in\s+the\s+next\s+(slide|scene|section)|up\s+next|moving\s+on\s+to|now\s+let's\s+(take\s+a\s+)?look\s+at)\b/gi

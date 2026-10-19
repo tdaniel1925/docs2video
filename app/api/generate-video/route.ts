@@ -15,7 +15,7 @@ import { videoSender, foreignIdentity, foreignIn, preflightIdentity, SENDER_PROF
 import { brandTemplatePalette, isTemplateColors, isVideoTemplate, type TemplateColors, type VideoTemplateId } from '../../_lib/video-templates'
 import { templateIdentity } from '../../_lib/template-identity'
 import { narratorMode, repairNarration, checkNarration, thirdPersonIntro, type PovContext, type PresenterVoice, type SpeakAs } from '../../_lib/narration-pov'
-import { cleanRecipientName } from '../../_lib/text-format'
+import { cleanRecipientName, cleanSceneTitle } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration, resolvePreparerName } from '../../_lib/personalize'
 import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor } from '../../_lib/compliance'
 import { speakable } from '../../_lib/tts'
@@ -639,7 +639,7 @@ export async function POST(request: Request) {
 
       scenes = preGenScenes.map((s: any) => ({
         ...s,
-        title: cleanText(s.title || ''),
+        title: cleanSceneTitle(cleanText(s.title || '')),
         narration: cleanText(s.narration || ''),
         dialogue: s.dialogue?.map((d: any) => ({
           ...d,

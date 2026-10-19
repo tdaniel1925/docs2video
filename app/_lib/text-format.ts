@@ -57,7 +57,14 @@ export function scrubPlaceholderNamesInText(text: string): string {
     .trim()
 }
 
-const COMPANY_RE = /\b(inc|llc|l\.l\.c|corp|corporation|co|company|group|partners|ltd|llp|agency|associates|foundation|trust|holdings|enterprises|church|school|district|clinic|hospital)\.?$/i
+/** A scene title without the script writer's beat label: "Opening: X", "Opening — X", "Intro - X", "Closing: X" → "X". */
+export function cleanSceneTitle(title: string | null | undefined): string {
+  const t = String(title ?? '').trim()
+  const stripped = t.replace(/^(opening|intro(duction)?|hook|closing|outro)\s*[:\-–—]\s*/i, '').trim()
+  return stripped || t
+}
+
+const COMPANY_RE =/\b(inc|llc|l\.l\.c|corp|corporation|co|company|group|partners|ltd|llp|agency|associates|foundation|trust|holdings|enterprises|church|school|district|clinic|hospital)\.?$/i
 /** A business named for what it does ("Harbor Street Bakery" was greeted "Harbor"): its last word is a trade. */
 const TRADE_RE = /\b(bakery|cafe|café|coffee|restaurant|grill|kitchen|bistro|pizza|pizzeria|deli|bar|pub|brewery|winery|salon|spa|barbershop|studio|studios|gallery|shop|store|boutique|market|mart|outlet|realty|properties|homes|builders|construction|contractors|roofing|plumbing|electric|hvac|landscaping|motors|auto|garage|dental|dentistry|orthodontics|pharmacy|vet|veterinary|fitness|gym|yoga|academy|institute|university|college|insurance|financial|wealth|capital|advisors|advisers|bank|lending|mortgage|consulting|solutions|services|systems|labs|media|marketing|design|logistics|transport|farms|farm|ranch|hotel|inn|resort|law|legal|firm|ministries|center|centre)$/i
 const TITLE_RE = /^(mr|mrs|ms|miss|mx|dr|prof|rev|hon)\.?\s+/i
