@@ -57,7 +57,7 @@ describe('the crew follows the real steps', () => {
 
 describe('the makers’ other apps, beside the progress', () => {
   it('shows all four, each opening in a new tab', () => {
-    expect(SISTER_APPS.map((a) => a.name)).toEqual(['ProPresent', 'Restylez', 'VideoWiz', 'DemoWiz'])
+    expect(SISTER_APPS.map((a) => a.name)).toEqual(['Upcue Presenter', 'Restylez', 'VideoWiz', 'DemoWiz'])
     for (const a of SISTER_APPS) expect(a.url).toMatch(/^https:\/\//)
     const src = read('app/(dashboard)/create/generating/SisterApps.tsx')
     expect(src).toMatch(/target="_blank" rel="noopener noreferrer"/)
