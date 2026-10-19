@@ -106,7 +106,8 @@ describe('the template reaches the render worker', () => {
 describe('the choice travels from the Look step to the job', () => {
   it('the Look step saves it on the draft and sends it with Make it', () => {
     const look = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
-    expect(look.match(/templateId: isVideo \? templateId : null/g)?.length).toBe(2)
+    // Saved on the draft, sent with Make it, and sent with the free preview (template-preview.ts).
+    expect(look.match(/templateId: isVideo \? templateId : null/g)?.length).toBe(3)
     expect(look).toContain('<TemplatePicker')
     expect(look).not.toContain('<LookVsBrand')
     expect(look).toContain('<StepExplain step={part} />')

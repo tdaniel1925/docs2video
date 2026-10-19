@@ -1,5 +1,6 @@
 import { execFile } from 'child_process'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { videoServiceEndpoint } from './video-service'
 import {
   THUMB_H, THUMB_W, coverPlan, sceneChoices, thumbMeta, thumbPaths, withThumbMeta, isStill,
   type ThumbMeta,
@@ -82,6 +83,20 @@ async function fetchPicture(url: string): Promise<Buffer> {
   return Buffer.from(await r.arrayBuffer())
 }
 
+/** A presentation's first screen, drawn by the render service (it has a
+ *  browser; Vercel has none). Only our own stored presentations are accepted
+ *  there (render-service/page-still.js). */
+export async function capturePageViaService(url: string): Promise<Buffer> {
+  const r = await fetch(videoServiceEndpoint('/page-still'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-secret': process.env.VIDEO_ASSEMBLY_SECRET || '' },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(50_000),
+  })
+  if (!r.ok) throw new Error(`page-still ${r.status}: ${(await r.text()).slice(0, 160)}`)
+  return Buffer.from(await r.arrayBuffer())
+}
+
 /** Upload to the public `videos` bucket; the URL carries a version so a new picture is never served from a cache. */
 async function put(admin: SupabaseClient, path: string, jpeg: Buffer): Promise<string> {
   const { error } = await admin.storage.from('videos').upload(path, jpeg, { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' })
@@ -101,11 +116,10 @@ async function save(admin: SupabaseClient, row: ThumbRow, meta: ThumbMeta, inUse
 export async function makeCover(admin: SupabaseClient, row: ThumbRow, opts: { capturePage?: (url: string) => Promise<Buffer> } = {}): Promise<string | null> {
   const plan = coverPlan(row)
   if (plan.kind === 'none') return null
-  // A presentation's first screen needs a browser: only the backfill script
-  // has one. Without it, leave the presentation to its own poster.
-  if (plan.kind === 'page' && !opts.capturePage) return null
+  // A presentation's first screen needs a browser: the render service's
+  // (capturePageViaService), or the backfill script's own.
   const raw = plan.kind === 'still' ? await fetchPicture(plan.url)
-    : plan.kind === 'page' ? await opts.capturePage!(plan.url)
+    : plan.kind === 'page' ? await (opts.capturePage ?? capturePageViaService)(plan.url)
     : await grabFrame(plan.url, plan.at)
   const jpeg = await toThumbJpeg(raw)
   const cover = await put(admin, thumbPaths(row.user_id, row.id).cover, jpeg)

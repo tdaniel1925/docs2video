@@ -3993,6 +3993,51 @@ app.post('/preview-still', authCheck, async (req, res) => {
   }
 })
 
+/**
+ * A presentation's library thumbnail (2026-10-19): its FIRST screen — the
+ * cover with "Start presentation" — at 1280×720. The app's thumbnail sweep runs
+ * on Vercel, which has no browser, so it asks here. Only our own stored
+ * presentations may be drawn: the URL must be the public videos bucket's
+ * presentations/ folder on our Supabase (never an arbitrary address).
+ */
+const { isOurPresentationUrl } = require('./page-still')
+
+async function renderPageStill(html) {
+  const { chromium } = require('playwright')
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
+    // Storage serves the file as text/plain, so a browser opening the URL would
+    // show its source: load the page's own HTML instead.
+    await page.setContent(String(html), { waitUntil: 'networkidle', timeout: 30000 }).catch(() => {})
+    await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {})
+    await page.waitForTimeout(1500)
+    return await page.screenshot({ type: 'png' })
+  } finally {
+    await browser.close().catch(() => {})
+  }
+}
+
+/** POST /page-still { url } → image/png of the presentation's first screen. */
+app.post('/page-still', authCheck, async (req, res) => {
+  const url = req.body && req.body.url
+  if (!isOurPresentationUrl(url, SUPABASE_URL)) return res.status(400).json({ error: 'Not one of our presentations' })
+  const t0 = Date.now()
+  try {
+    const r = await guardedFetch(url, { signal: AbortSignal.timeout(20000) })
+    if (!r.ok) return res.status(502).json({ error: `page ${r.status}` })
+    const html = await r.text()
+    if (html.length > 15 * 1024 * 1024) return res.status(413).json({ error: 'page too large' })
+    const png = await renderPageStill(html)
+    console.log(`[page-still] ${Date.now() - t0}ms`)
+    res.set('Content-Type', 'image/png')
+    return res.send(png)
+  } catch (err) {
+    console.error('[page-still] failed:', err.message)
+    return res.status(500).json({ error: err.message })
+  }
+})
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Video assembly service running on port ${PORT}`)
 })

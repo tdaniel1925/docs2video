@@ -404,7 +404,13 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   // FREE FIRST-SCENE PREVIEW (FirstScenePreview.tsx, 3 free a day per
   // account): the button sits in the bottom bar beside Make it, the picture
   // on the page. It previews the choices on screen right now.
-  const preview = useFirstScenePreview({ videoId: videoId ?? '', output, look: isPres ? presLook : previewLookFor(videoLook, kitOn), drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId })
+  // A chosen template previews the customer's OWN cover and first scene in it
+  // (template-preview.ts, drawn on the render worker — about a minute).
+  const preview = useFirstScenePreview({
+    videoId: videoId ?? '', output, look: isPres ? presLook : previewLookFor(videoLook, kitOn), drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId,
+    templateId: isVideo ? templateId : null,
+    templateColors: brandPalette.length ? templateColors : 'template',
+  })
   // Bring the preview into view when it starts, so the wait is seen.
   useEffect(() => {
     if (preview.busy) previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -485,7 +491,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   const back = prev ? { href: stepPath(prev.key, videoId), label: prev.label } : null
   const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`
 
-  /* A template is chosen for this video (the free preview draws looks, not templates). */
+  /* A template is chosen for this video. */
   const templateOn = isVideo && !!templateId
   const chosenTemplate = templateOn ? videoTemplate(templateId) : null
   /* The free preview, beside Next (look) or Make it (review). */
@@ -495,9 +501,9 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
         variant="secondary"
         className="cf-helper-btn"
         onClick={() => void preview.make()}
-        disabled={preview.busy || preview.noneLeft || templateOn}
+        disabled={preview.busy || preview.noneLeft}
         aria-busy={preview.busy || undefined}
-        disabledReason={templateOn ? 'Templates show their scenes on the card: press ▶ on it.' : preview.disabledReason}
+        disabledReason={preview.disabledReason}
         title={preview.leftLabel ?? undefined}
       >
         {preview.label}

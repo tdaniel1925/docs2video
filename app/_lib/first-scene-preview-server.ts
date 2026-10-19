@@ -56,7 +56,7 @@ export async function loadPreviewBrand(admin: SupabaseClient, userId: string, dr
 // A regulated illustration never names the carrier or product, on any surface
 // (CLAUDE memory: compliance unification). Same deterministic scrub the real
 // engines run; figures stay.
-function scrubScene(s: PreviewScene | undefined, tokens: string[]): PreviewScene | undefined {
+export function scrubScene(s: PreviewScene | undefined, tokens: string[]): PreviewScene | undefined {
   if (!s) return s
   const S = (v?: string) => (typeof v === 'string' && v ? scrubComplianceText(v, tokens) : v)
   return {
