@@ -1042,7 +1042,12 @@ export async function POST(request: Request) {
     })
 
     // Video metadata
-    const videoTitle = scenes[0]?.title || (policyData as any)?.title || purpose || 'Presentation'
+    // The video's name: its cover's title first. The first CONTENT scene's
+    // title named the whole video ("Opening: Coverage Still Working" — owner
+    // test, 2026-10-19), so it is only the last resort, without a "Opening:" label.
+    const coverName = String(editedCover?.slideData?.headline || editedCover?.title || '').trim()
+    const firstSceneName = String(scenes[0]?.title || '').replace(/^(opening|intro(duction)?|closing)\s*[:\-–—]\s*/i, '').trim()
+    const videoTitle = coverName || (policyData as any)?.title || firstSceneName || purpose || 'Presentation'
     // For a PERSON profile that opted out of showing their name on slides, don't
     // force the name as the on-screen brand/masthead — let the doc title lead.
     // (The name still appears in the spoken intro + closing card.)

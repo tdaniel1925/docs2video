@@ -32,7 +32,7 @@ export function TemplatePicker({ templates, value, onChange, palette }: {
           <div key={t.id} className="cf-tpl-wrap">
             <button type="button" role="radio" aria-checked={value === t.id} className="cf-tpl" onClick={() => onChange(t.id)} data-template={t.id}>
               {live
-                ? <TemplateLive id={t.id} page={0} className="cf-tpl-thumb" />
+                ? <TemplateLive id={t.id} page={0} className="cf-tpl-thumb" palette={palette!} />
                 // eslint-disable-next-line @next/next/no-img-element -- the template's own sample cover
                 : <img className="cf-tpl-thumb" src={t.scenes[0].src} alt="" loading="lazy" />}
               {value === t.id ? <span className="cf-tpl-tick" aria-hidden="true"><Check size={14} strokeWidth={3} /></span> : null}
@@ -47,7 +47,7 @@ export function TemplatePicker({ templates, value, onChange, palette }: {
           </div>
         ))}
       </div>
-      {open ? <TemplateScenes live={live} template={open.t} chosen={value === open.t.id} onChoose={() => { onChange(open.t.id); const from = open.from; setOpen(null); from?.focus() }} onClose={() => { const from = open.from; setOpen(null); from?.focus() }} /> : null}
+      {open ? <TemplateScenes live={live} palette={palette ?? []} template={open.t} chosen={value === open.t.id} onChoose={() => { onChange(open.t.id); const from = open.from; setOpen(null); from?.focus() }} onClose={() => { const from = open.from; setOpen(null); from?.focus() }} /> : null}
     </>
   )
 }
@@ -56,7 +56,7 @@ export function TemplatePicker({ templates, value, onChange, palette }: {
  * A TEMPLATE'S FOUR SCENES, large, in a dialog: focus on Close, Tab kept
  * inside, ← and → step through, Escape or the backdrop closes it.
  */
-function TemplateScenes({ template, chosen, onChoose, onClose, live }: { template: VideoTemplate; chosen: boolean; onChoose: () => void; onClose: () => void; live: boolean }) {
+function TemplateScenes({ template, chosen, onChoose, onClose, live, palette }: { template: VideoTemplate; chosen: boolean; onChoose: () => void; onClose: () => void; live: boolean; palette: string[] }) {
   const [i, setI] = useState(0)
   const closeRef = useRef<HTMLButtonElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -89,7 +89,7 @@ function TemplateScenes({ template, chosen, onChoose, onClose, live }: { templat
         </div>
         <div className="cf-tpl-stage">
           {live
-            ? <TemplateLive id={template.id} page={i} className="cf-tpl-stage-live" />
+            ? <TemplateLive id={template.id} page={i} className="cf-tpl-stage-live" palette={palette} />
             // eslint-disable-next-line @next/next/no-img-element -- a sample scene of this template
             : <img src={s.src} alt={`${template.name}: ${s.label}`} />}
           <button type="button" className="cf-tpl-step is-prev" onClick={() => setI((k) => (k + n - 1) % n)} aria-label="Previous scene"><ChevronLeft size={20} aria-hidden="true" /></button>
@@ -99,7 +99,7 @@ function TemplateScenes({ template, chosen, onChoose, onClose, live }: { templat
           {template.scenes.map((x, k) => (
             <button key={x.src} type="button" className="cf-tpl-mini" aria-pressed={k === i} onClick={() => setI(k)} aria-label={x.label}>
               {live
-                ? <TemplateLive id={template.id} page={k} />
+                ? <TemplateLive id={template.id} page={k} palette={palette} />
                 // eslint-disable-next-line @next/next/no-img-element -- a sample scene
                 : <img src={x.src} alt="" loading="lazy" />}
             </button>

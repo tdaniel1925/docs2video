@@ -80,6 +80,10 @@ export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle
       ? { videoId, output, look, voiceId, templateId, templateColors: templateColors ?? 'template' }
       : { videoId, output, look, voiceId, drawStyle })
     const startedAt = Date.now()
+    // What this preview is made FROM, as asked. A template preview's answer
+    // carries no template fields, so comparing against it always said
+    // "you changed the look" under a fresh preview (owner test, 2026-10-19).
+    const asked: Choice = { output, look, voiceId, drawStyle, templateId, templateColors }
     const done = () => { setBusy(false); inFlight.current = false }
     // One ask; a template's 202 (still being made) asks again in a few seconds.
     const ask = async () => {
@@ -100,7 +104,7 @@ export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle
           setError({ message: d.error || 'We couldn’t make the preview just now. Please try again.', cap: d.code === 'preview_cap' })
           return done()
         }
-        setResult({ imageUrl: d.imageUrl, sceneUrl: d.sceneUrl ?? null, audioUrl: d.audioUrl, voiceNote: d.voiceNote, lookNote: d.lookNote, sceneTitle: d.sceneTitle, choice: d.choice ?? { output, look, voiceId, drawStyle, templateId, templateColors } })
+        setResult({ imageUrl: d.imageUrl, sceneUrl: d.sceneUrl ?? null, audioUrl: d.audioUrl, voiceNote: d.voiceNote, lookNote: d.lookNote, sceneTitle: d.sceneTitle, choice: templated ? asked : (d.choice ?? asked) })
         done()
       } catch {
         if (!alive.current) return
