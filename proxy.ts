@@ -65,6 +65,8 @@ export async function proxy(request: NextRequest) {
   const machinePaths = ['/api/webhooks', '/api/cron', '/api/inngest', '/api/email-track', '/api/email-prefs', '/api/stripe/webhook', '/api/partner', '/api/v1', '/api/mcp', '/api/checkout/create',
     // The render service reports errors here with its own x-api-secret.
     '/api/internal',
+    // The self-fix workflow's callbacks sign themselves (HMAC over CRON_SECRET).
+    '/api/support/self-fix',
     // MCP OAuth: discovery metadata + the token/register/approve endpoints are
     // machine-to-machine (an MCP client calls them, no browser session). The
     // /api/mcp/oauth/authorize route handles its OWN login redirect internally,

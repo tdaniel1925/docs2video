@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '../_lib/supabase/server'
 import { createAdminClient } from '../_lib/supabase/admin'
 import Header from '../_components/Header'
+import { Suspense } from 'react'
 import HelpChatWidget from '../_components/HelpChatWidget'
+import SupportTab from '../_components/support/SupportTab'
 import ImpersonationBanner from '../_components/ImpersonationBanner'
 import type { Profile } from '../_lib/types'
 import { getBrand } from '../_lib/brand-server'
@@ -77,6 +79,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {children}
       </main>
       <HelpChatWidget />
+      {/* "Something not working?" — Docs2Video's signed-in screens only. */}
+      {brand.id === 'docs2video' && <Suspense fallback={null}><SupportTab /></Suspense>}
     </div>
   )
 }

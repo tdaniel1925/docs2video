@@ -48,9 +48,15 @@ export default function HelpChatWidget() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // The phone menu's "Ask the help assistant" opens it.
+  // The phone menu's "Ask the help assistant" opens it. "Something not
+  // working?" hands over a how-to question as { ask } and it is asked at once.
+  const [pendingAsk, setPendingAsk] = useState<string | null>(null)
   useEffect(() => {
-    const openIt = () => setOpen(true)
+    const openIt = (e: Event) => {
+      setOpen(true)
+      const ask = (e as CustomEvent<{ ask?: string }>).detail?.ask
+      if (typeof ask === 'string' && ask.trim()) setPendingAsk(ask.trim().slice(0, 2000))
+    }
     window.addEventListener(OPEN_HELP_EVENT, openIt)
     return () => window.removeEventListener(OPEN_HELP_EVENT, openIt)
   }, [])
@@ -89,6 +95,15 @@ export default function HelpChatWidget() {
     }
     setLoading(false)
   }
+
+  // A question handed over by "Something not working?" asks itself once open.
+  useEffect(() => {
+    if (!open || !pendingAsk || loading) return
+    const q = pendingAsk
+    setPendingAsk(null)
+    void send(q)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send reads the latest state; run once per hand-over
+  }, [open, pendingAsk])
 
   return (
     <>
