@@ -2,10 +2,12 @@
  * WHILE YOU WAIT: THE MAKERS' OTHER APPS (owner, 2026-10-18, layout "B": all
  * four at once beside the progress). Each opens in a new tab so the video
  * keeps building. Every line is from the app's own site — nothing invented.
- * ProPresent is One Dollar Decks' new name (propresent.app, live 2026-10-18).
+ * Upcue Presenter is what One Dollar Decks, then ProPresent, is called now
+ * (upcuepresenter.com, owner 2026-10-19). The key stays 'propresent': it only
+ * picks the card's colours.
  */
 export const SISTER_APPS = [
-  { key: 'propresent', name: 'ProPresent', url: 'https://propresent.app', head: 'Custom decks. No templates.', line: 'Any document, website or topic into a custom-designed deck — PowerPoint and PDF.' },
+  { key: 'propresent', name: 'Upcue Presenter', url: 'https://upcuepresenter.com', head: 'Custom decks. No templates.', line: 'Any document, website or topic into a custom-designed deck — PowerPoint and PDF.' },
   { key: 'restylez', name: 'Restylez', url: 'https://restylez.app', head: 'Show us a style. Get anything.', line: 'Flyers, posts, logos and cards made in a style you like — any size.' },
   { key: 'videowiz', name: 'VideoWiz', url: 'https://videowiz.app', head: 'Record once. Edited for you.', line: 'Videos made with AI, from the team behind DemoWiz.' },
   { key: 'demowiz', name: 'DemoWiz', url: 'https://demowiz.app', head: 'One take. A finished demo.', line: 'It cuts your take, writes and voices the script, adds zooms, captions and your brand.' },
