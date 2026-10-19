@@ -292,13 +292,13 @@ describe('13. speed on slow phones', () => {
   it('only our own public stills are resized', () => {
     const host = 'abc.supabase.co'
     const ours = 'https://abc.supabase.co/storage/v1/object/public/videos/x/thumb.png'
-    expect(sizedPicture(ours, 480, host)).toBe('https://abc.supabase.co/storage/v1/render/image/public/videos/x/thumb.png?width=480&quality=70')
+    expect(sizedPicture(ours, 480, host)).toBe('https://abc.supabase.co/storage/v1/render/image/public/videos/x/thumb.png?width=480&resize=contain&quality=70')
     expect(sizedPicture('https://other.com/storage/v1/object/public/a.png', 480, host)).toBe('https://other.com/storage/v1/object/public/a.png')
     expect(sizedPicture('https://abc.supabase.co/storage/v1/object/sign/a.png?token=1', 480, host)).toContain('/object/sign/')
     expect(sizedPicture('https://abc.supabase.co/storage/v1/object/public/a.mp4', 480, host)).toContain('/object/public/a.mp4')
     expect(sizedPicture('/api/flyer-file/1', 480, host)).toBe('/api/flyer-file/1')
     expect(sizedPicture(null, 480, host)).toBeNull()
-    expect(pictureSrcSet(ours, [320, 640], host)).toBe('https://abc.supabase.co/storage/v1/render/image/public/videos/x/thumb.png?width=320&quality=70 320w, https://abc.supabase.co/storage/v1/render/image/public/videos/x/thumb.png?width=640&quality=70 640w')
+    expect(pictureSrcSet(ours, [320, 640], host)).toBe('https://abc.supabase.co/storage/v1/render/image/public/videos/x/thumb.png?width=320&resize=contain&quality=70 320w, https://abc.supabase.co/storage/v1/render/image/public/videos/x/thumb.png?width=640&resize=contain&quality=70 640w')
     expect(pictureSrcSet('https://other.com/a.png', [320], host)).toBeNull()
   })
 })

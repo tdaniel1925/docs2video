@@ -36,6 +36,10 @@ export function sizedPicture(url: string | null | undefined, width: number, host
   if (!/\.(png|jpe?g|webp)$/i.test(u.pathname)) return url
   u.pathname = RENDER_PATH + u.pathname.slice(OBJECT_PATH.length)
   u.searchParams.set('width', String(Math.round(width)))
+  // Without this Supabase keeps the original HEIGHT and crops the width
+  // (a 1280×720 cover asked for at 480 came back 480×720, so every library
+  // card showed a zoomed-in strip — measured 2026-10-19). Contain scales.
+  u.searchParams.set('resize', 'contain')
   u.searchParams.set('quality', '70')
   return u.toString()
 }
