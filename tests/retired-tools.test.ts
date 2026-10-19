@@ -114,6 +114,13 @@ describe('old bookmarks to retired tools still land somewhere', () => {
     }
   })
 
+  it('the old /templates page redirect never catches the video templates’ own files', async () => {
+    const rules = (await nextConfig.redirects?.()) ?? []
+    for (const url of ['/templates/night/cover.jpg', '/templates/previews.json', '/templates/bg/grunge/concrete-1.jpg']) {
+      expect(rules.find((r) => getPathMatch(r.source)(url)), url).toBeUndefined()
+    }
+  })
+
   it('the redirects do not catch live pages that share a prefix', async () => {
     const rules = (await nextConfig.redirects?.()) ?? []
     for (const url of ['/admin', '/design', '/social-media', '/dashboard', '/template-demo', '/videos', '/logo-creator']) {

@@ -45,8 +45,13 @@ const nextConfig: NextConfig = {
       // infographic email linked to.
       ...to('/dashboard', [
         'brand-kit', 'course-builder', 'email-signature', 'headshot', 'image-remix',
-        'infographic-creator', 'templates', 'infographics',
+        'infographic-creator', 'infographics',
       ]),
+      // The old /templates page only. Its /templates/:path* rule also caught
+      // the video templates' own pictures and previews (public/templates/…),
+      // so every template card on the Look step came up blank (2026-10-19).
+      { source: '/templates', destination: '/dashboard', permanent: true },
+      { source: '/templates/:path((?!.*\\.(?:jpe?g|png|webp|gif|svg|json)$).*)?', destination: '/dashboard', permanent: true },
     ]
   },
   async headers() {
