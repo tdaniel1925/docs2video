@@ -120,11 +120,19 @@ export default function GeneratingPage() {
     return () => clearInterval(interval)
   }, [videoId, router])
 
-  // A clock, not a progress number: how long it has been running.
+  // A clock, not a progress number: how long it has been running. Worked out
+  // from when making began (kept for this video in the tab), never counted up
+  // — counting reset on every reload and stalled in a background tab ("17s so
+  // far" after 25 minutes, owner test 2026-10-19).
   useEffect(() => {
-    const timer = setInterval(() => setElapsed(e => e + 1), 1000)
+    const k = `d2v-making-since:${videoId}`
+    let since = Date.now()
+    try { const kept = Number(sessionStorage.getItem(k)); if (kept > 0 && Date.now() - kept < 6 * 3600_000) since = kept; else sessionStorage.setItem(k, String(since)) } catch { /* not kept */ }
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - since) / 1000)))
+    tick()
+    const timer = setInterval(tick, 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [videoId])
 
   const outputType = row?.output_type || 'video'
   // Rotate tips — only the ones true for this output.

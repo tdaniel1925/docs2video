@@ -1047,7 +1047,9 @@ export async function POST(request: Request) {
     // test, 2026-10-19), so it is only the last resort, without a "Opening:" label.
     const coverName = String(editedCover?.slideData?.headline || editedCover?.title || '').trim()
     const firstSceneName = String(scenes[0]?.title || '').replace(/^(opening|intro(duction)?|closing)\s*[:\-–—]\s*/i, '').trim()
-    const videoTitle = coverName || (policyData as any)?.title || firstSceneName || purpose || 'Presentation'
+    // A generic label is no name ("Illustration" titled a company pitch — owner test, 2026-10-19).
+    const named = (t: unknown) => { const s = String(t ?? '').trim(); return s && !/^(illustration|document|source|presentation|summary|policy|untitled|overview|video)s?$/i.test(s) ? s : '' }
+    const videoTitle = named(coverName) || named((policyData as any)?.title) || named(firstSceneName) || named(purpose) || firstSceneName || 'Presentation'
     // For a PERSON profile that opted out of showing their name on slides, don't
     // force the name as the on-screen brand/masthead — let the doc title lead.
     // (The name still appears in the spoken intro + closing card.)

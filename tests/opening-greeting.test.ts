@@ -27,7 +27,8 @@ describe('the spoken opening', () => {
   })
 
   it('names the video for its cover, never a scene labelled "Opening:"', () => {
-    expect(route).toMatch(/const videoTitle = coverName \|\| \(policyData as any\)\?\.title \|\| firstSceneName/)
+    expect(route).toMatch(/const videoTitle = named\(coverName\) \|\| named\(\(policyData as any\)\?\.title\) \|\| named\(firstSceneName\)/)
+    expect(route).toMatch(/illustration\|document\|source\|presentation\|summary\|policy\|untitled/)
     expect(route).toMatch(/replace\(\/\^\(opening\|intro\(duction\)\?\|closing\)/)
   })
 })
