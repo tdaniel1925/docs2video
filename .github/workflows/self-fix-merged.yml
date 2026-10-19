@@ -1,0 +1,35 @@
+# SELF-FIX, step two (ported from Jordyn, 2026-10-19): the owner merged a
+# self-fix PR, which deploys to production via Vercel. Wait out the deploy,
+# then tell the app, which marks the report "Fixed and live" and emails the
+# person who reported it (once — the endpoint refuses a second time).
+name: self-fix-merged
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  notify:
+    # Only a MERGED self-fix PR closes the loop; a PR closed unmerged shipped nothing.
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'self-fix')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve the report after the deploy lands
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          APP_URL: https://docs2video.com
+        run: |
+          REF="${BRANCH#self-fix/}"
+          if [ -z "$REF" ] || [ "$REF" = "$BRANCH" ]; then
+            echo "Branch '$BRANCH' does not carry a report ref — nothing to resolve."
+            exit 0
+          fi
+          sleep 150
+          TOKEN=$(printf '%s' "d2v-self-fix-resolve:v1|${REF}" | openssl dgst -sha256 -hmac "$CRON_SECRET" -r | cut -d' ' -f1)
+          TITLE="${PR_TITLE#Self-fix ${REF}: }"
+          jq -n --arg ref "$REF" --arg note "${TITLE} — the fix is live now" --arg token "$TOKEN" \
+            '{ref: $ref, note: $note, token: $token}' \
+            | curl -sS --fail-with-body -X POST "${APP_URL}/api/support/self-fix/resolve" -H "Content-Type: application/json" --data-binary @-
