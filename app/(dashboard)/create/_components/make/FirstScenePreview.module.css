@@ -58,6 +58,25 @@
   background: var(--surface);
 }
 
+/* A template's preview: the cover and the first scene side by side (stacked on a phone). */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.fig {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .pair { grid-template-columns: minmax(0, 1fr); }
+}
+
 .caption {
   margin: 0;
   font-size: var(--fs-small);

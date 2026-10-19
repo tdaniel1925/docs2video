@@ -64,7 +64,7 @@ describe('the sweep makes a presentation’s cover through the render service', 
     vi.stubEnv('VIDEO_ASSEMBLY_URL', 'https://render.example')
     vi.stubEnv('VIDEO_ASSEMBLY_SECRET', 's3cret')
     const body = await png()
-    const fetchMock = vi.fn(async () => new Response(body, { status: 200, headers: { 'Content-Type': 'image/png' } }))
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array(body), { status: 200, headers: { 'Content-Type': 'image/png' } }))
     vi.stubGlobal('fetch', fetchMock)
     const out = await capturePageViaService(PAGE)
     expect(out.length).toBe(body.length)
@@ -83,7 +83,7 @@ describe('the sweep makes a presentation’s cover through the render service', 
   it('makeCover draws a page plan without being handed a browser', async () => {
     vi.stubEnv('VIDEO_ASSEMBLY_URL', 'https://render.example')
     const body = await png()
-    const fetchMock = vi.fn(async () => new Response(body, { status: 200 }))
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array(body), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     const { admin, saved } = fakeAdmin()
     const cover = await makeCover(admin as never, { id: ID, user_id: 'u1', status: 'completed', video_url: PAGE })

@@ -80,7 +80,8 @@ describe('the Look step', () => {
   })
   it('saves the choice on the draft and sends it to be made', () => {
     expect(look).toMatch(/if \(isTemplateColors\(d\.templateColors\)\) setTemplateColors\(d\.templateColors\)/)
-    expect((look.match(/templateColors: brandPalette\.length \? templateColors : 'template',/g) ?? []).length).toBe(2)
+    // Saved on the draft, sent with Make it, and sent with the free preview (template-preview.ts).
+    expect((look.match(/templateColors: brandPalette\.length \? templateColors : 'template',/g) ?? []).length).toBe(3)
     expect(read('app/api/videos/draft/route.ts')).toMatch(/if \('templateColors' in u && !isTemplateColors\(u\.templateColors\)\) u\.templateColors = 'template'/)
   })
 })

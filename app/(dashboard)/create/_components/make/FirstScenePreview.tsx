@@ -18,9 +18,15 @@ import { Note } from '../../../../_components/kit'
 import { CAP_REACHED_MESSAGE, previewsLeftLabel } from '../../../../_lib/first-scene-preview'
 import s from './FirstScenePreview.module.css'
 
-type Choice = { output?: string; look?: string; voiceId?: string; /** Drawn slides only: 3d / illustrated / classic. */ drawStyle?: string }
+type Choice = {
+  output?: string; look?: string; voiceId?: string; /** Drawn slides only: 3d / illustrated / classic. */ drawStyle?: string
+  /** A template (and its colors): their own cover and first scene, laid out in it on the render worker (about a minute). */
+  templateId?: string | null; templateColors?: string
+}
 type Result = {
   imageUrl: string
+  /** A template's preview: its first scene, beside the cover (imageUrl). */
+  sceneUrl?: string | null
   audioUrl: string | null
   voiceNote: string | null
   lookNote: string | null
@@ -30,12 +36,20 @@ type Result = {
 
 export type FirstScenePreviewState = ReturnType<typeof useFirstScenePreview>
 
-export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle }: { videoId: string } & Choice) {
+/** A template preview is asked after this often while the render worker makes it, for at most this long. */
+const POLL_MS = 5000
+const POLL_FOR_MS = 7 * 60 * 1000
+
+export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle, templateId, templateColors }: { videoId: string } & Choice) {
   const [left, setLeft] = useState<number | null | undefined>(undefined) // undefined = still loading; null = no limit
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [error, setError] = useState<{ message: string; cap?: boolean } | null>(null)
   const inFlight = useRef(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const alive = useRef(true)
+  useEffect(() => () => { alive.current = false; if (timer.current) clearTimeout(timer.current) }, [])
+  const templated = !!templateId
 
   // How many are left today, for the line under the button.
   useEffect(() => {
@@ -52,7 +66,9 @@ export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle
     (look !== undefined && look !== result.choice.look) ||
     (voiceId !== undefined && voiceId !== result.choice.voiceId) ||
     (output !== undefined && output !== result.choice.output) ||
-    (drawStyle ?? null) !== (result.choice.drawStyle ?? null)
+    (drawStyle ?? null) !== (result.choice.drawStyle ?? null) ||
+    (templateId ?? null) !== (result.choice.templateId ?? null) ||
+    (templated && (templateColors ?? 'template') !== (result.choice.templateColors ?? 'template'))
   )
 
   async function make() {
@@ -60,30 +76,44 @@ export function useFirstScenePreview({ videoId, output, look, voiceId, drawStyle
     inFlight.current = true
     setBusy(true)
     setError(null)
-    try {
-      const res = await fetch('/api/preview-first-scene', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, output, look, voiceId, drawStyle }),
-      })
-      const d = await res.json().catch(() => ({}))
-      if ('remainingToday' in d) setLeft(d.remainingToday)
-      if (!res.ok) {
-        setError({ message: d.error || 'We couldn’t make the preview just now. Please try again.', cap: d.code === 'preview_cap' })
-        return
+    const body = JSON.stringify(templated
+      ? { videoId, output, look, voiceId, templateId, templateColors: templateColors ?? 'template' }
+      : { videoId, output, look, voiceId, drawStyle })
+    const startedAt = Date.now()
+    const done = () => { setBusy(false); inFlight.current = false }
+    // One ask; a template's 202 (still being made) asks again in a few seconds.
+    const ask = async () => {
+      try {
+        const res = await fetch('/api/preview-first-scene', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+        const d = await res.json().catch(() => ({}))
+        if (!alive.current) return
+        if ('remainingToday' in d) setLeft(d.remainingToday)
+        if (res.status === 202 && d.pending) {
+          if (Date.now() - startedAt > POLL_FOR_MS) {
+            setError({ message: 'The preview is taking longer than it should. Please try again in a minute — it didn’t use up one of your free previews.' })
+            return done()
+          }
+          timer.current = setTimeout(() => { void ask() }, POLL_MS)
+          return
+        }
+        if (!res.ok) {
+          setError({ message: d.error || 'We couldn’t make the preview just now. Please try again.', cap: d.code === 'preview_cap' })
+          return done()
+        }
+        setResult({ imageUrl: d.imageUrl, sceneUrl: d.sceneUrl ?? null, audioUrl: d.audioUrl, voiceNote: d.voiceNote, lookNote: d.lookNote, sceneTitle: d.sceneTitle, choice: d.choice ?? { output, look, voiceId, drawStyle, templateId, templateColors } })
+        done()
+      } catch {
+        if (!alive.current) return
+        setError({ message: 'Connection lost. Please check your internet and try again.' })
+        done()
       }
-      setResult({ imageUrl: d.imageUrl, audioUrl: d.audioUrl, voiceNote: d.voiceNote, lookNote: d.lookNote, sceneTitle: d.sceneTitle, choice: d.choice ?? { output, look, voiceId, drawStyle } })
-    } catch {
-      setError({ message: 'Connection lost. Please check your internet and try again.' })
-    } finally {
-      setBusy(false)
-      inFlight.current = false
     }
+    await ask()
   }
 
   const noneLeft = left === 0
   return {
-    left, busy, result, error, changed, noneLeft, make,
+    left, busy, result, error, changed, noneLeft, make, templated,
     /** The words for the bar button. */
     label: busy ? 'Making your preview…' : result && changed ? 'Preview again' : 'Free preview',
     /** Why the bar button can't be pressed (none left today). */
@@ -111,7 +141,9 @@ const FirstScenePreview = forwardRef<HTMLElement, { preview: FirstScenePreviewSt
       </div>
 
       {busy && (
-        <p className={s.waiting} role="status"><span className="spinner" aria-hidden="true" /> Drawing your first scene and recording the voice — about 15 seconds.</p>
+        <p className={s.waiting} role="status"><span className="spinner" aria-hidden="true" /> {preview.templated
+          ? 'Laying out your own cover and first scene in this template, and recording the voice — about a minute. You can keep working on this page.'
+          : 'Drawing your first scene and recording the voice — about 15 seconds.'}</p>
       )}
 
       {error && (
@@ -121,8 +153,23 @@ const FirstScenePreview = forwardRef<HTMLElement, { preview: FirstScenePreviewSt
       {result && !busy && (
         <>
           {changed && <p className={s.changed}>You changed the look or voice — press Preview again to see it.</p>}
-          {/* eslint-disable-next-line @next/next/no-img-element -- a stored PNG, shown as is */}
-          <img className={s.still} src={result.imageUrl} alt={result.sceneTitle ? `Preview of your first scene: ${result.sceneTitle}` : 'Preview of your first scene'} />
+          {result.sceneUrl ? (
+            <div className={s.pair}>
+              <figure className={s.fig}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- a stored PNG, shown as is */}
+                <img className={s.still} src={result.imageUrl} alt="Preview of your cover" />
+                <figcaption className={s.caption}>Your cover</figcaption>
+              </figure>
+              <figure className={s.fig}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- a stored PNG, shown as is */}
+                <img className={s.still} src={result.sceneUrl} alt={result.sceneTitle ? `Preview of your first scene: ${result.sceneTitle}` : 'Preview of your first scene'} />
+                <figcaption className={s.caption}>Your first scene</figcaption>
+              </figure>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- a stored PNG, shown as is
+            <img className={s.still} src={result.imageUrl} alt={result.sceneTitle ? `Preview of your first scene: ${result.sceneTitle}` : 'Preview of your first scene'} />
+          )}
           {result.lookNote && <p className={s.caption}>{result.lookNote}</p>}
           {result.audioUrl
             ? <audio className={s.audio} controls preload="none" src={result.audioUrl} aria-label="The voice reading your first scene" />

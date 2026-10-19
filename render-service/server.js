@@ -4024,7 +4024,7 @@ app.post('/page-still', authCheck, async (req, res) => {
   if (!isOurPresentationUrl(url, SUPABASE_URL)) return res.status(400).json({ error: 'Not one of our presentations' })
   const t0 = Date.now()
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(20000) })
+    const r = await guardedFetch(url, { signal: AbortSignal.timeout(20000) })
     if (!r.ok) return res.status(502).json({ error: `page ${r.status}` })
     const html = await r.text()
     if (html.length > 15 * 1024 * 1024) return res.status(413).json({ error: 'page too large' })

@@ -175,3 +175,57 @@ export async function startExplainer(o: {
   if (r.failures?.length || !r.tasks?.length) throw new Error(`the render worker did not start: ${r.failures?.map((f) => f.reason).join(', ') || 'no task'}`)
   return { jobId }
 }
+
+/**
+ * A TEMPLATE'S FREE PREVIEW (template-preview.ts): the cover and first scene,
+ * laid out in the template by the render worker (its `template-preview` job),
+ * which puts the two pictures in this app's storage at the preview's place
+ * and touches no video. A smaller machine than a film: two pages, at most one
+ * photograph, no film.
+ */
+export async function startTemplatePreview(o: {
+  userId: string; key: string; templateId: VideoTemplateId; title: string
+  scenes: ExplainerScene[]; identity: TemplateIdentity; forbidden: string[]
+  colors: TemplateColors; palette: string[]; pageCount: number
+  logoUrl: string | null; photoUrl: string | null
+  presenter: { name: string; role?: string; cover: boolean; closing: boolean } | null
+}): Promise<{ jobId: string }> {
+  if (!explainerConfigured()) throw new Error('the render worker is not configured (RENDER_*)')
+  if (!isVideoTemplate(o.templateId)) throw new Error(`no template "${o.templateId}"`)
+  if (!/^[a-f0-9]{32}$/.test(o.key)) throw new Error('bad preview key')
+  const c = cfg()
+  const auth = { region: c.region, credentials: { accessKeyId: c.accessKeyId, secretAccessKey: c.secretAccessKey } }
+  const s3 = new S3Client(auth)
+  const jobId = `d2v-pv-${o.key.slice(0, 8)}-${Date.now().toString(36)}`
+  const put = (k: string, body: Buffer | string, type: string) => s3.send(new PutObjectCommand({ Bucket: c.bucket, Key: `jobs/${jobId}/${k}`, Body: body, ContentType: type }))
+  const fetched = async (url?: string | null): Promise<Buffer | null> => {
+    if (!url) return null
+    try { const r = await fetch(url, { signal: AbortSignal.timeout(15000) }); return r.ok ? Buffer.from(await r.arrayBuffer()) : null } catch { return null }
+  }
+  const [logo, photo] = await Promise.all([fetched(o.logoUrl), fetched(o.photoUrl)])
+  // A photo that was promised and will not load: the worker's check would refuse the cover without it.
+  if (o.photoUrl && !photo) throw new Error('the presenter’s photo could not be fetched')
+  const job = {
+    kind: 'template-preview', title: o.title, scenes: o.scenes, template: o.templateId,
+    preview: { kind: 'd2v-preview', userId: o.userId, key: o.key },
+    identity: { ...o.identity, ...(photo ? {} : { photoOn: undefined }) },
+    ...(o.forbidden.length ? { forbidden: o.forbidden } : {}),
+    ...(o.colors === 'brand' && o.palette.length ? { templateColors: 'brand' as const, templatePalette: o.palette.slice(0, 3) } : {}),
+    pageCount: o.pageCount,
+    logo: Boolean(logo),
+    ...(o.presenter ? { presenter: { name: o.presenter.name, ...(o.presenter.role ? { role: o.presenter.role } : {}), photo: Boolean(photo), cover: o.presenter.cover, closing: o.presenter.closing } } : {}),
+    ds: {}, pages: [],
+  }
+  await Promise.all([
+    ...(logo ? [put('assets/logo.png', logo, 'image/png')] : []),
+    ...(photo ? [put('assets/presenter.png', photo, 'image/png')] : []),
+  ])
+  await put('job.json', JSON.stringify(job), 'application/json')
+  const r = await new ECSClient(auth).send(new RunTaskCommand({
+    cluster: 'decks-render', taskDefinition: 'decks-render', launchType: 'FARGATE', count: 1,
+    networkConfiguration: { awsvpcConfiguration: { subnets: c.subnets, securityGroups: [c.securityGroup], assignPublicIp: 'ENABLED' } },
+    overrides: { cpu: '4096', memory: '8192', containerOverrides: [{ name: 'render', environment: [{ name: 'JOB_ID', value: jobId }, { name: 'ROLE', value: 'job' }] }] },
+  }))
+  if (r.failures?.length || !r.tasks?.length) throw new Error(`the render worker did not start: ${r.failures?.map((f) => f.reason).join(', ') || 'no task'}`)
+  return { jobId }
+}
