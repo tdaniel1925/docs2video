@@ -1107,7 +1107,10 @@ export async function POST(request: Request) {
     const introLine = presenter?.intro
       ? (povMode === 'as' ? presenter.intro : thirdPersonIntro(presenter.intro, { name: presenter.name || agentName, role: presenter.role }, { greeted: greetedByName }))
       : ''
-    const baseOpening = introLine || `${videoTitle}.`
+    // No intro line: the greeting stands alone. Reading the title after it
+    // ("…share this summary with you. Opening, coverage still working.") was
+    // the owner's live test, 2026-10-19. The title leads only when nobody is greeted.
+    const baseOpening = introLine || (greetedByName ? '' : `${videoTitle}.`)
     const coverNarration = formatForTTS(
       buildOpeningNarration({
         client: recipient,
