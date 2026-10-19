@@ -22,7 +22,8 @@
 
 /* ── Headings: a page's one heading in big condensed capitals; the part in
    <em> (or .d2v-ghost) is the logo blue, as on the mockups ("YOUR CONTENT"). */
-.d2v-app main h1,
+/* Not inside a template preview (.tp): its title wears the template's own type. */
+.d2v-app main h1:not(.tp *),
 .d2v-app .cf-h1 {
   font-family: var(--d2v-head);
   font-weight: 900;
@@ -33,7 +34,7 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
-.d2v-app main h1 em,
+.d2v-app main h1:not(.tp *) em,
 .d2v-app .cf-h1 em,
 .d2v-app .d2v-ghost {
   font-family: inherit;
@@ -41,7 +42,7 @@
   font-weight: inherit;
   color: var(--accent-ink);
 }
-.d2v-app main h2 { font-family: var(--d2v-head); font-weight: 800; letter-spacing: -0.01em; }
+.d2v-app main h2:not(.tp *) { font-family: var(--d2v-head); font-weight: 800; letter-spacing: -0.01em; }
 .d2v-app .cf-h2 { font-family: var(--d2v-head); font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; }
 
 /* Small spaced capitals for every label above a group. */
