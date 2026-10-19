@@ -566,9 +566,17 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   const scenesSaved: unknown[] = Array.isArray(draft?.scenes) ? draft!.scenes : []
   const sceneSecs = scenesSaved.reduce((n: number, s: unknown) => n + sceneSeconds(s), 0)
   const sceneMins = Math.max(1, Math.round(sceneSecs / 60))
+  // Say what the film will really show (owner test, 2026-10-19: a company
+  // brand with no contact saved read "your contact on the closing").
+  const g = (brand?.brand_guide_data ?? {}) as Record<string, unknown>
+  const hasContact = ['phone', 'email', 'website'].some((k) => typeof g[k] === 'string' && (g[k] as string).trim().length > 0)
+  const isCompany = !!brand && brand.profile_type !== 'person'
   const openerWords = draft?.introduceInOpening === false && draft?.showContactClosing === false
     ? 'No introduction, no contact on the closing'
-    : [draft?.introduceInOpening !== false ? 'You’re introduced at the start' : null, draft?.showContactClosing !== false ? 'your contact on the closing' : null].filter(Boolean).join(' · ')
+    : [
+        draft?.introduceInOpening !== false ? (isCompany ? `${brand!.name} at the start` : 'You’re introduced at the start') : null,
+        draft?.showContactClosing !== false ? (brand && !hasContact ? 'no contact saved on this brand' : 'your contact on the closing') : null,
+      ].filter(Boolean).join(' · ')
   const summary: { key: StepKey; label: string; value: string }[] = [
     { key: 'content', label: 'Made from', value: draft?.sourcePdfName || draft?.title || 'Your content' },
     { key: 'story', label: 'Story', value: draft?.brief?.angle ? `“${draft.brief.angle}”` : 'Written from your content' },
