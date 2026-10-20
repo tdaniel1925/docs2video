@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { aiDailyGate } from '../../_lib/cardless-prep'
 import { createClient } from '../../_lib/supabase/server'
-import OpenAI from 'openai'
+import { claudeText, jsonObjectText } from '../../_lib/claude-text'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -57,25 +57,13 @@ export async function POST(request: Request) {
     const title = video.title || 'Untitled Video'
     const shareLink = `https://docs2video.com/watch/${videoId}`
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const reply = await claudeText({
       temperature: 0.7,
-      messages: [
-        {
-          role: 'system',
-          content: `You generate social media posts to promote a video. Return a JSON object with three keys: "linkedin", "twitter", "facebook". Each value is a string containing the post text. Do NOT include the share link in the text — it will be appended automatically. Do not use hashtags excessively (max 2-3 for LinkedIn, 1-2 for Twitter, none for Facebook).`,
-        },
-        {
-          role: 'user',
-          content: `Video title: "${title}"\n\nVideo summary (from narration): ${narrationText || 'No narration available.'}\n\nShare link (will be appended, don't include): ${shareLink}\n\nGenerate 3 social post variants:\n1. LinkedIn: Professional, 2-3 sentences\n2. Twitter/X: Under 250 characters (leave room for link)\n3. Facebook: Casual, 3-4 sentences`,
-        },
-      ],
-      response_format: { type: 'json_object' },
+      system: `You generate social media posts to promote a video. Return a JSON object with three keys: "linkedin", "twitter", "facebook". Each value is a string containing the post text. Do NOT include the share link in the text — it will be appended automatically. Do not use hashtags excessively (max 2-3 for LinkedIn, 1-2 for Twitter, none for Facebook). Reply with ONLY the JSON object.`,
+      user: `Video title: "${title}"\n\nVideo summary (from narration): ${narrationText || 'No narration available.'}\n\nShare link (will be appended, don't include): ${shareLink}\n\nGenerate 3 social post variants:\n1. LinkedIn: Professional, 2-3 sentences\n2. Twitter/X: Under 250 characters (leave room for link)\n3. Facebook: Casual, 3-4 sentences`,
     })
 
-    const content = completion.choices[0]?.message?.content ?? '{}'
+    const content = jsonObjectText(reply)
     let posts: { linkedin?: string; twitter?: string; facebook?: string }
     try {
       posts = JSON.parse(content)

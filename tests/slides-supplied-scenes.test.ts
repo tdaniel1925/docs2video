@@ -14,7 +14,6 @@ const require = createRequire(import.meta.url)
 const slides = require('../render-service/slides.js') as {
   planFromSuppliedScenes: (s: unknown[]) => { title: string; scenes: Scene[]; cta: { line: string } }
   sceneCountRule: (d?: string) => string
-  wantsChosenVoice: (v?: string) => boolean
 }
 
 const supplied = [
@@ -69,16 +68,3 @@ describe('sceneCountRule (the length the user paid for)', () => {
   })
 })
 
-describe('wantsChosenVoice', () => {
-  it('keeps the default female voice on the usual engine', () => {
-    expect(slides.wantsChosenVoice('nova')).toBe(false)
-    expect(slides.wantsChosenVoice(undefined)).toBe(false)
-  })
-  it('honors any other voice the user picked', () => {
-    expect(slides.wantsChosenVoice('onyx')).toBe(true)
-    expect(slides.wantsChosenVoice('fable')).toBe(true)
-  })
-  it('ignores ids it does not know', () => {
-    expect(slides.wantsChosenVoice('not-a-voice')).toBe(false)
-  })
-})

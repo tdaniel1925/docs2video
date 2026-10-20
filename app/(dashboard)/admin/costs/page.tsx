@@ -15,7 +15,7 @@ interface CostData {
     totalCreditsUsed30d: number
     totalUsers: number
   }
-  breakdown: { anthropic: number; google: number; openai: number }
+  breakdown: { anthropic: number; google: number; fal: number }
   dailyCosts: { date: string; count: number; cost: number }[]
   topUsers: { userId: string; count: number; cost: number }[]
   costPerAction: Record<string, number>
@@ -85,7 +85,7 @@ export default function CostsPage() {
             <div style={s.providerCard}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #7C3AED', paddingLeft: 8 }}>Anthropic (Claude)</div>
               <div style={{ fontSize: 24, fontWeight: 800 }}>{fmt(breakdown.anthropic)}</div>
-              <div style={s.cardSub}>Script generation + analysis</div>
+              <div style={s.cardSub}>Script generation, analysis + extraction</div>
             </div>
             <div style={s.providerCard}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #2563EB', paddingLeft: 8 }}>Google (Gemini + Lyria)</div>
@@ -93,9 +93,9 @@ export default function CostsPage() {
               <div style={s.cardSub}>Slides + music</div>
             </div>
             <div style={s.providerCard}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #059669', paddingLeft: 8 }}>OpenAI (TTS + Extract)</div>
-              <div style={{ fontSize: 24, fontWeight: 800 }}>{fmt(breakdown.openai)}</div>
-              <div style={s.cardSub}>Voice + document extraction</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', borderLeft: '3px solid #059669', paddingLeft: 8 }}>fal (voice)</div>
+              <div style={{ fontSize: 24, fontWeight: 800 }}>{fmt(breakdown.fal)}</div>
+              <div style={s.cardSub}>Narration (ElevenLabs voices)</div>
             </div>
           </div>
         </div>

@@ -121,12 +121,12 @@ describe('app synthesizeSpeech puts fal first', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       calls.push(String(url))
       if (String(url).startsWith('https://fal.run/')) { const e = new Error('The operation was aborted due to timeout'); e.name = 'TimeoutError'; throw e }
-      return new Response(fakeMp3(800), { status: 200 }) // ElevenLabs direct
+      return new Response(fakeMp3(1800), { status: 200 }) // ElevenLabs direct
     }))
     // real backoff (1s + 2s) — fal's own retries before the fallback
     const { synthesizeSpeech } = await load()
     const buf = await synthesizeSpeech('Hello.', 'nova')
-    expect(buf.length).toBe(800)
+    expect(buf.length).toBe(1800)
     expect(calls.filter((u) => u.startsWith('https://fal.run/'))).toHaveLength(3) // retried with backoff
     expect(calls.some((u) => u.includes('api.elevenlabs.io'))).toBe(true)
   })
@@ -136,10 +136,10 @@ describe('app synthesizeSpeech puts fal first', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       calls.push(String(url))
       if (String(url).startsWith('https://fal.run/')) return new Response(JSON.stringify({ status: 'COMPLETED' }), { status: 200 })
-      return new Response(fakeMp3(900), { status: 200 })
+      return new Response(fakeMp3(1900), { status: 200 })
     }))
     const { synthesizeSpeech } = await load()
-    expect((await synthesizeSpeech('Hello.', 'nova')).length).toBe(900)
+    expect((await synthesizeSpeech('Hello.', 'nova')).length).toBe(1900)
     expect(calls.some((u) => u.includes('api.elevenlabs.io'))).toBe(true)
   })
 })
@@ -221,7 +221,7 @@ describe('render-service fal-tts.js', () => {
     expect(src).toMatch(/falSpeak\(spoken, \{ voiceId, timestamps: true/)
   })
 
-  it('server.js ttsToBuffer (Aurora / Cinematic / Infographic / Editorial / Drawn) tries fal first, then the old chain', async () => {
+  it('server.js ttsToBuffer (Aurora / Cinematic / Infographic / Editorial / Drawn) tries fal first, then ElevenLabs direct', async () => {
     const src = readFileSync(path.join(ROOT, 'render-service/server.js'), 'utf8').replace(/\r\n/g, '\n')
     const fnSrc = (name: string) => { const i = src.indexOf(`async function ${name}(`); return src.slice(i, src.indexOf('\n}\n', i) + 2) }
     const voicesLine = (src.match(/const OPENAI_TTS_VOICES = \[[^\]]*\]/) || [''])[0]

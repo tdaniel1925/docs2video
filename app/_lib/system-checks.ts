@@ -73,11 +73,11 @@ async function checkResend(): Promise<void> {
   }
 }
 
-/** AI/key presence (the render service selftest covers live Gemini/OpenAI calls already). */
+/** AI/key presence (the render service selftest covers live Gemini/fal calls already). */
 async function checkAiKeys(): Promise<Record<string, unknown>> {
   const present = {
     gemini: !!process.env.GEMINI_API_KEY,
-    openai: !!process.env.OPENAI_API_KEY,
+    fal: !!process.env.FAL_KEY,
     anthropic: !!process.env.ANTHROPIC_API_KEY,
   }
   const missing = Object.entries(present).filter(([, v]) => !v).map(([k]) => k)

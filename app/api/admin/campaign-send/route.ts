@@ -4,7 +4,7 @@ import { requireAdmin } from '@/app/_lib/admin'
 import { logAdminAction } from '@/app/_lib/audit'
 import { INDUSTRIES, type IndustryId } from '@/app/_lib/industries'
 import { Resend } from 'resend'
-import OpenAI from 'openai'
+import { claudeText } from '@/app/_lib/claude-text'
 import { PLANS } from '@/app/_lib/pricing'
 
 const FREE_PLAN = PLANS.find((p) => p.tier === 'free')!
@@ -12,11 +12,6 @@ const FREE_CREDIT_LINE = `${FREE_PLAN.monthlyCredits.toLocaleString('en-US')} fr
 
 export const maxDuration = 300
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
-}
 
 function replacePlaceholders(template: string, vars: Record<string, string>): string {
   let result = template
@@ -89,7 +84,6 @@ export async function POST(req: NextRequest) {
     const industryConfig = INDUSTRIES[industry]
     if (!industryConfig) return NextResponse.json({ error: 'Invalid industry' }, { status: 400 })
 
-    const openai = getOpenAI()
     const verticalLabel = subIndustry || industryConfig.label
 
     const prompt = `You are a B2B SaaS email copywriter. Write a cold outreach email for Docs2Video — a platform that turns documents (PDFs, illustrations, reports) into narrated, branded video explainers.
@@ -114,13 +108,7 @@ Return ONLY valid JSON (no markdown fences):
   "ctaText": "button text (5 words max)"
 }`
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    })
-
-    const raw = response.choices[0]?.message?.content?.trim() ?? ''
+    const raw = await claudeText({ user: prompt, temperature: 0.7, maxTokens: 1000 })
     const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
     try {
       const generated = JSON.parse(cleaned)

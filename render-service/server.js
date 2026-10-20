@@ -26,7 +26,6 @@ if (!API_SECRET) {
 }
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 // Where to POST error alerts (the Vercel app, which has the mailer + Resend).
 const APP_URL = process.env.APP_URL || 'https://docs2video.com'
@@ -82,7 +81,7 @@ app.get('/health', (req, res) => {
   // sharp loads? (its absence after a rebuild caused blue-slide videos)
   try { require('sharp'); checks.sharp = true } catch { checks.sharp = false }
   checks.geminiKey = !!GEMINI_API_KEY
-  checks.openaiKey = !!OPENAI_API_KEY
+  checks.voiceKey = !!(process.env.FAL_KEY || process.env.ELEVENLABS_API_KEY)
   checks.supabase = !!(process.env.SUPABASE_URL || SUPABASE_URL) && !!(process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY)
   // ffmpeg binary resolves?
   checks.ffmpeg = false
@@ -131,7 +130,7 @@ app.post('/selftest', authCheck, async (req, res) => {
     if (!parts.some(p => p.inlineData)) throw new Error('No image in Gemini response')
   })
 
-  // TTS: exercise the REAL chain (fal primary → ElevenLabs → OpenAI), so a
+  // TTS: exercise the REAL chain (fal primary → ElevenLabs direct), so a
   // green check means renders can actually voice scenes regardless of provider.
   await time('tts', async () => {
     const b = await ttsToBuffer('System check.', 'nova')
@@ -1120,15 +1119,15 @@ const V3_LOOK = 'High-end cinematic corporate photography with a RICH, MOODY, PR
 // the brand accent so the whole frame feels on-brand and cohesive.
 const INFOGRAPHIC_LOOK = 'A PRECISE, DESIGNED infographic background — a premium, modern brand surface, NOT a photograph and NOT a busy scene. Think a high-end data-report cover: a smooth deep gradient ground with subtle geometric structure (soft grid lines, faint concentric rings, gentle light gradients, delicate abstract shapes) that reads as intentional design, calm and uncluttered. Rich, sophisticated, cohesive. LEAVE THE TOP-RIGHT CORNER CLEAN AND UNCLUTTERED (a logo is placed there in code afterward). LEAVE THE CENTER AND LEFT CALM AND LOW-CONTRAST so charts, numbers and cards drawn on top stay perfectly legible. Elegant restraint over decoration. 16:9, fills 1920x1080. ABSOLUTELY NO text, words, letters, numbers, charts, icons, or logos — background only.'
 
-// Voice engine: ElevenLabs (Rachel) is PRIMARY; OpenAI TTS-HD is the FALLBACK.
-// Either provider being out of quota no longer kills a render — we try the other.
+// Voice engine: fal is PRIMARY (ttsToBuffer); ElevenLabs direct, in the SAME
+// picked voice, is the FALLBACK. Either being out of quota no longer kills a
+// render — we try the other. (OpenAI TTS left the chain 2026-10-19.)
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY
-const ELEVEN_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM' // Rachel
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
 
-async function elevenSpeak(text) {
+async function elevenSpeak(text, voiceId) {
   if (!ELEVEN_API_KEY) throw new Error('ELEVENLABS_API_KEY not set')
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE_ID}?output_format=mp3_44100_128`, {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${require('./fal-tts').elevenVoiceIdFor(voiceId)}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'xi-api-key': ELEVEN_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({ text, model_id: ELEVEN_MODEL, voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
@@ -1172,58 +1171,36 @@ function speakable(text) {
 }
 
 // THE CHOSEN VOICE. ttsToBuffer speaks for Aurora, Cinematic, Infographic,
-// Editorial and Explainer. It used to ALWAYS try ElevenLabs Rachel first, so
-// the voice the customer picked on step 3 was only heard when ElevenLabs was
-// down. Now it follows the Slide Deck rule (slides.js wantsChosenVoice):
-// Sarah (nova) or nothing picked → ElevenLabs first, as before; any other
-// voice → that OpenAI voice first, ElevenLabs only if OpenAI fails.
-const OPENAI_TTS_VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
-
-async function openaiSpeak(spoken, voiceId) {
-  const OpenAI = require('openai')
-  const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
-  const resp = await openai.audio.speech.create({
-    model: 'tts-1-hd', voice: OPENAI_TTS_VOICES.includes(voiceId) ? voiceId : 'nova', input: spoken, response_format: 'mp3', speed: 0.98,
-  })
-  return Buffer.from(await resp.arrayBuffer())
-}
-
+// Editorial and Explainer. Both engines speak the voice the customer picked on
+// step 3 (fal-tts.js FAL_VOICE_MAP / ELEVEN_VOICE_IDS), so a fallback never
+// swaps the narrator.
 async function ttsToBuffer(text, voiceId) {
   const spoken = speakable(text) || ' '
-  // PRIMARY (2026-10-09): fal.ai — the same ElevenLabs voices on the fal bill,
-  // in the voice the customer picked (fal-tts.js FAL_VOICE_MAP). Retries +
-  // real-audio check live in falSpeak; any failure drops to the old chain.
+  // PRIMARY (2026-10-09): fal.ai — the same ElevenLabs voices on the fal bill.
+  // Retries + real-audio check live in falSpeak; any failure drops to
+  // ElevenLabs direct.
+  let lastErr = null
   if (process.env.FAL_KEY && spoken.trim()) {
     try { return (await require('./fal-tts').falSpeak(spoken, { voiceId })).audio } catch (e) {
-      console.warn(`[tts] fal voice failed (${e.message}) — falling back to ElevenLabs/OpenAI`)
+      lastErr = e
+      console.warn(`[tts] fal voice failed (${e.message}) — falling back to ElevenLabs direct`)
     }
   }
-  if (require('./slides').wantsChosenVoice(voiceId)) {
-    try { return await openaiSpeak(spoken, voiceId) } catch (e) {
-      if (!ELEVEN_API_KEY) throw e
-      console.warn(`[tts] OpenAI voice "${voiceId}" failed (${e.message}) — falling back to ElevenLabs`)
-      return await elevenSpeak(spoken)
-    }
-  }
-  // PRIMARY: ElevenLabs — retry once with backoff before falling back (review
-  // B7: parallel scene fan-out can trip the plan's concurrency limit with a
-  // transient 429; without the retry each such scene silently ships with the
-  // OpenAI fallback voice → ONE video with two alternating narrators).
+  // FALLBACK: ElevenLabs direct — retry once with backoff (review B7: parallel
+  // scene fan-out can trip the plan's concurrency limit with a transient 429).
   if (ELEVEN_API_KEY) {
     for (let attempt = 1; attempt <= 2; attempt++) {
-      try { return await elevenSpeak(spoken) }
+      try { return await elevenSpeak(spoken, voiceId) }
       catch (e) {
+        lastErr = e
         if (attempt === 1) {
           console.warn(`[tts] ElevenLabs attempt 1 failed (${e.message}) — retrying in 1.5s`)
           await new Promise((r) => setTimeout(r, 1500))
-        } else {
-          console.warn(`[tts] ElevenLabs failed twice, falling back to OpenAI: ${e.message}`)
         }
       }
     }
   }
-  // FALLBACK: OpenAI TTS-HD (Sarah — this branch is only reached for the default).
-  return await openaiSpeak(spoken, voiceId)
+  throw new Error(`TTS failed (fal + ElevenLabs): ${lastErr ? lastErr.message : 'no voice service configured (FAL_KEY / ELEVENLABS_API_KEY)'}`)
 }
 
 async function v3Tts(text, voiceId, outPath) {
@@ -3062,8 +3039,6 @@ app.post('/generate', authCheck, async (req, res) => {
 
     // STAGE 1+2: Generate audio AND slides IN PARALLEL
     await updateStatus('generating_audio', 'Generating audio and slides...', 20)
-    const OpenAI = require('openai')
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 
     // Audio runs in background — updates progress per clip
     let audiosDone = 0
@@ -3084,7 +3059,7 @@ app.post('/generate', authCheck, async (req, res) => {
         let buf = null
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            // ElevenLabs primary, OpenAI fallback (see ttsToBuffer).
+            // fal primary, ElevenLabs direct fallback (see ttsToBuffer).
             const b = await ttsToBuffer(scene.narration.slice(0, 4096), voiceId)
             if (b.length > 100) { buf = b; break }
             throw new Error(`TTS returned ${b.length} bytes`)
@@ -3619,17 +3594,22 @@ app.post('/style-preview', authCheck, async (req, res) => {
     const { referenceImageBase64, userId } = req.body
     if (!referenceImageBase64) return res.status(400).json({ error: 'No reference image' })
     console.log('[style-preview] Starting...')
-    const OpenAI = require('openai')
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    const a = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,' + referenceImageBase64 } }, { type: 'text', text: 'Describe this visual style for recreating it: colors, typography, layout, textures, mood. 2-4 sentences.' }] }], max_tokens: 300 })
-    const style = (a.choices[0] && a.choices[0].message && a.choices[0].message.content) || 'Professional design'
+    // Style read by Claude (vision), samples drawn by gpt-image-2.5 on fal —
+    // both moved off OpenAI 2026-10-19 (its credits ran out).
+    const { claude, CLAUDE_MODELS } = require('./slides')
+    const b64 = String(referenceImageBase64)
+    const mediaType = b64.startsWith('/9j/') ? 'image/jpeg' : b64.startsWith('UklGR') ? 'image/webp' : b64.startsWith('R0lGOD') ? 'image/gif' : 'image/png'
+    const described = await claude('You describe visual design styles precisely and briefly.', [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } }, { type: 'text', text: 'Describe this visual style for recreating it: colors, typography, layout, textures, mood. 2-4 sentences.' }], 300, { model: CLAUDE_MODELS.CHEAP })
+    const style = String(described || '').trim() || 'Professional design'
     console.log('[style-preview] Style:', style.slice(0, 80))
-    const [c, d] = await Promise.all([
-      openai.images.generate({ model: 'gpt-image-2', prompt: 'Create a COVER slide in this style: ' + style + '. Title: Quarterly Business Review, subtitle: Q2 2025. 1920x1080 landscape. Fill canvas. No logos.', size: '1536x1024', quality: 'high', n: 1 }),
-      openai.images.generate({ model: 'gpt-image-2', prompt: 'Create a CONTENT slide in this style: ' + style + '. KEY METRICS: Revenue 2.4M, Clients 1240, Retention 94 percent. 1920x1080 landscape. Fill canvas. No logos.', size: '1536x1024', quality: 'high', n: 1 })
+    const { drawWithFal } = require('./fal-image')
+    const sample = (prompt) => drawWithFal(prompt, { quality: 'high' })
+      .then(async (buf) => 'data:image/png;base64,' + (await require('sharp')(buf).png().toBuffer()).toString('base64'))
+      .catch((e) => { console.error('[style-preview] sample failed:', e.message); return null })
+    const [cover, content] = await Promise.all([
+      sample('Create a COVER slide in this style: ' + style + '. Title: Quarterly Business Review, subtitle: Q2 2025. 1920x1080 landscape. Fill canvas. No logos.'),
+      sample('Create a CONTENT slide in this style: ' + style + '. KEY METRICS: Revenue 2.4M, Clients 1240, Retention 94 percent. 1920x1080 landscape. Fill canvas. No logos.'),
     ])
-    const cover = c.data[0].b64_json ? 'data:image/png;base64,' + c.data[0].b64_json : null
-    const content = d.data[0].b64_json ? 'data:image/png;base64,' + d.data[0].b64_json : null
     let refUrl = null
     if (userId) {
       try {

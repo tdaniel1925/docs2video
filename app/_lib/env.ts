@@ -11,7 +11,7 @@ export const env = {
   SUPABASE_URL: requireEnv('NEXT_PUBLIC_SUPABASE_URL'),
   SUPABASE_ANON_KEY: requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
   SUPABASE_SERVICE_ROLE_KEY: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
-  OPENAI_API_KEY: requireEnv('OPENAI_API_KEY'),
+  FAL_KEY: requireEnv('FAL_KEY'),
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
   IMAGE_MODEL: process.env.IMAGE_MODEL ?? 'gemini-3-pro-image-preview',
 }
@@ -27,7 +27,9 @@ export const REQUIRED_GO_LIVE_ENV = [
   'SUPABASE_SERVICE_ROLE_KEY',
   'NEXT_PUBLIC_SITE_URL',
   'GEMINI_API_KEY',
-  'OPENAI_API_KEY',
+  // Voices and pictures (fal-tts.ts, fal-image.ts). OPENAI_API_KEY is no
+  // longer needed: nothing calls OpenAI directly since 2026-10-19.
+  'FAL_KEY',
   'ANTHROPIC_API_KEY',
   'STRIPE_SECRET_KEY',
   'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',

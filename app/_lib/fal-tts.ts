@@ -4,7 +4,8 @@
  * OpenAI TTS ran out of credits and ElevenLabs-direct answered
  * "payment_required" on the same day. fal.ai sells the SAME ElevenLabs voices
  * (turbo v2.5, the model we already used) on the fal bill, so app/_lib/tts.ts
- * now tries fal first, then ElevenLabs direct, then OpenAI.
+ * now tries fal first, then ElevenLabs direct (elevenDirectSpeak, below, in
+ * the picked voice). OpenAI is gone from the chain (2026-10-19).
  *
  * Plain fetch to fal's synchronous endpoint (fal.run) — no client package.
  * fal can answer 200 with no usable result (its queue even reports COMPLETED
@@ -36,6 +37,62 @@ export const FAL_VOICE_MAP: Record<(typeof OPENAI_VOICES)[number], string> = {
 
 export function falVoiceFor(voiceId: unknown): string {
   return (typeof voiceId === 'string' && (FAL_VOICE_MAP as Record<string, string>)[voiceId]) || FAL_VOICE_MAP.nova
+}
+
+/**
+ * The same six voices by their ElevenLabs ids, for the fallback that calls
+ * ElevenLabs directly — so when fal is down the customer still hears the voice
+ * they picked. (ELEVENLABS_VOICE_ID still overrides the default, nova.)
+ */
+export const ELEVEN_VOICE_IDS: Record<string, string> = {
+  Rachel: '21m00Tcm4TlvDq8ikWAM',
+  Sarah: 'EXAVITQu4vr4xnSDxMaL',
+  Brian: 'nPczCjzI2devNBz1zQrb',
+  Chris: 'iP95p4xoKVk53GoZ742B',
+  River: 'SAz9YHcvj6GT2YYXdXww',
+  George: 'JBFqnCBsd6RMkjVDRZzb',
+}
+
+export function elevenVoiceIdFor(voiceId: unknown): string {
+  const name = falVoiceFor(voiceId)
+  if (name === FAL_VOICE_MAP.nova && process.env.ELEVENLABS_VOICE_ID) return process.env.ELEVENLABS_VOICE_ID
+  return ELEVEN_VOICE_IDS[name] || ELEVEN_VOICE_IDS.Rachel
+}
+
+/**
+ * ElevenLabs direct, in the picked voice — the fallback when fal fails. Two
+ * tries, 30 s each. Throws on any doubt (no key, HTTP error, not real audio).
+ */
+export async function elevenDirectSpeak(text: string, opts: { voiceId?: string; attempts?: number; backoffMs?: number; fetchImpl?: typeof fetch } = {}): Promise<Buffer> {
+  const key = process.env.ELEVENLABS_API_KEY
+  if (!key) throw new Error('ELEVENLABS_API_KEY not set')
+  const doFetch = opts.fetchImpl || fetch
+  const attempts = Math.max(1, opts.attempts ?? 2)
+  const id = elevenVoiceIdFor(opts.voiceId)
+  const model = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
+  let lastErr: unknown = null
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await doFetch(`https://api.elevenlabs.io/v1/text-to-speech/${id}?output_format=mp3_44100_128`, {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: 'audio/mpeg' },
+        body: JSON.stringify({ text, model_id: model, voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!res.ok) throw new FalError(`ElevenLabs ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`, res.status)
+      const audio = Buffer.from(await res.arrayBuffer())
+      if (!isRealAudio(audio)) throw new FalError(`ElevenLabs: result is not real audio (${audio.length} bytes)`)
+      return audio
+    } catch (err) {
+      lastErr = err
+      if (attempt < attempts && retryable(err)) {
+        await new Promise((r) => setTimeout(r, (opts.backoffMs ?? 1000) * attempt))
+        continue
+      }
+      break
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('ElevenLabs TTS failed')
 }
 
 /** True when the bytes are a real mp3 (ID3 tag or MPEG frame sync) or a WAV. */

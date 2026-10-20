@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, addTopupCredits, costForUser } from '../../_lib/credits'
 import { FLYER_TEMPLATES, FLYER_SIZES, flyerPrompt, apiSize, printPixels, canBleed, dpiFor } from '../../_lib/flyer-engine'
 import { upscaleForPrint } from '../../_lib/upscale'
 import { pickEngine, drawChecked, checkWords } from '../../_lib/image-engine'
+import { falImage, falSizeFrom, FAL_IMAGE_MODEL } from '../../_lib/fal-image'
 import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 
 // =============================================================================
@@ -27,9 +27,8 @@ import type { FlyerFields, PhotoRole } from '../../_lib/flyer-engine'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-let _ai: OpenAI | null = null
-const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' }))
-const MODEL = process.env.FLYER_IMAGE_MODEL || 'gpt-image-2'
+// gpt-image on fal since 2026-10-19 (the OpenAI account ran out of credits).
+const MODEL = FAL_IMAGE_MODEL
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -308,7 +307,7 @@ export async function POST(req: Request) {
 
   // Prepare them ONCE, not per size. Every ticked size needs the same files,
   // and re-decoding a 5 MB upload six times is pure waste.
-  let files: Awaited<ReturnType<typeof toFile>>[] = []
+  let files: Buffer[] = []
   // The same pictures again, as raw buffers, because Gemini takes them inline
   // rather than as uploads. Built in the SAME ORDER — the prompt says "Image 1"
   // and "Image 2", and a different order here would apply the "keep this person
@@ -331,11 +330,9 @@ export async function POST(req: Request) {
         .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
         .png()
         .toBuffer()
-      // Name the reference for what it is. The order is what the prompt keys
-      // off, but a readable filename makes a failed request diagnosable.
-      const name = hasReference && i === 0 ? 'reference.png' : `photo-${i + (hasReference ? 0 : 1)}.png`
+      // The order is what the prompt keys off ("Image 1" is the reference).
       geminiInputs[i] = { data: buf as Buffer<ArrayBuffer>, mimeType: 'image/png' }
-      return toFile(buf, name, { type: 'image/png' })
+      return buf
     }))
   } catch (err) {
     return NextResponse.json({
@@ -434,17 +431,12 @@ export async function POST(req: Request) {
         // With photographs attached the design is EDITED around them instead of
         // generated from nothing, which is what keeps a real face looking like
         // that person rather than a stranger who dresses similarly.
-        const res = files.length
-          ? await ai().images.edit({
-              model: MODEL, prompt, image: files.length === 1 ? files[0] : files,
-              size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
-            })
-          : await ai().images.generate({
-              model: MODEL, prompt, size: apiSize(size, bleed).size as '1024x1024', quality: 'high', n: 1,
-            })
-        const b64 = res.data?.[0]?.b64_json
-        if (!b64) { await refund(); return { sizeId: key, label: lbl, error: 'no image returned' } }
-        src = Buffer.from(b64, 'base64')
+        const drawn = await falImage(prompt, { ...falSizeFrom(apiSize(size, bleed).size), quality: 'high', images: files }).catch((e) => {
+          console.warn(`[flyer] ${size.id} fal image failed: ${e instanceof Error ? e.message : e}`)
+          return null
+        })
+        if (!drawn) { await refund(); return { sizeId: key, label: lbl, error: 'no image returned' } }
+        src = drawn as Buffer<ArrayBuffer>
       }
 
       const sharp = (await import('sharp')).default

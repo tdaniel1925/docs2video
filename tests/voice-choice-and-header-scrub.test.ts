@@ -14,30 +14,17 @@ import path from 'path'
 //    raw title ("QoL Max Accumulator+ III Index Universal Life Insurance"),
 //    and V3's footer chips printed raw metric labels, past the product scrub.
 //
-// No paid calls: OpenAI, ElevenLabs (fetch) and Claude are all fakes here.
+// No paid calls: fal, ElevenLabs (fetch) and Claude are all fakes here.
+// (Since 2026-10-19 OpenAI speaks nothing: fal first, then ElevenLabs direct,
+// both in the picked voice.)
 
 const ROOT = path.join(__dirname, '..')
 const require_ = createRequire(import.meta.url)
 
 // ── Fakes ──────────────────────────────────────────────────────────────────
 const fake = vi.hoisted(() => ({
-  openaiCalls: [] as { voice: string }[],
   claudeReply: '[]',
 }))
-
-vi.mock('openai', () => {
-  class OpenAI {
-    audio = {
-      speech: {
-        create: async (args: { voice: string }) => {
-          fake.openaiCalls.push(args)
-          return { arrayBuffer: async () => new Uint8Array(500).buffer }
-        },
-      },
-    }
-  }
-  return { default: OpenAI }
-})
 
 vi.mock('@anthropic-ai/sdk', () => {
   class Anthropic {
@@ -46,20 +33,32 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: Anthropic }
 })
 
-const elevenCalls: string[] = []
+/** A fake mp3: MPEG frame-sync bytes, big enough to pass isRealAudio. */
+const MP3 = () => new Uint8Array(2048).fill(0xff)
+
+const calls: { url: string; body: string }[] = []
 beforeEach(() => {
-  fake.openaiCalls.length = 0
-  elevenCalls.length = 0
-  vi.stubEnv('FAL_KEY', '') // fal-first is tested in fal-tts.test.ts; here: the fallback order
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    elevenCalls.push(String(url))
-    return new Response(new Uint8Array(500), { status: 200 })
+  calls.length = 0
+  vi.stubEnv('FAL_KEY', '') // fal-first is tested in fal-tts.test.ts; here: the ElevenLabs fallback
+  vi.stubEnv('ELEVENLABS_VOICE_ID', '')
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { body?: string }) => {
+    calls.push({ url: String(url), body: String(init?.body ?? '') })
+    return new Response(MP3(), { status: 200 })
   }))
 })
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
 })
+
+const ELEVEN_IDS: Record<string, string> = {
+  nova: '21m00Tcm4TlvDq8ikWAM',    // Rachel
+  shimmer: 'EXAVITQu4vr4xnSDxMaL', // Sarah
+  onyx: 'nPczCjzI2devNBz1zQrb',    // Brian
+  echo: 'iP95p4xoKVk53GoZ742B',    // Chris
+  alloy: 'SAz9YHcvj6GT2YYXdXww',   // River
+  fable: 'JBFqnCBsd6RMkjVDRZzb',   // George
+}
 
 // ── 1a. App voice (interactive presentations + anything using tts.ts) ──────
 describe('app tts.ts speaks in the chosen voice', () => {
@@ -69,42 +68,43 @@ describe('app tts.ts speaks in the chosen voice', () => {
     return import('../app/_lib/tts')
   }
 
-  it('a picked voice (James = onyx) is spoken by that voice, not ElevenLabs Rachel', async () => {
-    const { synthesizeSpeech } = await loadTts()
-    await synthesizeSpeech('Your plan, explained.', 'onyx')
-    expect(fake.openaiCalls.map((c) => c.voice)).toEqual(['onyx'])
-    expect(elevenCalls).toHaveLength(0)
-  })
+  for (const [voice, id] of Object.entries(ELEVEN_IDS)) {
+    it(`"${voice}" is spoken by its own ElevenLabs voice when fal is off`, async () => {
+      const { synthesizeSpeech } = await loadTts()
+      await synthesizeSpeech('Your plan, explained.', voice)
+      expect(calls).toHaveLength(1)
+      expect(calls[0].url).toContain(`/text-to-speech/${id}`)
+    })
+  }
 
-  it('Sarah (the default) still goes to ElevenLabs first', async () => {
-    const { synthesizeSpeech } = await loadTts()
-    await synthesizeSpeech('Your plan, explained.', 'nova')
-    expect(elevenCalls.some((u) => u.includes('elevenlabs'))).toBe(true)
-    expect(fake.openaiCalls).toHaveLength(0)
-  })
-
-  it('an unknown or missing voice id falls back to Sarah', async () => {
+  it('an unknown or missing voice id falls back to Sarah (Rachel)', async () => {
     const { synthesizeSpeech } = await loadTts()
     await synthesizeSpeech('Hello there.', '')
-    expect(elevenCalls).toHaveLength(1)
-    expect(fake.openaiCalls).toHaveLength(0)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].url).toContain(ELEVEN_IDS.nova)
   })
 
-  it('if the picked voice fails, ElevenLabs still speaks (never silence)', async () => {
+  it('with fal on, fal speaks the picked voice first and nothing else is called', async () => {
+    vi.stubEnv('FAL_KEY', 'test-fal')
     const { synthesizeSpeech } = await loadTts()
-    // Make every OpenAI call throw (the fake records each call with push).
-    const realPush = fake.openaiCalls.push.bind(fake.openaiCalls)
-    fake.openaiCalls.push = () => { throw new Error('OpenAI down') }
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    try {
-      const p = synthesizeSpeech('Hello there.', 'echo')
-      await vi.runAllTimersAsync()
-      await p
-    } finally {
-      vi.useRealTimers()
-      fake.openaiCalls.push = realPush
-    }
-    expect(elevenCalls).toHaveLength(1)
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { body?: string }) => {
+      calls.push({ url: String(url), body: String(init?.body ?? '') })
+      if (String(url).startsWith('https://fal.run/')) return new Response(JSON.stringify({ audio: { url: 'https://cdn.fal.test/a.mp3' } }), { status: 200 })
+      return new Response(MP3(), { status: 200 })
+    }))
+    await synthesizeSpeech('Hello there.', 'onyx')
+    expect(calls.map((c) => c.url)).toEqual(['https://fal.run/fal-ai/elevenlabs/tts/turbo-v2.5', 'https://cdn.fal.test/a.mp3'])
+    expect(JSON.parse(calls[0].body).voice).toBe('Brian')
+  })
+
+  it('never calls OpenAI, even when every voice service fails', async () => {
+    const { synthesizeSpeech } = await loadTts()
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      calls.push({ url: String(url), body: '' })
+      return new Response('payment_required', { status: 402 })
+    }))
+    await expect(synthesizeSpeech('Hello there.', 'echo')).rejects.toThrow(/TTS failed \(fal \+ ElevenLabs\)/)
+    expect(calls.some((c) => c.url.includes('openai'))).toBe(false)
   })
 })
 
@@ -116,43 +116,58 @@ describe('render-service ttsToBuffer speaks in the chosen voice', () => {
     if (i < 0) return `/* ${name} missing */`
     return src.slice(i, src.indexOf('\n}\n', i) + 2)
   }
-  const voicesLine = (src.match(/const OPENAI_TTS_VOICES = \[[^\]]*\]/) || ['const OPENAI_TTS_VOICES = []'])[0]
-  const slides = require_(path.join(ROOT, 'render-service/slides.js'))
+  const realFal = require_(path.join(ROOT, 'render-service/fal-tts.js'))
 
-  function build(haveEleven: boolean) {
-    const calls: { engine: string; voice?: string }[] = []
-    class FakeOpenAI {
-      audio = { speech: { create: async (a: { voice: string }) => { calls.push({ engine: 'openai', voice: a.voice }); return { arrayBuffer: async () => new Uint8Array(500).buffer } } } }
+  function build(o: { fal: 'ok' | 'down' | 'off'; eleven: 'ok' | 'down' | 'off' }) {
+    const heard: { engine: string; voice: string }[] = []
+    const falMod = {
+      ...realFal,
+      falSpeak: async (_t: string, opts: { voiceId?: string }) => {
+        heard.push({ engine: 'fal', voice: realFal.falVoiceFor(opts.voiceId) })
+        if (o.fal === 'down') throw new Error('fal down')
+        return { audio: Buffer.from(MP3()) }
+      },
     }
-    const fakeRequire = (m: string) => (m === './slides' ? slides : m === 'openai' ? FakeOpenAI : (() => { throw new Error(`unexpected require ${m}`) })())
-    const elevenSpeak = async () => { calls.push({ engine: 'elevenlabs' }); return Buffer.alloc(500) }
+    const fakeRequire = (m: string) => (m === './fal-tts' ? falMod : (() => { throw new Error(`unexpected require ${m}`) })())
+    const fakeFetch = async (url: string) => {
+      heard.push({ engine: 'elevenlabs', voice: String(url).split('/text-to-speech/')[1]?.split('?')[0] ?? '' })
+      return o.eleven === 'down' ? new Response('nope', { status: 402 }) : new Response(MP3(), { status: 200 })
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tts: any = new Function('speakable', 'elevenSpeak', 'require', 'ELEVEN_API_KEY', 'OPENAI_API_KEY',
-      `${voicesLine}\n${fnSrc('openaiSpeak')}\n${fnSrc('ttsToBuffer')}\nreturn ttsToBuffer`,
-    )((t: string) => t, elevenSpeak, fakeRequire, haveEleven ? 'key' : undefined, 'key')
-    return { tts, calls }
+    const tts: any = new Function('speakable', 'require', 'ELEVEN_API_KEY', 'ELEVEN_MODEL', 'process', 'fetch',
+      `${fnSrc('elevenSpeak')}\n${fnSrc('ttsToBuffer')}\nreturn ttsToBuffer`,
+    )((t: string) => t, fakeRequire, o.eleven === 'off' ? undefined : 'key', 'eleven_turbo_v2_5', { env: { FAL_KEY: o.fal === 'off' ? '' : 'key' } }, fakeFetch)
+    return { tts, heard }
   }
 
-  for (const voice of ['shimmer', 'onyx', 'echo', 'alloy', 'fable']) {
-    it(`"${voice}" is spoken by that OpenAI voice even though ElevenLabs is up`, async () => {
-      const { tts, calls } = build(true)
-      await tts('Your plan, explained.', voice)
-      expect(calls).toEqual([{ engine: 'openai', voice }])
+  for (const [voice, id] of Object.entries(ELEVEN_IDS)) {
+    it(`"${voice}" is spoken by fal in its mapped voice, and by the same voice on ElevenLabs when fal is down`, async () => {
+      const up = build({ fal: 'ok', eleven: 'ok' })
+      await up.tts('Your plan, explained.', voice)
+      expect(up.heard).toEqual([{ engine: 'fal', voice: realFal.FAL_VOICE_MAP[voice] }])
+      const down = build({ fal: 'down', eleven: 'ok' })
+      await down.tts('Your plan, explained.', voice)
+      expect(down.heard).toEqual([{ engine: 'fal', voice: realFal.FAL_VOICE_MAP[voice] }, { engine: 'elevenlabs', voice: id }])
     })
   }
 
-  it('Sarah (nova) or nothing picked → ElevenLabs first, as before', async () => {
-    for (const v of ['nova', undefined, 'not-a-voice']) {
-      const { tts, calls } = build(true)
+  it('nothing picked or an unknown id → Sarah (Rachel)', async () => {
+    for (const v of [undefined, 'not-a-voice']) {
+      const { tts, heard } = build({ fal: 'off', eleven: 'ok' })
       await tts('Hello.', v)
-      expect(calls).toEqual([{ engine: 'elevenlabs' }])
+      expect(heard).toEqual([{ engine: 'elevenlabs', voice: ELEVEN_IDS.nova }])
     }
   })
 
-  it('no ElevenLabs key → OpenAI Sarah for the default', async () => {
-    const { tts, calls } = build(false)
-    await tts('Hello.', 'nova')
-    expect(calls).toEqual([{ engine: 'openai', voice: 'nova' }])
+  it('both services down → a clear error naming both, never OpenAI', async () => {
+    const { tts, heard } = build({ fal: 'down', eleven: 'down' })
+    await expect(tts('Hello.', 'nova')).rejects.toThrow(/TTS failed \(fal \+ ElevenLabs\)/)
+    expect(heard.map((h) => h.engine)).toEqual(['fal', 'elevenlabs', 'elevenlabs'])
+  }, 10_000)
+
+  it('no voice service configured → a clear error', async () => {
+    const { tts } = build({ fal: 'off', eleven: 'off' })
+    await expect(tts('Hello.', 'nova')).rejects.toThrow(/no voice service configured/)
   })
 
   it('both render routes hand the voice id to the recorder', () => {

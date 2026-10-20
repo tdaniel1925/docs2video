@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import OpenAI, { toFile } from 'openai'
 import { createClient } from '../../_lib/supabase/server'
 import { createAdminClient } from '../../_lib/supabase/admin'
 import { checkCredits, deductCredits, addTopupCredits, costForUser, spendBlockMessage } from '../../_lib/credits'
+import { falImage } from '../../_lib/fal-image'
 
 // =============================================================================
 // Change ONE PART of a finished design.
@@ -23,9 +23,8 @@ import { checkCredits, deductCredits, addTopupCredits, costForUser, spendBlockMe
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-let _ai: OpenAI | null = null
-const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' }))
-const MODEL = process.env.FLYER_IMAGE_MODEL || 'gpt-image-2'
+// The masked edit runs on gpt-image-2.5 on fal (fal-image.ts) since
+// 2026-10-19 — its edit endpoint takes the same mask (mask_url).
 
 /**
  * Is this instruction really about changing WORDS?
@@ -307,22 +306,13 @@ export async function POST(req: Request) {
         'DO NOT add, move, respell or restyle any text or lettering anywhere in the image. ' +
         'If the instruction cannot be done as a subtle photographic change to the masked spot, leave that area unchanged rather than inventing something to fill it.'
 
-    const res = await ai().images.edit({
-      model: MODEL,
-      prompt: editPrompt,
-      image: await toFile(cropImg, 'crop.png', { type: 'image/png' }),
-      mask: await toFile(cropMask, 'mask.png', { type: 'image/png' }),
-      size: '1024x1024',
-      quality: 'high',
-      n: 1,
-    })
-
-    const b64 = res.data?.[0]?.b64_json
-    if (!b64) { await refund(); return NextResponse.json({ error: 'Nothing came back — you were not charged.' }, { status: 502 }) }
+    const drawn = await falImage(editPrompt, { images: [cropImg], mask: cropMask, width: EDIT, height: EDIT, quality: 'high', outputFormat: 'png' })
+      .catch((e) => { console.warn('[flyer-edit] fal edit failed:', e instanceof Error ? e.message : e); return null })
+    if (!drawn) { await refund(); return NextResponse.json({ error: 'Nothing came back — you were not charged.' }, { status: 502 }) }
 
     // 5) Scale the edited crop back to the region's TRUE size and paste it into
     //    the untouched original. Everything outside the crop is byte-identical.
-    const editedCrop = await sharp(Buffer.from(b64, 'base64')).resize(side, side, { fit: 'fill' }).png().toBuffer()
+    const editedCrop = await sharp(drawn).resize(side, side, { fit: 'fill' }).png().toBuffer()
     const edited = await sharp(original)
       .composite([{ input: editedCrop, top: region.top, left: region.left }])
       .withMetadata({ density: meta.density ?? 72 })
