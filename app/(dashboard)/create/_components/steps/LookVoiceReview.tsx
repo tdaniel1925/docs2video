@@ -167,8 +167,10 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
         const cols = 'id, name, logo_url, primary_color, secondary_color, accent_color, brand_guide_data'
         let found: BrandInfo | null = null
         if (typeof d.brandId === 'string' && d.brandId) {
-          const { data } = await supabase.from('brands').select(cols).eq('id', d.brandId).maybeSingle()
-          found = (data as BrandInfo | null) ?? null
+          // One read with the person fields; the two-read path below stays as the fallback (a missing column).
+          const { data, error } = await supabase.from('brands').select(`${cols}, profile_type, intro_line`).eq('id', d.brandId).maybeSingle()
+          if (!error) found = (data as BrandInfo | null) ?? null
+          else { const r = await supabase.from('brands').select(cols).eq('id', d.brandId).maybeSingle(); found = (r.data as BrandInfo | null) ?? null }
         } else if (d.brandId === undefined) {
           const { data: auth } = await supabase.auth.getUser()
           if (auth.user) {
@@ -183,7 +185,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
         // Is it a person's brand (for the voice note)? Its own query: a column
         // this read lacks must never cost the page its brand — with no brand
         // the video would be made from the account's profile instead.
-        if (found) {
+        if (found && found.profile_type === undefined) {
           const { data: who } = await supabase.from('brands').select('profile_type, intro_line').eq('id', found.id).maybeSingle()
           if (who) found = { ...found, ...(who as Pick<BrandInfo, 'profile_type' | 'intro_line'>) }
         }
