@@ -1,11 +1,5 @@
-import OpenAI from 'openai'
 import sharp from 'sharp'
-
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
-}
+import { falImage } from './fal-image'
 
 interface CoverOptions {
   title: string
@@ -53,15 +47,9 @@ This is the CLOSING FRAME. It should feel warm, inviting, and actionable — the
 
 NO TEXT. NO LOGOS. NO WORDS of any kind. Pure illustrated artwork.`
 
-  const bgRes = await getOpenAI().images.generate({
-    model: 'gpt-image-2',
-    prompt: bgPrompt,
-    size: '1536x1024',
-    quality: 'high',
-    n: 1,
-  })
-
-  let bgBuffer: Buffer = Buffer.from(bgRes.data![0].b64_json!, 'base64')
+  // gpt-image-2.5 on fal (fal-image.ts) since 2026-10-19 — asked for the
+  // video's own 16:9 shape, then fitted to exactly 1920x1080.
+  let bgBuffer: Buffer = await falImage(bgPrompt, { width: 1920, height: 1088, quality: 'high' })
   bgBuffer = Buffer.from(await sharp(bgBuffer).resize(1920, 1080, { fit: 'cover' }).png().toBuffer())
 
   // Step 2: Load and prepare logo (if available)

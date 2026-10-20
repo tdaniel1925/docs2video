@@ -2,17 +2,12 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { requireAdmin } from '../../../_lib/admin'
 import { scrapeBrand } from '../../../_lib/brand-scraper'
-import OpenAI from 'openai'
+import { claudeText } from '../../../_lib/claude-text'
 import FirecrawlApp from '@mendable/firecrawl-js'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-let _openai: OpenAI | null = null
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return _openai
-}
 
 let _firecrawl: InstanceType<typeof FirecrawlApp> | null = null
 function getFirecrawl() {
@@ -77,17 +72,12 @@ export async function POST(request: Request) {
           continue
         }
 
-        // Extract content with OpenAI
-        const openai = getOpenAI()
-        const contentResponse = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'user', content: `${EXTRACTION_PROMPT}\n\nWebsite text from ${parsedUrl.hostname}:\n\n${markdown.slice(0, 30000)}` },
-          ],
+        // Extract content with Claude (claude-text.ts; OpenAI until 2026-10-19)
+        const raw = await claudeText({
+          user: `${EXTRACTION_PROMPT}\n\nWebsite text from ${parsedUrl.hostname}:\n\n${markdown.slice(0, 30000)}`,
           temperature: 0.3,
+          maxTokens: 4000,
         })
-
-        const raw = contentResponse.choices[0]?.message?.content?.trim() ?? ''
         const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
         let extractedData: any
         try {

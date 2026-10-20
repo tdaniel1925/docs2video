@@ -160,16 +160,16 @@ describe('which renderer and which voice', () => {
     expect(lookNote('video', 'aurora')).toBeNull()
   })
   it('sounds like the finished video', () => {
-    // Slide Deck look: Sarah → ElevenLabs; any other pick → that OpenAI voice.
+    // Every pick is spoken by ElevenLabs voices (fal first, then direct).
     expect(voiceForPreview('video', 'slides', 'nova')).toEqual({ engine: 'elevenlabs', voice: 'nova', note: null })
-    expect(voiceForPreview('video', 'slides', 'onyx')).toEqual({ engine: 'openai', voice: 'onyx', note: null })
+    expect(voiceForPreview('video', 'slides', 'onyx')).toEqual({ engine: 'elevenlabs', voice: 'onyx', note: null })
     // Every other narrated look now uses the pick too (they used to always be
     // Sarah, with a note saying so) — and there is no note any more.
     for (const look of ['aurora', 'cinematic', 'infographic', 'editorial', 'explainer']) {
-      expect(voiceForPreview('video', look, 'onyx')).toEqual({ engine: 'openai', voice: 'onyx', note: null })
+      expect(voiceForPreview('video', look, 'onyx')).toEqual({ engine: 'elevenlabs', voice: 'onyx', note: null })
       expect(voiceForPreview('video', look, 'nova')).toEqual({ engine: 'elevenlabs', voice: 'nova', note: null })
     }
-    expect(voiceForPreview('interactive', 'heritage', 'echo')).toEqual({ engine: 'openai', voice: 'echo', note: null })
+    expect(voiceForPreview('interactive', 'heritage', 'echo')).toEqual({ engine: 'elevenlabs', voice: 'echo', note: null })
     // A slide deck has no voice; an unknown voice id falls back to Sarah.
     expect(voiceForPreview('deck', 'heritage', 'nova')).toBeNull()
     expect(voiceForPreview('video', 'slides', 'nonsense')!.voice).toBe('nova')

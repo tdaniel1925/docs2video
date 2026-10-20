@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '../../../_lib/supabase/server'
 import { createAdminClient } from '../../../_lib/supabase/admin'
 import { runCharged } from '../../../_lib/credit-charge'
-import OpenAI from 'openai'
+import { claudeText, jsonObjectText } from '../../../_lib/claude-text'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -44,8 +44,6 @@ Unique selling points: ${(brand.unique_selling_points || []).join(', ') || 'N/A'
     : `Company: ${profile?.company_name || 'Unknown'}
 Tone: ${profile?.social_voice || 'professional'}`
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-
   // Generate captions from a topic/description
   if (action === 'captions') {
     const { topic, platforms } = body as { topic: string; platforms: string[] }
@@ -60,13 +58,9 @@ Tone: ${profile?.social_voice || 'professional'}`
     // Charge, and refund if the AI call or its parse fails (audit H5).
     return runCharged({ userId: user.id, amount: CREDITS_PER_GENERATION, action: 'social_caption_gen', description: `AI captions for ${platforms.join(', ')}` }, async () => {
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const reply = await claudeText({
         temperature: 0.8,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a social media expert. Generate platform-specific captions optimized for each platform's audience and format.
+        system: `You are a social media expert. Generate platform-specific captions optimized for each platform's audience and format.
 
 ${brandContext}
 
@@ -77,16 +71,10 @@ Platform guidelines:
 - twitter: Under 250 characters, punchy, 1-2 hashtags max
 - facebook: Conversational, 2-3 sentences, question or CTA, no hashtags
 - instagram: Engaging, emoji-friendly, 5-10 hashtags at the end, storytelling angle`,
-          },
-          {
-            role: 'user',
-            content: `Generate social media captions about: "${topic}"\n\nPlatforms: ${platforms.join(', ')}`,
-          },
-        ],
-        response_format: { type: 'json_object' },
+        user: `Generate social media captions about: "${topic}"\n\nPlatforms: ${platforms.join(', ')}`,
       })
 
-      const content = completion.choices[0]?.message?.content ?? '{}'
+      const content = jsonObjectText(reply)
       let captions: Record<string, string>
       try {
         captions = JSON.parse(content)
@@ -135,13 +123,10 @@ Platform guidelines:
     const shareLink = `https://docs2video.com/watch/${videoId}`
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const reply = await claudeText({
         temperature: 0.85,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a social media expert. Generate 4 varied social media posts to promote a video. Each post should take a different angle (educational, engaging question, stat/insight, call-to-action).
+        maxTokens: 4000,
+        system: `You are a social media expert. Generate 4 varied social media posts to promote a video. Each post should take a different angle (educational, engaging question, stat/insight, call-to-action).
 
 ${brandContext}
 
@@ -160,16 +145,10 @@ Return ONLY valid JSON:
 
 Do NOT include the share link in the text — it will be appended automatically.
 Keep each post unique with a different hook/angle.`,
-          },
-          {
-            role: 'user',
-            content: `Video title: "${video.title}"\n\nVideo content summary:\n${narrationText || 'No narration available.'}\n\nShare link (will be appended, do not include): ${shareLink}`,
-          },
-        ],
-        response_format: { type: 'json_object' },
+        user: `Video title: "${video.title}"\n\nVideo content summary:\n${narrationText || 'No narration available.'}\n\nShare link (will be appended, do not include): ${shareLink}`,
       })
 
-      const content = completion.choices[0]?.message?.content ?? '{}'
+      const content = jsonObjectText(reply)
       let result: { posts: any[] }
       try {
         result = JSON.parse(content)

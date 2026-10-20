@@ -86,10 +86,10 @@ export const KNOWN_ISSUES: KnownIssue[] = [
   },
   {
     match: /TTS (returned \d+ bytes|failed)|audio\.speech\.create/i,
-    title: "OpenAI TTS narration failure",
+    title: "TTS narration failure",
     fix: [
       "A narration TTS call failed or returned empty audio. The render service now retries 3x with backoff and FAILS the job (refund + notify) rather than shipping a silent slide.",
-      "Check OPENAI_API_KEY validity/quota. If persistent, inspect the narration text for content that may be rejected.",
+      "Voices come from fal (FAL_KEY) first, then ElevenLabs direct (ELEVENLABS_API_KEY). Check both keys' balance/quota (the error names which one failed). If persistent, inspect the narration text for content that may be rejected.",
     ].join("\n"),
   },
   {

@@ -12,11 +12,11 @@ const COST_PER_ACTION: Record<string, number> = {
   'video_generation': 0.05,
   // Slide generation (Gemini 3 Pro Image) — per slide
   'slide_generation': 0.04,
-  // TTS (OpenAI TTS-HD) — per scene
+  // TTS (ElevenLabs turbo v2.5 on fal, $0.05 / 1K chars) — per scene
   'tts_generation': 0.02,
   // Music (Lyria 3 Pro)
   'music_generation': 0.01,
-  // Extraction (gpt-4o-mini via the render service)
+  // Extraction (Claude)
   'extraction': 0.01,
   // Strategic analysis (Claude Sonnet)
   'strategic_analysis': 0.03,
@@ -80,14 +80,14 @@ export async function GET() {
 
     // Cost breakdown by provider
     const breakdown = {
-      anthropic: recentVideos.length * (COST_PER_ACTION.script_generation + COST_PER_ACTION.strategic_analysis),
+      anthropic: recentVideos.length * (COST_PER_ACTION.script_generation + COST_PER_ACTION.strategic_analysis + COST_PER_ACTION.extraction),
       google: recentVideos.reduce((sum, v) => {
         const slides = AVG_SLIDES[v.detail_level || 'standard'] || 7
         return sum + (COST_PER_ACTION.slide_generation * slides) + COST_PER_ACTION.music_generation
       }, 0),
-      openai: recentVideos.reduce((sum, v) => {
+      fal: recentVideos.reduce((sum, v) => {
         const slides = AVG_SLIDES[v.detail_level || 'standard'] || 7
-        return sum + (COST_PER_ACTION.tts_generation * slides) + COST_PER_ACTION.extraction
+        return sum + (COST_PER_ACTION.tts_generation * slides)
       }, 0),
     }
 

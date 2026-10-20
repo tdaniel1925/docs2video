@@ -20,8 +20,8 @@ export function estimateVideoCost(
   totalNarrationChars: number,
   includeMusic: boolean
 ): CostEstimate {
-  const slideImageCost = sceneCount * 8  // ~$0.08 per slide (OpenAI gpt-image-2)
-  const ttsCost = Math.ceil(totalNarrationChars / 1000) * 3  // ~$0.03 per 1K chars
+  const slideImageCost = sceneCount * 8  // ~$0.08 per slide (a safe ceiling: gpt-image-2.5 on fal is ~3.7c high, 1920x1088)
+  const ttsCost = Math.ceil(totalNarrationChars / 1000) * 5  // $0.05 per 1K chars (ElevenLabs turbo v2.5 on fal)
   const musicCost = includeMusic ? 5 : 0  // ~$0.05 for AI music
 
   return {

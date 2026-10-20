@@ -14,7 +14,7 @@
 // =============================================================================
 
 // voice-choice.ts is itself import-free, so this file stays browser-safe.
-import { OPENAI_VOICES, normalizeVoice, wantsChosenVoice } from './voice-choice'
+import { OPENAI_VOICES, normalizeVoice } from './voice-choice'
 
 export const FREE_PREVIEWS_PER_DAY = 3
 
@@ -159,20 +159,18 @@ export function lookNote(output: string, look: string): string | null {
 // The sample must sound like the finished video. Every narrated look —
 // Animated slides, Aurora, Cinematic, Infographic, Editorial, Explainer — and
 // interactive presentations now follow ONE rule (voice-choice.ts):
-//  • since 2026-10-09 every voice is spoken by fal.ai first (fal-tts.ts —
-//    same ElevenLabs voices); the engine below is the fallback if fal fails:
-//  • Sarah (the default) is spoken by ElevenLabs;
-//  • any other voice picked is spoken by that OpenAI voice.
+//  • every voice is spoken by fal.ai first (fal-tts.ts — ElevenLabs voices),
+//    then ElevenLabs direct, both in the voice picked (2026-10-19: OpenAI
+//    voices are gone, so the engine is always 'elevenlabs').
 // (Before, only the Animated slides look used the pick and the sample said so.)
 //  • Slide decks (output 'deck') have no voice.
 // `note` stays in the shape for callers; there is nothing to warn about now.
 
 export { OPENAI_VOICES }
 
-export function voiceForPreview(output: string, look: string, voiceId: string): { engine: 'elevenlabs' | 'openai'; voice: string; note: string | null } | null {
+export function voiceForPreview(output: string, look: string, voiceId: string): { engine: 'elevenlabs'; voice: string; note: string | null } | null {
   if (output === 'deck') return null
-  const v = normalizeVoice(voiceId)
-  return wantsChosenVoice(v) ? { engine: 'openai', voice: v, note: null } : { engine: 'elevenlabs', voice: 'nova', note: null }
+  return { engine: 'elevenlabs', voice: normalizeVoice(voiceId), note: null }
 }
 
 // ── Editorial / Explainer page for a scene (code only) ──────────────────────

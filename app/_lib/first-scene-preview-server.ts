@@ -10,11 +10,9 @@
 // every other look is drawn by code.
 // =============================================================================
 
-import OpenAI from 'openai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Brand } from './types'
-import { synthesizeSpeech, speakable } from './tts'
-import { falSpeak } from './fal-tts'
+import { synthesizeSpeech } from './tts'
 import { buildV3Payload } from './v3-render'
 import { buildPresentationHtml, PRESENTATION_TEMPLATES, type PresentationScene } from './presentation'
 import { isRegulated, productTokens, scrubComplianceText } from './compliance'
@@ -239,26 +237,11 @@ export function buildPreviewPlan(o: {
 // ── Voice ───────────────────────────────────────────────────────────────────
 
 /** The sample, spoken the way the finished piece will speak it. */
-export async function synthesizePreviewVoice(text: string, pick: { engine: 'elevenlabs' | 'openai'; voice: string }): Promise<Buffer> {
-  // fal first (2026-10-09) — the same voice the finished video will use
-  // (fal-tts.ts FAL_VOICE_MAP); the old engines only if fal fails.
-  if (process.env.FAL_KEY) {
-    try { return (await falSpeak(speakable(text), { voiceId: pick.voice })).audio } catch (err) {
-      console.warn(`[preview] fal voice failed (${err instanceof Error ? err.message : err}) — trying ElevenLabs/OpenAI`)
-    }
-  }
-  if (pick.engine === 'elevenlabs') return synthesizeSpeech(text, pick.voice)
-  // A voice other than Sarah, in any look: that OpenAI voice, same model and
-  // speed as render-service/slides.js openaiTimed (the V3/editorial renders use
-  // the same voice at 0.98 speed — close enough for a 10-second sample).
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  const res = await openai.audio.speech.create(
-    { model: (process.env.OPENAI_TTS_MODEL || 'tts-1-hd') as 'tts-1-hd', voice: pick.voice as 'nova', input: speakable(text), response_format: 'mp3', speed: 0.95 },
-    { signal: AbortSignal.timeout(30000) },
-  )
-  const buf = Buffer.from(await res.arrayBuffer())
-  if (buf.length < 100) throw new Error(`OpenAI voice returned ${buf.length} bytes`)
-  return buf
+export async function synthesizePreviewVoice(text: string, pick: { engine: 'elevenlabs'; voice: string }): Promise<Buffer> {
+  // The same chain the finished video uses (tts.ts): fal first, then
+  // ElevenLabs direct — both in the picked voice (fal-tts.ts FAL_VOICE_MAP).
+  // OpenAI voices are gone (2026-10-19, its credits ran out).
+  return synthesizeSpeech(text, pick.voice)
 }
 
 // ── Storage ─────────────────────────────────────────────────────────────────

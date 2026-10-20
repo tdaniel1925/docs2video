@@ -1,12 +1,6 @@
-import OpenAI from 'openai'
 import { SLIDE_STYLES } from './types'
 import { createAdminClient } from './supabase/admin'
-
-let client: OpenAI | null = null
-function getClient(): OpenAI {
-  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  return client
-}
+import { falImagePng } from './fal-image'
 
 /**
  * Style treatments per template — describes how the logo should look in each style.
@@ -40,13 +34,11 @@ export async function generateStyledLogo(
   styleId: string,
   brandColors: { primary: string; secondary: string }
 ): Promise<Buffer> {
-  const openai = getClient()
   const treatment = STYLE_TREATMENTS[styleId] || 'Render the logo with a professional polished treatment matching a modern presentation style.'
 
-  const response = await openai.images.edit({
-    model: 'gpt-image-1',
-    image: await fetchAsFile(logoUrl),
-    prompt: `Take this exact logo and apply the following visual treatment while preserving its exact shape, proportions, text, and details. Do NOT alter the logo design itself — only add stylistic effects around and onto it.
+  // gpt-image-2.5 edit on fal (fal-image.ts) since 2026-10-19, with a real
+  // transparent background asked for rather than only described.
+  return falImagePng(`Take this exact logo and apply the following visual treatment while preserving its exact shape, proportions, text, and details. Do NOT alter the logo design itself — only add stylistic effects around and onto it.
 
 Treatment: ${treatment}
 
@@ -57,22 +49,7 @@ CRITICAL RULES:
 - Output on a TRANSPARENT background (PNG with alpha)
 - The logo should be centered and fill most of the frame
 - Only add style effects (glow, texture, shadow, color treatment) — never change the logo itself
-- Output size: 800x400 pixels`,
-    size: '1024x1024',
-  })
-
-  // Extract image data from response
-  const imageData = response.data?.[0]
-  if (!imageData) throw new Error('No image generated')
-
-  if (imageData.b64_json) {
-    return Buffer.from(imageData.b64_json, 'base64')
-  } else if (imageData.url) {
-    const res = await fetch(imageData.url)
-    return Buffer.from(await res.arrayBuffer())
-  }
-
-  throw new Error('No image data in response')
+- Output size: 800x400 pixels`, { images: [await fetchLogo(logoUrl)], width: 1024, height: 1024, quality: 'high', background: 'transparent', outputFormat: 'png' })
 }
 
 /**
@@ -151,11 +128,10 @@ export function getStyledLogoUrl(
   return brand.logo_url ?? null
 }
 
-/**
- * Fetch a URL and return as a File object for OpenAI API.
- */
-async function fetchAsFile(url: string): Promise<File> {
-  const res = await fetch(url)
-  const buffer = await res.arrayBuffer()
-  return new File([buffer], 'logo.png', { type: 'image/png' })
+/** The logo's bytes (a stored URL or a data URL). */
+async function fetchLogo(url: string): Promise<Buffer> {
+  if (url.startsWith('data:')) return Buffer.from(url.split(',')[1] ?? '', 'base64')
+  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) })
+  if (!res.ok) throw new Error(`logo download ${res.status}`)
+  return Buffer.from(await res.arrayBuffer())
 }

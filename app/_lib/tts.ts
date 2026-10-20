@@ -1,30 +1,15 @@
-import OpenAI from 'openai'
-import { normalizeVoice, ttsOrder, type OpenAIVoice } from './voice-choice'
-import { falSpeak } from './fal-tts'
+import { normalizeVoice } from './voice-choice'
+import { falSpeak, elevenDirectSpeak } from './fal-tts'
+import { silenceMp3 } from './silence'
 
 const TTS_MAX_CHARS = 4096
 
-// Voice engine order: fal.ai FIRST (fal-tts.ts — the same ElevenLabs voices,
-// the customer's pick mapped by FAL_VOICE_MAP), then the old pair below
-// (voice-choice.ts ttsOrder — the same rule every look uses):
-//  - Sarah (nova) or nothing picked: ElevenLabs Rachel first (a warm female
-//    voice, matches the female-default rule), OpenAI Sarah as the fallback.
-//  - any other voice picked: that OpenAI voice first, ElevenLabs as the
-//    fallback. Before this, ElevenLabs always went first, so the voice the
-//    customer picked was only heard when ElevenLabs happened to be down.
-// Either provider failing never kills a render — we try the other.
-const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY
-const ELEVEN_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM' // Rachel
-const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
+// Voice engine order (2026-10-19, "move everything to fal"): fal.ai FIRST
+// (fal-tts.ts — ElevenLabs voices, the customer's pick mapped by
+// FAL_VOICE_MAP), then ElevenLabs direct in the SAME picked voice
+// (elevenDirectSpeak). OpenAI TTS is gone: its account ran out of credits, and
+// both remaining engines speak the voice the customer chose.
 
-let client: OpenAI | null = null
-
-function getClient(): OpenAI {
-  if (!client) {
-    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
-  }
-  return client
-}
 
 /**
  * Normalize text so TTS SPEAKS symbols instead of mangling them — ElevenLabs
@@ -87,27 +72,6 @@ export function speakable(text: string): string {
   return t
 }
 
-/** ElevenLabs TTS → mp3 Buffer. Throws on any error so the caller can fall back. */
-async function elevenSpeak(text: string): Promise<Buffer> {
-  if (!ELEVEN_API_KEY) throw new Error('ELEVENLABS_API_KEY not set')
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30000)
-  try {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE_ID}?output_format=mp3_44100_128`, {
-      method: 'POST',
-      headers: { 'xi-api-key': ELEVEN_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text, model_id: ELEVEN_MODEL, voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
-      signal: controller.signal as any,
-    })
-    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`)
-    const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length < 100) throw new Error(`ElevenLabs returned tiny audio: ${buf.length} bytes`)
-    return buf
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
 export async function synthesizeSpeech(
   text: string,
   voiceId: string,
@@ -145,73 +109,20 @@ export async function synthesizeSpeech(
       return (await falSpeak(text, { voiceId: voice })).audio
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
-      console.warn(`[tts] fal voice failed (${lastError.message}) — trying ElevenLabs/OpenAI`)
+      console.warn(`[tts] fal voice failed (${lastError.message}) — trying ElevenLabs direct`)
     }
   }
-  for (const provider of ttsOrder(voice)) {
-    if (provider === 'elevenlabs') {
-      if (!ELEVEN_API_KEY) continue
-      try {
-        return await elevenSpeak(text)
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err))
-        console.warn(`[tts] ElevenLabs failed (${lastError.message}) — trying the other voice service`)
-      }
-    } else {
-      try {
-        return await openaiSpeak(text, voice)
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err))
-        console.warn(`[tts] OpenAI voice "${voice}" failed (${lastError.message}) — trying the other voice service`)
-      }
+  if (process.env.ELEVENLABS_API_KEY) {
+    try {
+      return await elevenDirectSpeak(text, { voiceId: voice })
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`[tts] ElevenLabs voice "${voice}" failed (${lastError.message})`)
     }
   }
 
   // Both providers failed — throw instead of silently substituting silence.
-  throw new Error(`TTS failed (fal + ElevenLabs + OpenAI). Last error: ${lastError?.message || 'Unknown error'}`)
-}
-
-/** OpenAI TTS-HD in the given voice — up to 3 tries with backoff, 30s each. */
-async function openaiSpeak(text: string, voice: OpenAIVoice): Promise<Buffer> {
-  const openai = getClient()
-  let lastError: Error | null = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
-
-      const response = await openai.audio.speech.create(
-        {
-          model: 'tts-1-hd',
-          voice,
-          input: text,
-          response_format: 'mp3',
-          speed: 0.95,
-        },
-        { signal: controller.signal as any }
-      )
-
-      clearTimeout(timeout)
-
-      const arrayBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
-
-      // Verify we got actual audio
-      if (buffer.length < 100) {
-        throw new Error(`TTS returned suspiciously small audio: ${buffer.length} bytes`)
-      }
-
-      return buffer
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err))
-      console.error(`[tts] Attempt ${attempt}/3 failed for text "${text.slice(0, 50)}...": ${lastError.message}`)
-      if (attempt < 3) {
-        await new Promise(r => setTimeout(r, 1000 * attempt))
-      }
-    }
-  }
-
-  throw lastError || new Error('OpenAI TTS failed')
+  throw new Error(`TTS failed (fal + ElevenLabs). Last error: ${lastError?.message || 'Unknown error'}`)
 }
 
 async function synthesizeLongText(text: string, voiceId: string): Promise<Buffer> {
@@ -242,31 +153,12 @@ export function splitAtSentenceBoundary(text: string, maxLen: number): string[] 
 }
 
 /**
- * Generate brief silence for intentionally empty narration scenes.
- * Uses OpenAI TTS with "..." to produce a valid short audio clip.
- * NOT used as error fallback — TTS errors should propagate.
+ * Brief silence for intentionally empty narration scenes — half a second of a
+ * real silent mp3 (silence.ts). NOT used as an error fallback — TTS errors
+ * should propagate.
  */
 async function generateBriefSilence(): Promise<Buffer> {
-  try {
-    const openai = getClient()
-    const response = await openai.audio.speech.create({
-      model: 'tts-1',
-      voice: 'alloy',
-      input: '...',
-      response_format: 'mp3',
-      speed: 1.0,
-    })
-    const buf = Buffer.from(await response.arrayBuffer())
-    if (buf.length > 100) {
-      console.log(`[tts] Generated brief silence (${buf.length} bytes)`)
-      return buf
-    }
-  } catch {
-    console.warn('[tts] Could not generate brief silence via TTS')
-  }
-
-  // Return empty buffer — FFmpeg can handle zero-length audio segments
-  return Buffer.alloc(0)
+  return silenceMp3()
 }
 
 export async function synthesizeAllScenes(
@@ -280,23 +172,8 @@ export async function synthesizeAllScenes(
     const scene = scenes[i]
     try {
       if (!scene.narration?.trim()) {
-        // Intentionally empty narration — generate brief silence
-        try {
-          const openai = getClient()
-          const response = await openai.audio.speech.create({
-            model: 'tts-1',
-            voice: 'alloy',
-            input: '...',
-            response_format: 'mp3',
-            speed: 1.0,
-          })
-          buffers.push(Buffer.from(await response.arrayBuffer()))
-        } catch {
-          // If even "..." fails, push a minimal valid buffer
-          // But log it — this shouldn't happen often
-          console.warn(`[tts] Could not generate silence for empty scene ${i + 1}`)
-          buffers.push(Buffer.alloc(0)) // Will be handled by FFmpeg
-        }
+        // Intentionally empty narration — brief silence
+        buffers.push(silenceMp3())
         continue
       }
       const buf = await synthesizeSpeech(scene.narration, voiceId)

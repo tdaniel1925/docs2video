@@ -13,15 +13,10 @@ const { join } = require('path')
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
 const GEMINI_KEY = process.env.GEMINI_API_KEY
 const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY
-const { falSpeak } = require('./fal-tts')
+const { falSpeak, elevenVoiceIdFor } = require('./fal-tts')
 const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID
 const CF_TOKEN = process.env.CLOUDFLARE_API_KEY   // Workers AI API token (named _API_KEY in env)
-const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5'
-// Narration fallback — used whenever ElevenLabs refuses (see ttsTimed).
-const OPENAI_KEY = process.env.OPENAI_API_KEY
-const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1-hd'
-const OPENAI_TTS_VOICE = process.env.OPENAI_TTS_VOICE || 'nova'
 const DOC_MODEL = process.env.DOC_MODEL || 'gemini-flash-latest'
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'gemini-3-pro-image-preview'
 
@@ -163,12 +158,12 @@ function charsToWords(chars, starts, ends) {
  * every slide built, nothing to listen to. A missing voice is not a degraded
  * feature, it is a broken product, and the customer was charged for it.
  *
- * So: ElevenLabs first, exactly as before. If it refuses for ANY reason —
- * unpaid invoice, rate limit, outage, a key with the wrong permissions —
- * OpenAI speaks instead.
+ * So there are two voice services: fal first, ElevenLabs direct if fal
+ * refuses for ANY reason — unpaid invoice, rate limit, outage, a key with the
+ * wrong permissions. (OpenAI was the third until 2026-10-19.)
  *
- * THE TIMINGS ARE THE HARD PART. OpenAI returns audio and nothing else, so the
- * word times are ESTIMATED: measure the real duration of the mp3 with ffprobe
+ * THE TIMINGS ARE THE HARD PART. If a voice ever comes back without timings,
+ * the word times are ESTIMATED: measure the real duration of the mp3 with ffprobe
  * (never guess it — a guessed duration desynchronises every slide after it),
  * then spread the words across that duration weighted by length, since longer
  * words genuinely take longer to say. Cues land close rather than exact, which
@@ -205,9 +200,9 @@ function audioDurationSec(path) {
   })
 }
 
-async function elevenTimed(text, outPath) {
+async function elevenTimed(text, outPath, voiceId) {
   if (!ELEVEN_KEY) throw new Error('ELEVENLABS_API_KEY not set')
-  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}/with-timestamps?output_format=mp3_44100_128`, {
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenVoiceIdFor(voiceId)}/with-timestamps?output_format=mp3_44100_128`, {
     method: 'POST', headers: { 'xi-api-key': ELEVEN_KEY, 'content-type': 'application/json' },
     body: JSON.stringify({ text: speakable(text), model_id: ELEVEN_MODEL, voice_settings: { stability: 0.55, similarity_boost: 0.8, style: 0.25 } }),
   })
@@ -219,44 +214,13 @@ async function elevenTimed(text, outPath) {
   return { words, durationSec: words.length ? words[words.length - 1].end : 0, voice: 'elevenlabs' }
 }
 
-const OPENAI_VOICES = ['nova', 'shimmer', 'onyx', 'echo', 'alloy', 'fable']
-async function openaiTimed(text, outPath, voice) {
-  if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not set')
-  const spoken = speakable(text)
-  const r = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${OPENAI_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice: OPENAI_VOICES.includes(voice) ? voice : OPENAI_TTS_VOICE, input: spoken, response_format: 'mp3', speed: 0.95 }),
-  })
-  if (!r.ok) throw new Error(`OpenAI TTS ${r.status}: ${(await r.text()).slice(0, 160)}`)
-  const buf = Buffer.from(await r.arrayBuffer())
-  if (buf.length < 100) throw new Error(`OpenAI TTS returned tiny audio: ${buf.length} bytes`)
-  await writeFile(outPath, buf)
-  const durationSec = await audioDurationSec(outPath)
-  if (!durationSec) throw new Error('OpenAI TTS: could not measure audio duration (ffprobe)')
-  return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'openai' }
-}
-
-/**
- * THE CHOSEN VOICE (audit H2). The wizard offers six voices (OpenAI ids:
- * nova = Sarah, the female default, plus shimmer/onyx/echo/alloy/fable). The
- * deck used to ignore the choice and always speak as ElevenLabs "Rachel".
- *  - default (nova, or nothing sent): ElevenLabs first, exactly as before —
- *    Rachel is the female default voice and gives exact word timings.
- *  - any OTHER voice the user picked: that OpenAI voice speaks, so a user who
- *    chose "James" hears James. Word timings are then estimated (close, not
- *    exact); if OpenAI fails, ElevenLabs still speaks rather than silence.
- */
-function wantsChosenVoice(voiceId) {
-  return typeof voiceId === 'string' && OPENAI_VOICES.includes(voiceId) && voiceId !== 'nova'
-}
 /**
  * fal FIRST (2026-10-09): the same ElevenLabs turbo-v2.5 voices on the fal
  * bill, in the voice the customer picked (fal-tts.js FAL_VOICE_MAP — Sarah/nova
  * = Rachel, the voice these videos always had). fal returns per-character
  * timings, so words are EXACT like ElevenLabs-direct; if a reply ever comes
  * without them, the words are estimated from the measured mp3 length (the
- * same estimate the OpenAI path uses).
+ * estimate audioDurationSec + estimateWordTimings give).
  */
 async function falTimed(text, outPath, voiceId) {
   const spoken = speakable(text)
@@ -267,28 +231,17 @@ async function falTimed(text, outPath, voiceId) {
   if (!durationSec) throw new Error('fal TTS: no timings and could not measure audio duration (ffprobe)')
   return { words: estimateWordTimings(spoken, durationSec), durationSec, voice: 'fal' }
 }
-// fal first, then the old chain (ElevenLabs direct / OpenAI, by voice choice).
+// fal first, then ElevenLabs direct — both in the voice the customer picked,
+// both with exact word timings. (OpenAI left the chain 2026-10-19.)
 async function ttsTimed(text, outPath, voiceId) {
   if (process.env.FAL_KEY) {
     try { return await falTimed(text, outPath, voiceId) } catch (err) {
-      console.warn(`[tts] fal voice failed (${err && err.message}) — falling back to ElevenLabs/OpenAI`)
+      // Say WHICH provider failed and WHY, so an unpaid invoice is not
+      // investigated as an outage.
+      console.warn(`[tts] fal voice failed (${err && err.message}) — falling back to ElevenLabs direct`)
     }
   }
-  if (wantsChosenVoice(voiceId)) {
-    try { return await openaiTimed(text, outPath, voiceId) } catch (err) {
-      console.warn(`[tts] OpenAI voice "${voiceId}" failed (${err && err.message}) — falling back to ElevenLabs`)
-      return await elevenTimed(text, outPath)
-    }
-  }
-  try {
-    return await elevenTimed(text, outPath)
-  } catch (err) {
-    // Say WHICH provider failed and WHY, so an unpaid invoice is not
-    // investigated as an outage. This exact message is what turns a silent
-    // video into a five-minute fix.
-    console.warn(`[tts] ElevenLabs failed (${err && err.message}) — falling back to OpenAI`)
-    return await openaiTimed(text, outPath, voiceId)
-  }
+  return await elevenTimed(text, outPath, voiceId)
 }
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9$%]/g, '')
 function cueSec(words, phrase) {
@@ -982,4 +935,4 @@ async function generateSceneVO({ pub, text, outName, pronounce, tts, voiceId }) 
   return tts ? await tts(run) : await run()
 }
 
-module.exports = { planFromSuppliedScenes, sceneCountRule, wantsChosenVoice, estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST }
+module.exports = { planFromSuppliedScenes, sceneCountRule, estimateWordTimings, audioDurationSec, generateSlidePlan, generateSceneVO, speakable, speakableNumbers, ttsTimed, cueSec, buildBrandPalette, cloudflareImage, cloudflareAvailable, claude, comprehend, isRegulated, productTokens, scrubSlidePlan, smoothScrubbedSlides, complianceLeaks, CARRIER_BLOCKLIST, CLAUDE_MODELS }

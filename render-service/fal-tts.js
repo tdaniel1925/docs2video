@@ -7,7 +7,8 @@
 // we already used) on the fal bill, and it returns per-character timings, so
 // the Slide Deck / Kit word sync keeps exact timings instead of estimates.
 //
-// Order everywhere now: fal (this file) → ElevenLabs direct → OpenAI.
+// Order everywhere now: fal (this file) → ElevenLabs direct in the SAME
+// picked voice (ELEVEN_VOICE_IDS below). OpenAI left the chain 2026-10-19.
 //
 // Plain fetch to fal's synchronous endpoint (fal.run) — no client package.
 // fal can answer 200 with no usable result (its queue even reports COMPLETED
@@ -45,6 +46,26 @@ const FAL_VOICE_MAP = {
 /** fal voice for a wizard voice id; anything unknown/missing → Rachel (the female default). */
 function falVoiceFor(voiceId) {
   return (typeof voiceId === 'string' && FAL_VOICE_MAP[voiceId]) || FAL_VOICE_MAP.nova
+}
+
+/**
+ * The same six voices by their ElevenLabs ids, for the ElevenLabs-direct
+ * fallback, so a customer who picked "James" still hears Brian when fal is
+ * down. ELEVENLABS_VOICE_ID still overrides the default (nova → Rachel).
+ * Mirrors app/_lib/fal-tts.ts ELEVEN_VOICE_IDS.
+ */
+const ELEVEN_VOICE_IDS = {
+  Rachel: '21m00Tcm4TlvDq8ikWAM',
+  Sarah: 'EXAVITQu4vr4xnSDxMaL',
+  Brian: 'nPczCjzI2devNBz1zQrb',
+  Chris: 'iP95p4xoKVk53GoZ742B',
+  River: 'SAz9YHcvj6GT2YYXdXww',
+  George: 'JBFqnCBsd6RMkjVDRZzb',
+}
+function elevenVoiceIdFor(voiceId) {
+  const name = falVoiceFor(voiceId)
+  if (name === FAL_VOICE_MAP.nova && process.env.ELEVENLABS_VOICE_ID) return process.env.ELEVENLABS_VOICE_ID
+  return ELEVEN_VOICE_IDS[name] || ELEVEN_VOICE_IDS.Rachel
 }
 
 const falKey = () => process.env.FAL_KEY || ''
@@ -213,4 +234,4 @@ async function falSpeak(text, opts = {}) {
   throw lastErr || new Error('fal TTS failed')
 }
 
-module.exports = { falSpeak, falVoiceFor, FAL_VOICE_MAP, FAL_TTS_MODEL, isRealAudio, wordsFromFalTimestamps, charsToWords, loudnorm, TARGET_LUFS }
+module.exports = { falSpeak, falVoiceFor, FAL_VOICE_MAP, ELEVEN_VOICE_IDS, elevenVoiceIdFor, FAL_TTS_MODEL, isRealAudio, wordsFromFalTimestamps, charsToWords, loudnorm, TARGET_LUFS }
