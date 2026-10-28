@@ -78,7 +78,8 @@ NO TEXT. NO LOGOS. NO WORDS of any kind. Pure illustrated artwork.`
   } catch { /* default to dark */ }
 
   // Step 4: Composite everything via Sharp
-  const composites: sharp.OverlayOptions[] = []
+  // (sharp 0.35 dropped the sharp.OverlayOptions namespace type; this works with both)
+  const composites: Parameters<ReturnType<typeof sharp>['composite']>[0] = []
 
   // Add a subtle dark/light overlay at center for contrast
   const overlayOpacity = centerIsDark ? 0.3 : 0.4

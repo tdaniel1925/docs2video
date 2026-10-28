@@ -17,6 +17,11 @@
  */
 import sharp from 'sharp'
 
+// Local type names: sharp 0.35 dropped the SharpImage / RawInfo
+// namespace types, and these work with 0.34 and 0.35 alike.
+type SharpImage = ReturnType<typeof sharp>
+type RawInfo = { width: number; height: number; channels: 1 | 2 | 3 | 4 }
+
 export type LogoVariants = {
   /** Transparent PNG, content recolored near-white. */
   light: Buffer
@@ -36,7 +41,7 @@ const LIGHT = { r: 245, g: 248, b: 255 }
 const DARK = { r: 14, g: 26, b: 43 }     // #0E1A2B (matches EXECUTIVE_LIGHT ink)
 
 /** Knock out a flat near-white or near-black background to transparent. */
-async function knockout(input: sharp.Sharp): Promise<{ data: Buffer; info: sharp.OutputInfo }> {
+async function knockout(input: SharpImage): Promise<{ data: Buffer; info: RawInfo }> {
   const { data, info } = await input.ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const { width, height, channels } = info
   // Sample the four corners to guess the background color.
@@ -53,7 +58,7 @@ async function knockout(input: sharp.Sharp): Promise<{ data: Buffer; info: sharp
 }
 
 /** Recolor all opaque pixels to a flat color, preserving the alpha stencil. */
-async function recolor(raw: Buffer, info: sharp.OutputInfo, color: { r: number; g: number; b: number }): Promise<Buffer> {
+async function recolor(raw: Buffer, info: RawInfo, color: { r: number; g: number; b: number }): Promise<Buffer> {
   const { width, height, channels } = info
   const out = Buffer.from(raw)
   for (let i = 0; i < out.length; i += channels) {
@@ -63,7 +68,7 @@ async function recolor(raw: Buffer, info: sharp.OutputInfo, color: { r: number; 
 }
 
 /** Heuristic: does the (opaque) content span many distinct hues? → multi-color. */
-function isMultiColor(raw: Buffer, info: sharp.OutputInfo): boolean {
+function isMultiColor(raw: Buffer, info: RawInfo): boolean {
   const { channels } = info
   const buckets = new Set<number>()
   let opaque = 0
@@ -77,7 +82,7 @@ function isMultiColor(raw: Buffer, info: sharp.OutputInfo): boolean {
   return buckets.size > 12   // many color buckets among opaque pixels
 }
 
-function contentRatioOf(raw: Buffer, info: sharp.OutputInfo): number {
+function contentRatioOf(raw: Buffer, info: RawInfo): number {
   const { channels } = info
   let opaque = 0, total = 0
   for (let i = 0; i < raw.length; i += channels) { total++; if (raw[i + 3] > 32) opaque++ }
@@ -90,7 +95,7 @@ export async function processLogo(buffer: Buffer): Promise<LogoVariants> {
   const hadAlpha = !!meta.hasAlpha
 
   // Get RGBA raw. If the source had no alpha, knock out a flat background first.
-  let raw: Buffer, info: sharp.OutputInfo
+  let raw: Buffer, info: RawInfo
   if (hadAlpha) {
     const r = await base.ensureAlpha().raw().toBuffer({ resolveWithObject: true })
     raw = r.data; info = r.info
