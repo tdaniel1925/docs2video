@@ -23,7 +23,7 @@
     "@google/genai": "^2.0.0",
     "@mendable/firecrawl-js": "^4.51.0",
     "@remotion/player": "4.0.290",
-    "@stripe/react-stripe-js": "^6.3.0",
+    "@stripe/react-stripe-js": "^7.0.1",
     "@stripe/stripe-js": "^9.4.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.105.4",
