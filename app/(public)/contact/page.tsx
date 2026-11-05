@@ -6,6 +6,9 @@ import { PageHead } from '../../_components/marketing/PageHead'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
+  // Spam checks (app/_lib/contact-spam.ts): when the form appeared, and a field only bots fill in.
+  const [startedAt] = useState(() => Date.now())
+  const [website, setWebsite] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +25,7 @@ export default function ContactPage() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, website, startedAt }),
       })
       if (!res.ok) throw new Error('Failed to send')
       setSent(true)
@@ -70,6 +73,10 @@ export default function ContactPage() {
                 <option value="partnership">Partnership opportunity</option>
                 <option value="other">Other</option>
               </select>
+            </div>
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label htmlFor="c-website">Website</label>
+              <input id="c-website" type="text" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={e => setWebsite(e.target.value)} />
             </div>
             <div className="form-group">
               <label className="input-label" htmlFor="c-message">Message *</label>
