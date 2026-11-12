@@ -17,7 +17,7 @@ import { templateIdentity } from '../../_lib/template-identity'
 import { narratorMode, repairNarration, checkNarration, thirdPersonIntro, type PovContext, type PresenterVoice, type SpeakAs } from '../../_lib/narration-pov'
 import { cleanRecipientName, cleanSceneTitle } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration, resolvePreparerName } from '../../_lib/personalize'
-import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor } from '../../_lib/compliance'
+import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor, complianceTokensFor } from '../../_lib/compliance'
 import { speakable } from '../../_lib/tts'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
@@ -31,7 +31,8 @@ import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 import { deductCredits, checkCredits, refundVideoCredits, spendBlockMessage, refundCredits } from '../../_lib/credits'
 import { IN_PROGRESS_STATUSES } from '../../_lib/video-billing'
 import { videoPriceInputs, videoCreditCost, videoIsFree, previousEngineVideoCost } from '../../_lib/price-quote'
-import { usableBrief, isEditedBookend, buildShareColumns, type DetailLevel } from '../../_lib/wizard-draft'
+import { usableBrief, isEditedBookend, buildShareColumns, isOwnedStoragePath, type DetailLevel } from '../../_lib/wizard-draft'
+import { WALKTHROUGH_STYLE, walkthroughBody, walkthroughTheme } from '../../_lib/walkthrough'
 import { isPaidTier, maxConcurrentForTier } from '../../_lib/subscription'
 import { safeEqual } from '../../_lib/api-auth'
 import { inngest } from '../../_lib/inngest/client'
@@ -307,6 +308,14 @@ export async function POST(request: Request) {
   // with every slide drawn whole by gpt-image on fal, in the chosen style.
   const isDrawn = videoStyle === DRAWN_LOOK_ID
   const drawStyle = drawStyleOf((body as any).drawStyle ?? draft.drawStyle)
+  // "Walk-through" (render-service/walkthrough.js): the client's own PDF pages
+  // ARE the picture. Without an uploaded PDF there is nothing to film — refused
+  // here, before any credits are taken.
+  const isWalk = videoStyle === WALKTHROUGH_STYLE
+  const walkPdfPath: unknown = 'sourcePdfPath' in draft ? draft.sourcePdfPath : (body as any).sourcePdfPath
+  if (isWalk && !isOwnedStoragePath(walkPdfPath, user.id)) {
+    return NextResponse.json({ error: 'A Walk-through video shows the pages of a PDF you uploaded. Upload a PDF on the first step, or pick another look.' }, { status: 400 })
+  }
   // ONE OF THE FIXED TEMPLATES (app/_lib/video-templates.ts), when chosen on
   // the Look step: made by the explainer engine in that template. `null` in
   // the body is an explicit "no template" and wins over the draft.
@@ -1192,6 +1201,50 @@ export async function POST(request: Request) {
     // Apply formatForTTS only for render service scenes (narration stays original in slidePrompts for image context)
     const ttsScenes = scenes.map((s: any) => ({ ...s, narration: s.narration ? formatForTTS(s.narration) : s.narration }))
     const allScenes = [coverScene, ...ttsScenes, closingScene]
+
+    // WALK-THROUGH (app/_lib/walkthrough.ts → render service /generate-walkthrough).
+    // The client's own PDF pages are the picture, so no other engine makes it:
+    // the render service reads, blurs, plans, voices and films it, then marks
+    // this row completed itself (failures are refunded by the stuck/failed cron).
+    if (isWalk) {
+      await admin.from('videos').update({ progress_detail: 'Reading your document...', progress_pct: 14, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+      const walkBody = walkthroughBody({
+        videoId, userId: user.id, voiceId, sourcePdfPath: walkPdfPath as string,
+        scenes: ttsScenes, coverNarration: coverScene.narration, closingNarration: closingScene.narration,
+        title: videoTitle, recipient, from: effectiveBrandName || agentName,
+        regulated: regulatedContent, sourceDownload: shareColumns.allow_source_download,
+        contact: wantContactClosing ? [contactDisplayPhone, contactForClosing.email, contactForClosing.website] : [],
+        hideTerms: complianceTokensFor(policyData),
+        // Their own look from the look screen, else one made from the brand (never a fixed colour).
+        theme: walkthroughTheme(resolveKitLook({ kitLook: 'custom', kitLookCustom: draft.kitLookCustom, brand })),
+      })
+      let walkRes: Response
+      try {
+        walkRes = await fetch(`${VIDEO_ASSEMBLY_URL}/generate-walkthrough`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-secret': VIDEO_ASSEMBLY_SECRET },
+          body: JSON.stringify(walkBody),
+          signal: AbortSignal.timeout(25000),
+        })
+      } catch (walkErr) {
+        // ACK timeout: the job MAY be running — leave it for fix-stuck-videos (same rule as /generate, audit M4).
+        if (walkErr instanceof Error && (walkErr.name === 'TimeoutError' || walkErr.name === 'AbortError')) {
+          await admin.from('videos').update({ status: 'assembling', progress_detail: 'Sent to video server — finishing up...', progress_updated_at: new Date().toISOString() }).eq('id', videoId)
+          inFlightVideos.delete(videoId)
+          return NextResponse.json({ success: true, queued: true })
+        }
+        throw walkErr
+      }
+      const walkText = await walkRes.text()
+      let walkData: { success?: boolean; error?: string } | null = null
+      try { walkData = JSON.parse(walkText) } catch { /* non-JSON */ }
+      if (!walkRes.ok || !walkData?.success) {
+        console.error(`[video ${videoId}] walk-through refused (HTTP ${walkRes.status}):`, walkText.slice(0, 500))
+        throw new Error(walkData?.error || `Video server error (HTTP ${walkRes.status})`)
+      }
+      console.log(`[video ${videoId}] walk-through accepted: ${walkBody.scenes.length} scenes from the uploaded PDF`)
+      return NextResponse.json({ success: true, pipeline: 'walkthrough' })
+    }
 
     // THE EXPLAINER ENGINE (app/_lib/explainer-engine.ts, EXPLAINER_ENGINE).
     // The approved scenes — the user's own narration, opener and closing — are

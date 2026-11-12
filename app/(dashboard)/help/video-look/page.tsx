@@ -82,6 +82,7 @@ export default function VideoLookHelpPage() {
         <div style={body}>
           <p style={{ marginBottom: 10 }}>No. Each video keeps a copy of the look it was made with. Changing your look only changes videos you make after that.</p>
           <p><B>Drawn slides</B> use your look too: its colours and feel go into the drawing instructions.</p>
+          <p style={{ marginTop: 10 }}><B>Walk-through</B> wears your look as well: its colours and headline font frame your PDF pages, and the box drawn around each number is your accent colour. No look yet? It uses your brand&apos;s colours.</p>
         </div>
       </div>
 

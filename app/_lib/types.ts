@@ -303,7 +303,7 @@ export interface WizardDraft {
   /** The voice that fits the presenter, when they chose to be spoken as. */
   presenterVoice?: 'female' | 'male'
   // Theme chosen on the Theme step (per-video; overrides global default).
-  videoStyle?: 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer' | 'aurora' | 'kit'
+  videoStyle?: 'slides' | 'cinematic' | 'editorial' | 'time' | 'explainer' | 'aurora' | 'kit' | 'drawn' | 'walkthrough'
   // THE SCENE KIT (videoStyle 'kit', app/_lib/kit-engine.ts): which look —
   // 'animated-slides' | 'editorial' | 'bright' | 'brand' — or a saved custom look
   // (the coming look wizard), and the cached Claude plan for this story.

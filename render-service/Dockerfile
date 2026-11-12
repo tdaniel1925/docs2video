@@ -67,6 +67,7 @@ COPY job-guards.js ./
 COPY kit.js ./
 COPY video-upload.js ./
 COPY page-still.js ./
+COPY walkthrough.js ./
 
 EXPOSE 4000
 

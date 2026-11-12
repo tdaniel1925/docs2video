@@ -170,6 +170,16 @@ export default function CreatingVideosPage() {
           <strong style={INK}> Free preview</strong> draws your first scene in the style you picked.
         </p>
         <p style={P}>
+          <strong style={INK}>Walk-through</strong> — shows the real pages of the PDF you uploaded on the first step (a quote, an illustration or a policy
+          summary). For each scene the camera moves to the line the voice is talking about, a box is drawn around it, and a card brings the number up
+          large — counting up, a low-to-high range, or a before-and-after (for example, what you pay in years 1–20 and in year 21). Every number on a card
+          is checked against your PDF. Names of insurance companies and products, small logos in the page margins, your client&apos;s name and personal
+          numbers (date of birth, policy numbers) are blurred on the pages and never appear on a card. It opens with &quot;Prepared for&quot; your client and
+          wears your look — the one you made on the look screen, or your brand&apos;s colours and font. The card is greyed out with{' '}
+          <strong style={INK}>Needs a PDF you uploaded</strong> when this video started from a website, typed text or an idea. It costs the same as any
+          other look and takes about 5–8 minutes. Free preview isn&apos;t offered for it.
+        </p>
+        <p style={P}>
           One line under the looks sums up the rest, for example &ldquo;Sarah · music off · standard&rdquo;. Press <strong style={INK}>Change</strong> (or open{' '}
           <strong style={INK}>More options</strong>) for:
         </p>

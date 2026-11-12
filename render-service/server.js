@@ -2266,6 +2266,116 @@ app.post('/generate-kit', authCheck, async (req, res) => {
 })
 
 // ============================================================
+// WALK-THROUGH (videoStyle 'walkthrough') — the client's own PDF is the
+// picture: real pages (names/insurer/product/logos blurred), camera + gold box
+// on the lines the voice is about, a card lifting the figure out. The app sends
+// the approved story; everything else is here (render-service/walkthrough.js)
+// and in remotion/src/walkthrough/WalkthroughVideo.tsx.
+// ============================================================
+app.post('/generate-walkthrough', authCheck, async (req, res) => {
+  const { videoId, userId, voiceId, sourcePdfPath, scenes, cover, closing, hideTerms, clientName, theme } = req.body || {}
+  if (!videoId || !userId) return res.status(400).json({ error: 'Missing videoId/userId' })
+  if (typeof sourcePdfPath !== 'string' || !sourcePdfPath.startsWith(`${userId}/`) || sourcePdfPath.includes('..')) return res.status(400).json({ error: 'A walk-through needs the PDF you uploaded' })
+  if (!Array.isArray(scenes) || !scenes.length || scenes.some((s) => !s || typeof s.narration !== 'string' || !s.narration.trim())) return res.status(400).json({ error: 'Every scene needs narration' })
+  if (!cover || !closing) return res.status(400).json({ error: 'Missing opening/closing' })
+  res.json({ success: true })
+
+  const walk = require('./walkthrough')
+  const slides = require('./slides')
+  const kit = require('./kit')
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, realtime: { transport: WebSocket } })
+  const setProgress = (pct, detail) => sb.from('videos').update({ progress_pct: pct, progress_detail: detail, progress_updated_at: new Date().toISOString() }).eq('id', videoId).then(() => {}, () => {})
+  const pub = join(REMOTION_DIR, 'public')
+  const outFile = join(REMOTION_DIR, 'out', `${videoId}.mp4`)
+  const PROPS = join(pub, `walk-${videoId}-props.json`)
+  const pdfFile = join(REMOTION_DIR, 'out', `${videoId}-source.pdf`)
+  let walkDir = null
+
+  await withRenderSlotFor(videoId)(async () => {
+    try {
+      await mkdir(pub, { recursive: true }); await mkdir(join(REMOTION_DIR, 'out'), { recursive: true })
+      await setProgress(16, 'Reading your document')
+      const dl = await sb.storage.from('creation-assets').download(sourcePdfPath)
+      if (dl.error || !dl.data) throw new Error(`source PDF download: ${(dl.error && dl.error.message) || 'empty'}`)
+      await writeFile(pdfFile, Buffer.from(await dl.data.arrayBuffer()))
+
+      const terms = [...slides.CARRIER_BLOCKLIST, ...(Array.isArray(hideTerms) ? hideTerms.filter((t) => typeof t === 'string') : [])]
+      const scrub = walk.makeScrub(terms, clientName)
+      await setProgress(24, 'Finding the key numbers on your pages')
+      const prepared = await walk.prepareWalkthrough({
+        pub, videoId, pdfFile,
+        scenes: scenes.map((s) => ({ title: s.title, narration: s.narration, slideData: s.slideData })),
+        cover, closing, hideTerms: terms, clientName, voiceId, theme,
+        deps: { claude: slides.claude, model: slides.CLAUDE_MODELS.WRITE, ttsTimed: slides.ttsTimed, tts: (fn) => ttsLimit(fn), normalize: kit.normalizeVoice, audioDurationSec: slides.audioDurationSec, scrub },
+        log: (m) => console.log(`[generate-walkthrough ${videoId}] ${m}`),
+      })
+      walkDir = prepared.dir
+      await writeFile(PROPS, JSON.stringify(prepared.props))
+
+      await setProgress(50, 'Filming your pages')
+      const starts = prepared.sceneMeta.map((m) => Math.round(m.startSec * 30))
+      await new Promise((resolve, reject) => {
+        const { spawn } = require('child_process')
+        const child = spawn(...renderCmd('WalkthroughVideo', outFile, PROPS), { cwd: REMOTION_DIR, env: { ...process.env } })
+        let stderrBuf = ''; const progress = makeRenderProgress({ from: 50, to: 89, starts, report: setProgress })
+        const onChunk = (buf) => { const t = buf.toString(); stderrBuf = (stderrBuf + t).slice(-2000); progress(t) }
+        child.stdout.on('data', onChunk); child.stderr.on('data', onChunk)
+        const killTimer = setTimeout(() => { try { child.kill('SIGKILL') } catch {}; reject(new Error('render timeout (>60min)')) }, 60 * 60 * 1000)
+        child.on('error', (e) => { clearTimeout(killTimer); reject(new Error(`render: ${e.message}`)) })
+        child.on('close', (code) => { clearTimeout(killTimer); code === 0 ? resolve() : reject(new Error(`render exit ${code}: ${crashReason(stderrBuf)}`)) })
+      })
+
+      await setProgress(90, 'Saving your video')
+      const videoBuffer = await readFile(outFile)
+      await uploadVideo(sb, 'videos', `${userId}/${videoId}.mp4`, videoBuffer, 'save-video') // shrinks to fit the 50 MB cap; throws on failure
+      const { data: urlData } = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}.mp4`)
+
+      const thumbPath = join(REMOTION_DIR, 'out', `${videoId}-thumb.png`)
+      await grabPoster(outFile, thumbPath, 2.6)
+      let thumbUrl = null
+      try { const tb = await readFile(thumbPath); await sb.storage.from('videos').upload(`${userId}/${videoId}_thumb.png`, tb, { contentType: 'image/png', upsert: true }); thumbUrl = sb.storage.from('videos').getPublicUrl(`${userId}/${videoId}_thumb.png`).data.publicUrl } catch {}
+      await rm(thumbPath, { force: true }).catch(() => {})
+
+      await setProgress(93, 'Making the scene previews')
+      const slideUrls = []
+      for (const m of prepared.sceneMeta) {
+        try {
+          const fp = join(REMOTION_DIR, 'out', `${videoId}-slide-${m.index}.jpg`)
+          await new Promise((resolve, reject) => execFile('ffmpeg', ['-y', '-ss', String(m.midSec), '-i', outFile, '-frames:v', '1', '-q:v', '4', fp], { timeout: 30000 }, (e) => e ? reject(e) : resolve()))
+          const path = `${userId}/${videoId}_slide_${m.index}.jpg`
+          await sb.storage.from('videos').upload(path, await readFile(fp), { contentType: 'image/jpeg', upsert: true })
+          slideUrls[m.index] = sb.storage.from('videos').getPublicUrl(path).data.publicUrl
+          await rm(fp, { force: true }).catch(() => {})
+        } catch (e) { console.error(`[generate-walkthrough ${videoId}] scene picture ${m.index} failed: ${e.message}`) }
+      }
+      try {
+        await sb.storage.from('videos').upload(`${userId}/${videoId}_walk_plan.json`, Buffer.from(JSON.stringify({ engine: 'walkthrough', shots: prepared.shots, blurred: prepared.blurred, sceneMeta: prepared.sceneMeta })), { contentType: 'application/json', upsert: true })
+      } catch (e) { console.error(`[generate-walkthrough ${videoId}] plan persist failed: ${e.message}`) }
+
+      await completeIfRunning(sb, videoId, {
+        status: 'completed', video_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(slideUrls.filter(Boolean).length ? { slide_urls: slideUrls.filter(Boolean) } : {}),
+        slide_durations: prepared.sceneMeta.map((m) => Math.round((m.endSec - m.startSec) * 10) / 10),
+        script: prepared.sceneMeta.map((m) => ({ title: m.label, headline: m.label, narration: m.narration })),
+        progress_pct: 100, progress_detail: null, progress_updated_at: new Date().toISOString(),
+      }, { tag: 'generate-walkthrough', userId, report: reportError })
+      sb.from('videos').update({ total_scenes: prepared.sceneMeta.length }).eq('id', videoId).then(() => {}, () => {})
+      console.log(`[generate-walkthrough ${videoId}] DONE -> ${urlData.publicUrl} (${prepared.sceneMeta.length} scenes)`)
+    } catch (err) {
+      console.error(`[generate-walkthrough ${videoId}] error:`, err.message)
+      reportError({ source: 'generate-walkthrough', videoId, userId, stage: 'walkthrough', message: err.message }).catch(() => {})
+      await sb.from('videos').update({ status: 'failed', error_message: 'Video generation failed. Your credits were refunded.', progress_detail: `[fail] generate-walkthrough: ${err.message}`.slice(0, 500) }).eq('id', videoId).then(() => {}, () => {})
+    } finally {
+      await rm(PROPS, { force: true }).catch(() => {})
+      await rm(outFile, { force: true }).catch(() => {})
+      await rm(pdfFile, { force: true }).catch(() => {})
+      await require('./walkthrough').cleanupWalk(walkDir)
+    }
+  })
+})
+
+// ============================================================
 // FIX-A-SCENE — re-record/edit ONE scene of a slide-deck video and re-render,
 // WITHOUT redoing comprehension/writing/backdrops/other-scenes' VO. We reuse the
 // persisted plan + all the other scenes' VO clips; only the edited scene gets a

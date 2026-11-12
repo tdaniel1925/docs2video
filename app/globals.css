@@ -3833,6 +3833,9 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
 }
 .cf-look:hover { transform: translateY(-2px); border-color: var(--ink-light); }
 .cf-look[aria-checked='true'] { border-color: var(--accent-ink); }
+/* A look this video can't use (Walk-through without an uploaded PDF): seen, not picked. */
+.cf-look[aria-disabled='true'] { cursor: not-allowed; opacity: 0.55; }
+.cf-look[aria-disabled='true']:hover { transform: none; border-color: var(--border); }
 .cf-look-thumb { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--bg-soft); }
 .cf-look-swatch { width: 100%; aspect-ratio: 16 / 9; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
 .cf-look-swatch-bar { width: 36px; height: 4px; border-radius: 2px; margin-bottom: 8px; }

@@ -35,7 +35,7 @@ import { VOICE_OPTIONS } from '../../../../_lib/types'
 import type { MakeOutput } from '../../../../_lib/price-quote'
 import { LookPicker, OutputPicker, VoicePicker } from '../make/Pickers'
 import { usePriceQuote, formatCredits } from '../make/usePriceQuote'
-import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, type VideoLookId, type YourLook } from '../make/looks'
+import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, WALKTHROUGH_LOOK_ID, type VideoLookId, type YourLook } from '../make/looks'
 // The same list the story step chooses from — one set of names for both.
 import { LENGTHS, LENGTH_ANCHOR } from '../story/lengths'
 import { sceneSeconds } from '../story/bookends'
@@ -111,6 +111,11 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
     // "Your look" is a scene-kit look: with the kit off it isn't offered.
     if (kitKnown && !kitOn && videoLook === 'custom') setVideoLook(RECOMMENDED_VIDEO_LOOK)
   }, [kitOn, kitKnown, videoLook])
+  // Walk-through films the PDF they uploaded: no PDF on this draft, no Walk-through.
+  const hasPdf = typeof draft?.sourcePdfPath === 'string' && !!draft.sourcePdfPath
+  useEffect(() => {
+    if (draft && !hasPdf && videoLook === WALKTHROUGH_LOOK_ID) setVideoLook(RECOMMENDED_VIDEO_LOOK)
+  }, [draft, hasPdf, videoLook])
   const chosenStyle = styleForCard(videoLook, kitOn)
   // ONE OF THE EIGHT TEMPLATES (video-templates.ts), or none — a look below.
   const [templateId, setTemplateId] = useState<VideoTemplateId | null>(null)
@@ -225,6 +230,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
         ? `Usually about 10 minutes${slidePhotos ? ', plus 2–3 for photo backgrounds' : ''}. You can leave while it works.`
         : videoLook === 'drawn'
           ? 'Usually about 4–6 minutes. You can leave while it works.'
+        : videoLook === WALKTHROUGH_LOOK_ID
+          ? 'Usually about 5–8 minutes. You can leave while it works.'
           : 'Usually about 3–5 minutes. You can leave while it works.')
     : null
 
@@ -490,14 +497,17 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   ) : null
 
   const cards = lookCards(output, { kit: kitOn, yourLook: kitOn ? yourLook : null })
+    .map((c) => (c.id === WALKTHROUGH_LOOK_ID && !hasPdf ? { ...c, disabled: 'Needs a PDF you uploaded' } : c))
   const back = prev ? { href: stepPath(prev.key, videoId), label: prev.label } : null
   const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`
 
   /* A template is chosen for this video. */
   const templateOn = isVideo && !!templateId
   const chosenTemplate = templateOn ? videoTemplate(templateId) : null
-  /* The free preview, beside Next (look) or Make it (review). */
-  const previewButton = (
+  /* The free preview, beside Next (look) or Make it (review). Walk-through has
+     none: its picture is the PDF itself, which the preview engines don't film
+     (the server would quietly preview Animated slides instead). */
+  const previewButton = isVideo && !templateOn && videoLook === WALKTHROUGH_LOOK_ID ? null : (
     <span className="cf-main">
       <Button
         variant="secondary"

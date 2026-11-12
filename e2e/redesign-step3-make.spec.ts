@@ -228,9 +228,9 @@ test.describe('Step 3 — choices', () => {
     const fold = await more(page)
 
     if (kit) {
-      // The scene kit: the three ready looks, "Create your own look", Drawn slides.
+      // The scene kit: the three ready looks, "Create your own look", Drawn slides, Walk-through.
       // (No brand look yet, so no "Your look" card.)
-      await expect(looks).toHaveCount(5)
+      await expect(looks).toHaveCount(6)
       await expect(looks.nth(0)).toContainText('Animated slides')
       await expect(looks.nth(1)).toContainText('Editorial')
       await expect(looks.nth(2)).toContainText('Bright')
@@ -259,7 +259,7 @@ test.describe('Step 3 — choices', () => {
       return
     }
 
-    await expect(looks).toHaveCount(7)
+    await expect(looks).toHaveCount(8)
     await expect(fold.getByText('Add photo backgrounds')).toBeVisible()
 
     await look(page, 'Aurora').click()

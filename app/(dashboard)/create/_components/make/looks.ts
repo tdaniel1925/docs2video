@@ -3,7 +3,10 @@
 // presentation, and "Heritage" can't style a video. The Make screen shows the
 // set that fits the chosen output.
 
-export type VideoLookId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic' | 'drawn' | 'custom'
+export type VideoLookId = 'slides' | 'aurora' | 'cinematic' | 'editorial' | 'explainer' | 'infographic' | 'drawn' | 'walkthrough' | 'custom'
+
+/** "Walk-through": the client's own PDF pages, filmed (render-service/walkthrough.js). Needs an uploaded PDF. */
+export const WALKTHROUGH_LOOK_ID = 'walkthrough'
 
 /** The step-3 card that opens the look screen (/create/look) — not a look itself. */
 export const CREATE_LOOK_CARD = 'create-look'
@@ -22,6 +25,9 @@ export const VIDEO_LOOKS: { id: VideoLookId; name: string; short: string; taglin
   // The original Docs2Video look: AI draws every slide as one finished picture
   // (app/_lib/drawn-slides.ts — its drawing styles are DRAW_STYLES there).
   { id: 'drawn', name: 'Drawn slides', short: 'Each slide drawn as one picture', tagline: 'AI draws every slide as one finished picture — headline, points and numbers included.', tag: 'NEW' },
+  // The client's own document is the picture: real pages, the camera moves to
+  // each key number, a gold box goes round it and a card brings it up large.
+  { id: 'walkthrough', name: 'Walk-through', short: 'Your real PDF pages, explained', tagline: 'Shows the real pages of the PDF you uploaded. The camera moves to each key number, a gold box goes round it and a card brings it up large. Names of insurers, products and your client are blurred.', tag: 'NEW' },
 ]
 export const VIDEO_SAMPLE_KINDS = ['cover', 'data', 'closing'] as const
 
@@ -67,6 +73,8 @@ export type LookCard = {
   samples?: string[]
   /** A short sample VIDEO of this look (LOOK_SAMPLES), opened from the card. */
   sample?: LookSample
+  /** Why this look can't be picked for this video (shown on the card instead of `short`). */
+  disabled?: string
 }
 
 export type LookSample = { video: string; poster: string; seconds: number }
@@ -137,7 +145,7 @@ export function lookCards(output: string, opts: { kit?: boolean; yourLook?: Your
       tagline: 'Opens the look screen: start from your brand, something you like, or a ready style.',
       thumb: { kind: 'swatch', swatch: ['#f4f1ec', '#0b2545', '#2f6b3a'], title: '+ Your own' },
     }
-    const ready = VIDEO_LOOKS.filter((l) => l.id === 'drawn' || KIT_CARD[l.id]).map((l): LookCard => {
+    const ready = VIDEO_LOOKS.filter((l) => l.id === 'drawn' || l.id === 'walkthrough' || KIT_CARD[l.id]).map((l): LookCard => {
       const k = KIT_CARD[l.id]
       const pic = k ? `kit-${k.kitLook}` : l.id
       return {

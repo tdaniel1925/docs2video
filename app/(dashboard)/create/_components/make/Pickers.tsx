@@ -37,8 +37,10 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
             type="button"
             role="radio"
             aria-checked={value === l.id}
+            aria-disabled={l.disabled ? true : undefined}
             className="cf-look"
-            onClick={() => onChange(l.id)}
+            onClick={() => { if (!l.disabled) onChange(l.id) }}
+            title={l.disabled || undefined}
           >
             {l.recommended ? <span className="cf-look-best">BEST</span> : null}
             {l.thumb.kind === 'img'
@@ -50,7 +52,7 @@ export function LookPicker({ cards, value, onChange, onZoom, note, children }: {
                 {l.name}
                 {l.tag ? <small>{l.tag}</small> : null}
               </span>
-              <span className="cf-look-short">{l.short}</span>
+              <span className="cf-look-short">{l.disabled || l.short}</span>
             </span>
           </button>
           {l.sample ? (

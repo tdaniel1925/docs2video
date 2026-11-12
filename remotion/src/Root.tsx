@@ -59,6 +59,7 @@ import { ValorCommercial, valorMetadata, type ValorProps } from './ValorCommerci
 import { ApexCommercial, apexMetadata, type ApexProps } from './ApexCommercial'
 import { DirectedVideo, directedMetadata, type DirectedProps } from './DirectedVideo'
 import { KitVideo, kitMetadata, type KitVideoProps } from './kit/KitVideo'
+import { WalkthroughVideo, walkthroughMetadata, type WalkthroughProps } from './walkthrough/WalkthroughVideo'
 import { KIT_LOOKS } from './kit/spec'
 import { VisualDirectorVideo, visualDirectorMetadata, type VisualDirectorProps } from './VisualDirectorVideo'
 import { HeroReveal, KineticHype, CinematicOpen, SplitCompare, StatGrid, CTAClose } from './CommercialProto'
@@ -501,6 +502,17 @@ export const RemotionRoot: React.FC = () => {
       component={KitVideo}
       defaultProps={{ plan: { version: 1, title: '', look: KIT_LOOKS['animated-slides'], brand: {}, scenes: [] } } as KitVideoProps}
       calculateMetadata={kitMetadata}
+      fps={30}
+      width={1920}
+      height={1080}
+      durationInFrames={30}
+    />
+    {/* WALK-THROUGH (videoStyle 'walkthrough'): the client's own PDF pages, camera + gold box + cards. */}
+    <Composition
+      id="WalkthroughVideo"
+      component={WalkthroughVideo}
+      defaultProps={{ pages: [], scenes: [], cover: { title: '' }, closing: { title: '' } } as WalkthroughProps}
+      calculateMetadata={walkthroughMetadata}
       fps={30}
       width={1920}
       height={1080}

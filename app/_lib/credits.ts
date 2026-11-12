@@ -53,6 +53,12 @@ export const CREDIT_COSTS = {
   // Gemini 2.5 Flash read-back, ~0.1c a check); a slide with a dropped or
   // squeezed word is redrawn once (+~0.3c fal + one more check). ~12 slides
   // ≈ +1.2c when all pass — still covered.
+  // "WALK-THROUGH" (videoStyle 'walkthrough', render-service/walkthrough.js)
+  // is also priced like every other look. Its only extra is ONE Claude call
+  // that picks the page, lines and card per scene: on a real 13-page quote
+  // (714 text lines, 9 scenes, 2026-11-11) that is an estimated ~20k tokens
+  // in and ~2k out, about 10c (the prompt keeps at most 1,400 lines). Reading, blurring and filming the pages use poppler and the
+  // usual render; the voice is the same per-scene voice as every look.
   videoQuick: 500,
   videoStandard: 1000,
   videoDetailed: 1500,
