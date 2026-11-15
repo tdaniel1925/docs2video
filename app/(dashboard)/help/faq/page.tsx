@@ -47,7 +47,7 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'Is there a limit on video length?',
     answer: [
       `On step 2, **The story**, you pick the **Length**: **Short** (under 1 minute), **Standard** (2–5 minutes) or **Detailed** (5–15 minutes). The final length also depends on how much content you give it. Longer videos cost more credits (${n(CREDIT_COSTS.videoQuick)} / ${n(CREDIT_COSTS.videoStandard)} / ${n(CREDIT_COSTS.videoDetailed)}); step 3 shows the exact price.`,
-      'Changing the length after the story is written offers **Rewrite at this length** — free. **Change the length** on step 3 takes you straight back to it.',
+      'Changing the length after the story is written offers **Rewrite at this length** — free. **Change the length** on the Scenes step takes you straight back to it.',
     ],
   },
   {

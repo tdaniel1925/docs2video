@@ -22,7 +22,8 @@
  * draft, so a reload (or closing the tab) mid-write picks the job back up
  * here instead of starting again or losing it.
  *
- * Step 6's "Change the length" lands on the length choice (#length).
+ * The length is picked on the Story step, before the story is written; the Scenes step shows it and its
+ * "Change the length" lands on the choice there (#length).
  */
 
 import { StepExplain } from './StepExplain'
@@ -417,10 +418,10 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
 
       let b: VideoBrief | null = draft.briefSkipped ? null : (draft.brief || null)
       if (!b && !draft.briefSkipped) b = await buildBrief()
-      // If the AI is unsure about something that changes the story, ask
-      // first. Otherwise write the story straight away.
-      if (b?.clarifyingQuestions?.length) return
-      await writeStory()
+      // The story is NOT written straight away (2026-11-15, owner): the length is picked first, beside the
+      // summary, and "Write the story" writes it at that length. (Answering the AI's questions writes it at
+      // the length shown above them.)
+      void b
     })().finally(() => setBooting(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId])
@@ -796,11 +797,30 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                 <p className="cf-hint">{briefNote}</p>
               )}
 
+              {/* THE LENGTH, set here before the story is written (and before the storyboard on Scenes). */}
+              {draftData ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <h2 className="cf-h2" style={{ margin: 0 }}>How long should it be?</h2>
+                  <LengthPicker
+                    picked={pickedLength}
+                    storyLength={detailLevel}
+                    hasStory={scenes.length > 0}
+                    writing={story === 'writing'}
+                    spoken={outputType !== 'deck' && outputType !== 'pdf'}
+                    isVideo={outputType === 'video'}
+                    flash={flashLength}
+                    onPick={pickLength}
+                    onRewrite={() => void rewriteAtLength()}
+                    onKeep={keepLength}
+                  />
+                </div>
+              ) : null}
+
               {writingCard}
 
               {!booting && draftData && story === 'idle' && scenes.length === 0 && !briefBuilding && !answering && !brief?.clarifyingQuestions?.length && (
                 <div className="cf-card cf-quick">
-                  <span className="cf-hint">Ready when you are.</span>
+                  <span className="cf-hint">Ready when you are: it’s written at <strong>{lengthName(pickedLength)}</strong> length.</span>
                   <button type="button" className="kit-btn kit-btn--secondary" onClick={() => void writeStory()}>Write the story</button>
                 </div>
               )}
@@ -824,19 +844,12 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                   {story === 'writing' ? 'Writing the scenes…' : scenes.length > 0 ? `${scenes.length} scenes` : 'The scenes'}
                   {story !== 'writing' && scenes.length > 0 && spoken && totalSeconds > 0 ? <small>about {minutes} minute{minutes === 1 ? '' : 's'}</small> : null}
                 </h2>
-                {draftData ? (
-                  <LengthPicker
-                    picked={pickedLength}
-                    storyLength={detailLevel}
-                    hasStory={scenes.length > 0}
-                    writing={story === 'writing'}
-                    spoken={outputType !== 'deck' && outputType !== 'pdf'}
-                    isVideo={outputType === 'video'}
-                    flash={flashLength}
-                    onPick={pickLength}
-                    onRewrite={() => void rewriteAtLength()}
-                    onKeep={keepLength}
-                  />
+                {draftData && scenes.length > 0 ? (
+                  <span className="cf-hint" style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--ink)' }}><strong>{lengthName(detailLevel)}</strong> length</span>
+                    {/* The length is chosen on the Story step, before the story and the storyboard are made. */}
+                    <a className="cf-link" href={`${stepPath('story', videoId ?? '')}#${LENGTH_ANCHOR}`}>Change the length</a>
+                  </span>
                 ) : null}
               </div>
 

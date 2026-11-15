@@ -37,7 +37,7 @@ import { LookPicker, OutputPicker, VoicePicker } from '../make/Pickers'
 import { usePriceQuote, formatCredits } from '../make/usePriceQuote'
 import { CREATE_LOOK_CARD, isPresLook, isVideoLook, lookCards, PRES_LOOKS, RECOMMENDED_VIDEO_LOOK, WALKTHROUGH_LOOK_ID, type VideoLookId, type YourLook } from '../make/looks'
 // The same list the story step chooses from — one set of names for both.
-import { LENGTHS, LENGTH_ANCHOR } from '../story/lengths'
+import { LENGTHS } from '../story/lengths'
 import { sceneSeconds } from '../story/bookends'
 import BottomBar from '../workspace/BottomBar'
 import { lookName, settingsLine } from '../workspace/facts'
@@ -511,7 +511,6 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   const cards = lookCards(output, { kit: kitOn, film: filmOn, yourLook: kitOn ? yourLook : null })
     .map((c) => (c.id === WALKTHROUGH_LOOK_ID && !hasPdf ? { ...c, disabled: 'Needs a PDF you uploaded' } : c))
   const back = prev ? { href: stepPath(prev.key, videoId), label: prev.label } : null
-  const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`
 
   /* A template is chosen for this video. */
   const templateOn = isVideo && !!templateId
@@ -804,17 +803,6 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
                   <button type="button" role="radio" aria-checked={aiMusic} className="cf-chip" onClick={() => setAiMusic(true)}>On <small>soft, under the voice</small></button>
                   <button type="button" role="radio" aria-checked={!aiMusic} className="cf-chip" onClick={() => setAiMusic(false)}>Off</button>
                 </div>
-              </div>
-            ) : null}
-
-            {isVideo ? (
-              <div className="cf-row">
-                <span className="cf-row-name">Length</span>
-                <span className="cf-hint" style={{ color: 'var(--ink)' }}>
-                  {length ? <><strong>{length.name}</strong> · {length.minutes}</> : 'Standard'}
-                </span>
-                {/* Lands on the length choice on the Scenes step, not the top of the page. */}
-                <button type="button" className="cf-link" onClick={() => router.push(lengthHref)}>Change the length</button>
               </div>
             ) : null}
 

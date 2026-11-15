@@ -189,7 +189,7 @@ export default function CreatingVideosPage() {
           <strong style={INK}>Make</strong> — a <strong style={INK}>Video</strong> or an interactive <strong style={INK}>Presentation</strong> (they click through
           at their own pace, with narration); each shows its price. Docs2Video no longer makes silent slide decks; a presentation&rsquo;s slides
           still download as PDF or PowerPoint. <strong style={INK}>Length</strong> — the length your story was written at;{' '}
-          <strong style={INK}>Change the length</strong> takes you straight to the length choice on step 2. <strong style={INK}>Photos</strong> — the
+          <strong style={INK}>Change the length</strong> on the Scenes step takes you straight to the length choice on the Story step. <strong style={INK}>Photos</strong> — the
           Animated slides look can <strong style={INK}>Add photo backgrounds</strong> (same price, a few minutes longer). <strong style={INK}>For your client</strong> —{' '}
           <strong style={INK}>A note to your client</strong> (shown on the share page, up to 400 characters) and, if your source was a PDF,{' '}
           <strong style={INK}>Let them download the original PDF</strong>. <strong style={INK}>Price</strong> — the lines that make up the price.

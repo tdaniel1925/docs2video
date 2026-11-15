@@ -114,12 +114,13 @@ describe('length: Short / Standard / Detailed, chosen on the story step', () => 
     expect(rw).toMatch(/if \(!ok\) \{[\s\S]*setScenes\(before\)/)
   })
 
-  it('step 3 links to the length choice itself and uses the same names', () => {
+  it('the length is picked on the Story step; Scenes links back to it', () => {
     const step3 = code(read(STEP3))
-    // The length lives on the Scenes step now (step 5); the voice step links to it.
-    expect(step3).toContain("const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`")
-    expect(step3).toContain('router.push(lengthHref)')
-    expect(step3).toMatch(/import \{ LENGTHS, LENGTH_ANCHOR \} from '..\/story\/lengths'/)
+    // 2026-11-15 (owner): the length is set BEFORE the story and the storyboard: on the Story step, under the
+    // summary. The voice step no longer shows it; the Scenes step shows it with a link back.
+    expect(step3).not.toContain('lengthHref')
+    expect(step2).toContain("href={`${stepPath('story', videoId ?? '')}#${LENGTH_ANCHOR}`}")
+    expect(step2).toContain('How long should it be?')
     expect(step3).not.toMatch(/Highlights/)
     expect(LENGTH_ANCHOR).toBe('length')
     const picker = read('app/(dashboard)/create/_components/story/LengthPicker.tsx')
