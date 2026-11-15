@@ -159,6 +159,9 @@ export function scrubComplianceText(input: string, extraTokens: string[] = []): 
   // accurate disclaimers survive as "illustrated"; positive promises drop
   out = out.replace(/\bnon[-\s]?guaranteed\b/gi, 'illustrated').replace(/\bnot\s+guaranteed\b/gi, 'illustrated')
   for (const [re, sub] of GUARANTEE_SUBS) out = out.replace(re, sub)
+  // "illustrated, not guaranteed" just became "illustrated, illustrated": say it once (the voice read both,
+  // owner's live video 2026-11-15). Also after "and" / "but" / "or" and for "projected".
+  out = out.replace(/\b(illustrated|projected)\b(?:\s*[,;—–-]?\s*(?:(?:and|but|or)\s+)?\1\b)+/gi, '$1')
   out = out
     // orphaned version fragments after a name removal ("+ III", "II", "+")
     .replace(/(^|\s)\+?\s*(?:iii|ii|iv|vi)\b/gi, '$1')

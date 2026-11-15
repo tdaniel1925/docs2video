@@ -1,3 +1,4 @@
+import { scrubComplianceText as scrubOnce } from '../app/_lib/compliance'
 import { describe, it, expect } from 'vitest'
 import { scrubComplianceText } from '../app/_lib/compliance'
 
@@ -80,5 +81,13 @@ describe('scrubComplianceText — guarantee language', () => {
       expect(out.toLowerCase()).toContain('illustrated')
       expect(out.toLowerCase()).not.toContain('not projected')
     })
+  })
+})
+
+describe('a disclaimer turned into "illustrated" is said once', () => {
+  it('"illustrated, not guaranteed" does not become "illustrated, illustrated"', () => {
+    expect(scrubOnce('that six point nine four percent is illustrated, not guaranteed.')).toBe('That six point nine four percent is illustrated.')
+    expect(scrubOnce('these numbers are illustrated and not guaranteed.')).toBe('These numbers are illustrated.')
+    expect(scrubOnce('Illustrated values may change.')).toBe('Illustrated values may change.')
   })
 })

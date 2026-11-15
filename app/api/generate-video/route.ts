@@ -1106,8 +1106,11 @@ export async function POST(request: Request) {
     const signoff = presenter?.name
       ? `Prepared for you by ${presenter.name}${presenter.role ? `, ${presenter.role}` : ''}.`
       : (effectiveBrandName ? `${effectiveBrandName} looks forward to serving you.` : '')
+    // The story's own last scene often already says "Thank you for watching." (the script writer's rule):
+    // then the closing does not say it a second time (owner's live video, 2026-11-15).
+    const thankedAlready = /thank you for watching/i.test(String((scenes[scenes.length - 1] as { narration?: string } | undefined)?.narration || ''))
     const closingNarration = formatForTTS(
-      `Thank you for watching. ${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${signoff}`.trim())
+      `${thankedAlready ? '' : 'Thank you for watching. '}${contactParts.length > 0 ? `To learn more, ${contactParts.join(' ')}.` : `We appreciate your time.`} ${signoff}`.trim())
 
     // Prepend cover + append closing to scenes for the render service.
     // Only a cover/closing the user REALLY edited wins over the personalized

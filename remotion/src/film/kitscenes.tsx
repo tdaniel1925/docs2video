@@ -60,13 +60,18 @@ const Words: React.FC<{ t: number; tokens: [string, number][]; size: number; gap
 const clean = (s?: string) => (s && !isPlatformName(s) ? s : '')
 
 /* ── the brand's real logo (never drawn by AI), or its name ───────────────── */
-export const BrandMark: React.FC<{ brand: KitBrand; height: number; align?: 'left' | 'center' }> = ({ brand, height, align = 'left' }) => {
+export const BrandMark: React.FC<{ brand: KitBrand; height: number; align?: 'left' | 'center'; shown?: (string | undefined)[] }> = ({ brand, height, align = 'left', shown = [] }) => {
   const th = useTheme()
   const src = th.dark ? brand.logo?.light || brand.logo?.any : brand.logo?.dark || brand.logo?.any
   if (src) return <div style={{ display: 'flex', justifyContent: align === 'center' ? 'center' : 'flex-start' }}><Img src={staticFile(src)} style={{ height, maxWidth: height * 5, objectFit: 'contain' }} /></div>
   const name = clean(brand.name)
-  return name ? <Label size={Math.round(height * 0.36)} color={th.accent}>{name}</Label> : null
+  // No logo: the name stands in, unless it is already on screen ("Prepared by Trent Daniel" and then
+  // "Trent Daniel" again under it was the owner's live video, 2026-11-15).
+  if (!name || nameIn(name, shown)) return null
+  return <Label size={Math.round(height * 0.36)} color={th.accent}>{name}</Label>
 }
+/** Is this name already in one of these on-screen lines? */
+const nameIn = (name: string, lines: (string | undefined)[]) => lines.some((l) => !!l && l.toLowerCase().includes(name.toLowerCase()))
 /** The advisor's real photo, framed the look's way. */
 const Portrait: React.FC<{ src: string; w: number; h: number }> = ({ src, w, h }) => {
   const th = useTheme()
@@ -120,11 +125,11 @@ const Cover: React.FC<{ s: TitleScene; c: SceneCtx }> = ({ s, c }) => {
           <Obj x={560} y={-40} z={lerp(-200, 30, ph)} w={460} h={tall} sharp opacity={Math.min(1, ph * 1.3)}><Portrait src={photo} w={460} h={tall} /></Obj>
           <Obj x={560} y={tall / 2 + 30} z={30} w={620} h={110} sharp style={{ textAlign: 'center', ...enter(th, t, 0.7) }}>
             {p?.name ? <Head size={th.headUpper ? 58 : 44}>{p.name}</Head> : null}
-            <div style={{ marginTop: 8 }}><Body size={24} color={th.muted}>{[p?.role, clean(c.brand.name)].filter(Boolean).join(' · ')}</Body></div>
+            <div style={{ marginTop: 8 }}><Body size={24} color={th.muted}>{[p?.role, nameIn(clean(c.brand.name), [p?.name]) ? '' : clean(c.brand.name)].filter(Boolean).join(' · ')}</Body></div>
           </Obj>
         </>
       ) : (
-        <Obj y={360} z={30} w={900} h={70} sharp style={{ ...enter(th, t, 0.6) }}><BrandMark brand={c.brand} height={64} align="center" /></Obj>
+        <Obj y={360} z={30} w={900} h={70} sharp style={{ ...enter(th, t, 0.6) }}><BrandMark brand={c.brand} height={64} align="center" shown={[kicker, s.sub, s.headline]} /></Obj>
       )}
     </Shell>
   )
@@ -354,11 +359,11 @@ const Cta: React.FC<{ s: CtaScene; c: SceneCtx }> = ({ s, c }) => {
           <Obj x={560} y={-70 + tall / 2 + 110} z={30} w={620} h={170} sharp style={{ textAlign: 'center', ...enter(th, t, 0.8) }}>
             {p?.name ? <Head size={th.headUpper ? 58 : 44}>{p.name}</Head> : null}
             {p?.role ? <div style={{ marginTop: 8 }}><Body size={24} color={th.muted}>{p.role}</Body></div> : null}
-            <div style={{ marginTop: 16 }}><BrandMark brand={c.brand} height={48} align="center" /></div>
+            <div style={{ marginTop: 16 }}><BrandMark brand={c.brand} height={48} align="center" shown={[p?.name, s.headline]} /></div>
           </Obj>
         </>
       ) : (
-        <Obj y={380} z={30} w={900} h={70} sharp style={{ ...enter(th, t, 0.9) }}><BrandMark brand={c.brand} height={60} align="center" /></Obj>
+        <Obj y={380} z={30} w={900} h={70} sharp style={{ ...enter(th, t, 0.9) }}><BrandMark brand={c.brand} height={60} align="center" shown={[s.headline]} /></Obj>
       )}
     </Shell>
   )
