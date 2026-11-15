@@ -71,7 +71,7 @@ export default function ClientViewing({ videoId, isDeck, refreshKey }: { videoId
   const nothing = data && data.shares.length === 0 && data.others.length === 0
 
   return (
-    <section className="res-card" aria-label="Who watched">
+    <section className="res-card" id="who-watched" aria-label="Who watched">
       <div className="res-card-head">
         <h2 className="res-h2">Who watched</h2>
         <div className="res-stats">

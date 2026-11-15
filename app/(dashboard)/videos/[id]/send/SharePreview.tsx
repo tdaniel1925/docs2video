@@ -39,9 +39,6 @@ export default function SharePreview({
    */
   edit?: { note: ReactNode; underGreeting?: ReactNode; pieces: ReactNode }
 }) {
-  const ownRef = useRef<HTMLVideoElement>(null)
-  const playerRef = videoRef ?? ownRef
-  const musicRef = useRef<HTMLAudioElement>(null)
   const hasSide = !!edit || !!(model.bookingUrl || model.paymentLink || model.quote || model.sourcePdf)
   return (
     // light-island: the client's real page is always light, so the preview is too, even in dark mode.
@@ -74,37 +71,7 @@ export default function SharePreview({
 
         <div className={`rts-page-main${hasSide ? '' : ' single'}`}>
           <div className="rts-media">
-            {isDeck ? (
-              <iframe
-                src={`/api/public/presentation/${videoId}?share=1&v=${version}`}
-                title={title ?? 'Presentation'}
-                loading="lazy"
-                style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
-              />
-            ) : videoUrl ? (
-              <>
-                <video
-                  ref={playerRef}
-                  src={`${videoUrl}${videoUrl.includes('?') ? '&' : '?'}v=${version}`}
-                  poster={posterUrl ?? undefined}
-                  controls
-                  // Nothing downloads until Play: on a slow phone the old
-                  // "metadata" preload pulled ~300 KB of video before the page
-                  // was usable. The poster shows meanwhile (audit 2026-10-09).
-                  preload="none"
-                  playsInline
-                  onPlay={() => { const m = musicRef.current; if (m) { m.volume = 0.01; m.play().catch(() => {}) } }}
-                  onPause={() => musicRef.current?.pause()}
-                  onSeeking={() => {
-                    const m = musicRef.current
-                    const p = playerRef.current
-                    if (m && p && m.duration > 0) m.currentTime = p.currentTime % m.duration
-                  }}
-                  style={{ width: '100%', height: '100%', display: 'block', background: 'var(--ink)', objectFit: 'contain' }}
-                />
-                {musicUrl && <audio ref={musicRef} src={musicUrl} loop preload="none" style={{ display: 'none' }} />}
-              </>
-            ) : null}
+            <SharePlayer isDeck={isDeck} videoId={videoId} title={title} videoUrl={videoUrl} posterUrl={posterUrl} musicUrl={musicUrl} version={version} videoRef={videoRef} />
           </div>
 
           {edit ? <div className="rts-side" aria-label="What else your client sees">{edit.pieces}</div> : hasSide && (
@@ -132,5 +99,54 @@ export default function SharePreview({
         {notice && <div className="rts-row-hint" style={{ marginTop: 10 }}>{notice}</div>}
       </div>
     </div>
+  )
+}
+
+/**
+ * THE PLAYER of the client's page (the video with its music track, or the presentation), on its own so the
+ * result page can show it big (layout F, 2026-11-15) and the page preview can show it small. The change bar
+ * jumps it to a scene through videoRef.
+ */
+export function SharePlayer({ isDeck, videoId, title, videoUrl, posterUrl, musicUrl, version, videoRef }: {
+  isDeck: boolean; videoId: string; title: string | null; videoUrl: string | null; posterUrl: string | null
+  musicUrl?: string | null; version: number; videoRef?: RefObject<HTMLVideoElement | null>
+}) {
+  const ownRef = useRef<HTMLVideoElement>(null)
+  const playerRef = videoRef ?? ownRef
+  const musicRef = useRef<HTMLAudioElement>(null)
+  return (
+    <>
+  {isDeck ? (
+    <iframe
+      src={`/api/public/presentation/${videoId}?share=1&v=${version}`}
+      title={title ?? 'Presentation'}
+      loading="lazy"
+      style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+    />
+  ) : videoUrl ? (
+    <>
+      <video
+        ref={playerRef}
+        src={`${videoUrl}${videoUrl.includes('?') ? '&' : '?'}v=${version}`}
+        poster={posterUrl ?? undefined}
+        controls
+        // Nothing downloads until Play: on a slow phone the old
+        // "metadata" preload pulled ~300 KB of video before the page
+        // was usable. The poster shows meanwhile (audit 2026-10-09).
+        preload="none"
+        playsInline
+        onPlay={() => { const m = musicRef.current; if (m) { m.volume = 0.01; m.play().catch(() => {}) } }}
+        onPause={() => musicRef.current?.pause()}
+        onSeeking={() => {
+          const m = musicRef.current
+          const p = playerRef.current
+          if (m && p && m.duration > 0) m.currentTime = p.currentTime % m.duration
+        }}
+        style={{ width: '100%', height: '100%', display: 'block', background: 'var(--ink)', objectFit: 'contain' }}
+      />
+      {musicUrl && <audio ref={musicRef} src={musicUrl} loop preload="none" style={{ display: 'none' }} />}
+    </>
+  ) : null}
+    </>
   )
 }

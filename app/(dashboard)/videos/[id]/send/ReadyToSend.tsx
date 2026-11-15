@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { sizedPicture } from '../../../../_lib/picture-size'
 import Link from 'next/link'
-import { Link2, Mail, Send, UserRoundPlus } from 'lucide-react'
+import { Eye, Link2, Mail, Send, SlidersHorizontal, UserRoundPlus } from 'lucide-react'
+import { Dialog } from '../../../../_components/kit'
 import type { Video } from '../../../../_lib/types'
-import SharePreview from './SharePreview'
+import SharePreview, { SharePlayer } from './SharePreview'
 import SendByText, { SendTabs, useTextStatus } from './SendByText'
 import SendSwitch from './SendSwitch'
 import {
@@ -29,6 +30,11 @@ type PublicFacts = {
 
 /**
  * "Ready to send" — THE one place a finished project is sent from.
+ *
+ * LAYOUT F (owner's pick, 2026-11-15): the video big, ONE line to send it, and everything else as quiet links:
+ * Preview their page (a pop-up of exactly what they see), Customize their page (a side panel that says the
+ * buttons are for THEM — download the PDF, book a meeting, pay the quote — with the note, each button's
+ * Hide / + Add, and quote reminders), copy the link or the email, Who watched.
  *
  * A picture of exactly what the client will see, and beside it: what's still
  * missing ("What's left"), who it goes to, a short note, the on/off pieces,
@@ -201,6 +207,10 @@ export default function ReadyToSend({
   }
   useEffect(() => () => { if (noteTimer.current) clearTimeout(noteTimer.current) }, [])
 
+  // Layout F (2026-11-15): the page preview and the "Customize their page" side panel.
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
   // ── Switches ──
   const [saving, setSaving] = useState<SaveKey | null>(null)
   const [errors, setErrors] = useState<Partial<Record<SaveKey, string>>>({})
@@ -364,7 +374,7 @@ export default function ReadyToSend({
 
       {/* The quote */}
       {(canQuote || qs.kind !== 'none') && (
-        qs.kind === 'none' ? ghost('Add a quote with a pay button', 'No quote yet', { onClick: onAddQuote })
+        qs.kind === 'none' ? ghost('Add a quote with a pay button', 'No quote yet', { onClick: () => { setDrawerOpen(false); onAddQuote() } })
         : qs.kind === 'toggle' ? (
           qs.on && model.quote ? (
             <div className="rts-piece">
@@ -431,136 +441,156 @@ export default function ReadyToSend({
     </Link>
   ) : null
 
+  const who = client?.name || v.recipient_name || 'your client'
+  const firstName = who.split(/\s+/)[0]
   return (
     <section className="rts" id="send" ref={sectionRef} aria-label="Ready to send">
       <style>{READY_TO_SEND_CSS}</style>
-      <h2 className="rts-title">Ready to <em>send.</em></h2>
-      <p className="rts-sub">
-        This is {client?.name || v.recipient_name || 'your client'}’s page, exactly as they’ll see it. Type your note right on it; the dashed blocks add a piece.
-      </p>
-      <div className="rts-d">
-        <SharePreview
-          model={model}
-          shareUrl={shareUrl}
-          title={video.title}
-          isDeck={isDeck}
-          videoId={video.id}
-          videoUrl={video.video_url}
-          // The poster stands in until Play (the player loads nothing before
-          // that — preload="none", audit 2026-10-09): the thumbnail, else the
-          // first slide picture.
-          posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 960)}
-          musicUrl={video.music_url}
-          version={version}
-          videoRef={previewVideoRef}
-          notice={factsError ? 'Couldn’t load your share page’s booking and payment details just now, so those buttons may be missing from this picture.' : null}
-          edit={{ note: noteBox, underGreeting, pieces }}
-        />
+      <div className="rts-f">
+        <h2 className="rts-title">Ready to <em>send.</em></h2>
 
-        {/* Quote reminders are not on their page: they sit with sending */}
-        {(canQuote || quote) && (
-          <div className="rts-rows rts-d-extra">
-            {rs.usable ? (
-              <SendSwitch
-                label={`Remind them about the quote on ${reminderDaysText()}`}
-                on={rs.on}
-                saving={saving === 'remind'}
-                disabled={(!!saving && saving !== 'remind') || (!rs.on && !!rs.blockedOn)}
-                error={errors.remind}
-                onToggle={() => putQuote('remind', { autoFollowUp: !rs.on })}
-                hint={rs.blockedOn && !rs.on
-                  ? <>Reminders go from your own email only. Connect it in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> first.</>
-                  : 'Counted from the day you made the quote. Sent from your email with an unsubscribe link. Stops once you mark the deal paid, accepted or declined.'}
-              />
-            ) : (
-              <div className="rts-row">
-                <div className="rts-row-label">Remind them about the quote on {reminderDaysText()}</div>
-                <div className="rts-row-hint">{rs.reason}</div>
+        {/* THE VIDEO — the page's one player (the change bar jumps it to a scene) */}
+        <div className="rts-media rts-f-media">
+          <SharePlayer isDeck={isDeck} videoId={video.id} title={video.title} videoUrl={video.video_url}
+            posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 960)}
+            musicUrl={video.music_url} version={version} videoRef={previewVideoRef} />
+        </div>
+
+        {textInfo?.available && <SendTabs channel={channel} onChange={(k) => { setChannel(k); setSendError(''); setSentTo('') }} />}
+
+        {/* ONE LINE TO SEND */}
+        {channel === 'text' && textInfo ? (
+          <SendByText videoId={video.id} initial={textInfo} clientName={client?.name || v.recipient_name || ''} clientId={clientId}
+            note={note} thing={thing} insurance={insurance} posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 480)}
+            beforeSend={() => saveNote(note)} onSent={onSent} />
+        ) : (
+          <div className="rts-f-send">
+            {client === null ? (
+              <div className="rts-row-hint">Loading…</div>
+            ) : !askForAddress ? (
+              <div className="rts-f-who">
+                <span className="rts-eyebrow" style={{ margin: 0 }}>Send to</span>
+                <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name || client.email}</span>
+                <span className="rts-row-hint" style={{ margin: 0 }}>{client.email}{client.fromStep1 ? ' · from step 1' : ''}</span>
+                <button type="button" className="rts-link rts-link--small rts-icon-link" style={{ margin: 0 }} onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
+                  <UserRoundPlus size={16} />Send to someone else
+                </button>
               </div>
+            ) : (
+              <>
+                <input
+                  id={FOCUS_IDS.email}
+                  aria-label="Client email"
+                  className="input"
+                  type="email"
+                  placeholder={`${firstName === 'your' ? 'Their' : `${firstName}’s`} email, e.g. sarah@example.com`}
+                  value={typedEmail}
+                  onChange={e => { setTypedEmail(e.target.value); setSendError('') }}
+                />
+                {(someoneElse || !client.name) && (
+                  <input id="rts-name" aria-label="Their name (optional)" className="input" placeholder="Their name (optional)"
+                    value={typedName} onChange={e => setTypedName(e.target.value)} />
+                )}
+              </>
             )}
+            <button type="button" className="btn btn-primary" onClick={send} disabled={sending || client === null}>
+              <span className="rts-icon-link"><Send size={16} />{sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}</span>
+            </button>
           </div>
         )}
+        {channel === 'email' && askForAddress && client && (
+          <div className="rts-row-hint rts-center" style={{ marginTop: 0 }}>
+            {someoneElse
+              ? <>Just for this send — the client on file stays the same. <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(false); setTypedEmail(''); setTypedName(''); setSendError('') }}>Back to {client.name || client.email}</button></>
+              : 'No email is saved for this client yet.'}
+          </div>
+        )}
+        {channel === 'email' && sendError && <div role="alert" className="rts-error">{sendError}</div>}
+        {channel === 'email' && sentTo && <div role="status" className="rts-sent">✓ Sent to <strong>{sentTo}</strong>.</div>}
 
-        {/* THE SEND BAR — stays at the bottom of the screen while you look over their page */}
-        <div className="rts-bar" aria-label="Send it">
-          {textInfo?.available && <SendTabs channel={channel} onChange={(k) => { setChannel(k); setSendError(''); setSentTo('') }} />}
-          {channel === 'text' && textInfo ? (
-            <SendByText videoId={video.id} initial={textInfo} clientName={client?.name || v.recipient_name || ''} clientId={clientId}
-              note={note} thing={thing} insurance={insurance} posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 480)}
-              beforeSend={() => saveNote(note)} onSent={onSent} />
-          ) : (
-            <div className="rts-bar-row">
-              <div className="rts-bar-who">
-                <div className="rts-eyebrow" style={{ marginBottom: 2 }}>Send to</div>
-                {client === null ? (
-                  <div className="rts-row-hint">Loading…</div>
-                ) : !askForAddress ? (
-                  <div>
-                    <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name || client.email}</span>
-                    <span className="rts-row-hint"> · {client.email}{client.fromStep1 ? ' · from step 1' : ''}</span>
-                    <button type="button" className="rts-link rts-link--small rts-icon-link" onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
-                      <UserRoundPlus size={16} />Send to someone else
-                    </button>
-                  </div>
+        {/* EVERYTHING ELSE, as quiet links */}
+        <div className="rts-f-links">
+          <button type="button" className="rts-f-link" onClick={() => setPreviewOpen(true)}><Eye size={16} />Preview their page</button>
+          <button type="button" className="rts-f-link rts-f-link--accent" onClick={() => setDrawerOpen(true)}><SlidersHorizontal size={16} />Customize their page</button>
+          <button type="button" className="rts-f-link" onClick={copyLink}><Link2 size={16} />{copyState === 'copied' ? '✓ Link copied' : 'Copy the link'}</button>
+          <button type="button" className="rts-f-link" onClick={copyEmail}><Mail size={16} />{emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}</button>
+          <a className="rts-f-link" href="#who-watched"><Eye size={16} />Who watched</a>
+        </div>
+        <div className="rts-row-hint rts-center">
+          {channel === 'text' || mailbox === null ? ''
+            : mailbox.has
+              ? <>Sends from your own email{mailbox.address ? ` (${mailbox.address})` : ''}. We tell you when they open it and when they watch. </>
+              : <>Sends from Docs2Video’s address, and replies come to you. <Link href={SETTINGS_INTEGRATIONS}>Connect your email</Link> to send from it. </>}
+          {insurance ? 'Copied links include the policy disclosure. ' : ''}Copying sends nothing — you send it yourself.
+        </div>
+        {copyState === 'failed' && <div className="rts-row-hint rts-center" style={{ wordBreak: 'break-all' }}>Couldn’t copy — here it is: {shareUrl}</div>}
+        {emailCopied === 'failed' && <div className="rts-row-hint rts-center">Couldn’t copy the email. Copy the link instead and paste it into your message.</div>}
+      </div>
+
+      {/* PREVIEW THEIR PAGE — exactly what they see */}
+      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} wide title={`${who}’s page`}
+        sub={<>Exactly what they see when they open your link. <a href={shareUrl} target="_blank" rel="noopener noreferrer">Open it in a new tab ↗</a></>}>
+        <SharePreview model={model} shareUrl={shareUrl} title={video.title} isDeck={isDeck} videoId={video.id} videoUrl={video.video_url}
+          posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 960)} musicUrl={video.music_url} version={version}
+          notice={factsError ? 'Couldn’t load your share page’s booking and payment details just now, so those buttons may be missing from this picture.' : null} />
+      </Dialog>
+
+      {/* CUSTOMIZE THEIR PAGE — the side panel */}
+      {drawerOpen && (
+        <div className="rts-drawer-dim" onMouseDown={(e) => { if (e.target === e.currentTarget) setDrawerOpen(false) }}>
+          <aside className="rts-drawer" role="dialog" aria-modal="true" aria-labelledby="rts-drawer-title"
+            onKeyDown={(e) => { if (e.key === 'Escape') setDrawerOpen(false) }}>
+            <div className="rts-drawer-head">
+              <h3 id="rts-drawer-title">{who}’s page</h3>
+              <button type="button" className="kit-icon-btn" aria-label="Close" onClick={() => setDrawerOpen(false)} autoFocus>✕</button>
+            </div>
+            <p className="rts-drawer-why">
+              Your link opens a page made for <strong>{firstName === 'your' ? 'your client' : firstName}</strong>: the video, your note, and the buttons below.
+              The buttons are for <strong>them</strong> to use: download the original PDF, book a meeting with you, or pay your quote.
+              Turn on what you want them to have.
+            </p>
+
+            <div className="rts-drawer-sec">
+              <div className="rts-eyebrow">Your note to them</div>
+              {noteBox}
+            </div>
+            {underGreeting && <div className="rts-drawer-sec">{underGreeting}</div>}
+
+            <div className="rts-drawer-sec">
+              <div className="rts-eyebrow">Buttons they can use</div>
+              <div className="rts-drawer-pieces">{pieces}</div>
+            </div>
+
+            {(canQuote || quote) && (
+              <div className="rts-drawer-sec rts-rows">
+                {rs.usable ? (
+                  <SendSwitch
+                    label={`Remind them about the quote on ${reminderDaysText()}`}
+                    on={rs.on}
+                    saving={saving === 'remind'}
+                    disabled={(!!saving && saving !== 'remind') || (!rs.on && !!rs.blockedOn)}
+                    error={errors.remind}
+                    onToggle={() => putQuote('remind', { autoFollowUp: !rs.on })}
+                    hint={rs.blockedOn && !rs.on
+                      ? <>Reminders go from your own email only. Connect it in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> first.</>
+                      : 'Counted from the day you made the quote. Sent from your email with an unsubscribe link. Stops once you mark the deal paid, accepted or declined.'}
+                  />
                 ) : (
-                  <div className="rts-bar-fields">
-                    {!someoneElse && client.name && <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name}</span>}
-                    <input
-                      id={FOCUS_IDS.email}
-                      aria-label="Client email"
-                      className="input"
-                      type="email"
-                      placeholder="Their email, e.g. sarah@example.com"
-                      value={typedEmail}
-                      onChange={e => { setTypedEmail(e.target.value); setSendError('') }}
-                    />
-                    {(someoneElse || !client.name) && (
-                      <input
-                        id="rts-name"
-                        aria-label="Their name (optional)"
-                        className="input"
-                        placeholder="Their name (optional)"
-                        value={typedName}
-                        onChange={e => setTypedName(e.target.value)}
-                      />
-                    )}
-                    {someoneElse ? (
-                      <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(false); setTypedEmail(''); setTypedName(''); setSendError('') }}>
-                        Back to {client.name || client.email}
-                      </button>
-                    ) : <span className="rts-row-hint">No email is saved for this client yet.</span>}
+                  <div className="rts-row">
+                    <div className="rts-row-label">Remind them about the quote on {reminderDaysText()}</div>
+                    <div className="rts-row-hint">{rs.reason}</div>
                   </div>
                 )}
               </div>
-              <div className="rts-bar-go">
-                <button type="button" className="btn btn-primary" onClick={send} disabled={sending || client === null}>
-                  <span className="rts-icon-link"><Send size={16} />{sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}</span>
-                </button>
-                <div className="rts-alt">
-                  <button type="button" className="rts-link rts-icon-link" onClick={copyLink}>
-                    <Link2 size={16} />{copyState === 'copied' ? '✓ Link copied' : 'or copy the link'}
-                  </button>
-                  <span aria-hidden="true" className="rts-dot-sep">·</span>
-                  <button type="button" className="rts-link rts-icon-link" onClick={copyEmail}>
-                    <Mail size={16} />{emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}
-                  </button>
-                </div>
-              </div>
+            )}
+
+            <div className="rts-drawer-foot">
+              <button type="button" className="btn btn-soft" onClick={() => { setDrawerOpen(false); setPreviewOpen(true) }}><span className="rts-icon-link"><Eye size={16} />Preview their page</span></button>
+              <button type="button" className="btn btn-primary" onClick={() => setDrawerOpen(false)}>Done</button>
             </div>
-          )}
-          {channel === 'email' && sendError && <div role="alert" className="rts-error">{sendError}</div>}
-          {channel === 'email' && sentTo && <div role="status" className="rts-sent">✓ Sent to <strong>{sentTo}</strong>.</div>}
-          <div className="rts-row-hint rts-from">
-            {channel === 'text' || mailbox === null ? ''
-              : mailbox.has
-                ? <>Sends from your own email{mailbox.address ? ` (${mailbox.address})` : ''}. We tell you when they open it and when they watch.</>
-                : <>Sends from Docs2Video’s address, and replies come to you. <Link href={SETTINGS_INTEGRATIONS}>Connect your email</Link> to send from it.</>}
-            {' '}{insurance ? 'Copied links include the policy disclosure. ' : ''}Copying sends nothing — you send it yourself.
-          </div>
-          {copyState === 'failed' && <div className="rts-row-hint" style={{ wordBreak: 'break-all' }}>Couldn’t copy — here it is: {shareUrl}</div>}
-          {emailCopied === 'failed' && <div className="rts-row-hint">Couldn’t copy the email. Copy the link instead and paste it into your message.</div>}
+          </aside>
         </div>
-      </div>
+      )}
     </section>
   )
 }
