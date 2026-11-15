@@ -107,11 +107,15 @@ export function bookendPlans(ctx: StoryboardContext, draft: Draft, choices: Book
     ...(ctx.recipient ? ['Prepared for ' + ctx.recipient] : []),
     ...(presenter && photo.cover ? ['Your photo, name' + (presenter.role ? ' and role' : '')] : presenter ? ['Your name (no photo on the opening)'] : []),
     ...(logo ? ['Your logo'] : ctx.brand?.name ? [ctx.brand.name] : []),
+    // No brand: say why there is no name or photo (owner's live test, 2026-11-15).
+    ...(!ctx.brand ? ['No name or photo: this project has no brand. Add a brand to show them.'] : []),
   ]
   const closingEls = [
     'Headline: ' + closing.headline,
     'Button: ' + closing.action,
-    ...(has ? ['Your contact: ' + [contact?.phone, contact?.email, contact?.website].filter(Boolean).join(' · ')] : ['No contact details']),
+    ...(has ? ['Your contact: ' + [contact?.phone, contact?.email, contact?.website].filter(Boolean).join(' · ')]
+      : !ctx.brand ? ['No photo or contact details: this project has no brand. Add a brand to show them.']
+      : !showContact ? ['No contact details (turned off)'] : ['No contact details: add them on your brand']),
     ...(presenter && photo.closing ? ['Your photo'] : []),
     ...(logo ? ['Your logo'] : []),
   ]
