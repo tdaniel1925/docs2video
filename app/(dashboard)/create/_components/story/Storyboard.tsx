@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 
 /*
  * THE STORYBOARD on step 5 (film engine on; app/_lib/storyboard.ts): under each content scene, the still frame the
- * film engine will draw, and the words on screen, editable. The words the voice says stay in the scene's own editor.
+ * film engine will draw, as a compact grid; "Change" opens one scene's editor (what the voice says, words on screen).
  * Owner rules: a still, never a clip; no motion or timing controls; no changing how a scene is shown.
  */
 export type BoardField = { path: string; label: string; value: string }
@@ -68,61 +68,113 @@ export function useStoryboard(videoId: string | null, enabled: boolean, storySce
     return null
   }, [videoId])
 
+  const retryFrame = useCallback((key: string) => setFrames((f) => { const n = { ...f }; delete n[key]; return n }), [])
   const contentNarr = storyScenes.filter((s) => s._role !== 'cover' && s._role !== 'closing').map((s) => norm(s.narration))
   const stale = state === 'ready' && (contentNarr.length !== board.length || contentNarr.some((n) => !board.some((b) => norm(b.narration) === n)))
   const forScene = (narration: unknown) => board.find((b) => norm(b.narration) === norm(narration)) ?? null
-  return { state, note, stale, plan, forScene, frames, saveWords }
+  return { state, note, stale, plan, forScene, frames, saveWords, retryFrame }
 }
 
-/** One scene's storyboard: its frame, what it is, and its words on screen (editable). */
-export function StoryboardScene({ scene, frame, onSave }: { scene: BoardScene | null; frame: string | undefined; onSave: (edits: Record<string, string>) => Promise<string[] | null> }) {
+const cap: CSSProperties = { fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }
+
+/** The frame itself (16:9): the picture, "Drawing…", or "Try again". */
+function Frame({ frame, label, onRetry, small }: { frame: string | undefined; label: string; onRetry?: () => void; small?: boolean }) {
+  return (
+    <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: small ? 8 : 10, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
+      {frame && frame !== 'none'
+        // eslint-disable-next-line @next/next/no-img-element -- a picture the render service drew
+        ? <img src={frame} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 8, color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }}>
+            {frame === 'none'
+              ? <span>We couldn’t draw this picture.{onRetry ? <><br /><button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" style={{ marginTop: 6 }} onClick={(e) => { e.stopPropagation(); onRetry() }}>Try again</button></> : null}</span>
+              : 'Drawing this scene…'}
+          </div>}
+    </div>
+  )
+}
+
+/** One small card in the storyboard grid. "Change" opens the scene's editor. */
+export function StoryboardTile({ n, title, scene, frame, bookend, planning, onOpen, onRetry }: {
+  n: number; title: string; scene: BoardScene | null; frame: string | undefined; bookend?: 'cover' | 'closing'; planning: boolean; onOpen: () => void; onRetry: () => void
+}) {
+  const kind = bookend === 'cover' ? 'Opening' : bookend === 'closing' ? 'Closing' : scene ? (TYPE_NAME[scene.type] ?? scene.type) : planning ? 'Laying out…' : 'Words changed'
+  const allFound = !!scene && scene.checks.length > 0 && scene.checks.every((c) => c.found)
+  const missing = !!scene && scene.checks.some((c) => !c.found)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+      {bookend ? (
+        <div style={{ aspectRatio: '16 / 9', borderRadius: 8, border: '1px dashed var(--border-light)', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 10, color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }}>
+          {bookend === 'cover' ? 'Your title, photo and greeting' : 'Your contact details and booking button'}
+        </div>
+      ) : <Frame small frame={scene ? frame : undefined} label={'Scene ' + n + ': ' + kind} onRetry={onRetry} />}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600 }}>
+        <span>{n} · {kind}</span>
+        {allFound ? <span title="The numbers on screen are in your document" style={{ color: 'var(--success)' }}>✓</span> : null}
+        {missing ? <span title="A number on screen isn’t in your document" style={{ color: 'var(--warning-text)' }}>!</span> : null}
+      </div>
+      <div style={{ fontWeight: 700, lineHeight: 1.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{title || 'Untitled scene'}</div>
+      <div style={{ marginTop: 'auto' }}>
+        {!bookend
+          ? <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={onOpen} aria-label={'Change scene ' + n}>Change</button>
+          : <span className="cf-hint" style={{ margin: 0 }}>Set on the Opener &amp; close step</span>}
+      </div>
+    </div>
+  )
+}
+
+/** The editor for one scene (inside a pop-up): the big frame, what the voice says, and the words on screen. */
+export function StoryboardEditor({ scene, frame, voice, onSaveWords, onSaveVoice, onRetry, onDone }: {
+  scene: BoardScene | null; frame: string | undefined; voice: string
+  onSaveWords: (edits: Record<string, string>) => Promise<string[] | null>; onSaveVoice: (text: string) => void; onRetry: () => void; onDone: () => void
+}) {
   const [draft, setDraft] = useState<Record<string, string>>({})
+  const [said, setSaid] = useState(voice)
   const [saving, setSaving] = useState(false)
   const [issues, setIssues] = useState<string[] | null>(null)
-  if (!scene) return <p className="cf-hint" style={{ margin: '4px 0 0' }}>This scene’s words changed. Press <b>Update the storyboard</b> to see it again.</p>
-  const dirty = Object.keys(draft).some((k) => draft[k] !== (scene.fields.find((f) => f.path === k)?.value ?? ''))
+  const wordsDirty = !!scene && Object.keys(draft).some((k) => draft[k] !== (scene.fields.find((f) => f.path === k)?.value ?? ''))
+  const voiceDirty = norm(said) !== norm(voice)
   const save = async () => {
     setSaving(true); setIssues(null)
-    const bad = await onSave(draft)
+    const bad = wordsDirty ? await onSaveWords(draft) : null
     setSaving(false)
-    if (bad) setIssues(bad); else setDraft({})
+    if (bad) { setIssues(bad); return }
+    if (voiceDirty) onSaveVoice(said.trim())
+    onDone()
   }
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, padding: '12px 0 4px' }}>
-      <div style={{ flex: '0 1 380px', minWidth: 240 }}>
-        <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: 10, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-          {frame && frame !== 'none'
-            // eslint-disable-next-line @next/next/no-img-element -- a picture the render service drew
-            ? <img src={frame} alt={`How this scene will look: ${TYPE_NAME[scene.type] ?? scene.type}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }}>{frame === 'none' ? 'Picture not ready. Your words are saved.' : 'Drawing this scene…'}</div>}
-        </div>
-      </div>
-      <div style={{ flex: '999 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          <span className="kit-chip" style={{ fontSize: 'var(--fs-caption)', fontWeight: 700 }}>{TYPE_NAME[scene.type] ?? scene.type}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {scene ? <Frame frame={frame} label={'How this scene will look: ' + (TYPE_NAME[scene.type] ?? scene.type)} onRetry={onRetry} /> : null}
+      {scene && scene.checks.length ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {scene.checks.map((c, i) => (
             <span key={i} style={{ fontSize: 'var(--fs-caption)', fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: c.found ? 'var(--success-bg)' : 'var(--warning-bg)', color: c.found ? 'var(--success)' : 'var(--warning-text)' }}>
-              {c.found ? `✓ ${c.text} is in your document` : `${c.text} isn’t in your document`}
+              {c.found ? '✓ ' + c.text + ' is in your document' : c.text + ' isn’t in your document'}
             </span>
           ))}
         </div>
-        <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>On screen</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-          {scene.fields.map((f) => (
-            <label key={f.path} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
-              {f.label}
-              <input className="cf-input" value={draft[f.path] ?? f.value} maxLength={160}
-                onChange={(e) => setDraft((d) => ({ ...d, [f.path]: e.target.value }))} />
-            </label>
-          ))}
-        </div>
-        {issues ? <div role="alert" className="kit-note kit-note--warn"><div className="kit-note-body"><p>{issues.join(' ')}</p></div></div> : null}
-        {dirty ? (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="kit-btn kit-btn--primary kit-btn--sm" onClick={() => void save()} disabled={saving}>{saving ? 'Saving…' : 'Save the words on screen'}</button>
-            <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={() => { setDraft({}); setIssues(null) }} disabled={saving}>Undo</button>
+      ) : null}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={cap}>The voice says</span>
+        <textarea className="cf-input" rows={4} value={said} onChange={(e) => setSaid(e.target.value)} style={{ resize: 'vertical', lineHeight: 1.5 }} />
+      </label>
+      {scene && scene.fields.length ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={cap}>On screen</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+            {scene.fields.map((f) => (
+              <label key={f.path} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>
+                {f.label}
+                <input className="cf-input" value={draft[f.path] ?? f.value} maxLength={160} onChange={(e) => setDraft((d) => ({ ...d, [f.path]: e.target.value }))} />
+              </label>
+            ))}
           </div>
-        ) : null}
+        </div>
+      ) : null}
+      {voiceDirty ? <p className="cf-hint" style={{ margin: 0 }}>When you save, this scene is laid out again to match the new words.</p> : null}
+      {issues ? <div role="alert" className="kit-note kit-note--warn"><div className="kit-note-body"><p>{issues.join(' ')}</p></div></div> : null}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={onDone} disabled={saving}>Cancel</button>
+        <button type="button" className="kit-btn kit-btn--primary kit-btn--sm" onClick={() => void save()} disabled={saving || (!wordsDirty && !voiceDirty)}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
   )

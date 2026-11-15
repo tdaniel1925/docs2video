@@ -33,7 +33,8 @@ import { addBookends, bookendOptsFrom, keepAutoMarks, sceneSeconds } from '../st
 import OnePoint from '../story/OnePoint'
 import AskPanel, { type AskMsg } from '../story/AskPanel'
 import SceneCard from '../story/SceneCard'
-import { StoryboardScene, useStoryboard } from '../story/Storyboard'
+import { StoryboardEditor, StoryboardTile, useStoryboard } from '../story/Storyboard'
+import Dialog from '../../../../_components/kit/Dialog'
 import LengthPicker from '../story/LengthPicker'
 import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../story/lengths'
 import { Note } from '../../../../_components/kit'
@@ -120,6 +121,14 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
   }, [part])
   const boardOn = filmOn && part === 'scenes' && outputType === 'video' && scenes.length > 0
   const board = useStoryboard(videoId, boardOn, scenes)
+  const [boardIdx, setBoardIdx] = useState<number | null>(null)
+  // What the voice says changed in the editor: lay the storyboard out again once the story is saved.
+  const [replan, setReplan] = useState(false)
+  useEffect(() => {
+    if (!replan || !board.stale || board.state === 'planning') return
+    const t = setTimeout(() => { setReplan(false); void board.plan() }, 1500)
+    return () => clearTimeout(t)
+  }, [replan, board.stale, board.state, board.plan])
   useEffect(() => { briefRef.current = brief }, [brief])
 
   /** A point/numbers the server gave us (or that were saved): the new "as saved". */
@@ -846,7 +855,7 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                   {boardOn ? (
                     <div className="kit-note" style={{ marginBottom: 12 }}>
                       <div className="kit-note-body">
-                        <p><b>Your storyboard.</b> Under each scene: how it will look in your video, and the words on screen, which you can change here. Change what the voice says with <b>Edit</b>.</p>
+                        <p><b>Your storyboard.</b> Each scene as it will look in your video. Press <b>Change</b> on a scene to change what the voice says or the words on screen. Drag a scene to move it.</p>
                         {board.state === 'planning' ? <p>Laying out your scenes…</p> : null}
                         {board.note ? <p>{board.note}</p> : null}
                         {board.stale || board.state === 'error' ? (
@@ -855,6 +864,44 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                       </div>
                     </div>
                   ) : null}
+                  {boardOn ? (<>
+                  <ol aria-label="Your storyboard" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
+                    {scenes.map((scene: any, i: number) => {
+                      const role = scene._role as ('cover' | 'closing' | undefined)
+                      const bookend = role === 'cover' || role === 'closing'
+                      const b = bookend ? null : board.forScene(scene.narration)
+                      return (
+                        <li key={i} data-scene={i + 1}
+                          draggable={!bookend}
+                          onDragStart={() => { if (!bookend) setDragIdx(i) }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => dropOn(i)}
+                          onDragEnd={() => setDragIdx(null)}
+                          style={{ background: 'var(--bg-card)', border: dragIdx === i ? '2px solid var(--accent-ink)' : '1px solid var(--border-light)', borderRadius: 12, padding: 10, opacity: dragIdx === i ? 0.6 : 1, cursor: bookend ? 'default' : 'grab' }}>
+                          <StoryboardTile n={i + 1} title={String(scene.title || '')} scene={b} bookend={bookend ? role : undefined}
+                            planning={board.state === 'planning'} frame={b ? board.frames[b.key] : undefined}
+                            onOpen={() => setBoardIdx(i)} onRetry={() => { if (b) board.retryFrame(b.key) }} />
+                        </li>
+                      )
+                    })}
+                  </ol>
+                  {boardIdx !== null && scenes[boardIdx] ? (() => {
+                    const i = boardIdx
+                    const scene = scenes[i]
+                    const b = board.forScene(scene.narration)
+                    const close = () => setBoardIdx(null)
+                    return (
+                      <Dialog open onClose={close} wide title={`Scene ${i + 1}: ${scene.title || 'Untitled scene'}`}>
+                        <StoryboardEditor key={i} scene={b} voice={String(scene.narration || '')}
+                          frame={b ? board.frames[b.key] : undefined}
+                          onRetry={() => { if (b) board.retryFrame(b.key) }}
+                          onSaveWords={(edits) => (b ? board.saveWords(b.key, edits) : Promise.resolve(null))}
+                          onSaveVoice={(text) => { updateScene(i, { ...scene, narration: text }, true); setReplan(true) }}
+                          onDone={close} />
+                      </Dialog>
+                    )
+                  })() : null}
+                  </>) : (
                   <ol className="cf-scenes" aria-label="The scenes">
                     {scenes.map((scene: any, i: number) => {
                       const role = scene._role as ('cover' | 'closing' | undefined)
@@ -887,14 +934,6 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                               {open ? 'Done' : 'Edit'}
                             </button>
                           </li>
-                          {boardOn && !bookend && board.state !== 'planning' ? (() => {
-                            const b = board.forScene(scene.narration)
-                            return (
-                              <li className="cf-scene-board" aria-label={`Storyboard for scene ${i + 1}`} style={{ listStyle: 'none' }}>
-                                <StoryboardScene key={b?.key ?? `none-${i}`} scene={b} frame={b ? board.frames[b.key] : undefined} onSave={(edits) => (b ? board.saveWords(b.key, edits) : Promise.resolve(null))} />
-                              </li>
-                            )
-                          })() : null}
                           {open ? (
                             <li className="cf-scene-editor">
                               <SceneCard
@@ -919,6 +958,7 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                       )
                     })}
                   </ol>
+                  )}
                   <p className="cf-hint">Drag a card to move a scene. The opening and closing are set on the Opener &amp; close step.</p>
                 </>
               )}

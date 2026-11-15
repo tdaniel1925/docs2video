@@ -35,7 +35,7 @@ async function load(videoId: string) {
 
 /** What the page shows for each scene. */
 function view(board: Storyboard | undefined, draft: Record<string, unknown>, ctx: StoryboardContext | null) {
-  const scenes = (Array.isArray(draft.scenes) ? draft.scenes : []) as { title?: string; narration?: string }[]
+  const scenes = ((Array.isArray(draft.scenes) ? draft.scenes : []) as { title?: string; narration?: string; _role?: string }[]).filter((s) => s._role !== 'cover' && s._role !== 'closing')
   return (board?.entries ?? []).map((e) => {
     const shown = applyEdits(e.scene, e.edits)
     const story = scenes.find((s) => storyKey(s.narration) === e.key)

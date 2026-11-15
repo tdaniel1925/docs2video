@@ -31,7 +31,8 @@ export async function storyboardContext(admin: SupabaseClient, userId: string, d
   const recipient = resolveClientName({ recipientName: str(draft.recipientName), policyData: policy })
   const g = (brand?.brand_guide_data ?? {}) as Record<string, unknown>
   const contact = Object.fromEntries(Object.entries({ phone: str(g.phone), email: str(g.email), website: str(g.website), booking: str(g.calendly) }).filter(([, v]) => v)) as PlannerInput['contact']
-  const scenes = (Array.isArray(draft.scenes) ? draft.scenes : []) as { title?: string; narration?: string; slideData?: never }[]
+  // The draft keeps the opening and closing in the same list (_role cover / closing): they are made at "Make it".
+  const scenes = ((Array.isArray(draft.scenes) ? draft.scenes : []) as { title?: string; narration?: string; slideData?: never; _role?: string }[]).filter((s) => s._role !== 'cover' && s._role !== 'closing')
   const title = str(draft.title) || str(policy.title) || str(scenes[0]?.title) || 'Your video'
   // The cover and closing here only give the planner its frame: they are made at "Make it".
   const beats = plannerBeats({ title, narration: title }, scenes.map((s) => ({ ...s, narration: formatForTTS(String(s.narration || '')) })), { title: 'Thank you', narration: 'Thank you for watching.' })
@@ -63,5 +64,5 @@ export const frameSig = (plan: KitPlan) => createHash('sha256').update(JSON.stri
 
 /** Draw one storyboard frame on the render service (the free preview's path: KitVideo, one still). */
 export async function drawFrame(o: { userId: string; videoId: string; plan: KitPlan; sig: string }): Promise<string> {
-  return renderPreviewStill({ userId: o.userId, videoId: o.videoId, plan: { engine: 'kit', request: { plan: o.plan }, key: `sb-${o.sig}`, narration: '', sceneTitle: '' } })
+  return renderPreviewStill({ userId: o.userId, videoId: o.videoId, plan: { engine: 'kit', request: { plan: o.plan }, key: o.sig, narration: '', sceneTitle: '' } })
 }
