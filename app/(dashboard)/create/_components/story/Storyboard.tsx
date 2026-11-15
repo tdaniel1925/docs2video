@@ -129,7 +129,10 @@ export function StoryboardTile({ n, title, scene, frame, bookend, planning, onOp
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
       {bookend ? (
         <div style={{ aspectRatio: '16 / 9', borderRadius: 8, border: '1px dashed var(--border-light)', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 10, color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }}>
-          {bookend === 'cover' ? 'Your title, photo and greeting' : 'Your contact details and booking button'}
+          {/* Why no picture: the opening and closing come from the Opener & close step, made with the video. */}
+          {bookend === 'cover'
+            ? 'No picture here: your opening uses your title, photo and greeting from the Opener & close step, and is made with your video.'
+            : 'No picture here: your closing uses your contact details and booking button from the Opener & close step, and is made with your video.'}
         </div>
       ) : <Frame small frame={scene ? frame : undefined} plan={scene?.plan} label={'Scene ' + n + ': ' + kind} onRetry={onRetry} />}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600 }}>
@@ -141,7 +144,7 @@ export function StoryboardTile({ n, title, scene, frame, bookend, planning, onOp
       <div style={{ marginTop: 'auto' }}>
         {!bookend
           ? <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={onOpen} aria-label={'Change scene ' + n}>Change</button>
-          : <span className="cf-hint" style={{ margin: 0 }}>Set on the Opener &amp; close step</span>}
+          : <span className="cf-hint" style={{ margin: 0 }}>Change it on the Opener &amp; close step</span>}
       </div>
     </div>
   )

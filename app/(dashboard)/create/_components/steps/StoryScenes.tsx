@@ -855,7 +855,7 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                   {boardOn ? (
                     <div className="kit-note" style={{ marginBottom: 12 }}>
                       <div className="kit-note-body">
-                        <p><b>Your storyboard.</b> Each scene as it will look in your video. Press <b>Change</b> on a scene to change what the voice says or the words on screen. Drag a scene to move it.</p>
+                        <p><b>Your storyboard.</b> Each scene as it will look in your video. Press <b>Change</b> on a scene to change what the voice says or the words on screen. Drag a scene to move it. The opening and closing have no picture here because they’re made from your Opener &amp; close step when you make the video.</p>
                         {board.state === 'planning' ? <p>Laying out your scenes…</p> : null}
                         {board.note ? <p>{board.note}</p> : null}
                         {board.stale || board.state === 'error' ? (
