@@ -8,7 +8,6 @@ import type { Video } from '../../../../_lib/types'
 import SharePreview from './SharePreview'
 import SendByText, { SendTabs, useTextStatus } from './SendByText'
 import SendSwitch from './SendSwitch'
-import WhatsLeft from './WhatsLeft'
 import {
   buildPreview, formatCents, quoteSwitch, reminderSwitch, reminderDaysText,
   httpsOnly, type PreviewAgent, type QuoteLike,
@@ -344,16 +343,102 @@ export default function ReadyToSend({
   const version = new Date(video.updated_at ?? video.created_at).getTime()
   const bookingFromThisVideo = !!facts?.bookingUrl
 
+  // ── EDIT ON THEIR PAGE (layout D, 2026-11-15): the pieces of their page, each where it shows ──
+  const leftKeys = new Set(left.map((i) => i.key))
+  const ghost = (label: string, sub: string, action: { href: string } | { onClick: () => void }, disabled?: boolean) => (
+    'href' in action
+      ? <Link href={action.href} className="rts-ghost">+ {label}<small>{sub}</small></Link>
+      : <button type="button" className="rts-ghost" onClick={action.onClick} disabled={disabled}>+ {label}<small>{sub}</small></button>
+  )
+  const pieces = (
+    <>
+      {/* Book a call: the booking link in Settings (or this video's own) — always on when there is one */}
+      {facts === null && !factsError ? <div className="rts-row-hint">Checking…</div>
+        : model.bookingUrl ? (
+          <div className="rts-piece">
+            <div className="rts-fake-btn primary">Book a call</div>
+            <div className="rts-piece-cap">{bookingFromThisVideo ? 'Your booking link for this one.' : <>From your booking link in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link>.</>}</div>
+          </div>
+        ) : ghost('Add a Book a call button', 'Needs your booking link in Settings', { href: SETTINGS_INTEGRATIONS })}
+      {model.paymentLink && <div className="rts-fake-btn dark">Make a payment</div>}
+
+      {/* The quote */}
+      {(canQuote || qs.kind !== 'none') && (
+        qs.kind === 'none' ? ghost('Add a quote with a pay button', 'No quote yet', { onClick: onAddQuote })
+        : qs.kind === 'toggle' ? (
+          qs.on && model.quote ? (
+            <div className="rts-piece">
+              <div className="rts-quote">
+                <div className="rts-quote-label">Quote{model.quote.clientName ? ` for ${model.quote.clientName}` : ''}</div>
+                <div className="rts-quote-total">{formatCents(model.quote.total)}</div>
+                <div className="rts-fake-btn dark small">
+                  {model.quote.total === 0 ? 'Complimentary' : model.quote.payable ? `Pay ${formatCents(model.quote.total)}` : `Contact ${model.agentName || 'you'} to pay`}
+                </div>
+              </div>
+              <button type="button" className="rts-piece-x" disabled={!!saving} onClick={() => putQuote('quote', { status: 'draft' })}>{saving === 'quote' ? 'Saving…' : 'Hide from their page'}</button>
+              {leftKeys.has('payment') && <div className="rts-piece-cap">No Pay button: <Link href={SETTINGS_INTEGRATIONS}>add a payment link</Link>.</div>}
+            </div>
+          ) : ghost('Show your quote with a pay button', `${formatCents(Number(quote?.total ?? 0))}, hidden now`, { onClick: () => putQuote('quote', { status: 'sent' }) }, !!saving)
+        ) : (
+          <div className="rts-piece">
+            {model.quote && <div className="rts-quote"><div className="rts-quote-label">{model.quote.state === 'paid' ? 'Payment complete' : 'Quote'}</div><div className="rts-quote-total">{formatCents(model.quote.total)}</div></div>}
+            <div className="rts-piece-cap">{qs.status === 'paid' ? 'Shows as paid on their page.' : `This deal is marked ${qs.status}.`} Change it under Quote / Invoice below.</div>
+          </div>
+        )
+      )}
+      {errors.quote && <div role="alert" className="rts-error">{errors.quote}</div>}
+
+      {/* The original PDF */}
+      {hasSourcePdf && (v.allow_source_download === true ? (
+        <div className="rts-piece">
+          <div className="rts-fake-btn outline">Download the original PDF</div>
+          <button type="button" className="rts-piece-x" disabled={!!saving} onClick={toggleSourcePdf}>{saving === 'pdf' ? 'Saving…' : 'Remove'}</button>
+        </div>
+      ) : ghost('Let them download the original PDF', v.source_pdf_name || 'The PDF you uploaded', { onClick: toggleSourcePdf }, !!saving))}
+      {errors.pdf && <div role="alert" className="rts-error">{errors.pdf}</div>}
+    </>
+  )
+  const noteBox = (
+    <div className="rts-note rts-note--edit">
+      {model.agentName && <label htmlFor={FOCUS_IDS.note} style={{ display: 'block', fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>A note from {model.agentName}</label>}
+      <textarea
+        id={FOCUS_IDS.note}
+        aria-label="A short note"
+        className="rts-note-input"
+        rows={2}
+        maxLength={NOTE_MAX}
+        placeholder="Write a short note to them, e.g. Here’s your coverage, in 3 minutes."
+        value={note}
+        onChange={e => onNoteChange(e.target.value)}
+        onBlur={() => { saveNote(note) }}
+      />
+      <div className="rts-row-hint" aria-live="polite" style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+        <span>
+          {noteState === 'saving' ? 'Saving…'
+            : noteState === 'saved' ? 'Saved — it’s on their page.'
+            : noteState === 'error' ? ''
+            : 'Shows on their page and in the email.'}
+        </span>
+        <span>{note.length}/{NOTE_MAX}</span>
+      </div>
+      {noteState === 'error' && <div role="alert" className="rts-error">{noteError}</div>}
+    </div>
+  )
+  const underGreeting = (leftKeys.has('photo') || leftKeys.has('name')) ? (
+    <Link href="/settings" className="rts-ghost rts-ghost--line">
+      + {leftKeys.has('photo') && leftKeys.has('name') ? 'Add your name and photo' : leftKeys.has('photo') ? 'Add your photo' : 'Add your name'}
+      <small>They show beside the video, so they know who it’s from</small>
+    </Link>
+  ) : null
+
   return (
     <section className="rts" id="send" ref={sectionRef} aria-label="Ready to send">
       <style>{READY_TO_SEND_CSS}</style>
-
       <h2 className="rts-title">Ready to <em>send.</em></h2>
       <p className="rts-sub">
-        This is exactly what {client?.name || v.recipient_name || 'your client'} will see. Turn pieces on or off on the right.
+        This is {client?.name || v.recipient_name || 'your client'}’s page, exactly as they’ll see it. Type your note right on it; the dashed blocks add a piece.
       </p>
-
-      <div className="rts-layout">
+      <div className="rts-d">
         <SharePreview
           model={model}
           shareUrl={shareUrl}
@@ -369,222 +454,112 @@ export default function ReadyToSend({
           version={version}
           videoRef={previewVideoRef}
           notice={factsError ? 'Couldn’t load your share page’s booking and payment details just now, so those buttons may be missing from this picture.' : null}
+          edit={{ note: noteBox, underGreeting, pieces }}
         />
 
-        <aside className="rts-panel">
-          <WhatsLeft items={left} />
-
-          {textInfo?.available && <SendTabs channel={channel} onChange={(k) => { setChannel(k); setSendError(''); setSentTo('') }} />}
-
-          {/* WHO (email) — the Text tab asks for a mobile number further down */}
-          {channel === 'email' && <div className="rts-eyebrow">Send to</div>}
-          {channel === 'text' ? null : client === null ? (
-            <div className="rts-row-hint">Loading…</div>
-          ) : !askForAddress ? (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name || client.email}</div>
-              <div className="rts-row-hint" style={{ marginTop: 2 }}>
-                {client.email}{client.fromStep1 ? ' · from step 1' : ''}
-              </div>
-              <button type="button" className="rts-link rts-link--small rts-icon-link" onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
-                <UserRoundPlus size={16} />Send to someone else
-              </button>
-            </div>
-          ) : (
-            <div style={{ marginBottom: 16 }}>
-              {!someoneElse && client.name && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{client.name}</div>}
-              <label className="input-label" htmlFor={FOCUS_IDS.email}>Client email</label>
-              <input
-                id={FOCUS_IDS.email}
-                className="input"
-                type="email"
-                placeholder="e.g. sarah@example.com"
-                value={typedEmail}
-                onChange={e => { setTypedEmail(e.target.value); setSendError('') }}
-              />
-              {(someoneElse || !client.name) && (
-                <>
-                  <label className="input-label" htmlFor="rts-name" style={{ marginTop: 10 }}>Their name (optional)</label>
-                  <input
-                    id="rts-name"
-                    className="input"
-                    placeholder="e.g. Sarah"
-                    value={typedName}
-                    onChange={e => setTypedName(e.target.value)}
-                  />
-                </>
-              )}
-              <div className="rts-row-hint">
-                {someoneElse ? 'Just for this send — the client on file stays the same.' : 'No email is saved for this client yet.'}
-              </div>
-              {someoneElse && (
-                <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(false); setTypedEmail(''); setTypedName(''); setSendError('') }}>
-                  Back to {client.name || client.email}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* NOTE */}
-          <label className="input-label" htmlFor={FOCUS_IDS.note}>A short note</label>
-          <textarea
-            id={FOCUS_IDS.note}
-            className="input"
-            rows={3}
-            maxLength={NOTE_MAX}
-            placeholder="e.g. Here’s your coverage, in 3 minutes."
-            value={note}
-            onChange={e => onNoteChange(e.target.value)}
-            onBlur={() => { saveNote(note) }}
-            style={{ resize: 'vertical', lineHeight: 1.5 }}
-          />
-          <div className="rts-row-hint" aria-live="polite" style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
-            <span>
-              {noteState === 'saving' ? 'Saving…'
-                : noteState === 'saved' ? 'Saved — it’s on their page.'
-                : noteState === 'error' ? ''
-                : 'Shows on their page and in the email.'}
-            </span>
-            <span>{note.length}/{NOTE_MAX}</span>
-          </div>
-          {noteState === 'error' && <div role="alert" className="rts-error">{noteError}</div>}
-
-          {/* SWITCHES */}
-          <div className="rts-rows">
-            <div className="rts-row">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="rts-row-label">Book a call button</div>
-                  <div className="rts-row-hint">
-                    {facts === null && !factsError ? 'Checking…'
-                      : model.bookingUrl
-                        ? (bookingFromThisVideo ? 'On — uses the booking link you gave for this one.' : <>On — uses your booking link from <Link href={SETTINGS_INTEGRATIONS}>Settings</Link>. It shows on all your share pages.</>)
-                        : <>Off — add a booking link in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> to show it.</>}
-                  </div>
-                </div>
-                <span className={`rts-state${model.bookingUrl ? ' on' : ''}`}>{model.bookingUrl ? 'On' : 'Off'}</span>
-              </div>
-            </div>
-
-            {(canQuote || qs.kind !== 'none') && (
-              qs.kind === 'none' ? (
-                <div className="rts-row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="rts-row-label">Quote with a pay button</div>
-                      <div className="rts-row-hint">No quote yet.</div>
-                    </div>
-                    <button type="button" className="btn btn-soft btn-sm" onClick={onAddQuote}>Add a quote</button>
-                  </div>
-                </div>
-              ) : qs.kind === 'toggle' ? (
-                <SendSwitch
-                  label="Quote with a pay button"
-                  on={qs.on}
-                  saving={saving === 'quote'}
-                  disabled={!!saving && saving !== 'quote'}
-                  error={errors.quote}
-                  onToggle={() => putQuote('quote', { status: qs.on ? 'draft' : 'sent' })}
-                  hint={qs.on
-                    ? `Shows ${formatCents(Number(quote?.total ?? 0))}${model.paymentLink ? ' with a Pay button.' : ' — no payment link in Settings, so it asks them to contact you to pay.'}`
-                    : 'Hidden from their page.'}
-                />
-              ) : (
-                <div className="rts-row">
-                  <div className="rts-row-label">Quote with a pay button</div>
-                  <div className="rts-row-hint">
-                    {qs.status === 'paid' ? 'Shows as paid on their page.' : `This deal is marked ${qs.status}.`} Change it under Quote / Invoice below.
-                  </div>
-                </div>
-              )
-            )}
-
-            {hasSourcePdf && (
+        {/* Quote reminders are not on their page: they sit with sending */}
+        {(canQuote || quote) && (
+          <div className="rts-rows rts-d-extra">
+            {rs.usable ? (
               <SendSwitch
-                label="Let them download the original PDF"
-                on={v.allow_source_download === true}
-                saving={saving === 'pdf'}
-                disabled={!!saving && saving !== 'pdf'}
-                error={errors.pdf}
-                onToggle={toggleSourcePdf}
-                hint={v.source_pdf_name ? v.source_pdf_name : 'The PDF you uploaded.'}
+                label={`Remind them about the quote on ${reminderDaysText()}`}
+                on={rs.on}
+                saving={saving === 'remind'}
+                disabled={(!!saving && saving !== 'remind') || (!rs.on && !!rs.blockedOn)}
+                error={errors.remind}
+                onToggle={() => putQuote('remind', { autoFollowUp: !rs.on })}
+                hint={rs.blockedOn && !rs.on
+                  ? <>Reminders go from your own email only. Connect it in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> first.</>
+                  : 'Counted from the day you made the quote. Sent from your email with an unsubscribe link. Stops once you mark the deal paid, accepted or declined.'}
               />
-            )}
-
-            {(canQuote || quote) && (
-              rs.usable ? (
-                <SendSwitch
-                  label={`Remind them about the quote on ${reminderDaysText()}`}
-                  on={rs.on}
-                  saving={saving === 'remind'}
-                  disabled={(!!saving && saving !== 'remind') || (!rs.on && !!rs.blockedOn)}
-                  error={errors.remind}
-                  onToggle={() => putQuote('remind', { autoFollowUp: !rs.on })}
-                  hint={rs.blockedOn && !rs.on
-                    ? <>Reminders go from your own email only. Connect it in <Link href={SETTINGS_INTEGRATIONS}>Settings</Link> first.</>
-                    : 'Counted from the day you made the quote. Sent from your email with an unsubscribe link. Stops once you mark the deal paid, accepted or declined.'}
-                />
-              ) : (
-                <div className="rts-row">
-                  <div className="rts-row-label">Remind them about the quote on {reminderDaysText()}</div>
-                  <div className="rts-row-hint">{rs.reason}</div>
-                </div>
-              )
+            ) : (
+              <div className="rts-row">
+                <div className="rts-row-label">Remind them about the quote on {reminderDaysText()}</div>
+                <div className="rts-row-hint">{rs.reason}</div>
+              </div>
             )}
           </div>
+        )}
 
-          {/* SEND BY TEXT */}
-          {channel === 'text' && textInfo && (
+        {/* THE SEND BAR — stays at the bottom of the screen while you look over their page */}
+        <div className="rts-bar" aria-label="Send it">
+          {textInfo?.available && <SendTabs channel={channel} onChange={(k) => { setChannel(k); setSendError(''); setSentTo('') }} />}
+          {channel === 'text' && textInfo ? (
             <SendByText videoId={video.id} initial={textInfo} clientName={client?.name || v.recipient_name || ''} clientId={clientId}
               note={note} thing={thing} insurance={insurance} posterUrl={sizedPicture(video.thumbnail_url || video.slide_urls?.[0] || null, 480)}
               beforeSend={() => saveNote(note)} onSent={onSent} />
-          )}
-
-          {/* SEND */}
-          {channel === 'email' && <>
-          {sendError && <div role="alert" className="rts-error" style={{ marginTop: 14 }}>{sendError}</div>}
-          {sentTo && (
-            <div role="status" className="rts-sent">
-              ✓ Sent to <strong>{sentTo}</strong>.
+          ) : (
+            <div className="rts-bar-row">
+              <div className="rts-bar-who">
+                <div className="rts-eyebrow" style={{ marginBottom: 2 }}>Send to</div>
+                {client === null ? (
+                  <div className="rts-row-hint">Loading…</div>
+                ) : !askForAddress ? (
+                  <div>
+                    <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name || client.email}</span>
+                    <span className="rts-row-hint"> · {client.email}{client.fromStep1 ? ' · from step 1' : ''}</span>
+                    <button type="button" className="rts-link rts-link--small rts-icon-link" onClick={() => { setSomeoneElse(true); setSendError(''); setSentTo('') }}>
+                      <UserRoundPlus size={16} />Send to someone else
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rts-bar-fields">
+                    {!someoneElse && client.name && <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{client.name}</span>}
+                    <input
+                      id={FOCUS_IDS.email}
+                      aria-label="Client email"
+                      className="input"
+                      type="email"
+                      placeholder="Their email, e.g. sarah@example.com"
+                      value={typedEmail}
+                      onChange={e => { setTypedEmail(e.target.value); setSendError('') }}
+                    />
+                    {(someoneElse || !client.name) && (
+                      <input
+                        id="rts-name"
+                        aria-label="Their name (optional)"
+                        className="input"
+                        placeholder="Their name (optional)"
+                        value={typedName}
+                        onChange={e => setTypedName(e.target.value)}
+                      />
+                    )}
+                    {someoneElse ? (
+                      <button type="button" className="rts-link rts-link--small" onClick={() => { setSomeoneElse(false); setTypedEmail(''); setTypedName(''); setSendError('') }}>
+                        Back to {client.name || client.email}
+                      </button>
+                    ) : <span className="rts-row-hint">No email is saved for this client yet.</span>}
+                  </div>
+                )}
+              </div>
+              <div className="rts-bar-go">
+                <button type="button" className="btn btn-primary" onClick={send} disabled={sending || client === null}>
+                  <span className="rts-icon-link"><Send size={16} />{sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}</span>
+                </button>
+                <div className="rts-alt">
+                  <button type="button" className="rts-link rts-icon-link" onClick={copyLink}>
+                    <Link2 size={16} />{copyState === 'copied' ? '✓ Link copied' : 'or copy the link'}
+                  </button>
+                  <span aria-hidden="true" className="rts-dot-sep">·</span>
+                  <button type="button" className="rts-link rts-icon-link" onClick={copyEmail}>
+                    <Mail size={16} />{emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
-          <button
-            type="button"
-            className="btn btn-primary btn-full"
-            style={{ marginTop: 14 }}
-            onClick={send}
-            disabled={sending || client === null}
-          >
-            <span className="rts-icon-link"><Send size={16} />{sending ? 'Sending…' : sentTo ? `Send again to ${clientLabel}` : `Send to ${clientLabel}`}</span>
-          </button>
-          </>}
+          {channel === 'email' && sendError && <div role="alert" className="rts-error">{sendError}</div>}
+          {channel === 'email' && sentTo && <div role="status" className="rts-sent">✓ Sent to <strong>{sentTo}</strong>.</div>}
           <div className="rts-row-hint rts-from">
             {channel === 'text' || mailbox === null ? ''
               : mailbox.has
                 ? <>Sends from your own email{mailbox.address ? ` (${mailbox.address})` : ''}. We tell you when they open it and when they watch.</>
                 : <>Sends from Docs2Video’s address, and replies come to you. <Link href={SETTINGS_INTEGRATIONS}>Connect your email</Link> to send from it.</>}
+            {' '}{insurance ? 'Copied links include the policy disclosure. ' : ''}Copying sends nothing — you send it yourself.
           </div>
-          <div className="rts-alt">
-            <button type="button" className="rts-link rts-icon-link" onClick={copyLink}>
-              <Link2 size={16} />{copyState === 'copied' ? '✓ Link copied' : 'or copy the link'}
-            </button>
-            <span aria-hidden="true" className="rts-dot-sep">·</span>
-            <button type="button" className="rts-link rts-icon-link" onClick={copyEmail}>
-              <Mail size={16} />{emailCopied === 'copied' ? '✓ Email copied — paste it into your email app' : 'Copy the email'}
-            </button>
-          </div>
-          <div className="rts-row-hint rts-center">
-            {insurance ? 'Copied links include the policy disclosure. ' : ''}Copying sends nothing — you send it yourself.
-          </div>
-          {copyState === 'failed' && (
-            <div className="rts-row-hint" style={{ wordBreak: 'break-all' }}>
-              Couldn’t copy — here it is: {shareUrl}
-            </div>
-          )}
-          {emailCopied === 'failed' && (
-            <div className="rts-row-hint">Couldn’t copy the email. Copy the link instead and paste it into your message.</div>
-          )}
-        </aside>
+          {copyState === 'failed' && <div className="rts-row-hint" style={{ wordBreak: 'break-all' }}>Couldn’t copy — here it is: {shareUrl}</div>}
+          {emailCopied === 'failed' && <div className="rts-row-hint">Couldn’t copy the email. Copy the link instead and paste it into your message.</div>}
+        </div>
       </div>
     </section>
   )

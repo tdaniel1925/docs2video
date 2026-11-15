@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, type RefObject } from 'react'
+import { useRef, type ReactNode, type RefObject } from 'react'
 import { formatCents, type PreviewModel } from './share-options'
 
 /**
@@ -15,7 +15,7 @@ import { formatCents, type PreviewModel } from './share-options'
  * jumps this one to a scene (videoRef).
  */
 export default function SharePreview({
-  model, shareUrl, title, isDeck, videoId, videoUrl, posterUrl, musicUrl, version, notice, videoRef,
+  model, shareUrl, title, isDeck, videoId, videoUrl, posterUrl, musicUrl, version, notice, videoRef, edit,
 }: {
   model: PreviewModel
   shareUrl: string
@@ -32,11 +32,17 @@ export default function SharePreview({
   notice?: string | null
   /** Lets the change bar jump this player to a scene. */
   videoRef?: RefObject<HTMLVideoElement | null>
+  /**
+   * EDIT ON THEIR PAGE (2026-11-15, the owner picked layout D): the page itself is where you change things.
+   * note = the note box, typed in place (shown even when empty); underGreeting = a missing photo or name;
+   * pieces = the side column with each piece's own Hide / + Add.
+   */
+  edit?: { note: ReactNode; underGreeting?: ReactNode; pieces: ReactNode }
 }) {
   const ownRef = useRef<HTMLVideoElement>(null)
   const playerRef = videoRef ?? ownRef
   const musicRef = useRef<HTMLAudioElement>(null)
-  const hasSide = !!(model.bookingUrl || model.paymentLink || model.quote || model.sourcePdf)
+  const hasSide = !!edit || !!(model.bookingUrl || model.paymentLink || model.quote || model.sourcePdf)
   return (
     // light-island: the client's real page is always light, so the preview is too, even in dark mode.
     <div className="rts-browser light-island">
@@ -49,14 +55,15 @@ export default function SharePreview({
       <div className="rts-page">
         {title && <div className="rts-page-title">{title}</div>}
 
-        {(model.greetingName || model.note) && (
+        {(model.greetingName || model.note || edit) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: 14 }}>
             {model.greetingName && (
               <div className="rts-greeting">
                 Hi {model.greetingName} — {model.agentName ? <>prepared for you by <strong>{model.agentName}</strong></> : 'prepared just for you'}.
               </div>
             )}
-            {model.note && (
+            {edit?.underGreeting}
+            {edit ? edit.note : model.note && (
               <div className="rts-note">
                 {model.agentName && <div style={{ fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>A note from {model.agentName}</div>}
                 {model.note}
@@ -100,7 +107,7 @@ export default function SharePreview({
             ) : null}
           </div>
 
-          {hasSide && (
+          {edit ? <div className="rts-side" aria-label="What else your client sees">{edit.pieces}</div> : hasSide && (
             <div className="rts-side" aria-label="What else your client sees">
               {model.bookingUrl && <div className="rts-fake-btn primary">Book a call</div>}
               {model.paymentLink && <div className="rts-fake-btn dark">Make a payment</div>}

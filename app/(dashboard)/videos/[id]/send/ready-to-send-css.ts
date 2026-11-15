@@ -84,4 +84,33 @@ export const READY_TO_SEND_CSS = `
 .rts-switch:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
 .rts-knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--bg-card); box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: left 0.15s; }
 .rts-switch.on .rts-knob { left: 19px; }
+
+/* LAYOUT D (2026-11-15): their page is the editor, one column; the send bar stays at the bottom of the screen. */
+.rts-d { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
+.rts-d .rts-page-main { grid-template-columns: minmax(0, 1fr) 230px; }
+@media (max-width: 640px) { .rts-d .rts-page-main { grid-template-columns: minmax(0, 1fr); } }
+.rts-note--edit { outline: 2px dashed var(--link); outline-offset: 3px; }
+.rts-note-input { width: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: var(--fs-ui); line-height: 1.5; resize: vertical; padding: 0; min-height: 44px; }
+.rts-note-input:focus { outline: none; }
+.rts-note--edit:focus-within { outline-style: solid; }
+.rts-piece { display: flex; flex-direction: column; gap: 4px; }
+.rts-piece-cap { font-size: var(--fs-caption); color: var(--ink-light); line-height: 1.4; }
+.rts-piece-cap a { color: var(--mint-darker); font-weight: 600; }
+.rts-piece-x { align-self: flex-start; background: none; border: 0; padding: 2px 0; font: inherit; font-size: var(--fs-caption); font-weight: 600; color: var(--ink-light); text-decoration: underline; cursor: pointer; }
+.rts-ghost { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 10px 12px; border-radius: 10px; border: 2px dashed var(--border); background: transparent; color: var(--ink); font: inherit; font-size: var(--fs-small); font-weight: 700; text-align: left; text-decoration: none; cursor: pointer; }
+.rts-ghost small { font-weight: 500; color: var(--ink-light); font-size: var(--fs-caption); }
+.rts-ghost:hover { border-color: var(--link); background: var(--accent-soft); }
+.rts-ghost:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.rts-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+.rts-ghost--line { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.rts-d-extra { margin-top: 0; }
+.rts-bar { position: sticky; bottom: 12px; z-index: 5; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; box-shadow: 0 -8px 28px rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: var(--space-2); }
+.rts-bar-row { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-4); align-items: center; justify-content: space-between; }
+.rts-bar-who { flex: 1 1 320px; min-width: 0; }
+.rts-bar-fields { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.rts-bar-fields .input { flex: 1 1 200px; min-width: 0; }
+.rts-bar-go { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.rts-bar-go .rts-alt { margin-top: 0; justify-content: flex-end; }
+.rts-bar .rts-from { margin-top: 0; text-align: left; }
+@media (max-width: 640px) { .rts-bar-go { align-items: stretch; width: 100%; } .rts-bar-go .btn { width: 100%; } }
 `
