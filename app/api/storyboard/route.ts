@@ -4,7 +4,7 @@ import { createAdminClient } from '../../_lib/supabase/admin'
 import { filmEngineFor } from '../../_lib/film-engine'
 import { planKitVideoCached } from '../../_lib/kit-engine'
 import { applyEdits, checkEdited, numberChecks, screenFields, storyKey, type SceneEdits, type Storyboard, type StoryboardEntry } from '../../_lib/storyboard'
-import { storyboardContext, type StoryboardContext } from '../../_lib/storyboard-server'
+import { framePlan, storyboardContext, type StoryboardContext } from '../../_lib/storyboard-server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,6 +43,8 @@ function view(board: Storyboard | undefined, draft: Record<string, unknown>, ctx
       key: e.key, type: shown.type, title: story?.title ?? '', narration: story?.narration ?? shown.narration,
       fields: screenFields(shown), edited: !!e.edits && Object.keys(e.edits).length > 0,
       checks: ctx ? numberChecks(shown, ctx.input) : [], frame: e.frame?.url ?? null,
+      // The one-scene film plan: the page draws the picture from it in the browser (StoryboardStill), $0.
+      plan: ctx ? framePlan(ctx, draft, e) : null,
     }
   })
 }

@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import dynamic from 'next/dynamic'
+import { parseFigure, type KitPlan, type KitScene } from '../../../../../remotion/src/kit/spec'
 
 /*
  * THE STORYBOARD on step 5 (film engine on; app/_lib/storyboard.ts): under each content scene, the still frame the
@@ -8,7 +10,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
  * Owner rules: a still, never a clip; no motion or timing controls; no changing how a scene is shown.
  */
 export type BoardField = { path: string; label: string; value: string }
-export type BoardScene = { key: string; type: string; title: string; narration: string; fields: BoardField[]; edited: boolean; checks: { text: string; found: boolean }[]; frame: string | null }
+export type BoardScene = { key: string; type: string; title: string; narration: string; fields: BoardField[]; edited: boolean; checks: { text: string; found: boolean }[]; frame: string | null; plan: KitPlan | null }
 
 const TYPE_NAME: Record<string, string> = { title: 'Cover', bignumber: 'Big number', comparison: 'Comparison', timeline: 'Timeline', chart: 'Chart', checklist: 'Checklist', quote: 'Quote', cta: 'Closing' }
 const norm = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim()
@@ -48,7 +50,7 @@ export function useStoryboard(videoId: string | null, enabled: boolean, storySce
   // Frames: drawn one at a time, only for scenes that have none (or whose words on screen changed).
   useEffect(() => {
     if (!videoId || state !== 'ready') return
-    const next = board.find((s) => !frames[s.key] && !drawing.current.has(s.key))
+    const next = board.find((s) => !s.plan && !frames[s.key] && !drawing.current.has(s.key))
     if (!next || drawing.current.size) return
     drawing.current.add(next.key)
     fetch('/api/storyboard/frame', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId, key: next.key }) })
@@ -77,11 +79,34 @@ export function useStoryboard(videoId: string | null, enabled: boolean, storySce
 
 const cap: CSSProperties = { fontSize: 'var(--fs-caption)', fontWeight: 700, color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }
 
-/** The frame itself (16:9): the picture, "Drawing…", or "Try again". */
-function Frame({ frame, label, onRetry, small }: { frame: string | undefined; label: string; onRetry?: () => void; small?: boolean }) {
+const waitBox: CSSProperties = { position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 8, color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }
+/** The picture drawn in the browser (the real video code, one still frame). Loaded only on the storyboard. */
+const Still = dynamic(() => import('./StoryboardStill'), { ssr: false, loading: () => <div style={waitBox}>Drawing this scene…</div> })
+
+/** Every on-screen word change applied to a one-scene plan, so the big picture redraws as you type. */
+function withEdits(plan: KitPlan, edits: Record<string, string>): KitPlan {
+  if (!Object.keys(edits).length) return plan
+  const idx = Math.max(0, plan.scenes.findIndex((s) => s.type !== 'title' && s.type !== 'cta'))
+  const scene = JSON.parse(JSON.stringify(plan.scenes[idx])) as KitScene
+  for (const [path, raw] of Object.entries(edits)) {
+    const text = String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, 160)
+    const keys = path.split('.')
+    let o = scene as unknown as Record<string, unknown>
+    for (const k of keys.slice(0, -1)) { if (!o[k] || typeof o[k] !== 'object') { o = {}; break } o = o[k] as Record<string, unknown> }
+    const last = keys[keys.length - 1]
+    if (last === 'figure') { const f = parseFigure(text); if (f) o[last] = f; continue }
+    if (path.startsWith('points.') && last === 'value') { const f = parseFigure(text); if (f) o[last] = f.value; continue }
+    o[last] = text
+  }
+  return { ...plan, scenes: plan.scenes.map((s, i) => (i === idx ? scene : s)) }
+}
+
+/** The frame itself (16:9): drawn in the browser from the plan; the render service's picture when there is no plan. */
+function Frame({ frame, plan, label, onRetry, small }: { frame: string | undefined; plan?: KitPlan | null; label: string; onRetry?: () => void; small?: boolean }) {
   return (
     <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: small ? 8 : 10, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border-light)' }}>
-      {frame && frame !== 'none'
+      {plan ? <Still plan={plan} label={label} fallback={<div style={waitBox}>We couldn’t draw this picture.</div>} />
+        : frame && frame !== 'none'
         // eslint-disable-next-line @next/next/no-img-element -- a picture the render service drew
         ? <img src={frame} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         : <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', padding: 8, color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }}>
@@ -106,7 +131,7 @@ export function StoryboardTile({ n, title, scene, frame, bookend, planning, onOp
         <div style={{ aspectRatio: '16 / 9', borderRadius: 8, border: '1px dashed var(--border-light)', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 10, color: 'var(--ink-light)', fontSize: 'var(--fs-caption)' }}>
           {bookend === 'cover' ? 'Your title, photo and greeting' : 'Your contact details and booking button'}
         </div>
-      ) : <Frame small frame={scene ? frame : undefined} label={'Scene ' + n + ': ' + kind} onRetry={onRetry} />}
+      ) : <Frame small frame={scene ? frame : undefined} plan={scene?.plan} label={'Scene ' + n + ': ' + kind} onRetry={onRetry} />}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-caption)', color: 'var(--ink-light)', fontWeight: 600 }}>
         <span>{n} · {kind}</span>
         {allFound ? <span title="The numbers on screen are in your document" style={{ color: 'var(--success)' }}>✓</span> : null}
@@ -133,6 +158,7 @@ export function StoryboardEditor({ scene, frame, voice, onSaveWords, onSaveVoice
   const [issues, setIssues] = useState<string[] | null>(null)
   const wordsDirty = !!scene && Object.keys(draft).some((k) => draft[k] !== (scene.fields.find((f) => f.path === k)?.value ?? ''))
   const voiceDirty = norm(said) !== norm(voice)
+  const livePlan = useMemo(() => (scene && scene.plan ? withEdits(scene.plan, draft) : null), [scene, draft])
   const save = async () => {
     setSaving(true); setIssues(null)
     const bad = wordsDirty ? await onSaveWords(draft) : null
@@ -143,7 +169,7 @@ export function StoryboardEditor({ scene, frame, voice, onSaveWords, onSaveVoice
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {scene ? <Frame frame={frame} label={'How this scene will look: ' + (TYPE_NAME[scene.type] ?? scene.type)} onRetry={onRetry} /> : null}
+      {scene ? <Frame frame={frame} plan={livePlan} label={'How this scene will look: ' + (TYPE_NAME[scene.type] ?? scene.type)} onRetry={onRetry} /> : null}
       {scene && scene.checks.length ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {scene.checks.map((c, i) => (
