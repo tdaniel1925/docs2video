@@ -730,6 +730,8 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
         onSend={(t) => void ask(t)}
         canUndo={!!undoRef.current}
         onUndo={undoAsk}
+        sendLabel={boardOn ? 'Ask' : undefined}
+        placeholder={boardOn ? 'Ask for a change to the whole story, e.g. make it shorter' : undefined}
       />
       {scenes.length > 0 && story !== 'writing' ? (
         <p className="cf-hint">
@@ -767,7 +769,8 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
         </Note>
       ) : null}
 
-      <div className="cf-split">
+      {/* With the storyboard on, the story-wide ask is a bar above it and the storyboard takes the full width. */}
+      <div className={boardOn ? 'cf-split cf-split--board' : 'cf-split'}>
         <div className="cf-main-col">
           {part === 'story' ? (
             <>
@@ -865,7 +868,7 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                     </div>
                   ) : null}
                   {boardOn ? (<>
-                  <ol aria-label="Your storyboard" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
+                  <ol aria-label="Your storyboard" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                     {scenes.map((scene: any, i: number) => {
                       const role = scene._role as ('cover' | 'closing' | undefined)
                       const bookend = role === 'cover' || role === 'closing'

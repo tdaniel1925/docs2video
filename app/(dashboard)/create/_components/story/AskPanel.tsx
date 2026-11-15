@@ -12,6 +12,9 @@ interface Props {
   onSend: (text: string) => void
   canUndo: boolean
   onUndo: () => void
+  /** The button and the box hint (the storyboard says "Ask": its scene cards already say "Change"). */
+  sendLabel?: string
+  placeholder?: string
 }
 
 /**
@@ -19,7 +22,7 @@ interface Props {
  * the whole story (before it's written, it reshapes the point instead).
  * The last few replies show under it, with a one-step Undo.
  */
-export default function AskPanel({ messages, busy, disabledNote, onSend, canUndo, onUndo }: Props) {
+export default function AskPanel({ messages, busy, disabledNote, onSend, canUndo, onUndo, sendLabel = 'Change', placeholder = 'Ask for a change, e.g. make it shorter' }: Props) {
   const [text, setText] = useState('')
   const off = busy || !!disabledNote
 
@@ -41,10 +44,10 @@ export default function AskPanel({ messages, busy, disabledNote, onSend, canUndo
           onChange={(e) => setText(e.target.value)}
           disabled={off}
           aria-label="Ask for a change"
-          placeholder="Ask for a change, e.g. make it shorter"
+          placeholder={placeholder}
         />
         <button type="submit" className="kit-btn kit-btn--secondary cf-helper-btn" disabled={off || !text.trim()}>
-          {busy ? 'Working…' : 'Change'}
+          {busy ? 'Working…' : sendLabel}
         </button>
       </form>
       {disabledNote ? <p className="cf-hint">{disabledNote}</p> : null}
