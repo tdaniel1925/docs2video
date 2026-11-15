@@ -50,6 +50,24 @@ export default function ActivityPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
+  // "change when" links land on #view-alerts: open that tab and bring the setting into view.
+  useEffect(() => {
+    const go = () => {
+      if (window.location.hash !== '#view-alerts') return
+      setTab('notifications')
+      setTimeout(() => document.getElementById('view-alerts')?.scrollIntoView({ block: 'start' }), 60)
+    }
+    go()
+    window.addEventListener('hashchange', go)
+    return () => window.removeEventListener('hashchange', go)
+  }, [loading])
+
+  // Take a job off the list (one, or a whole list with "Clear").
+  async function removeJobs(body: { id?: string; all?: 'completed' | 'failed' }) {
+    setAllJobs((js) => js.filter((j) => (body.id ? j.id !== body.id : j.status !== body.all)))
+    await fetch('/api/activity/jobs', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
+  }
+
   useEffect(() => {
     async function load() {
       try {
@@ -132,6 +150,7 @@ export default function ActivityPage() {
                       <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--ink-light)' }}>Started {timeAgo(job.created_at)}</div>
                     </div>
                     <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 800, color: 'var(--mint-darker)' }}>{job.progress}%</div>
+                    <button type="button" className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)' }} aria-label={`Remove ${job.title ?? job.type}`} onClick={() => removeJobs({ id: job.id })}>Remove</button>
                   </div>
                   <div style={{ height: 8, background: 'var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{
@@ -159,8 +178,11 @@ export default function ActivityPage() {
           {/* Completed jobs */}
           {completedJobs.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: 12 }}>
-                Completed
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)' }}>
+                  Completed
+                </div>
+                <button type="button" className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)' }} onClick={() => removeJobs({ all: 'completed' })}>Clear all</button>
               </div>
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
                 {completedJobs.map((job, i) => (
@@ -178,6 +200,7 @@ export default function ActivityPage() {
                     {job.result_url && (
                       <Link href={job.result_url} className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)' }}>View</Link>
                     )}
+                    <button type="button" className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)' }} aria-label={`Remove ${job.title ?? job.type}`} onClick={() => removeJobs({ id: job.id })}>Remove</button>
                   </div>
                 ))}
               </div>
@@ -187,8 +210,11 @@ export default function ActivityPage() {
           {/* Failed jobs */}
           {failedJobs.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--error)', marginBottom: 12 }}>
-                Failed
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 'var(--fs-caption)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--error)' }}>
+                  Didn’t finish
+                </div>
+                <button type="button" className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)' }} onClick={() => removeJobs({ all: 'failed' })}>Clear all</button>
               </div>
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
                 {failedJobs.map((job, i) => (
@@ -200,9 +226,10 @@ export default function ActivityPage() {
                     <span style={{ fontSize: 'var(--fs-lead)' }}>❌</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 'var(--fs-ui)' }}>{job.title ?? job.type}</div>
-                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--error)' }}>{job.error_message ?? 'Generation failed'}</div>
+                      <div style={{ fontSize: 'var(--fs-caption)', color: 'var(--error)' }}>{job.error_message ?? 'Didn’t finish.'}</div>
                     </div>
-                    <span className="tag rose" style={{ fontSize: 'var(--fs-caption)' }}>Failed</span>
+                    <span className="tag rose" style={{ fontSize: 'var(--fs-caption)' }}>Didn’t finish</span>
+                    <button type="button" className="btn btn-soft btn-sm" style={{ fontSize: 'var(--fs-caption)' }} aria-label={`Remove ${job.title ?? job.type}`} onClick={() => removeJobs({ id: job.id })}>Remove</button>
                   </div>
                 ))}
               </div>
