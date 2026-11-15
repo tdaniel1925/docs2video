@@ -90,7 +90,7 @@ export const HOW_TO: HowToEntry[] = [
     intro: 'Check what we took from your content and change anything. This step is free.',
     steps: [
       'The big card is **The one point** — the one thing your client should take away. Under it are the numbers we’ll use, exactly as they’ll be said. Type to fix one, or press × to remove it.',
-      'The story is written for you while you look — it keeps going if you leave. Changed the point or a number after it was written? Rewrite the story with it, or undo your change.',
+      'Under **How long should it be?** pick **Short**, **Standard** or **Detailed**, then press **Write the story**. It keeps going if you leave. Changed the point, a number or the length after it was written? Rewrite the story with it, or undo your change.',
       'To change what it says, type under **Ask for a change** beside it and press **Change**. **Undo that change** puts it back.',
       'When it reads right, press **Next** in the bar at the bottom. If it can’t be pressed yet, the line under it says why.',
     ],
@@ -100,6 +100,8 @@ export const HOW_TO: HowToEntry[] = [
       'app/(dashboard)/create/_components/steps/StoryScenes.tsx',
       'app/(dashboard)/create/_components/story/OnePoint.tsx',
       'app/(dashboard)/create/_components/story/AskPanel.tsx',
+      'app/(dashboard)/create/_components/story/LengthPicker.tsx',
+      'app/(dashboard)/create/_components/story/lengths.ts',
       'app/(dashboard)/create/_components/workspace/BottomBar.tsx',
     ],
   },
@@ -147,7 +149,7 @@ export const HOW_TO: HowToEntry[] = [
     intro: 'Every scene, in order. Change any of it — this step is free.',
     steps: [
       'Press **Edit** on a scene to change its words. **More — words on screen, ask AI, preview** shows the words on the slide and **Preview slide**. Drag a card to move a scene.',
-      'Pick the length beside the scenes: **Short**, **Standard** or **Detailed**. It offers **Rewrite at this length** — free.',
+      'The length was picked on the Story step; **Change the length** takes you back there, and it offers **Rewrite at this length** — free.',
       'To change the whole story, type under **Ask for a change** and press **Change**. **Undo that change** puts it back. Then press **Next**.',
     ],
     helpHref: '/help/creating-videos',
@@ -167,7 +169,7 @@ export const HOW_TO: HowToEntry[] = [
     steps: [
       'Pick a **Voice** — press ▶ to hear one.',
       'Under **Music**, pick **On** (soft, under the voice) or **Off**.',
-      'The length is set on the Scenes step: press **Change the length** to go there. Then press **Next**.',
+      'Beside them, **What you’ll hear** sums up your choices. Then press **Next**.',
     ],
     helpHref: '/help/creating-videos',
     asks: ['Can I hear the voices first?', 'Can I turn the music off?'],
@@ -181,14 +183,15 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Step 7 — Opener & close',
     intro: 'The first and last thing your client sees.',
     steps: [
-      'For a person brand: write **How you’re introduced in this video**, tick **Introduce me in the opening**, and choose **Where my photo appears**.',
-      'Tick **Show my contact on the closing** to end with how to reach you — the contact details come from your brand.',
-      'Under **Booking link**, their watch page gets a Book a call button when your Settings have one. Then press **Next**.',
+      'You see **The opening** and **The closing** as pictures, with a list of what is on each. Press **Change** on either one: the picture updates as you change it.',
+      'For a person brand, the opening has **How you’re introduced in this video**, **Introduce me in the opening** and **Where my photo appears**.',
+      'The closing has **Show my contact on the closing** (the details come from your brand) and your booking link from Settings. Press **Save**, then **Next**.',
     ],
     helpHref: '/help/creating-videos',
     asks: ['How do I change my photo?', 'Where does the booking link come from?'],
     sources: [
       'app/(dashboard)/create/_components/steps/BrandCovers.tsx',
+      'app/(dashboard)/create/_components/story/BookendCards.tsx',
     ],
   },
   {

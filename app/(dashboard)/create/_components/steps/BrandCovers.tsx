@@ -8,9 +8,11 @@
  *   brand   who this comes from: a saved brand, or a new one set up here — a
  *           person (name, photo, intro) or a company (logo, colors) — with
  *           nothing that needs a website; or no brand at all
- *   covers  the first and last thing the client sees: how you are
- *           introduced, where your photo appears, your contact on the closing,
- *           and the booking link their watch page offers
+ *   covers  the first and last thing the client sees: the opening and the
+ *           closing as two pictures, each with what is on it; Change opens a
+ *           pop-up (how you are introduced, where your photo appears, your
+ *           contact on the closing, the booking link) whose picture redraws
+ *           as you change it (2026-11-15)
  *
  * The brand step saves the brand (a new one is created here) and the
  * per-video presenter choices; the opener step saves only those choices.
@@ -29,6 +31,8 @@ import { toTitleCase } from '../../../../_lib/text-format'
 import { nextStepAfterBrand } from '../make/nextStep'
 import { voiceNote, type SpeakAs, type PresenterVoice } from '../../../../_lib/narration-pov'
 import BottomBar from '../workspace/BottomBar'
+import Dialog from '../../../../_components/kit/Dialog'
+import { BookendCard, BookendPicture, useBookends } from '../story/BookendCards'
 import { type Missing } from '../workspace/MainAction'
 import { neighbours, stepPath } from '../workspace/steps'
 
@@ -95,6 +99,9 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
   const [introduceInOpening, setIntroduceInOpening] = useState(true)
   const [showContactClosing, setShowContactClosing] = useState(true)
   const [perVideoPlacement, setPerVideoPlacement] = useState('auto')
+  // Step 7: which pop-up is open, and the choices as they were when it opened (Cancel puts them back).
+  const [editing, setEditing] = useState<'cover' | 'closing' | null>(null)
+  const editSnap = useRef<{ presenterIntro: string; introduceInOpening: boolean; speakAs: SpeakAs; presenterVoice: PresenterVoice | ''; perVideoPlacement: string; showContactClosing: boolean } | null>(null)
   // WHO IS SPEAKING (app/_lib/narration-pov.ts): the AI voice speaks on the
   // presenter's behalf unless they choose "as me" AND say which voice fits them.
   const [speakAs, setSpeakAs] = useState<SpeakAs>('for')
@@ -399,23 +406,57 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
     }
   }
 
+  /** What step 7 saves: how you are introduced (a person), and the contact on the closing (any brand). */
+  function coverUpdates(): Record<string, unknown> {
+    const updates: Record<string, unknown> = {}
+    updates.showContactClosing = showContactClosing
+    // Per-video presenter prefs — carried to generate-video via the draft, exactly as the brand step saves them.
+    if (selectedIsPerson) {
+      updates.presenterIntro = presenterIntro.trim() || undefined
+      updates.photoPlacement = perVideoPlacement
+      updates.introduceInOpening = introduceInOpening
+      updates.speakAs = speakAs
+      updates.presenterVoice = presenterVoice || undefined
+    }
+    return updates
+  }
+
+  function openEditor(which: 'cover' | 'closing') {
+    editSnap.current = { presenterIntro, introduceInOpening, speakAs, presenterVoice, perVideoPlacement, showContactClosing }
+    setError(null)
+    setEditing(which)
+  }
+  function cancelEditor() {
+    const b = editSnap.current
+    if (b) {
+      setPresenterIntro(b.presenterIntro); setIntroduceInOpening(b.introduceInOpening); setSpeakAs(b.speakAs)
+      setPresenterVoice(b.presenterVoice); setPerVideoPlacement(b.perVideoPlacement); setShowContactClosing(b.showContactClosing)
+    }
+    setEditing(null)
+  }
+  /** The pop-up's Save: the choices go to the draft now (the step stays where it is). */
+  async function saveEditor() {
+    if (!videoId) return
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/videos/draft', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId, updates: coverUpdates() }) })
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || 'We couldn’t save that. Please try again.'); return }
+      editSnap.current = null
+      setEditing(null)
+    } catch {
+      setError('Connection lost. Please check your internet and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   /** Next on the opener step: save how you are introduced, then the review. */
   async function saveCovers() {
     if (!videoId) return
     setSubmitting(true)
     setError(null)
     try {
-      const updates: Record<string, unknown> = { step: 8 } // the review (derive.ts resumeUrl)
-      // Per-video presenter prefs — carried to generate-video via the draft,
-      // exactly as the brand step saves them.
-      if (selectedIsPerson) {
-        updates.presenterIntro = presenterIntro.trim() || undefined
-        updates.photoPlacement = perVideoPlacement
-        updates.introduceInOpening = introduceInOpening
-        updates.showContactClosing = showContactClosing
-        updates.speakAs = speakAs
-        updates.presenterVoice = presenterVoice || undefined
-      }
+      const updates: Record<string, unknown> = { ...coverUpdates(), step: 8 } // the review (derive.ts resumeUrl)
       {
         const res = await fetch('/api/videos/draft', {
           method: 'PATCH',
@@ -436,6 +477,8 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
       setSubmitting(false)
     }
   }
+
+  const bookends = useBookends(videoId, { photoPlacement: perVideoPlacement, showContactClosing }, part === 'covers' && !loading)
 
   if (loading) {
     return (
@@ -473,109 +516,112 @@ export default function BrandCovers({ part }: { part: 'brand' | 'covers' }) {
         <StepExplain step="opening" />
         <h1 className="cf-h1">Opener <em>&amp; close.</em></h1>
 
-        <div className="cf-split">
-          <div className="cf-main-col">
+        <div className="cf-main-col">
+          <p className="cf-hint" style={{ margin: 0 }}>
+            From <strong style={{ color: 'var(--ink)' }}>{selectedBrand?.name ?? 'no brand'}</strong> ·{' '}
+            <Link className="cf-link" href={stepPath('brand', videoId)}>{selectedBrand ? 'Change the brand' : 'Add a brand'}</Link>
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'var(--space-4)' }}>
+            <BookendCard title="The opening" view={bookends.data?.cover} failed={bookends.failed} onChange={() => openEditor('cover')} />
+            <BookendCard title="The closing" view={bookends.data?.closing} failed={bookends.failed} onChange={() => openEditor('closing')}
+              note={<span className="cf-hint">{bookingUrl ? <>Their watch page also has a <strong>Book a call</strong> button.</> : 'No booking link yet: add one in Settings and their watch page gets a Book a call button.'}</span>} />
+          </div>
+          {errorNote}
+        </div>
+
+        <Dialog open={editing === 'cover'} onClose={cancelEditor} wide title="The opening" sub="The first thing your client sees and hears."
+          footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={cancelEditor}>Cancel</button>
+            <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={() => void saveEditor()} disabled={submitting}>{submitting ? 'Saving…' : 'Save'}</button>
+          </div>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <BookendPicture view={bookends.data?.cover} label="The opening" failed={bookends.failed} />
             {!selectedBrand ? (
-              <div className="cf-card cf-quick">
-                <span>No brand on this one — the opening shows the title and the closing a plain ask.</span>
-                <Link className="cf-link" href={stepPath('brand', videoId)}>Add a brand</Link>
-              </div>
-            ) : selectedIsPerson ? (
+              <p style={{ margin: 0 }}>No brand on this one, so the opening shows your title. <Link className="cf-link" href={stepPath('brand', videoId)}>Add a brand</Link> to show your photo or logo.</p>
+            ) : !selectedIsPerson ? (
+              <p style={{ margin: 0 }}>The opening wears <strong>{selectedBrand.name}</strong>’s logo. <Link className="cf-link" href={`/brands/${encodeURIComponent(selectedBrand.id)}`}>Change the logo on the brand</Link></p>
+            ) : (
               <>
-                <div className="cf-card cf-covers">
-                  <span className="cf-label">The opener</span>
-                  <div className="cf-covers-who">
-                    {selectedBrand.photo_url ? <img className="cf-covers-photo" src={selectedBrand.photo_url} alt={selectedBrand.name} /> : null}
-                    <span><strong>{selectedBrand.name}</strong>{selectedBrand.person_role ? <><br /><span className="cf-hint">{selectedBrand.person_role}</span></> : null}</span>
-                  </div>
+              <label className="cf-field">
+                <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>How you’re introduced in this video</span>
+                <textarea
+                  className="cf-input"
+                  value={presenterIntro}
+                  onChange={(e) => setPresenterIntro(e.target.value)}
+                  rows={3}
+                  placeholder={selectedBrand.intro_line || `${selectedBrand.name.split(/\s+/)[0]} is ${selectedBrand.person_role ? `a ${selectedBrand.person_role}` : 'here to help'} and prepared this video to walk you through your plan.`}
+                />
+                <span className="cf-hint">Spoken at the start by the narrator, on your behalf. A line written as “I’m…” is said in the third person unless the voice speaks as you (below).</span>
+              </label>
+              <label className="cf-toggle">
+                <input type="checkbox" checked={introduceInOpening} onChange={(e) => setIntroduceInOpening(e.target.checked)} />
+                <span>Introduce me in the opening</span>
+              </label>
+              <fieldset className="cf-field" data-testid="speak-as">
+                <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>Who is speaking?</span>
+                <label className="cf-toggle">
+                  <input type="radio" name="speak-as" checked={speakAs === 'for'} onChange={() => setSpeakAs('for')} />
+                  <span>The narrator, on my behalf (recommended)</span>
+                </label>
+                <label className="cf-toggle">
+                  <input type="radio" name="speak-as" checked={speakAs === 'as'} onChange={() => setSpeakAs('as')} />
+                  <span>The voice speaks as me</span>
+                </label>
+                {speakAs === 'as' ? (
                   <label className="cf-field">
-                    <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>How you’re introduced in this video</span>
-                    <textarea
-                      className="cf-input"
-                      value={presenterIntro}
-                      onChange={(e) => setPresenterIntro(e.target.value)}
-                      rows={3}
-                      placeholder={selectedBrand.intro_line || `${selectedBrand.name.split(/\s+/)[0]} is ${selectedBrand.person_role ? `a ${selectedBrand.person_role}` : 'here to help'} and prepared this video to walk you through your plan.`}
-                    />
-                    <span className="cf-hint">Spoken at the start by the narrator, on your behalf. A line written as “I’m…” is said in the third person unless the voice speaks as you (below).</span>
-                  </label>
-                  <label className="cf-toggle">
-                    <input type="checkbox" checked={introduceInOpening} onChange={(e) => setIntroduceInOpening(e.target.checked)} />
-                    <span>Introduce me in the opening</span>
-                  </label>
-                  <fieldset className="cf-field" data-testid="speak-as">
-                    <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>Who is speaking?</span>
-                    <label className="cf-toggle">
-                      <input type="radio" name="speak-as" checked={speakAs === 'for'} onChange={() => setSpeakAs('for')} />
-                      <span>The narrator, on my behalf (recommended)</span>
-                    </label>
-                    <label className="cf-toggle">
-                      <input type="radio" name="speak-as" checked={speakAs === 'as'} onChange={() => setSpeakAs('as')} />
-                      <span>The voice speaks as me</span>
-                    </label>
-                    {speakAs === 'as' ? (
-                      <label className="cf-field">
-                        <span className="cf-hint">The voice that fits me</span>
-                        <select className="cf-input" value={presenterVoice} onChange={(e) => setPresenterVoice(e.target.value as PresenterVoice | '')}>
-                          <option value="">Choose…</option>
-                          <option value="female">A female voice</option>
-                          <option value="male">A male voice</option>
-                        </select>
-                      </label>
-                    ) : null}
-                    {(() => {
-                      const note = voiceNote({ presenterName: selectedBrand.name, speakAs, presenterVoice: presenterVoice || null, voiceId: draftData?.voiceId, intro: presenterIntro || selectedBrand.intro_line })
-                      return note ? <span className="cf-hint" role="status" data-testid="voice-note">{note}</span> : null
-                    })()}
-                  </fieldset>
-                  <label className="cf-field">
-                    <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>Where my photo appears</span>
-                    <select className="cf-input" value={perVideoPlacement} onChange={(e) => setPerVideoPlacement(e.target.value)}>
-                      <option value="auto">Auto (the video style decides)</option>
-                      <option value="cover">Cover only</option>
-                      <option value="closing">Closing only</option>
-                      <option value="both">Cover and closing</option>
-                      <option value="none">Don’t show my photo</option>
+                    <span className="cf-hint">The voice that fits me</span>
+                    <select className="cf-input" value={presenterVoice} onChange={(e) => setPresenterVoice(e.target.value as PresenterVoice | '')}>
+                      <option value="">Choose…</option>
+                      <option value="female">A female voice</option>
+                      <option value="male">A male voice</option>
                     </select>
                   </label>
-                </div>
-                <div className="cf-card cf-covers">
-                  <span className="cf-label">The closing</span>
-                  <label className="cf-toggle">
-                    <input type="checkbox" checked={showContactClosing} onChange={(e) => setShowContactClosing(e.target.checked)} />
-                    <span>Show my contact on the closing</span>
-                  </label>
-                  {contactLines.length ? <span className="cf-hint">{contactLines.join(' · ')}</span> : <span className="cf-hint">No contact details on this brand yet.</span>}
-                  <Link className="cf-link" href={`/brands/${encodeURIComponent(selectedBrand.id)}`}>Change your photo or contact details on the brand</Link>
-                </div>
+                ) : null}
+                {(() => {
+                  const note = voiceNote({ presenterName: selectedBrand.name, speakAs, presenterVoice: presenterVoice || null, voiceId: draftData?.voiceId, intro: presenterIntro || selectedBrand.intro_line })
+                  return note ? <span className="cf-hint" role="status" data-testid="voice-note">{note}</span> : null
+                })()}
+              </fieldset>
+              <label className="cf-field">
+                <span className="cf-hint" style={{ color: 'var(--ink)', fontWeight: 700 }}>Where my photo appears</span>
+                <select className="cf-input" value={perVideoPlacement} onChange={(e) => setPerVideoPlacement(e.target.value)}>
+                  <option value="auto">Auto (the video style decides)</option>
+                  <option value="cover">Cover only</option>
+                  <option value="closing">Closing only</option>
+                  <option value="both">Cover and closing</option>
+                  <option value="none">Don’t show my photo</option>
+                </select>
+              </label>
+              </>
+            )}
+          </div>
+        </Dialog>
+
+        <Dialog open={editing === 'closing'} onClose={cancelEditor} wide title="The closing" sub="The last thing your client sees: how to reach you."
+          footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={cancelEditor}>Cancel</button>
+            <button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={() => void saveEditor()} disabled={submitting}>{submitting ? 'Saving…' : 'Save'}</button>
+          </div>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <BookendPicture view={bookends.data?.closing} label="The closing" failed={bookends.failed} />
+            {selectedBrand ? (
+              <>
+                <label className="cf-toggle">
+                  <input type="checkbox" checked={showContactClosing} onChange={(e) => setShowContactClosing(e.target.checked)} />
+                  <span>Show my contact on the closing</span>
+                </label>
+                {contactLines.length ? <span className="cf-hint">{contactLines.join(' · ')}</span> : <span className="cf-hint">No contact details on this brand yet.</span>}
+                <Link className="cf-link" href={`/brands/${encodeURIComponent(selectedBrand.id)}`}>Change {selectedIsPerson ? 'your photo or ' : 'the logo or '}contact details on the brand</Link>
               </>
             ) : (
-              <div className="cf-card cf-covers">
-                <span className="cf-label">The opener and the closing</span>
-                <span>The opening wears <strong>{selectedBrand.name}</strong>’s logo; the closing shows how to reach you.</span>
-                {contactLines.length ? <span className="cf-hint">{contactLines.join(' · ')}</span> : <span className="cf-hint">No contact details on this brand yet.</span>}
-                <Link className="cf-link" href={`/brands/${encodeURIComponent(selectedBrand.id)}`}>Change the logo or contact details on the brand</Link>
-              </div>
+              <p style={{ margin: 0 }}>No brand on this one, so the closing is a plain ask. <Link className="cf-link" href={stepPath('brand', videoId)}>Add a brand</Link> to show how to reach you.</p>
             )}
-
-            <div className="cf-card cf-covers">
-              <span className="cf-label">Booking link</span>
-              {bookingUrl
-                ? <span>Their watch page has a <strong>Book a call</strong> button: <span className="cf-hint">{bookingUrl}</span></span>
-                : <span className="cf-hint">No booking link yet. Add your Calendly, Cal.com or Google Calendar link and their watch page gets a Book a call button.</span>}
+            <span className="cf-hint">
+              {bookingUrl ? <>Booking link: {bookingUrl}. Their watch page has a <strong>Book a call</strong> button.</> : 'No booking link yet. Add your Calendly, Cal.com or Google Calendar link and their watch page gets a Book a call button.'}{' '}
               <Link className="cf-link" href="/settings">{bookingUrl ? 'Change it in Settings' : 'Add it in Settings'}</Link>
-            </div>
-
-            {errorNote}
+            </span>
           </div>
-          <aside className="cf-side" aria-label="Who it comes from">
-            <div className="cf-card cf-side-card">
-              <span className="cf-label">From</span>
-              <strong>{selectedBrand?.name ?? 'No brand'}</strong>
-              <Link className="cf-link" href={stepPath('brand', videoId)}>Change the brand</Link>
-            </div>
-          </aside>
-        </div>
+        </Dialog>
 
         <BottomBar
           label="Next step"

@@ -75,7 +75,8 @@ describe('nothing chosen on one step is lost on the way to the next', () => {
 
   it('the opener step saves the presenter choices, exactly as the brand step does', () => {
     const bc = read(`${CREATE}/_components/steps/BrandCovers.tsx`)
-    const covers = bc.slice(bc.indexOf('async function saveCovers'), bc.indexOf('if (loading) {'))
+    // (the updates are built once, in coverUpdates, for the pop-up's Save and for Next)
+    const covers = bc.slice(bc.indexOf('function coverUpdates'), bc.indexOf('if (loading) {'))
     for (const k of ['updates.presenterIntro = presenterIntro.trim() || undefined', 'updates.photoPlacement = perVideoPlacement', 'updates.introduceInOpening = introduceInOpening', 'updates.showContactClosing = showContactClosing']) {
       expect(covers, k).toContain(k)
       expect(bc.slice(bc.indexOf('async function handleSubmit')), k.replace('presenterIntro.trim()', 'introVal.trim()').replace('perVideoPlacement', 'placementVal')).toContain(k.replace('presenterIntro.trim()', 'introVal.trim()').replace('perVideoPlacement', 'placementVal'))
