@@ -5,7 +5,7 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
-## 2026-11-14 — The film engine: every kit look drawn with a 3D camera, twelve looks (branch film-engine; NOT deployed)
+## 2026-11-14 — The film engine: every kit look drawn with a 3D camera, twelve looks (DEPLOYED 2026-11-14: Lambda site docs2video, Vercel 6aae81d5, FILM_ENGINE=admins)
 
 Owner: after the "Code Films" samples (C:\dev\1 - Code Films), "I want all current styles in Docs2Video to be able to be rendered by this engine", then approved twelve look samples and the advisor cover/closing. Plan: docs/FILM-ENGINE-PLAN.md.
 - **What it is:** a second way of DRAWING a scene-kit plan. `KitPlan.engine: 'film'` + `filmTheme` (spec.ts); `KitVideo` draws such a plan with `remotion/src/film/*` (FilmView, kitscenes, core, theme) instead of the kit views. Voice, music, timeline (`kitTimeline`), planner, pricing, refunds, the render service and Lambda are the kit's, UNCHANGED. Sound effects in film mode: one soft hit under the closing only (owner rule).
@@ -25,6 +25,7 @@ Owner: after the "Code Films" samples (C:\dev\1 - Code Films), "I want all curre
   - Tests: tests/storyboard.test.ts (11). UI: `create/_components/story/Storyboard.tsx` (`useStoryboard`, `StoryboardScene`), wired in StoryScenes under each content scene; "Update the storyboard" when the story's words changed.
   - **Can only be seen end to end after the Lambda site redeploy** (frames are drawn by the deployed KitVideo, which needs the film engine).
 - **Deploy needs:** Lambda site redeploy (deploy-lambda-site.sh — remotion/src changed), Vercel deploy, then `FILM_ENGINE=admins`, then `on`. No render-service image, no migration.
+- **Live (2026-11-14):** Lambda site republished from main (4.0.290, +19/−16 files); a film still rendered on the production 4.0.290 function from the deployed site (Midnight bignumber, <$0.001) — correct. FILM_ENGINE=admins set in Vercel production; main pushed (6aae81d5), Vercel production Ready; /api/storyboard answers 401 signed out, film card pictures served. Not yet clicked through on a live admin account (step 3 cards → step 5 storyboard → Make it). Then FILM_ENGINE=on.
 
 ## 2026-11-11 — New video look "Walk-through" (DEPLOYED 2026-11-12: Lambda site, ECS image sha256:ecd735d4…, site 5472e01f)
 
