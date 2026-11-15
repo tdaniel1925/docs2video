@@ -9,6 +9,7 @@ import {
   capDecision, lookNote, narrationSample, previewCapKey, previewsLeft, voiceForPreview,
 } from '../../_lib/first-scene-preview'
 import { audioCacheKey } from '../../_lib/first-scene-preview-keys'
+import { isFilmLookId } from '../../_lib/film-looks'
 import { isTemplateColors, isVideoTemplate, videoTemplate, type TemplateColors, type VideoTemplateId } from '../../_lib/video-templates'
 import { buildTemplatePreview, previewState, templatePreviewPaths, type PreviewFiles } from '../../_lib/template-preview'
 import { startTemplatePreview } from '../../_lib/explainer-engine'
@@ -102,7 +103,8 @@ export async function POST(request: Request) {
   const output = outputRaw === 'interactive' || outputRaw === 'deck' || outputRaw === 'video' ? outputRaw : String(outputRaw)
   const isPres = output === 'interactive' || output === 'deck'
   // A draft saved for the scene kit stores videoStyle 'kit' + kitLook; its preview look is "kit:<look>".
-  const savedVideoLook = draft.videoStyle === 'kit' ? `kit:${typeof draft.kitLook === 'string' ? draft.kitLook : 'animated-slides'}` : draft.videoStyle
+  // A film look saved with it (film engine) previews as "film:<look>".
+  const savedVideoLook = draft.videoStyle === 'kit' ? (isFilmLookId(draft.filmLook) ? `film:${draft.filmLook}` : `kit:${typeof draft.kitLook === 'string' ? draft.kitLook : 'animated-slides'}`) : draft.videoStyle
   const lookRaw = body.look ?? (isPres ? draft.presentationTemplate : savedVideoLook)
   const look = isPres
     ? (PRESENTATION_TEMPLATES.some((t) => t.id === lookRaw) ? String(lookRaw) : PRESENTATION_TEMPLATES[0].id)

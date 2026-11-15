@@ -13,7 +13,8 @@
 // first-scene-preview-keys.ts, so this file is safe to use in the browser too.
 // =============================================================================
 
-// voice-choice.ts is itself import-free, so this file stays browser-safe.
+// voice-choice.ts and film-looks.ts are themselves import-free, so this file stays browser-safe.
+import { FILM_LOOK_IDS } from './film-looks'
 import { OPENAI_VOICES, normalizeVoice } from './voice-choice'
 
 export const FREE_PREVIEWS_PER_DAY = 3
@@ -127,13 +128,15 @@ export type StillEngine = 'directed' | 'v3' | 'editorial' | 'html' | 'drawn' | '
 
 export const VIDEO_PREVIEW_LOOKS = ['slides', 'aurora', 'cinematic', 'infographic', 'editorial', 'explainer', 'drawn',
   // the scene kit (KIT_ENGINE=on): "kit:<look>" — kit-looks.ts previewLookFor
-  'kit:animated-slides', 'kit:editorial', 'kit:bright', 'kit:brand', 'kit:custom'] as const
+  'kit:animated-slides', 'kit:editorial', 'kit:bright', 'kit:brand', 'kit:custom',
+  // the film engine (FILM_ENGINE): "film:<look>" — film-looks.ts FILM_LOOK_IDS, drawn by KitVideo too
+  ...FILM_LOOK_IDS.map((id) => `film:${id}` as const)] as const
 
 /** The real renderer for each look (null = no preview for that output). */
 export function stillEngineFor(output: string, look: string): StillEngine | null {
   if (output === 'interactive' || output === 'deck') return 'html'
   if (output !== 'video') return null
-  if (look.startsWith('kit:')) return 'kit'                      // KitVideo (the scene kit)
+  if (look.startsWith('kit:') || look.startsWith('film:')) return 'kit' // KitVideo (the scene kit, or the film engine)
   if (look === 'slides') return 'directed'                       // DirectedVideo
   if (look === 'aurora' || look === 'cinematic' || look === 'infographic') return 'v3' // V3Video / InfographicVideo
   if (look === 'editorial' || look === 'explainer') return 'editorial'                // EditorialVideo
@@ -146,6 +149,7 @@ export function stillEngineFor(output: string, look: string): StillEngine | null
 export function lookNote(output: string, look: string): string | null {
   if (output !== 'video') return null
   // The explainer engine designs the finished video FROM this still (explainer-look.ts), so it says so.
+  if (look.startsWith('film:')) return 'A frame from your video. The finished video moves: the camera travels through each scene and the words land as they are spoken.'
   if (look.startsWith('kit:')) return 'Your video is designed from this frame: the same colours, type and feel on every scene, each laid out to suit what it says.'
   if (look === 'cinematic') return 'The finished video adds a photo behind each scene. This preview shows the layout and your words.'
   if (look === 'infographic') return 'The finished video adds a designed background picture. This preview shows the layout and your numbers.'

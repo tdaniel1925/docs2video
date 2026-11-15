@@ -175,7 +175,8 @@ describe('the look, voice and review steps: looks from one list, one settings li
     const page = code(read(STEP_FILES.look))
     // (with the scene engine on, the same list is asked for its kit set)
     // (and, with the look screen, "Your look" when the brand or project has one)
-    expect(page).toMatch(/const cards = lookCards\(output(, \{ kit: kitOn(, yourLook: kitOn \? yourLook : null)? \})?\)/)
+    // (and, with the film engine on for the account, its twelve looks)
+    expect(page).toMatch(/const cards = lookCards\(output(, \{ kit: kitOn(, film: filmOn)?(, yourLook: kitOn \? yourLook : null)? \})?\)/)
     // No look named in the screen itself.
     for (const l of VIDEO_LOOKS) expect(page, l.name).not.toContain(`'${l.name}'`)
   })

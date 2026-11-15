@@ -375,7 +375,7 @@ describe('wiring: step 3, preview, render service', () => {
   })
   it('generate-video only uses the kit when KIT_ENGINE is on, and falls back to Animated slides', () => {
     const src = fs.readFileSync(path.join(ROOT, 'app/api/generate-video/route.ts'), 'utf8')
-    expect(src).toMatch(/videoStyle === 'kit' && kitEngineOn\(\)/)
+    expect(src).toMatch(/videoStyle === 'kit' && \(kitEngineOn\(\) \|\| filmOn\)/)
     expect(src).toMatch(/\/generate-kit/)
     expect(src).toMatch(/const isSlides = videoStyle === 'slides' \|\| videoStyle === 'kit' \|\| kitFellBack/)
   })

@@ -48,7 +48,8 @@ import { D2V_OUTPUTS, d2vOutputs } from '../../../../_lib/videos-only'
 // Drawn slides' drawing styles (pure data — safe in the browser).
 import { DEFAULT_DRAW_STYLE, DRAW_STYLES, isDrawStyle, type DrawStyleId } from '../../../../_lib/drawn-slides'
 // The new scene engine (KIT_ENGINE=on): which card saves which kit look (pure data).
-import { cardForDraft, previewLookFor, RETIRED_WITH_KIT, styleForCard } from '../../../../_lib/kit-looks'
+import { cardForDraft, KIT_LOOK_FOR_CARD, previewLookFor, RETIRED_WITH_KIT, styleForCard } from '../../../../_lib/kit-looks'
+import { filmCardId, filmLookForCard, filmLookForDraft, filmStyleForCard, isFilmLookId, type FilmLookId } from '../../../../_lib/film-looks'
 import { voiceNote, type SpeakAs, type PresenterVoice } from '../../../../_lib/narration-pov'
 
 type Draft = Record<string, any>
@@ -100,9 +101,13 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   // Is the new scene engine on? (env KIT_ENGINE=on, asked once.) Off = the old looks, unchanged.
   const [kitOn, setKitOn] = useState(false)
   const [kitKnown, setKitKnown] = useState(false)
+  // Is the film engine on for this account (env FILM_ENGINE, film-engine.ts)? Then the cards are its twelve looks.
+  const [filmOn, setFilmOn] = useState(false)
+  // The film look picked (film-looks.ts). None: the kit card picked maps to its film twin.
+  const [filmPick, setFilmPick] = useState<FilmLookId | null>(null)
   useEffect(() => {
     let alive = true
-    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setKitOn(!!j?.on) }).catch(() => {}).finally(() => { if (alive) setKitKnown(true) })
+    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) { setKitOn(!!j?.on); setFilmOn(!!j?.film) } }).catch(() => {}).finally(() => { if (alive) setKitKnown(true) })
     return () => { alive = false }
   }, [])
   // With the kit on, Aurora / Cinematic / Infographic are no longer offered.
@@ -116,7 +121,10 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   useEffect(() => {
     if (draft && !hasPdf && videoLook === WALKTHROUGH_LOOK_ID) setVideoLook(RECOMMENDED_VIDEO_LOOK)
   }, [draft, hasPdf, videoLook])
-  const chosenStyle = styleForCard(videoLook, kitOn)
+  // With the film engine on, a kit card (or nothing picked yet) draws as its film twin; Your look / Drawn / Walk-through stay themselves.
+  const kitNear = KIT_LOOK_FOR_CARD[videoLook]
+  const filmLook: FilmLookId | null = filmOn ? (filmPick ?? (kitNear && kitNear !== 'custom' ? filmLookForDraft({ kitLook: kitNear }) : null)) : null
+  const chosenStyle = filmLook ? filmStyleForCard(filmCardId(filmLook))! : styleForCard(videoLook, kitOn)
   // ONE OF THE EIGHT TEMPLATES (video-templates.ts), or none — a look below.
   const [templateId, setTemplateId] = useState<VideoTemplateId | null>(null)
   // The template's own colors, or the brand's (owner, 2026-10-18). Its own by default.
@@ -156,6 +164,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
         setDraft(d)
         setOutput(normalizeOutput(v?.output_type) ?? normalizeOutput(d.outputType) ?? 'video')
         { const card = cardForDraft(d.videoStyle, d.kitLook); if (isVideoLook(card)) setVideoLook(card) }
+        if (d.videoStyle === 'kit' && isFilmLookId(d.filmLook)) setFilmPick(d.filmLook)
         if (isPresLook(d.presentationTemplate)) setPresLook(d.presentationTemplate)
         if (typeof d.voiceId === 'string' && VOICE_OPTIONS.some((o) => o.id === d.voiceId)) setVoiceId(d.voiceId)
         if (typeof d.aiMusic === 'boolean') setAiMusic(d.aiMusic)
@@ -257,6 +266,8 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
             videoStyle: chosenStyle.videoStyle,
             // The scene kit's look ('animated-slides' | 'editorial' | 'bright'), when the kit engine is on.
             ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
+            // The film look (film engine on): the one picked, or none for Your look / Drawn / Walk-through.
+            ...(filmOn ? { filmLook: filmLook ?? null } : {}),
             // "Your look": a COPY goes on this video now, so editing the look later never changes it.
             ...(chosenStyle.kitLook === 'custom' && yourLook ? { kitLookCustom: yourLook } : {}),
             // Drawn slides only: its drawing style (3D infographic / Illustrated / Classic).
@@ -359,6 +370,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           outputType: output,
           videoStyle: chosenStyle.videoStyle,
           ...(chosenStyle.kitLook ? { kitLook: chosenStyle.kitLook } : {}),
+          ...(filmLook ? { filmLook } : {}),
           ...(videoLook === 'drawn' ? { drawStyle } : {}),
           templateId: isVideo ? templateId : null,
           templateColors: brandPalette.length ? templateColors : 'template',
@@ -416,7 +428,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   // A chosen template previews the customer's OWN cover and first scene in it
   // (template-preview.ts, drawn on the render worker — about a minute).
   const preview = useFirstScenePreview({
-    videoId: videoId ?? '', output, look: isPres ? presLook : previewLookFor(videoLook, kitOn), drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId,
+    videoId: videoId ?? '', output, look: isPres ? presLook : filmLook ? `film:${filmLook}` : previewLookFor(videoLook, kitOn), drawStyle: !isPres && videoLook === 'drawn' ? drawStyle : undefined, voiceId,
     templateId: isVideo ? templateId : null,
     templateColors: brandPalette.length ? templateColors : 'template',
   })
@@ -496,7 +508,7 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
     </Note>
   ) : null
 
-  const cards = lookCards(output, { kit: kitOn, yourLook: kitOn ? yourLook : null })
+  const cards = lookCards(output, { kit: kitOn, film: filmOn, yourLook: kitOn ? yourLook : null })
     .map((c) => (c.id === WALKTHROUGH_LOOK_ID && !hasPdf ? { ...c, disabled: 'Needs a PDF you uploaded' } : c))
   const back = prev ? { href: stepPath(prev.key, videoId), label: prev.label } : null
   const lengthHref = `${stepPath('scenes', videoId)}#${LENGTH_ANCHOR}`
@@ -703,11 +715,12 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
           <div className="cf-main-col">
             <LookPicker
               cards={cards}
-              value={isPres ? presLook : templateOn ? '' : videoLook}
+              value={isPres ? presLook : templateOn ? '' : filmLook ? filmCardId(filmLook) : videoLook}
               onChange={(id) => {
                 if (isPres) { if (isPresLook(id)) setPresLook(id) }
                 else if (id === CREATE_LOOK_CARD) openLookScreen()
-                else if (isVideoLook(id)) { setVideoLook(id); setTemplateId(null) }
+                else if (filmOn && filmLookForCard(id)) { setFilmPick(filmLookForCard(id)); setVideoLook(RECOMMENDED_VIDEO_LOOK); setTemplateId(null) }
+                else if (isVideoLook(id)) { setFilmPick(null); setVideoLook(id); setTemplateId(null) }
               }}
               onZoom={setLightbox}
               note={timeNote}

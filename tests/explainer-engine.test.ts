@@ -54,9 +54,9 @@ describe('the route', () => {
   const route = read('app/api/generate-video/route.ts')
   it('sends a switched-on user’s video to the explainer before any older engine', () => {
     /* Drawn slides keep their own pipeline (the engine cannot draw them) */
-    const at = route.indexOf('if (!isDrawn && await explainerEngineFor(user.id)) {')
+    const at = route.indexOf('if (!isDrawn && !filmOn && await explainerEngineFor(user.id)) {')
     expect(at).toBeGreaterThan(0)
-    expect(at).toBeLessThan(route.indexOf("if (videoStyle === 'kit' && kitEngineOn())"))
+    expect(at).toBeLessThan(route.indexOf("if (videoStyle === 'kit' && (kitEngineOn() || filmOn))"))
     expect(at).toBeGreaterThan(route.indexOf('const deducted = await deductCredits('))
   })
   it('falls back to the previous engine, with a note, when it cannot start — no video is lost', () => {

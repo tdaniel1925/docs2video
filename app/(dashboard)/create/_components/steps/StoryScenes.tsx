@@ -33,6 +33,7 @@ import { addBookends, bookendOptsFrom, keepAutoMarks, sceneSeconds } from '../st
 import OnePoint from '../story/OnePoint'
 import AskPanel, { type AskMsg } from '../story/AskPanel'
 import SceneCard from '../story/SceneCard'
+import { StoryboardScene, useStoryboard } from '../story/Storyboard'
 import LengthPicker from '../story/LengthPicker'
 import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../story/lengths'
 import { Note } from '../../../../_components/kit'
@@ -108,6 +109,17 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
   const loadedRef = useRef(false)
   // true until the first load has decided what to do (show, resume, ask or write)
   const [booting, setBooting] = useState(true)
+  // THE STORYBOARD (film engine on for this account; app/_lib/storyboard.ts): each content scene's still frame and
+  // its words on screen, editable. Videos only, on the Scenes step.
+  const [filmOn, setFilmOn] = useState(false)
+  useEffect(() => {
+    if (part !== 'scenes') return
+    let alive = true
+    fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setFilmOn(!!j?.film) }).catch(() => {})
+    return () => { alive = false }
+  }, [part])
+  const boardOn = filmOn && part === 'scenes' && outputType === 'video' && scenes.length > 0
+  const board = useStoryboard(videoId, boardOn, scenes)
   useEffect(() => { briefRef.current = brief }, [brief])
 
   /** A point/numbers the server gave us (or that were saved): the new "as saved". */
@@ -831,6 +843,18 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
 
               {story !== 'writing' && scenes.length > 0 && (
                 <>
+                  {boardOn ? (
+                    <div className="kit-note" style={{ marginBottom: 12 }}>
+                      <div className="kit-note-body">
+                        <p><b>Your storyboard.</b> Under each scene: how it will look in your video, and the words on screen, which you can change here. Change what the voice says with <b>Edit</b>.</p>
+                        {board.state === 'planning' ? <p>Laying out your scenes…</p> : null}
+                        {board.note ? <p>{board.note}</p> : null}
+                        {board.stale || board.state === 'error' ? (
+                          <p><button type="button" className="kit-btn kit-btn--secondary kit-btn--sm" onClick={() => void board.plan()}>Update the storyboard</button></p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                   <ol className="cf-scenes" aria-label="The scenes">
                     {scenes.map((scene: any, i: number) => {
                       const role = scene._role as ('cover' | 'closing' | undefined)
@@ -863,6 +887,14 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
                               {open ? 'Done' : 'Edit'}
                             </button>
                           </li>
+                          {boardOn && !bookend && board.state !== 'planning' ? (() => {
+                            const b = board.forScene(scene.narration)
+                            return (
+                              <li className="cf-scene-board" aria-label={`Storyboard for scene ${i + 1}`} style={{ listStyle: 'none' }}>
+                                <StoryboardScene key={b?.key ?? `none-${i}`} scene={b} frame={b ? board.frames[b.key] : undefined} onSave={(edits) => (b ? board.saveWords(b.key, edits) : Promise.resolve(null))} />
+                              </li>
+                            )
+                          })() : null}
                           {open ? (
                             <li className="cf-scene-editor">
                               <SceneCard

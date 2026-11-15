@@ -18,7 +18,7 @@ import { narratorMode, repairNarration, checkNarration, thirdPersonIntro, type P
 import { cleanRecipientName, cleanSceneTitle } from '../../_lib/text-format'
 import { resolveClientName, resolveAgentName, buildOpeningNarration, resolvePreparerName } from '../../_lib/personalize'
 import { isRegulated, scrubComplianceText, productTokens, smoothScrubbed, stripCarrierFromScenes, complianceScrubberFor, complianceTokensFor } from '../../_lib/compliance'
-import { speakable } from '../../_lib/tts'
+import { formatForTTS } from '../../_lib/tts-format'
 import { waitUntil } from '@vercel/functions'
 import { logError } from '../../_lib/error-logger'
 import { validateScript } from '../../_lib/script-validator'
@@ -26,7 +26,7 @@ import { rateLimit, getRateLimitKey, LIMITS } from '../../_lib/rate-limit'
 import { buildSimpleSlidePrompt, getStylePrompt } from '../../_lib/slide-engine/simple-prompt'
 import type { SimpleSlideInput } from '../../_lib/slide-engine/simple-prompt'
 import { DEFAULT_PROMPT_VERSIONS } from '../../_lib/prompts'
-import { PHONE_REGEX, phoneToSpoken, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
+import { PHONE_REGEX, isPhoneInSource, formatPhoneDisplay } from '../../_lib/phone-utils'
 import { estimateVideoCost, exceedsCeiling } from '../../_lib/cost-estimator'
 import { deductCredits, checkCredits, refundVideoCredits, spendBlockMessage, refundCredits } from '../../_lib/credits'
 import { IN_PROGRESS_STATUSES } from '../../_lib/video-billing'
@@ -45,6 +45,9 @@ import { storyTooBigMessage, storySize } from '../../_lib/length-limits'
 import { explainerPricingOn } from '../../_lib/explainer-price'
 import { alertOps } from '../../_lib/ops-alert'
 import { explainerEngineFor, startExplainer, sceneFor } from '../../_lib/explainer-engine'
+import { filmEngineFor } from '../../_lib/film-engine'
+import { filmLookForDraft, isFilmLookId } from '../../_lib/film-looks'
+import { pinStoryboard, type Storyboard } from '../../_lib/storyboard'
 import { explainerLookFor } from '../../_lib/explainer-look'
 
 export const runtime = 'nodejs'
@@ -60,47 +63,7 @@ const VIDEO_ASSEMBLY_SECRET = (process.env.VIDEO_ASSEMBLY_SECRET || '').trim().r
 // finished in S3). 800 covers asset gen (now parallel) + the 12-min hard cap.
 export const maxDuration = 800
 
-// Format narration for TTS. Money/percent/symbol normalization is owned by the
-// canonical `speakable()` in app/_lib/tts.ts (it ALSO runs inside synthesizeSpeech
-// right before synthesis, so it's the single source for that). Here we add only
-// the CONTACT-specific spelling (phones/emails/URLs) that speakable doesn't do,
-// then delegate the rest to speakable — one money/percent implementation.
-function formatForTTS(text: string): string {
-  const dw: Record<string, string> = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' }
-
-  // Helper: spell out a string that isn't a real word (e.g. "tdaniel" → "t daniel", "jsmith123" → "j smith one two three")
-  function spellUsername(user: string): string {
-    // Split camelCase and number boundaries: "tdaniel" → "t daniel", "jsmith123" → "j smith 1 2 3"
-    return user
-      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase
-      .replace(/([a-zA-Z])(\d)/g, '$1 $2') // letter→digit
-      .replace(/(\d)([a-zA-Z])/g, '$1 $2') // digit→letter
-      .replace(/\./g, ' dot ')
-      .replace(/_/g, ' ')
-      .replace(/-/g, ' ')
-      .toLowerCase()
-  }
-
-  const withContact = text
-    // Phone numbers with separators — use unified PHONE_REGEX
-    .replace(PHONE_REGEX, (match) => phoneToSpoken(match))
-    // Bare 10-digit phone numbers (no separators): 4807254677 → digit by digit
-    .replace(/\b(\d{10})\b/g, (match) => {
-      // Only convert if it looks like a phone number (not a dollar amount or year)
-      return `${match.slice(0, 3).split('').map(d => dw[d]).join(' ')}, ${match.slice(3, 6).split('').map(d => dw[d]).join(' ')}, ${match.slice(6).split('').map(d => dw[d]).join(' ')}`
-    })
-    // Email addresses FIRST (before URL, since emails contain dots)
-    // info@example.com → "info at example dot com"
-    .replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/g, (_, user: string, domain: string) => {
-      return `${spellUsername(user)} at ${domain.replace(/\./g, ' dot ')}`
-    })
-    // URLs: www.example.com → example dot com
-    .replace(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})(?:\/\S*)?/g, (_, domain: string) => {
-      return domain.replace(/\./g, ' dot ')
-    })
-  // Delegate money/percent/& to the canonical implementation.
-  return speakable(withContact)
-}
+// formatForTTS (spoken phones / emails / URLs, then speakable) lives in app/_lib/tts-format.ts.
 
 // Track in-flight requests to prevent duplicates
 const inFlightVideos = new Set<string>()
@@ -1253,7 +1216,10 @@ export async function POST(request: Request) {
     // videos it is not switched on for, and any it cannot start.
     // Drawn slides are one finished AI picture per slide — not something the
     // explainer engine draws — so they keep their own pipeline below.
-    if (!isDrawn && await explainerEngineFor(user.id)) {
+    // THE FILM ENGINE (film-engine.ts, FILM_ENGINE): when it is on for this user, their kit videos are drawn by it
+    // (the kit branch below), so the explainer engine is not used for them.
+    const filmOn = videoStyle === 'kit' && await filmEngineFor(user.id)
+    if (!isDrawn && !filmOn && await explainerEngineFor(user.id)) {
       try {
         await admin.from('videos').update({ progress_detail: 'Designing your scenes...', progress_pct: 14, progress_updated_at: new Date().toISOString() }).eq('id', videoId)
         const closingExtra = wantContactClosing ? [contactDisplayPhone, contactForClosing.email, contactForClosing.website].filter((x): x is string => typeof x === 'string' && !!x) : []
@@ -1449,7 +1415,7 @@ export async function POST(request: Request) {
       // start, the video falls back to the Animated slides engine below. A
       // 'kit' draft with the engine switched off also goes there.
       let kitFellBack = false
-      if (videoStyle === 'kit' && kitEngineOn()) {
+      if (videoStyle === 'kit' && (kitEngineOn() || filmOn)) {
         try {
           await admin.from('videos').update({ progress_detail: 'Planning your scenes...', progress_pct: 14 }).eq('id', videoId)
           const look = resolveKitLook({ kitLook: (body as any).kitLook ?? draft.kitLook, kitLookCustom: draft.kitLookCustom, brand })
@@ -1478,17 +1444,28 @@ export async function POST(request: Request) {
           if (!planned.reused || snapshotLook) {
             await admin.from('videos').update({ draft_data: { ...draft, kitPlanCache: planned.cache, ...(snapshotLook ? { kitLook: 'custom', kitLookCustom: look } : {}) } }).eq('id', videoId).then(() => {}, () => {})
           }
+          // THE STORYBOARD (storyboard.ts): content scenes whose spoken words are unchanged are drawn as step 5 showed
+          // them, with the user's on-screen edits (re-checked against the source); the rest stay as planned.
+          const pin = filmOn ? pinStoryboard(planned.result.scenes, draft.storyboard as Storyboard | undefined, plannerInput) : { scenes: planned.result.scenes, pinned: 0 }
           const kitPlan = assembleKitPlan({
-            title: videoTitle, scenes: planned.result.scenes, look,
+            title: videoTitle, scenes: pin.scenes, look,
             brandName: effectiveBrandName, presenter, photo: photoPlacementResolved,
             recipient, regulated: regulatedContent,
           })
+          // The film engine draws this same plan (KitVideo → remotion/src/film). A film look picked on step 3 is
+          // used as is; "Your look" and brand looks have none, and the film theme is derived from their kit look.
+          if (filmOn) {
+            kitPlan.engine = 'film'
+            const picked = (body as { filmLook?: unknown }).filmLook ?? draft.filmLook
+            const filmLook = isFilmLookId(picked) ? picked : kitLookNow === 'custom' || kitLookNow === 'brand' ? null : filmLookForDraft({ kitLook: kitLookNow })
+            if (filmLook) kitPlan.filmTheme = filmLook
+          }
           const kitPayload = {
             videoId, userId: user.id, plan: kitPlan, voiceId,
             assets: { ...kitLogoAssets(brand), ...(presenter?.photo ? { presenter_photo: presenter.photo } : {}) },
             musicUrl: musicUrl || undefined, aiMusic: !!aiMusic || undefined, musicPrompt: musicPrompt || undefined,
           }
-          console.log(`[video ${videoId}] scene kit — ${kitPlan.scenes.length} scenes (${planned.result.source}, $${planned.result.costUsd.toFixed(4)}${planned.reused ? ', reused' : ''}), look ${look.id}`)
+          console.log(`[video ${videoId}] scene kit — ${kitPlan.scenes.length} scenes (${planned.result.source}, $${planned.result.costUsd.toFixed(4)}${planned.reused ? ', reused' : ''}), look ${look.id}${kitPlan.engine === 'film' ? `, film engine (${kitPlan.filmTheme ?? 'derived'}), ${pin.pinned} scene(s) from the storyboard` : ''}`)
           await admin.from('videos').update({ progress_detail: 'Recording the voice...', progress_pct: 18 }).eq('id', videoId)
           // Same start rules as the slides engine: an ACK timeout means it is
           // working; a real refusal is retried once before falling back.

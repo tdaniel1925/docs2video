@@ -308,6 +308,10 @@ export interface WizardDraft {
   // 'animated-slides' | 'editorial' | 'bright' | 'brand' — or a saved custom look
   // (the coming look wizard), and the cached Claude plan for this story.
   kitLook?: string
+  // THE FILM ENGINE (app/_lib/film-engine.ts): the film look picked on step 3 (film-looks.ts FILM_LOOK_IDS).
+  filmLook?: string
+  // THE STORYBOARD (app/_lib/storyboard.ts Storyboard): step 5's scenes as the film engine draws them, with on-screen edits.
+  storyboard?: unknown
   kitLookCustom?: Record<string, unknown>
   kitPlanCache?: Record<string, unknown>
   // The "Review brief" step: what the AI understood + plans to cover. The user

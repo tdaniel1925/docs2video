@@ -12,6 +12,7 @@ export const WALKTHROUGH_LOOK_ID = 'walkthrough'
 export const CREATE_LOOK_CARD = 'create-look'
 
 import { NAMES } from '../../../../_lib/names'
+import { FILM_LOOKS, filmCardId } from '../../../../_lib/film-looks'
 
 /** Video looks. `short` is the one line under the card's name (a few words);
  *  `tagline` is the longer description under the cards for the picked one. A sample picture of each lives in /public/style-samples/<id>-{cover,data,closing}.png. */
@@ -126,7 +127,7 @@ const KIT_CARD: Partial<Record<VideoLookId, { kitLook: string; name?: string; sh
 /** The look made on the look screen, as step 3 shows it (colours only — pure data). */
 export type YourLook = { name?: string; colors: { bg: string; glow: string; accent: string; text: string } }
 
-export function lookCards(output: string, opts: { kit?: boolean; yourLook?: YourLook | null } = {}): LookCard[] {
+export function lookCards(output: string, opts: { kit?: boolean; film?: boolean; yourLook?: YourLook | null } = {}): LookCard[] {
   if (output === 'interactive' || output === 'deck') {
     return PRES_LOOKS.map((l, i) => ({ id: l.id, name: l.name, short: l.short, tagline: l.tagline, thumb: { kind: 'swatch', swatch: l.swatch }, recommended: i === 0, ...(LOOK_SAMPLES[l.id] ? { sample: LOOK_SAMPLES[l.id] } : {}) }))
   }
@@ -145,7 +146,15 @@ export function lookCards(output: string, opts: { kit?: boolean; yourLook?: Your
       tagline: 'Opens the look screen: start from your brand, something you like, or a ready style.',
       thumb: { kind: 'swatch', swatch: ['#f4f1ec', '#0b2545', '#2f6b3a'], title: '+ Your own' },
     }
-    const ready = VIDEO_LOOKS.filter((l) => l.id === 'drawn' || l.id === 'walkthrough' || KIT_CARD[l.id]).map((l): LookCard => {
+    // THE FILM ENGINE (film-engine.ts): its twelve looks take the place of the kit's three. Pictures:
+    // /style-samples/film-<look>-{cover,data,closing}.png (scripts/look-samples/make-film-samples.ts).
+    const filmCards: LookCard[] = opts.film ? FILM_LOOKS.map((l, i) => ({
+      id: filmCardId(l.id), name: l.name, short: l.short, tagline: l.tagline,
+      thumb: { kind: 'img' as const, src: `/style-samples/film-${l.id}-cover.png` },
+      recommended: i === 0,
+      samples: VIDEO_SAMPLE_KINDS.map((s) => `/style-samples/film-${l.id}-${s}.png`),
+    })) : []
+    const ready = [...filmCards, ...VIDEO_LOOKS.filter((l) => l.id === 'drawn' || l.id === 'walkthrough' || (!opts.film && KIT_CARD[l.id])).map((l): LookCard => {
       const k = KIT_CARD[l.id]
       const pic = k ? `kit-${k.kitLook}` : l.id
       return {
@@ -156,7 +165,7 @@ export function lookCards(output: string, opts: { kit?: boolean; yourLook?: Your
         samples: VIDEO_SAMPLE_KINDS.map((s) => `/style-samples/${pic}-${s}.png`),
         ...(VIDEO_LOOK_SAMPLES[l.id] ? { sample: VIDEO_LOOK_SAMPLES[l.id] } : {}),
       }
-    })
+    })]
     const drawnAt = ready.findIndex((c) => c.id === 'drawn')
     const withCreate = drawnAt >= 0 ? [...ready.slice(0, drawnAt), create, ...ready.slice(drawnAt)] : [...ready, create]
     return [...yours, ...withCreate]

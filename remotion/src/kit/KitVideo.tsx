@@ -14,6 +14,7 @@ import {
 import { KitBackground, KitChrome, KitThemeProvider } from './theme'
 import { SCENE_VIEWS } from './scenes'
 import type { SceneTiming } from './parts'
+import { FilmView } from '../film/FilmView'
 
 // =============================================================================
 // KitVideo — the ONE composition for the scene kit.
@@ -138,6 +139,28 @@ export const KitVideo: React.FC<KitVideoProps> = ({ plan, assetBase, still = fal
     const a = starts[i], b = starts[i] + durations[i]
     return Math.max(o, interpolate(frame, [a + cutLen * 0.4, a + cutLen, b - cutLen, b - cutLen * 0.4], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }))
   }, 0)
+
+  // THE FILM ENGINE (remotion/src/film): the same plan, voice, music and timeline, drawn with a 3D camera and the
+  // film looks. Almost no sound effects there (owner rule): one soft hit under the closing, nothing else.
+  if (plan.engine === 'film') {
+    const last = scenes.length - 1
+    return (
+      <AbsoluteFill>
+        <FilmView plan={{ ...plan, look }} tl={tl} />
+        {!still && (
+          <>
+            {music ? <MusicBed src={music} musicFrames={musicFrames} volume={duck} /> : null}
+            {scenes.map((s, i) => (s.vo ? (
+              <Sequence key={`vo-${i}`} from={starts[i] + VO_LEAD} durationInFrames={Math.max(1, Math.min(total - starts[i] - VO_LEAD, voFrames[i] + 30 || durations[i]))}>
+                <Audio src={staticFile(s.vo)} />
+              </Sequence>
+            ) : null))}
+            {sfxMode !== 'off' && scenes[last]?.type === 'cta' ? <Sfx name="impact-soft.wav" at={starts[last] + 10} total={total} volume={sfxVol * 0.8} /> : null}
+          </>
+        )}
+      </AbsoluteFill>
+    )
+  }
 
   return (
     <KitThemeProvider look={look} brand={plan.brand || {}} recipient={plan.recipient}>

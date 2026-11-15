@@ -10,6 +10,7 @@
 // every other look is drawn by code.
 // =============================================================================
 
+import { FILM_LOOKS, isFilmLookId } from './film-looks'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Brand } from './types'
 import { synthesizeSpeech } from './tts'
@@ -156,7 +157,10 @@ export function buildPreviewPlan(o: {
     // THE SCENE KIT: the same plan builder the real video uses, but the plain
     // code mapping instead of the Claude planner (a free preview spends
     // nothing). Cover, the first content scene, closing.
-    const look = resolveKitLook({ kitLook: o.look.slice(4), kitLookCustom: o.draft.kitLookCustom, brand })
+    // "film:<look>": the film engine draws the same plan, in that film look (its kit twin decides the rest).
+    const filmId = o.look.startsWith('film:') && isFilmLookId(o.look.slice(5)) ? o.look.slice(5) : null
+    const kitLook = filmId ? FILM_LOOKS.find((l) => l.id === filmId)!.kitLook : o.look.slice(4)
+    const look = resolveKitLook({ kitLook, kitLookCustom: o.draft.kitLookCustom, brand })
     const g = (brand?.brand_guide_data ?? {}) as Record<string, unknown>
     const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
     const contact = o.draft.showContactClosing === false ? undefined : Object.fromEntries(Object.entries({ phone: str(g.phone), email: str(g.email), website: str(g.website), booking: str(g.calendly) }).filter(([, v]) => v))
@@ -171,6 +175,7 @@ export function buildPreviewPlan(o: {
     const logos = kitLogoAssets(brand)
     if (logos.logo_light || logos.logo_dark || logos.logo_any) plan.brand.logo = { light: logos.logo_light, dark: logos.logo_dark, any: logos.logo_any }
     if (presenter?.photo && plan.brand.presenter) plan.brand.presenter.photo = presenter.photo
+    if (filmId) { plan.engine = 'film'; plan.filmTheme = filmId }
     request = { plan }
   } else if (engine === 'v3') {
     // Aurora / Cinematic / Infographic: the whole list the finished video gets

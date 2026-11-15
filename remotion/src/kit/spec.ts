@@ -422,6 +422,10 @@ export type KitPlan = {
   /** Insurance / financial illustration: quiet sound set. */
   regulated?: boolean
   scenes: KitScene[]
+  /** Drawn by the film engine (remotion/src/film) instead of the kit scene views. Voice, music and timing stay the kit's. */
+  engine?: 'film'
+  /** The film look (film/theme.ts THEMES id). Omitted: derived from `look`. */
+  filmTheme?: string
   audio?: {
     /** Music file (bundled bed or the per-video file). Omit for the feel's bed. */
     music?: string

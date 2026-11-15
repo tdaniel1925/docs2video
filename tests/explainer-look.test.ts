@@ -72,7 +72,7 @@ describe('the route', () => {
   })
 
   it('Drawn slides keep their own pipeline — the explainer engine does not draw them', () => {
-    expect(route).toMatch(/if \(!isDrawn && await explainerEngineFor\(user\.id\)\)/)
+    expect(route).toMatch(/if \(!isDrawn && !filmOn && await explainerEngineFor\(user\.id\)\)/)
   })
 })
 
