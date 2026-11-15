@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import DOMPurify from 'dompurify'
 import { useBrand } from './BrandProvider'
+import { useDodge } from './useDodge'
 import { howToFor } from '../_lib/how-to-use'
 // The phone ☰ menu opens the help with this event.
 import { OPEN_HELP_EVENT } from '../_lib/top-bar'
@@ -43,6 +44,9 @@ export default function HelpChatWidget() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  // The button moves off the page's own buttons (a side panel's Done, a dialog's Save…).
+  const fabRef = useRef<HTMLButtonElement>(null)
+  const dodge = useDodge(fabRef, { paused: open, ignore: '.help-panel, .sup-tab, .sup-panel, .sup-scrim' })
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -109,7 +113,8 @@ export default function HelpChatWidget() {
     <>
       {/* Toggle button (on Docs2Video phones it is in the ☰ menu instead) */}
       <button
-        className={brand.showVideoFeatures ? 'help-fab help-fab--tucked' : 'help-fab'}
+        ref={fabRef}
+        className={(brand.showVideoFeatures ? 'help-fab help-fab--tucked' : 'help-fab') + (dodge.tucked ? ' help-fab--aside' : '')}
         onClick={() => setOpen(o => !o)}
         style={{
           // --bottom-bar = the cookie notice's height while it shows (0 after),
@@ -120,7 +125,8 @@ export default function HelpChatWidget() {
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-          zIndex: 100, transition: 'transform 0.2s ease',
+          zIndex: 100, transition: 'transform 0.2s ease, translate 0.25s ease, opacity 0.2s ease',
+          translate: `${dodge.x}px ${dodge.y}px`, opacity: dodge.tucked ? 0.75 : 1,
         }}
         aria-label="Help"
         onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
@@ -145,6 +151,8 @@ export default function HelpChatWidget() {
           zIndex: 99, overflow: 'hidden',
           animation: 'helpSlideUp 0.25s ease-out',
           transformOrigin: 'bottom right',
+          // Follows the button when it moved out of the way (desktop; phones show a sheet).
+          ['--dodge-x' as string]: `${dodge.tucked ? 0 : dodge.x}px`, ['--dodge-y' as string]: `${dodge.y}px`,
         }}>
           <style>{`@keyframes helpSlideUp { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
             .help-chat-html p { margin: 0 0 6px; }

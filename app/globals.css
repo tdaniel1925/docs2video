@@ -4364,3 +4364,8 @@ body:has(.cf-bar) .help-fab--tucked { bottom: calc(var(--cf-bar-h, 96px) + 16px 
 .mk .mk-logo-img { display: block; height: 52px; width: auto; max-width: none; }
 .mk .mk-footer .mk-logo-img { height: 60px; }
 @media (max-width: 600px) { .mk .mk-logo-img { height: 42px; } }
+
+/* The help button moved out of the way of the page's own buttons (useDodge, 2026-11-15); its panel follows on desktop. */
+@media (min-width: 901px) { .help-panel { translate: var(--dodge-x, 0px) var(--dodge-y, 0px); } }
+/* "Something not working?" steps aside while a pop-up or side panel is open, so it never sits on its fields. */
+body:has([aria-modal="true"]:not(.sup-panel)) .sup-tab { display: none; }
