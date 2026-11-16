@@ -47,7 +47,6 @@ describe('normalizeUrl', () => {
 describe('customer website boxes and the routes behind them', () => {
   const SCREENS = [
     'app/(dashboard)/create/_components/Step1Content.tsx',
-    'app/(dashboard)/create/commercial/page.tsx',
     'app/(dashboard)/create/_components/steps/BrandCovers.tsx',
     'app/(dashboard)/create/_components/make/AddBrandPiece.tsx',
     'app/(dashboard)/brands/new/page.tsx',

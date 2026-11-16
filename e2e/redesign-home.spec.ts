@@ -68,10 +68,9 @@ test('the Create tiles come first, and each opens step 1 with its source already
   await expect(page).toHaveURL(/\/create\?source=paste$/)
   await expect(page.getByPlaceholder('Paste your content here (at least 50 characters)')).toBeVisible()
 
+  // No commercial tile (owner, 2026-11-15).
   await page.goto('/dashboard')
-  await start.getByRole('link', { name: /^A commercial/ }).click()
-  await expect(page).toHaveURL(/\/create\/commercial$/)
-  await expect(page.getByRole('heading', { name: 'Make a commercial' })).toBeVisible()
+  await expect(start.getByRole('link', { name: /commercial/i })).toHaveCount(0)
 
   await page.goto('/dashboard')
   await start.getByRole('link', { name: /^Your brand/ }).click()

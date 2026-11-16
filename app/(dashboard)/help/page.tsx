@@ -55,12 +55,6 @@ const GUIDES: HelpGuide[] = [
     icon: '🎬',
   },
   {
-    href: '/help/commercials',
-    title: 'Creating commercials',
-    description: 'Turn a website, PDF, your own text, or just an idea into a fully-directed, brand-matched commercial with voiceover, visuals, and music.',
-    icon: '🎥',
-  },
-  {
     href: '/help/flyers',
     title: 'Custom Graphics',
     description: 'Flyers, posters, social posts, banners, business cards and slide decks in five steps: What, Content, Style, Sizes, Review.',
@@ -189,8 +183,8 @@ const ARTICLES: HelpArticle[] = [
       `The top bar has four words: **${NAMES.newButton}**, **${NAMES.library}**, **${NAMES.clients}** and **${NAMES.brands}**. The logo takes you Home. On the right are **${NAMES.howToUse}**, your credits and your initial, which opens the account menu: your plan and shortcuts to Settings, Billing & credits, Analytics, AI Social, Affiliate, the Help Center and Sign out.`,
       `**While you make something** — the top bar steps aside for a quieter one: **Home** on the left (your draft is saved as you go and waits on Home), the three steps in the middle (a step you have done takes you back to it), and **${NAMES.howToUse}** and your credits on the right. On a phone, the **?** button holds ${NAMES.howToUse} and the help assistant.`,
       `**Credits** — Your balance is the gold box in the top bar. It turns amber when fewer than ${n(CREDIT_COSTS.videoStandard)} are left (one standard video). Every creation spends credits (see Pricing). Click it (**+ Top Up**) to buy more.`,
-      '**Create** — Home opens with six small tiles: **From a document**, **From a website**, **From an idea**, **Paste your text**, **A commercial** and **Your brand**. Each one opens the first step with that choice already made.',
-      `**${NAMES.newButton}** — Starts any new project too: a narrated video or an interactive presentation. Commercials start from **A commercial** or the link under the first step.`,
+      '**Create** — Home opens with five small tiles: **From a document**, **From a website**, **From an idea**, **Paste your text** and **Your brand**. Each one opens the first step with that choice already made.',
+      `**${NAMES.newButton}** — Starts any new project too: a narrated video or an interactive presentation.`,
       '**Today’s clients** — Who clicked to book a call, who watched, and who hasn’t opened what you sent, each with the next thing to do.',
       `**Recent** — Your latest work and where each one stands. Click **Continue** on a draft or **Open** on the rest, or go to **${NAMES.library}** for everything.`,
     ],

@@ -200,14 +200,12 @@ test.describe('Step 1 — what it says when something is missing', () => {
     expect(drafts.posts).toHaveLength(0)
   })
 
-  test('the commercial link opens its page; no graphics maker', async ({ page }) => {
+  test('no commercial link and no graphics maker', async ({ page }) => {
     await page.goto('/create')
-    // Docs2Video no longer makes custom graphics (videos-only, 2026-10-09).
+    // Docs2Video no longer makes custom graphics (videos-only, 2026-10-09)
+    // or commercials (owner, 2026-11-15).
     await expect(page.getByRole('link', { name: /Custom graphics/i })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Got it' }).click({ timeout: 5000 }).catch(() => {})
-    await page.getByRole('link', { name: 'Start a commercial' }).click()
-    await expect(page).toHaveURL(/\/create\/commercial$/)
-    await expect(page.locator('h1').first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /commercial/i })).toHaveCount(0)
   })
 })
 

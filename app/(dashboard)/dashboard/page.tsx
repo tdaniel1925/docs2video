@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ClipboardType, Clapperboard, FileText, Globe, Lightbulb, Palette } from 'lucide-react'
+import { ClipboardType, FileText, Globe, Lightbulb, Palette } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../_lib/supabase/server'
 import { getBrand } from '../../_lib/brand-server'
@@ -295,7 +295,6 @@ function StartIcon({ kind }: { kind: StartCard['key'] }) {
     case 'website': return <Globe size={20} />
     case 'idea': return <Lightbulb size={20} />
     case 'paste': return <ClipboardType size={20} />
-    case 'commercial': return <Clapperboard size={20} />
     case 'brand': return <Palette size={20} />
   }
 }

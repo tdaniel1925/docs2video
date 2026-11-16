@@ -146,7 +146,6 @@ describe('no typed prices on dashboard screens', () => {
     const files = scannedFiles().map(rel)
     expect(files.length).toBeGreaterThan(30)
     expect(files).toContain('app/(dashboard)/settings/page.tsx')
-    expect(files).toContain('app/(dashboard)/create/commercial/page.tsx')
     expect(files).toContain('app/_components/BuyCreditsModal.tsx')
   })
 

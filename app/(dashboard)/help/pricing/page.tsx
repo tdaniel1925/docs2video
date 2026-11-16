@@ -21,7 +21,6 @@ const COSTS: [string, string][] = [
   ['Detailed video (5–15 minutes)', n(CREDIT_COSTS.videoDetailed)],
   ['Interactive presentation', n(CREDIT_COSTS.interactive)],
   ['MP4 export of a presentation', n(CREDIT_COSTS.videoExport)],
-  ['Commercial', n(CREDIT_COSTS.commercial)],
   ['Each extra uploaded file', '+' + n(MULTI_FILE_SURCHARGE)],
   ['Custom style preview', n(CREDIT_COSTS.stylePreview)],
   // AI Social posting is priced by the social posting route, not credits.ts.

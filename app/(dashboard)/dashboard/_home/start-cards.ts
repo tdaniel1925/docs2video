@@ -5,11 +5,12 @@ import { createHref } from '../../../_lib/create-sources'
  * want to make?", not on a list. Round B (2026-10) made them VidWiz's compact
  * quick-start tiles: icon · title · one line, three across and two rows on a
  * computer, two across on a phone. Each opens step 1 with its source already
- * chosen (/create?source=…); the commercial has its own maker; "Your brand"
- * opens Brands. A guard test checks every link lands somewhere real.
+ * chosen (/create?source=…); "Your brand" opens Brands. A guard test checks
+ * every link lands somewhere real. There is no commercial tile: commercials
+ * are no longer made in the app (owner, 2026-11-15).
  */
 export type StartCard = {
-  key: 'document' | 'website' | 'idea' | 'paste' | 'commercial' | 'brand'
+  key: 'document' | 'website' | 'idea' | 'paste' | 'brand'
   title: string
   text: string
   href: string
@@ -20,7 +21,6 @@ export const START_CARDS: StartCard[] = [
   { key: 'website', title: 'From a website', text: 'Paste a link and it reads the page', href: createHref('url') },
   { key: 'idea', title: 'From an idea', text: 'Describe it in a sentence; AI writes it', href: createHref('ai') },
   { key: 'paste', title: 'Paste your text', text: 'Already have the words', href: createHref('paste') },
-  { key: 'commercial', title: 'A commercial', text: 'A short ad from a site, a PDF or an idea', href: '/create/commercial' },
   { key: 'brand', title: 'Your brand', text: 'Logo and colours for everything you make', href: '/brands' },
 ]
 

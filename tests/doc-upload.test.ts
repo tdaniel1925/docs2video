@@ -33,7 +33,7 @@ describe('document upload list', () => {
   })
 
   it('upload screens use the shared list, not their own', () => {
-    for (const f of ['app/(dashboard)/create/_components/Step1Content.tsx', 'app/(dashboard)/clients/[id]/review/page.tsx', 'app/(dashboard)/create/commercial/page.tsx']) {
+    for (const f of ['app/(dashboard)/create/_components/Step1Content.tsx', 'app/(dashboard)/clients/[id]/review/page.tsx']) {
       expect(read(f), f).toContain('DOC_UPLOAD_ACCEPT')
     }
     for (const f of ['app/(dashboard)/create/_components/uploadAndExtract.ts', 'app/api/extract-doc/upload-url/route.ts']) {
@@ -60,7 +60,7 @@ describe('document upload list', () => {
   })
 
   it('photo and logo pickers only offer types the upload routes accept', () => {
-    for (const f of ['app/(dashboard)/settings/page.tsx', 'app/(onboarding)/setup/page.tsx', 'app/(dashboard)/brands/[id]/page.tsx', 'app/(dashboard)/create/commercial/page.tsx']) {
+    for (const f of ['app/(dashboard)/settings/page.tsx', 'app/(onboarding)/setup/page.tsx', 'app/(dashboard)/brands/[id]/page.tsx']) {
       expect(read(f), f).not.toContain('image/svg+xml')
     }
   })

@@ -54,7 +54,7 @@ export const HOW_TO: HowToEntry[] = [
     title: 'Home',
     intro: 'Start something new, and see who needs you today.',
     steps: [
-      'To start something new, pick a tile under **Create**: **From a document**, **From a website**, **From an idea**, **Paste your text** or **A commercial**. Step 1 opens with that choice already made. **Your brand** opens your logos and colours.',
+      'To start something new, pick a tile under **Create**: **From a document**, **From a website**, **From an idea** or **Paste your text**. Step 1 opens with that choice already made. **Your brand** opens your logos and colours.',
       'Under **Today’s clients** are the people who need you — someone who **Clicked to book**, **Watched it**, or hasn’t opened it yet. Each card has the next thing to do, like **Send the follow-up**. A client who asked a question gets a card with **Check the answer**; a policy anniversary coming up gets one with **Prepare review**.',
       '**Recent** lists your latest videos and presentations and where each one is at. Press **Continue** on a draft or **Open** on the rest. **See all** opens your Library — its number counts the same things as the Library’s **All** tab.',
       'The bell shows notes from the last 30 days: what’s ready, and anything that **Didn’t finish** (press it to open that video and try again). A note that repeated shows once. Older notes are under Activity.',
@@ -73,7 +73,6 @@ export const HOW_TO: HowToEntry[] = [
       'It opens on what you picked on Home. Drop your file in the big box (up to 5 files) — or press **Use a website**, **Paste text** or **Describe an idea** to switch.',
       'Optional: under **For**, pick one of your clients, press **+ New** to add one, or **Find** to search the rest. Under **Goal**, say what it should get them to do.',
       'Press **Read it →** in the bar at the bottom. If something is missing, the bar says what — press **Show me** to jump to it. While it reads, each stage gets a tick as it really finishes.',
-      'Making a commercial instead? Press **Start a commercial**.',
     ],
     helpHref: '/help/creating-videos',
     asks: ['Which files can I upload?', 'Can it read my website instead?', 'Is anything charged on this step?', 'Do I have to pick a client?'],

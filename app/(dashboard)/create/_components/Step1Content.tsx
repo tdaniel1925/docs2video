@@ -553,11 +553,6 @@ export default function Step1Content() {
         </div>
       ) : null}
 
-      {/* Other things this account can make. */}
-      <p className="cf-hint">
-        Making a commercial instead? <a href="/create/commercial">Start a commercial</a>
-      </p>
-
       <BottomBar
         label="Next step"
         info="Free"

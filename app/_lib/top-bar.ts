@@ -68,7 +68,8 @@ export function isFocusPath(pathname: string): boolean {
 }
 
 /** What the middle of the focus header says on /create pages that aren't one
- *  of the four steps (the commercial maker has its own single screen). */
+ *  of the four steps. */
 export function focusTitle(pathname: string): string {
-  return pathname.startsWith('/create/commercial') ? 'New commercial' : 'New project'
+  void pathname
+  return 'New project'
 }

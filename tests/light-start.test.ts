@@ -184,7 +184,6 @@ describe('a cardless account can NOT start a real render (or spend at all)', () 
     const theme = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
     expect(theme).toMatch(/isPres && quote\?\.blockedReason === 'card_required'/)
     expect(theme).toMatch(/g\.code === 'card_required'\) \{\s*router\.push\(`\/setup-payment\?next=/)
-    expect(read('app/(dashboard)/create/commercial/page.tsx')).toMatch(/data\?\.code === 'card_required'/)
   })
 
   it('a cardless account is sent to add a card before buying a credit pack (it could not spend it)', () => {

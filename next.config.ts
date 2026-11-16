@@ -50,6 +50,12 @@ const nextConfig: NextConfig = {
       // The old /templates page only. Its /templates/:path* rule also caught
       // the video templates' own pictures and previews (public/templates/…),
       // so every template card on the Look step came up blank (2026-10-19).
+      // Commercials are no longer made in the app (owner, 2026-11-15: "remove
+      // this from app"). Old links land on the video maker and Help. Not
+      // permanent, so a browser does not remember it if they come back. The
+      // public API (/api/v1/commercials) and the MCP tool still make them.
+      { source: '/create/commercial', destination: '/create', permanent: false },
+      { source: '/help/commercials', destination: '/help', permanent: false },
       { source: '/templates', destination: '/dashboard', permanent: true },
       { source: '/templates/:path((?!.*\\.(?:jpe?g|png|webp|gif|svg|json)$).*)?', destination: '/dashboard', permanent: true },
     ]

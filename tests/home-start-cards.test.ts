@@ -36,21 +36,18 @@ describe('?source= on step 1', () => {
 })
 
 describe('the start cards', () => {
-  it('are the six round-B tiles, in order (two rows of three)', () => {
-    expect(START_CARDS.map((c) => c.title)).toEqual(['From a document', 'From a website', 'From an idea', 'Paste your text', 'A commercial', 'Your brand'])
+  it('are the five tiles, in order (no commercial: owner, 2026-11-15)', () => {
+    expect(START_CARDS.map((c) => c.title)).toEqual(['From a document', 'From a website', 'From an idea', 'Paste your text', 'Your brand'])
     // One line each, short enough for a compact tile.
     for (const c of START_CARDS) expect(c.text.length, c.title).toBeLessThanOrEqual(45)
   })
 
-  it('each opens step 1 with a source step 1 knows — the commercial opens its own maker', () => {
-    const want: Record<string, string | null> = { document: 'upload', website: 'url', idea: 'idea', paste: 'text', commercial: null, brand: null }
+  it('each opens step 1 with a source step 1 knows', () => {
+    const want: Record<string, string | null> = { document: 'upload', website: 'url', idea: 'idea', paste: 'text', brand: null }
     for (const card of START_CARDS) {
       const url = new URL(card.href, 'https://x.test')
       if (card.key === 'brand') {
         expect(url.pathname).toBe('/brands')
-      } else if (card.key === 'commercial') {
-        expect(url.pathname).toBe('/create/commercial')
-        expect(existsSync(path.join(ROOT, 'app/(dashboard)/create/commercial/page.tsx'))).toBe(true)
       } else {
         expect(url.pathname, card.title).toBe('/create')
         expect(methodFromSource(url.searchParams.get('source')), card.title).toBe(want[card.key])
