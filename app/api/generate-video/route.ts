@@ -1221,7 +1221,8 @@ export async function POST(request: Request) {
     // explainer engine draws — so they keep their own pipeline below.
     // THE FILM ENGINE (film-engine.ts, FILM_ENGINE): when it is on for this user, their kit videos are drawn by it
     // (the kit branch below), so the explainer engine is not used for them.
-    const filmOn = videoStyle === 'kit' && await filmEngineFor(user.id)
+    // A TEMPLATE pick is the explainer engine's to make: the film engine never takes it (it would drop the template).
+    const filmOn = videoStyle === 'kit' && !videoTemplateId && await filmEngineFor(user.id)
     if (!isDrawn && !filmOn && await explainerEngineFor(user.id)) {
       try {
         await admin.from('videos').update({ progress_detail: 'Designing your scenes...', progress_pct: 14, progress_updated_at: new Date().toISOString() }).eq('id', videoId)

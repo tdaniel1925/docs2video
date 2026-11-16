@@ -93,9 +93,20 @@ describe('the free preview', () => {
 describe('the route', () => {
   const route = read('app/api/generate-video/route.ts')
   it('decides the film engine before the explainer, and skips the explainer for it', () => {
-    const film = route.indexOf("const filmOn = videoStyle === 'kit' && await filmEngineFor(user.id)")
+    const film = route.indexOf("const filmOn = videoStyle === 'kit' && !videoTemplateId && await filmEngineFor(user.id)")
     expect(film).toBeGreaterThan(route.indexOf('const deducted = await deductCredits('))
     expect(film).toBeLessThan(route.indexOf('if (!isDrawn && !filmOn && await explainerEngineFor(user.id)) {'))
+  })
+  // 2026-11-16: with FILM_ENGINE=on a TEMPLATE pick (videoStyle 'kit' + templateId) went to the film engine and
+  // the template was dropped. A template is the explainer engine's; the look step and storyboard agree.
+  it('never gives a template pick to the film engine', () => {
+    expect(route).toContain("const filmOn = videoStyle === 'kit' && !videoTemplateId && await filmEngineFor(user.id)")
+    expect(route.indexOf('const videoTemplateId')).toBeLessThan(route.indexOf('const filmOn ='))
+    const look = read('app/(dashboard)/create/_components/steps/LookVoiceReview.tsx')
+    expect(look).toContain("const filmLook: FilmLookId | null = filmOn && !(output === 'video' && templateId) ?")
+    expect(look.indexOf('const [templateId, setTemplateId]')).toBeLessThan(look.indexOf('const filmLook: FilmLookId'))
+    const scenes = read('app/(dashboard)/create/_components/steps/StoryScenes.tsx')
+    expect(scenes).toContain('&& !isVideoTemplate(draftData?.templateId)')
   })
   it('marks the kit plan for the film engine, with the picked look', () => {
     const at = route.indexOf('if (filmOn) {\n            kitPlan.engine = \'film\'')

@@ -37,6 +37,7 @@ import SceneCard from '../story/SceneCard'
 import { StoryboardEditor, StoryboardTile, useStoryboard } from '../story/Storyboard'
 import Dialog from '../../../../_components/kit/Dialog'
 import LengthPicker from '../story/LengthPicker'
+import { isVideoTemplate } from '../../../../_lib/video-templates'
 import { LENGTH_ANCHOR, lengthChange, lengthName, lengthOf, type StoryLength } from '../story/lengths'
 import { Note } from '../../../../_components/kit'
 import BottomBar from '../workspace/BottomBar'
@@ -120,7 +121,8 @@ export default function StoryScenes({ part }: { part: 'story' | 'scenes' }) {
     fetch('/api/kit-engine').then((r) => r.json()).then((j) => { if (alive) setFilmOn(!!j?.film) }).catch(() => {})
     return () => { alive = false }
   }, [part])
-  const boardOn = filmOn && part === 'scenes' && outputType === 'video' && scenes.length > 0
+  // A template is made by the explainer engine, not the film engine, so its storyboard would show the wrong design.
+  const boardOn = filmOn && part === 'scenes' && outputType === 'video' && scenes.length > 0 && !isVideoTemplate(draftData?.templateId)
   const board = useStoryboard(videoId, boardOn, scenes)
   const [boardIdx, setBoardIdx] = useState<number | null>(null)
   // What the voice says changed in the editor: lay the storyboard out again once the story is saved.

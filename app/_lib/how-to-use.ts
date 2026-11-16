@@ -126,7 +126,7 @@ export const HOW_TO: HowToEntry[] = [
     intro: 'Video or presentation, and the look every scene wears.',
     steps: [
       'Under **Make**, pick **Video** or **Presentation**. Then press a look card to pick it. **BEST** marks the one we recommend (**Animated slides**); **See examples** shows more of the one you picked.',
-      'The ready-made looks are 3D film looks: twelve cards (Animated slides, Editorial, Bright, Infographic, Midnight, Heritage, Warm Editorial, Corporate Bold, Fresh Mint, Swiss Corporate, Luxury Gold, Cinematic Night), filmed with a 3D camera, same price.',
+      'Under **My looks**, the ready-made looks are 3D film looks: twelve cards (Animated slides, Editorial, Bright, Infographic, Midnight, Heritage, Warm Editorial, Corporate Bold, Fresh Mint, Swiss Corporate, Luxury Gold, Cinematic Night), filmed with a 3D camera, same price.',
       'Picked **Drawn slides**? A **Drawing style** line appears under the cards: **3D infographic** (picked for you), **Illustrated** or **Classic**.',
       'Uploaded a PDF? **Walk-through** films its real pages: the camera moves to each key number, a box goes around it and a card brings it up large. Without an uploaded PDF the card says **Needs a PDF you uploaded**.',
       'Want your own colours, fonts and feel — from a picture, a slide or a website you like? Press **Create your own look**; after that **Your look** comes first in the cards.',

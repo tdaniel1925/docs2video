@@ -170,14 +170,14 @@ export default function CreatingVideosPage() {
           <strong style={INK}> Free preview</strong> draws your first scene in the style you picked.
         </p>
         <p style={P}>
-          <strong style={INK}>3D film looks</strong> (NEW) — the ready-made look cards are now filmed with a 3D camera: scenes have depth and light,
-          numbers count up and charts draw themselves. There are twelve: Animated slides, Editorial, Bright, Infographic, Midnight, Heritage, Warm
+          <strong style={INK}>3D film looks</strong> (NEW) — on the look step, open the <strong style={INK}>My looks</strong> tab. Its ready-made
+          look cards are filmed with a 3D camera: scenes have depth and light, numbers count up and charts draw themselves. There are twelve: Animated slides, Editorial, Bright, Infographic, Midnight, Heritage, Warm
           Editorial, Corporate Bold, Fresh Mint, Swiss Corporate, Luxury Gold and Cinematic Night. Each card says in a few words what it looks like.
           They cost the same as any other look. <strong style={INK}>Your look</strong>, <strong style={INK}>Drawn slides</strong> and{' '}
-          <strong style={INK}>Walk-through</strong> stay as they are.
+          <strong style={INK}>Walk-through</strong> stay as they are, and so do the eight <strong style={INK}>Templates</strong>.
         </p>
         <p style={P}>
-          <strong style={INK}>Your storyboard</strong> (NEW) — on the <strong style={INK}>Scenes</strong> step, each scene shows a still picture of how it
+          <strong style={INK}>Your storyboard</strong> (NEW) — when you picked a 3D film look, on the <strong style={INK}>Scenes</strong> step each scene shows a still picture of how it
           will look in your video, with the words on screen and a check beside each number (for example &quot;$500,000 is in your document&quot;). Press{' '}
           <strong style={INK}>Change</strong> on a scene to change what the voice says or the words on screen; a number that isn&apos;t in your document is
           refused, with the reason. Drag a scene to move it. Changed the story? Press <strong style={INK}>Update the storyboard</strong>. When you press{' '}

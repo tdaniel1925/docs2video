@@ -121,12 +121,13 @@ function MakeItYours({ part }: { part: 'look' | 'voice' | 'review' }) {
   useEffect(() => {
     if (draft && !hasPdf && videoLook === WALKTHROUGH_LOOK_ID) setVideoLook(RECOMMENDED_VIDEO_LOOK)
   }, [draft, hasPdf, videoLook])
-  // With the film engine on, a kit card (or nothing picked yet) draws as its film twin; Your look / Drawn / Walk-through stay themselves.
-  const kitNear = KIT_LOOK_FOR_CARD[videoLook]
-  const filmLook: FilmLookId | null = filmOn ? (filmPick ?? (kitNear && kitNear !== 'custom' ? filmLookForDraft({ kitLook: kitNear }) : null)) : null
-  const chosenStyle = filmLook ? filmStyleForCard(filmCardId(filmLook))! : styleForCard(videoLook, kitOn)
   // ONE OF THE EIGHT TEMPLATES (video-templates.ts), or none — a look below.
   const [templateId, setTemplateId] = useState<VideoTemplateId | null>(null)
+  // With the film engine on, a kit card (or nothing picked yet) draws as its film twin; Your look / Drawn / Walk-through stay themselves.
+  // A TEMPLATE is made by the explainer engine, never the film engine: with one picked there is no film look.
+  const kitNear = KIT_LOOK_FOR_CARD[videoLook]
+  const filmLook: FilmLookId | null = filmOn && !(output === 'video' && templateId) ? (filmPick ?? (kitNear && kitNear !== 'custom' ? filmLookForDraft({ kitLook: kitNear }) : null)) : null
+  const chosenStyle = filmLook ? filmStyleForCard(filmCardId(filmLook))! : styleForCard(videoLook, kitOn)
   // The template's own colors, or the brand's (owner, 2026-10-18). Its own by default.
   const [templateColors, setTemplateColors] = useState<TemplateColors>('template')
   // The chosen brand's own colors (never the account's): the choice shows only when it has some.
