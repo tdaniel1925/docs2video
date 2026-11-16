@@ -5,7 +5,11 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
-## 2026-11-14 — The film engine: every kit look drawn with a 3D camera, twelve looks (DEPLOYED 2026-11-14: Lambda site docs2video, Vercel 6aae81d5, FILM_ENGINE=admins)
+## 2026-11-16 — 3D film looks ON FOR EVERYONE (FILM_ENGINE=on)
+
+Owner: "make the 3D video available to all". Proved first: an admin film finished live 2026-11-15. Vercel production FILM_ENGINE changed admins → on, production redeployed (same code). Checked live with a throwaway non-admin login: GET /api/kit-engine → {"on":true,"film":true}; the test login was deleted. Help updated: creating-videos (3D film looks + Your storyboard), how-to-use step 4, help-chat. Note: `vercel env pull` shows these switches as empty (sensitive); check with /api/kit-engine instead. To roll back: set FILM_ENGINE=admins and redeploy.
+
+## 2026-11-14 — The film engine: every kit look drawn with a 3D camera, twelve looks (DEPLOYED 2026-11-14: Lambda site docs2video, Vercel 6aae81d5, FILM_ENGINE=admins; on for everyone 2026-11-16)
 
 Owner: after the "Code Films" samples (C:\dev\1 - Code Films), "I want all current styles in Docs2Video to be able to be rendered by this engine", then approved twelve look samples and the advisor cover/closing. Plan: docs/FILM-ENGINE-PLAN.md.
 - **What it is:** a second way of DRAWING a scene-kit plan. `KitPlan.engine: 'film'` + `filmTheme` (spec.ts); `KitVideo` draws such a plan with `remotion/src/film/*` (FilmView, kitscenes, core, theme) instead of the kit views. Voice, music, timeline (`kitTimeline`), planner, pricing, refunds, the render service and Lambda are the kit's, UNCHANGED. Sound effects in film mode: one soft hit under the closing only (owner rule).
