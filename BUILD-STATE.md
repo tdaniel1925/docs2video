@@ -5,6 +5,14 @@
 **Build:** ✅ Compiles clean
 **Deploy:** Vercel (docs2video.com, text2art.app)
 
+## 2026-11-16 — "Make your first video" film + first-login pop-up
+
+Owner: "a make your first video pop-up that will show up when a new user first logs in", a quick walkthrough of making a video. Film approved ("that video was perfect").
+- **Film** (1:26): `remotion/src/showcase/D2vHowTo.tsx` (the SvToday screen-film engine in D2V navy/blue), entry `remotion/src/howto-entry.tsx`. Real captures of live docs2video.com by throwaway accounts walking a made-up quote through all eight steps (assets in gitignored `remotion/public/showcase/d2vhowto`: PNGs, `boxes.json`, `vo.mp3/json`, `result.mp4`). Voice: one take, fal ElevenLabs v3 Sarah (`remotion/scripts/gen-d2vhowto-vo.mjs`); render `scripts/howto-render.mjs` (segments), stills `scripts/howto-stills.mjs`, web cut `svfilm-webcut.mjs`. Master + web in `remotion/out/howto/`. Checks: 0 clicks, -14 LUFS, 2659/2659 frames.
+- **App copy:** `public/help/make-your-first-video.mp4` (720p, 9 MB) + `.jpg` poster.
+- **Pop-up:** `app/(dashboard)/dashboard/_home/FirstVideoWelcome.tsx` in Home's no-project welcome line. Opens by itself when the account has no project and `user_metadata.welcome_video_seen` is not set; any close sets it (supabase `auth.updateUser`, no migration). "Watch how (1:25)" link reopens it; footer "Watch later" / "Start my first video" (→ /create?source=upload). The unused Loom `NEXT_PUBLIC_GETTING_STARTED_VIDEO` link is gone; the welcome line now says Make it is on "the last step" (was "step 3"). Help: getting-started rows 3-5 rewritten for the 8 steps + the film. Test: tests/first-video-welcome.test.ts.
+- Test accounts made for the captures (howto-capture@example.com, howto-<time>@example.com) are deleted after.
+
 ## 2026-11-16 — 3D film looks ON FOR EVERYONE (FILM_ENGINE=on)
 
 Owner: "make the 3D video available to all". Proved first: an admin film finished live 2026-11-15. Vercel production FILM_ENGINE changed admins → on, production redeployed (same code). Checked live with a throwaway non-admin login: GET /api/kit-engine → {"on":true,"film":true}; the test login was deleted. Help updated: creating-videos (3D film looks + Your storyboard), how-to-use step 4, help-chat. Note: `vercel env pull` shows these switches as empty (sensitive); check with /api/kit-engine instead. To roll back: set FILM_ENGINE=admins and redeploy. **Same day, bug found and fixed:** new users start on the Templates tab; with the switch on, a TEMPLATE pick still saved videoStyle kit + a film look, so generate-video sent it to the film engine and the template was dropped. Switch set back to admins (no video was made meanwhile), then fixed: generate-video `filmOn` needs `!videoTemplateId`; the look step gives no film look while a template is picked; the storyboard is off for template projects (tests/film-engine.test.ts). The twelve 3D looks live on the look step's **My looks** tab (help says so).

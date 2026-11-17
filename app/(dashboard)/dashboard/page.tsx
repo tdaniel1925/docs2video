@@ -10,6 +10,7 @@ import { Button, Card, Chip, EmptyState, Note, kitButtonClass, type ChipTone } f
 import Greeting from './_home/Greeting'
 import { loadHomeData, type ProjectRow } from './_home/load'
 import { loadHomeExtras } from './_home/load-extras'
+import FirstVideoWelcome from './_home/FirstVideoWelcome'
 import ReviewsBox from '../../_components/answers-reviews/ReviewsBox'
 import { discardDraft, dismissFinished } from './_home/actions'
 import { peopleCount, type ActionCard, type Tone } from './_home/derive'
@@ -18,14 +19,9 @@ import { START_CARDS, type StartCard } from './_home/start-cards'
 import s from './_home/home.module.css'
 import { amountLabel, amountNoun, creditsToMinutes } from '../../_lib/plan-pricing'
 
-// Loom walkthrough — set NEXT_PUBLIC_GETTING_STARTED_VIDEO to a real Loom embed
-// URL to show the link in the welcome line. Unset → no link (avoids a dead
-// placeholder link for every new user).
-const GETTING_STARTED_VIDEO = process.env.NEXT_PUBLIC_GETTING_STARTED_VIDEO || ''
 // The light-start note's title (the How-to-use guide quotes it).
 const CARDLESS_TITLE = 'Try it before you add a card.'
 
-const HAS_GETTING_STARTED_VIDEO = GETTING_STARTED_VIDEO.includes('loom.com/embed/') && !GETTING_STARTED_VIDEO.includes('YOUR_LOOM_ID')
 
 /*
  * HOME, in the order the sibling apps use: what do you want to make (start
@@ -142,10 +138,9 @@ export default async function HomePage() {
         </div>
         {!home.hasAnyProject && (
           <p className={s.welcome}>
-            Welcome! Pick how you’d like to start. Nothing is made or charged until you press <strong>Make it</strong> on step 3.{' '}
-            {HAS_GETTING_STARTED_VIDEO && (
-              <><a href={GETTING_STARTED_VIDEO.replace('/embed/', '/share/')} target="_blank" rel="noopener noreferrer">Watch the 2-minute walkthrough</a>{' · '}</>
-            )}
+            Welcome! Pick how you’d like to start. Nothing is made or charged until you press <strong>Make it</strong> on the last step.{' '}
+            {/* The how-to film: opens by itself the first time (never seen, no project yet), then on this link. */}
+            <FirstVideoWelcome autoOpen={!user.user_metadata?.welcome_video_seen} />{' · '}
             <Link href="/help/getting-started">Read the getting-started guide</Link>
           </p>
         )}
