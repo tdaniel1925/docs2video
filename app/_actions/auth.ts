@@ -6,6 +6,7 @@ import { createAdminClient } from '../_lib/supabase/admin'
 import { siteUrl } from '../_lib/site-url'
 import { sendWelcomeEmailOnce } from '../_lib/welcome-email'
 import { getAffiliateByCode } from '../_lib/affiliate'
+import { redeemCompCode } from '../_lib/comp-codes'
 import { safeNextPath } from '../_lib/safe-redirect'
 import { getBrand } from '../_lib/brand-server'
 import { afterSignupPath } from '../_lib/light-start'
@@ -66,13 +67,20 @@ export async function signup(formData: FormData) {
     } catch { /* non-fatal */ }
   }
 
+  // COMP CODE (comp-codes.ts): the code box also takes an invite code that makes
+  // the account fully free — no card, no limits. A comp code is not a referral.
+  let comped = false
+  if (referredBy && data.user) {
+    comped = await redeemCompCode(referredBy, String(formData.get('email') ?? ''), data.user.id)
+  }
+
   // Referral attribution. `referrals` belongs to the affiliate program:
   // affiliate_id is an AFFILIATES row id (not a profile id) and the status
   // values are clicked / signed_up / converted / paid — the same shape
   // /api/affiliate/track-signup and the Stripe commission code write. The old
   // insert here used the referrer's PROFILE id and status 'pending', so it
   // was rejected by the table and every sign-up referral was lost.
-  if (referredBy && data.user) {
+  if (referredBy && data.user && !comped) {
     try {
       const admin = createAdminClient()
       const affiliate = await getAffiliateByCode(referredBy)

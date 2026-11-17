@@ -66,7 +66,7 @@ export default function GettingStartedPage() {
         <h2 style={H2}>Creating Your Account</h2>
         <div style={BODY}>
           <Row n={1}>
-            <strong style={INK}>Visit the sign-up page.</strong> Fill in your name, email address and a password.
+            <strong style={INK}>Visit the sign-up page.</strong> Fill in your name, email address and a password. Were you given an invite code? Type it in <strong style={INK}>Referral or invite code</strong>, and sign up with the email it was made for.
           </Row>
           <Row n={2}>
             <strong style={INK}>Confirm your email.</strong> We send you an email with a link. Click it to confirm your address.

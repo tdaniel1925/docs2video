@@ -101,13 +101,13 @@ function SignupForm() {
           />
         </div>
         <div className="form-group">
-          <label className="input-label" htmlFor="referral_code">Referral Code <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
+          <label className="input-label" htmlFor="referral_code">Referral or invite code <span style={{ fontWeight: 400, color: 'var(--ink-light)' }}>(optional)</span></label>
           <input
             id="referral_code"
             name="referred_by"
             type="text"
             className="input"
-            placeholder="Enter referral code"
+            placeholder="Enter a referral or invite code"
             defaultValue={refCode}
           />
         </div>
