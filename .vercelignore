@@ -6,4 +6,7 @@ remotion/public/dir-*.mp3
 remotion/public/dir-*.png
 scripts/mockups
 **/*.mp4
+# ...but the site's own videos ARE served (home tour film, look samples, industry
+# demos, the first-video pop-up). Without this every /public .mp4 was a 404.
+!public/**/*.mp4
 .git

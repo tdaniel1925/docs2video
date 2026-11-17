@@ -301,6 +301,8 @@
   font-size: var(--fs-ui);
 }
 .kit-dialog-foot a { color: var(--link); font-weight: 700; }
+/* A link styled as the main button keeps the button's text colour (it read link-blue on blue). */
+.kit-dialog-foot a.kit-btn--primary { color: var(--on-cta); }
 .kit-dialog-video { display: block; width: 100%; margin-bottom: 16px; border-radius: 8px; background: var(--ink); }
 
 /* Numbered steps (navy circles). */
