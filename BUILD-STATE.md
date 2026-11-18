@@ -9,6 +9,11 @@
 
 Owner: "give Paul a code to enter at sign up that will comp him and not require credit card". `app/_lib/comp-codes.ts`: codes in app_settings key `comp_codes` (JSON list: code, email lock or null, usesLeft, redeemed log; no migration). Sign-up (`app/_actions/auth.ts`) tries the code box first as a comp code; a match sets the profile to enterprise + is_beta + card_on_file (same as admin promo-user) and grants the Enterprise balance; a comp code is not recorded as a referral. The box is now "Referral or invite code". `?ref=CODE` on /signup pre-fills it. Tests: tests/comp-codes.test.ts. To add a code: upsert the JSON list in app_settings (no admin screen yet).
 
+## 2026-11-18 — First-video pop-up no longer auto-plays
+
+- Owner: the film must not start by itself. FirstVideoWelcome now shows a "Watch this before you start" play button over the poster (filmFrame/filmPlay in home.module.css); controls appear once it plays; closing pauses it. Test in tests/first-video-welcome.test.ts.
+- Also 2026-11-17: .vercelignore had **/*.mp4, so every public/ video 404d live since July; now !public/**/*.mp4.
+
 ## 2026-11-16 — "Make your first video" film + first-login pop-up
 
 Owner: "a make your first video pop-up that will show up when a new user first logs in", a quick walkthrough of making a video. Film approved ("that video was perfect").

@@ -31,4 +31,10 @@ describe('first-video pop-up', () => {
     expect(page).not.toContain('on step 3.')
     expect(page).not.toContain('GETTING_STARTED_VIDEO')
   })
+  it('never starts by itself: a "Watch this before you start" button plays it', () => {
+    expect(pop).not.toContain('v?.play()')
+    expect(pop).not.toContain('autoPlay')
+    expect(pop).toContain('Watch this before you start')
+    expect(pop).toContain('onClick={play}')
+  })
 })

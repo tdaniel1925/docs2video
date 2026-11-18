@@ -23,19 +23,23 @@ export const FIRST_VIDEO_FILM = { src: '/help/make-your-first-video.mp4', poster
 
 export default function FirstVideoWelcome({ autoOpen }: { autoOpen: boolean }) {
   const [open, setOpen] = useState(false)
+  const [started, setStarted] = useState(false)
   const marked = useRef(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   useEffect(() => { if (autoOpen) setOpen(true) }, [autoOpen])
 
-  // Try to start with sound; a browser that blocks it just shows the play button.
-  useEffect(() => {
-    if (!open) return
-    const v = videoRef.current
-    v?.play().catch(() => {})
-  }, [open])
+  // It never starts by itself (owner, 2026-11-18): a big "Watch this before you
+  // start" button sits over the picture until they press it.
+  useEffect(() => { if (open) setStarted(false) }, [open])
+
+  function play() {
+    setStarted(true)
+    videoRef.current?.play().catch(() => {})
+  }
 
   async function close() {
+    videoRef.current?.pause()
     setOpen(false)
     if (marked.current) return
     marked.current = true
@@ -59,15 +63,25 @@ export default function FirstVideoWelcome({ autoOpen }: { autoOpen: boolean }) {
           </>
         )}
       >
-        <video
-          ref={videoRef}
-          src={FIRST_VIDEO_FILM.src}
-          poster={FIRST_VIDEO_FILM.poster}
-          controls
-          playsInline
-          preload="metadata"
-          className={s.filmVideo}
-        />
+        <div className={s.filmFrame}>
+          <video
+            ref={videoRef}
+            src={FIRST_VIDEO_FILM.src}
+            poster={FIRST_VIDEO_FILM.poster}
+            controls={started}
+            playsInline
+            preload="metadata"
+            className={s.filmVideo}
+            onPlay={() => setStarted(true)}
+          />
+          {!started && (
+            <button type="button" className={s.filmPlay} onClick={play}>
+              <span className={s.filmPlayIcon} aria-hidden="true">▶</span>
+              <span className={s.filmPlayText}>Watch this before you start</span>
+              <span className={s.filmPlayLen}>{FIRST_VIDEO_FILM.length}</span>
+            </button>
+          )}
+        </div>
       </Dialog>
     </>
   )
